@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { listPendingCommands, retryPendingCommand } from "@/lib/api-client";
 import {
   COMMAND_RECOVERY_CHANGED_EVENT,
@@ -12,7 +13,6 @@ import { getAuthorizationScope } from "@/lib/auth-scope";
 import { getLedgerError } from "@/lib/ledger/errors";
 import { t } from "@/lib/ledger/i18n";
 import { useLocale } from "./locale";
-import { Callout } from "./kit/page";
 import { Button } from "./ui/button";
 
 /** The baseline journal owns all bodies, signatures, keys, locks and inspections. */
@@ -26,7 +26,8 @@ export function LedgerRecoveryPanel() {
       items: PendingCommand[];
       error: string;
     }>({ scope: "", items: [], error: "" }),
-    [busy, setBusy] = useState<string | null>(null);
+    [busy, setBusy] = useState<string | null>(null),
+    [dismissed, setDismissed] = useState<string | null>(null);
   const generation = useRef(0),
     inFlight = useRef(false);
   const cancelLoad = useCallback(() => {
@@ -62,73 +63,81 @@ export function LedgerRecoveryPanel() {
       window.removeEventListener("storage", storage);
     };
   }, [load, cancelLoad]);
+  const signature = state.items.map((item) => item.id).join(",") + "|" + state.error;
   if (
     state.scope !== scope ||
     privateAccessStatus !== "ready" ||
-    (!state.items.length && !state.error)
+    (!state.items.length && !state.error) ||
+    dismissed === signature
   )
     return null;
+  // Nổi ở góc trên, không đẩy nội dung trang; đóng thì ẩn tới khi danh sách đổi.
   return (
-    <div data-testid="ledger-recovery-panel" className="px-4 py-3 sm:px-6">
-      <Callout tone="warn" title={t("Yêu cầu cần đối soát")}>
-        <p>{t("Kiểm tra kết quả yêu cầu đã gửi trước khi tạo yêu cầu mới.")}</p>
-        {state.error && (
-          <p role="alert" className="mt-2">
-            {state.error}
-          </p>
-        )}
-        <ul className="mt-3 flex flex-col gap-2">
-          {state.items.map((item) => (
-            <li
-              key={item.id}
-              className="flex flex-wrap items-center justify-between gap-2"
+    <div
+      data-testid="ledger-recovery-panel"
+      className="fixed right-3 top-16 z-40 w-[min(22rem,calc(100vw-1.5rem))] rounded-md border border-warn/30 bg-warn-bg px-3 py-2.5 text-[12.5px] shadow-lg"
+    >
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-warn">{t("Yêu cầu cần đối soát")}</div>
+          <p className="text-ink-2">{t("Kiểm tra kết quả yêu cầu đã gửi trước khi tạo yêu cầu mới.")}</p>
+        </div>
+        <button
+          type="button"
+          aria-label={t("Đóng thông báo")}
+          onClick={() => setDismissed(signature)}
+          className="-mr-1 grid size-6 shrink-0 place-items-center rounded text-ink-2 hover:bg-black/5 hover:text-ink"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+      {state.error && (
+        <p role="alert" className="mt-1.5 text-danger">
+          {state.error}
+        </p>
+      )}
+      <ul className="mt-2 flex flex-col gap-1.5">
+        {state.items.map((item) => (
+          <li key={item.id} className="flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate font-mono text-[11.5px]" title={item.operation}>
+              {item.operation}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              disabled={busy !== null}
+              onClick={async () => {
+                if (inFlight.current) return;
+                inFlight.current = true;
+                setBusy(item.id);
+                try {
+                  await retryPendingCommand(item.id);
+                  await qc.invalidateQueries();
+                  await load();
+                } catch (cause) {
+                  setState((current) => ({
+                    ...current,
+                    error:
+                      getLedgerError(cause)?.message ??
+                      t("Yêu cầu vẫn cần đối soát"),
+                  }));
+                } finally {
+                  inFlight.current = false;
+                  setBusy(null);
+                }
+              }}
             >
-              <span className="break-words font-mono text-[12px]">
-                {item.operation}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy !== null}
-                onClick={async () => {
-                  if (inFlight.current) return;
-                  inFlight.current = true;
-                  setBusy(item.id);
-                  try {
-                    await retryPendingCommand(item.id);
-                    await qc.invalidateQueries();
-                    await load();
-                  } catch (cause) {
-                    setState((current) => ({
-                      ...current,
-                      error:
-                        getLedgerError(cause)?.message ??
-                        t("Yêu cầu vẫn cần đối soát"),
-                    }));
-                  } finally {
-                    inFlight.current = false;
-                    setBusy(null);
-                  }
-                }}
-              >
-                {busy === item.id ? t("Đang kiểm tra…") : t("Đối soát")}
-              </Button>
-            </li>
-          ))}
-        </ul>
-        {!state.items.length && state.error && (
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            className="mt-3"
-            onClick={() => void load()}
-          >
-            {t("Thử lại")}
-          </Button>
-        )}
-      </Callout>
+              {busy === item.id ? t("Đang kiểm tra…") : t("Đối soát")}
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {!state.items.length && state.error && (
+        <Button variant="outline" size="xs" type="button" className="mt-2" onClick={() => void load()}>
+          {t("Thử lại")}
+        </Button>
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/f
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
+import { checkQuantityLimits, maxQuantityHint } from "@/lib/ledger/quantity-limit";
 import {EvidencePanel} from "@/components/ledger/workspace/evidence-panel";
 import { PhotoInput, usePhotoUploads } from "./handover-photos";
 
@@ -110,6 +111,9 @@ function LotSheet({ lot, ownSites, onClose }: { lot: StockLot | null; ownSites: 
   const held = lot.siteHoldings.filter((s) => Number(s.quantity) > 0);
   const siteOpts = held.map((s) => ({ value: s.siteId, label: `${s.siteName} · ${tr("khả dụng")} ${fmtNumber(s.available)}` }));
   const base = { lotId: lot.lotId, unit: lot.unit, version: lot.version };
+  const siteAvailable = (siteId: string) => lot.siteHoldings.find((s) => s.siteId === siteId)?.available;
+  const limit = (max: string | null | undefined) => (v: { quantity: string }, ctx: z.RefinementCtx) => checkQuantityLimits(ctx, [{ path: ["quantity"], value: v.quantity, max, unit: lot.unit }]);
+  const qtyLabel = tr("Số lượng ({p0})", { p0: lot.unit });
   const actions: { k: LotAction; label: string; show: boolean }[] = [
     { k: "ALLOCATE", label: tr("Phân bổ vào cơ sở"), show: primary && can("inventory.manage") && Number(lot.unallocated ?? 0) > 0 },
     { k: "TRANSFER", label: tr("Lập phiếu chuyển kho"), show: can("inventory.manage") && held.length > 0 && ownSites.length > 1 },
@@ -157,24 +161,24 @@ function LotSheet({ lot, ownSites, onClose }: { lot: StockLot | null; ownSites: 
         </div>
 
         {act.target === "ALLOCATE" && (
-          <CommandDialog {...act.props} title={tr("Phân bổ vào cơ sở")} endpoint="POST /distribution/allocations" description={tr("Đưa phần chưa xác định cơ sở vào một cơ sở đang hoạt động. Chuyển giữa hai cơ sở thì dùng phiếu chuyển kho.")} schema={z.object({ siteId: z.string().min(1, { error: () => tr("Chọn cơ sở") }), quantity: qty, reason: reason(10) })} defaultValues={{ siteId: "", quantity: lot.unallocated ?? "", reason: "" }} version={lot.version} submitLabel={tr("Phân bổ")} invalidate={INVALIDATE} run={(v, cmd) => distApi.allocate({ ...base, ...v }, cmd)}>
+          <CommandDialog {...act.props} title={tr("Phân bổ vào cơ sở")} endpoint="POST /distribution/allocations" description={tr("Đưa phần chưa xác định cơ sở vào một cơ sở đang hoạt động. Chuyển giữa hai cơ sở thì dùng phiếu chuyển kho.")} schema={z.object({ siteId: z.string().min(1, { error: () => tr("Chọn cơ sở") }), quantity: qty, reason: reason(10) }).superRefine((v, ctx) => limit(lot.unallocated)(v, ctx))} defaultValues={{ siteId: "", quantity: lot.unallocated ?? "", reason: "" }} version={lot.version} submitLabel={tr("Phân bổ")} invalidate={INVALIDATE} run={(v, cmd) => distApi.allocate({ ...base, ...v }, cmd)}>
             {(f) => (
               <>
                 <SelectField control={f.control} name="siteId" label={tr("Cơ sở")} options={ownSites.map((s) => ({ value: s.id, label: s.name }))} />
-                <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: lot.unit })} inputMode="decimal" />
+                <TextField control={f.control} name="quantity" label={qtyLabel} inputMode="decimal" hint={maxQuantityHint(lot.unallocated, lot.unit)} />
                 <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={1000} />
               </>
             )}
           </CommandDialog>
         )}
         {act.target === "TRANSFER" && (
-          <CommandDialog {...act.props} title={tr("Lập phiếu chuyển kho")} endpoint="POST /distribution/site-transfers" description={tr("Hàng rời cơ sở xuất khi xuất phiếu và chỉ vào cơ sở nhận khi xác nhận thực nhận; phần thiếu được trả về hoặc ghi hư hỏng.")} schema={z.object({ fromSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở xuất") }), toSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở nhận") }), quantity: qty, reason: reason(10), receiverUserId:z.union([z.literal("__none"),z.uuid()]), note:z.string().max(1000), dispatch: z.enum(["no", "yes"]) }).refine((v) => v.fromSiteId !== v.toSiteId, { path: ["toSiteId"], error: () => tr("Cơ sở xuất và cơ sở nhận phải khác nhau") })} defaultValues={{ fromSiteId: held[0]?.siteId ?? "", toSiteId: "", quantity: "", reason: "", receiverUserId:"__none",note:"", dispatch: "no" }} version={lot.version} submitLabel={tr("Lập phiếu")} invalidate={INVALIDATE} run={(v, cmd) => distApi.createSiteTransfer({ ...base, fromSiteId: v.fromSiteId, toSiteId: v.toSiteId, quantity: v.quantity, reason: v.reason, receiverUserId:v.receiverUserId==="__none"?undefined:v.receiverUserId,note:v.note||undefined,dispatch: v.dispatch === "yes" }, cmd)}>
+          <CommandDialog {...act.props} title={tr("Lập phiếu chuyển kho")} endpoint="POST /distribution/site-transfers" description={tr("Hàng rời cơ sở xuất khi xuất phiếu và chỉ vào cơ sở nhận khi xác nhận thực nhận; phần thiếu được trả về hoặc ghi hư hỏng.")} schema={z.object({ fromSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở xuất") }), toSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở nhận") }), quantity: qty, reason: reason(10), receiverUserId:z.union([z.literal("__none"),z.uuid()]), note:z.string().max(1000), dispatch: z.enum(["no", "yes"]) }).refine((v) => v.fromSiteId !== v.toSiteId, { path: ["toSiteId"], error: () => tr("Cơ sở xuất và cơ sở nhận phải khác nhau") }).superRefine((v, ctx) => limit(siteAvailable(v.fromSiteId))(v, ctx))} defaultValues={{ fromSiteId: held[0]?.siteId ?? "", toSiteId: "", quantity: "", reason: "", receiverUserId:"__none",note:"", dispatch: "no" }} version={lot.version} submitLabel={tr("Lập phiếu")} invalidate={INVALIDATE} run={(v, cmd) => distApi.createSiteTransfer({ ...base, fromSiteId: v.fromSiteId, toSiteId: v.toSiteId, quantity: v.quantity, reason: v.reason, receiverUserId:v.receiverUserId==="__none"?undefined:v.receiverUserId,note:v.note||undefined,dispatch: v.dispatch === "yes" }, cmd)}>
             {(f) => (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <SelectField control={f.control} name="fromSiteId" label={tr("Cơ sở xuất")} options={siteOpts} />
                   <SelectField control={f.control} name="toSiteId" label={tr("Cơ sở nhận")} options={ownSites.map((s) => ({ value: s.id, label: s.name }))} />
-                  <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: lot.unit })} inputMode="decimal" />
+                  <TextField control={f.control} name="quantity" label={qtyLabel} inputMode="decimal" hint={maxQuantityHint(siteAvailable(f.watch("fromSiteId")), lot.unit)} />
                   <SelectField control={f.control} name="receiverUserId" label={tr("Người nhận dự kiến")} options={[{value:"__none",label:tr("Không chỉ định")},...(members.data??[]).filter(m=>m.accountStatus==="ACTIVE").map(m=>({value:m.id,label:m.fullName}))]}/>
                   <SelectField control={f.control} name="dispatch" label={tr("Xuất hàng")} options={[{ value: "no", label: tr("Để chờ xuất") }, { value: "yes", label: tr("Xuất ngay") }]} />
                 </div>
@@ -185,12 +189,12 @@ function LotSheet({ lot, ownSites, onClose }: { lot: StockLot | null; ownSites: 
           </CommandDialog>
         )}
         {act.target === "HOLD" && (
-          <CommandDialog {...act.props} title={tr("Cách ly hàng tại cơ sở")} endpoint="POST /distribution/quarantine" description={tr("Tạo phiếu cách ly; lượng cách ly không được giao, bán hay chuyển cho tới khi giải tỏa hoặc ghi hư hỏng.")} schema={z.object({ siteId: z.string().min(1, { error: () => tr("Chọn cơ sở") }), quantity: qty, cause: z.enum(["SUSPECTED_DAMAGE", "QUALITY_FAILED", "AWAITING_INSPECTION", "OTHER"]), reason: reason(10), note: z.string().max(1000).optional() })} defaultValues={{ siteId: held[0]?.siteId ?? "", quantity: "", cause: "SUSPECTED_DAMAGE", reason: "", note: "" }} version={lot.version} tone="danger" submitLabel={tr("Cách ly")} invalidate={INVALIDATE} run={(v, cmd) => distApi.quarantine({ ...base, ...v, action: "HOLD", note: v.note || undefined }, cmd)}>
+          <CommandDialog {...act.props} title={tr("Cách ly hàng tại cơ sở")} endpoint="POST /distribution/quarantine" description={tr("Tạo phiếu cách ly; lượng cách ly không được giao, bán hay chuyển cho tới khi giải tỏa hoặc ghi hư hỏng.")} schema={z.object({ siteId: z.string().min(1, { error: () => tr("Chọn cơ sở") }), quantity: qty, cause: z.enum(["SUSPECTED_DAMAGE", "QUALITY_FAILED", "AWAITING_INSPECTION", "OTHER"]), reason: reason(10), note: z.string().max(1000).optional() }).superRefine((v, ctx) => limit(siteAvailable(v.siteId))(v, ctx))} defaultValues={{ siteId: held[0]?.siteId ?? "", quantity: "", cause: "SUSPECTED_DAMAGE", reason: "", note: "" }} version={lot.version} tone="danger" submitLabel={tr("Cách ly")} invalidate={INVALIDATE} run={(v, cmd) => distApi.quarantine({ ...base, ...v, action: "HOLD", note: v.note || undefined }, cmd)}>
             {(f) => (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <SelectField control={f.control} name="siteId" label={tr("Cơ sở")} options={siteOpts} />
-                  <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: lot.unit })} inputMode="decimal" />
+                  <TextField control={f.control} name="quantity" label={qtyLabel} inputMode="decimal" hint={maxQuantityHint(siteAvailable(f.watch("siteId")), lot.unit)} />
                 </div>
                 <SelectField control={f.control} name="cause" label={tr("Nguyên nhân")} options={Object.entries(CAUSE_LABEL).map(([value, label]) => ({ value, label }))} />
                 <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={1000} />
@@ -200,12 +204,12 @@ function LotSheet({ lot, ownSites, onClose }: { lot: StockLot | null; ownSites: 
           </CommandDialog>
         )}
         {(act.target === "SALE" || act.target === "DAMAGE") && (
-          <CommandDialog {...act.props} title={act.target === "SALE" ? tr("Ghi bán") : tr("Ghi hư hỏng")} endpoint="POST /distribution/quantities" description={act.target === "SALE" ? tr("Chỉ doanh nghiệp bán lẻ được ghi bán; dừng ghi bán khi lô hết hạn hoặc có thông báo thu hồi.") : tr("Ghi giảm lượng hư hỏng tại cơ sở; không chọn cơ sở thì chỉ ghi được phần chưa phân bổ (tài khoản cấp 1).")} schema={z.object({ siteId: z.string(), quantity: qty, reason: reason(3) })} defaultValues={{ siteId: held[0]?.siteId ?? "", quantity: "", reason: "" }} version={lot.version} tone={act.target === "DAMAGE" ? "danger" : "default"} submitLabel={act.target === "SALE" ? tr("Ghi bán") : tr("Ghi hư hỏng")} invalidate={INVALIDATE} run={(v, cmd) => distApi.dispose({ ...base, kind: act.target as "SALE" | "DAMAGE", quantity: v.quantity, reason: v.reason, siteId: v.siteId || undefined }, cmd)}>
+          <CommandDialog {...act.props} title={act.target === "SALE" ? tr("Ghi bán") : tr("Ghi hư hỏng")} endpoint="POST /distribution/quantities" description={act.target === "SALE" ? tr("Chỉ doanh nghiệp bán lẻ được ghi bán; dừng ghi bán khi lô hết hạn hoặc có thông báo thu hồi.") : tr("Ghi giảm lượng hư hỏng tại cơ sở; không chọn cơ sở thì chỉ ghi được phần chưa phân bổ (tài khoản cấp 1).")} schema={z.object({ siteId: z.string(), quantity: qty, reason: reason(3) }).superRefine((v, ctx) => limit(v.siteId ? siteAvailable(v.siteId) : lot.unallocated)(v, ctx))} defaultValues={{ siteId: held[0]?.siteId ?? "", quantity: "", reason: "" }} version={lot.version} tone={act.target === "DAMAGE" ? "danger" : "default"} submitLabel={act.target === "SALE" ? tr("Ghi bán") : tr("Ghi hư hỏng")} invalidate={INVALIDATE} run={(v, cmd) => distApi.dispose({ ...base, kind: act.target as "SALE" | "DAMAGE", quantity: v.quantity, reason: v.reason, siteId: v.siteId || undefined }, cmd)}>
             {(f) => (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <SelectField control={f.control} name="siteId" label={tr("Cơ sở")} options={[...(primary ? [{ value: "", label: tr("Phần chưa phân bổ") }] : []), ...siteOpts]} />
-                  <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: lot.unit })} inputMode="decimal" />
+                  <TextField control={f.control} name="quantity" label={qtyLabel} inputMode="decimal" hint={maxQuantityHint(f.watch("siteId") ? siteAvailable(f.watch("siteId")) : lot.unallocated, lot.unit)} />
                 </div>
                 <TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={500} />
               </>

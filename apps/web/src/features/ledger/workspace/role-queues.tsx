@@ -16,6 +16,7 @@ import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/f
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
+import { checkQuantityLimits, maxQuantityHint } from "@/lib/ledger/quantity-limit";
 
 /** Role queues (ADR-005): pre-filtered views of distribution work that
  * already exists, never new records. */
@@ -99,12 +100,12 @@ export function SalesPage() {
         </div>
       </PageBody>
       {lot && (
-        <CommandDialog {...sell.props} title={tr("Ghi bán · {p0}", { p0: lot.lotCode })} endpoint="POST /distribution/quantities" description={lot.productName} schema={z.object({ siteId: z.string(), quantity: qty, reason: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(500) })} defaultValues={{ siteId: sites[0]?.siteId ?? "", quantity: "", reason: tr("Bán cho người tiêu dùng") }} version={lot.version} submitLabel={tr("Ghi bán")} invalidate={[["dist-report"], ["dist-tasks"], ["ws-lots"]]} run={(v, cmd) => distApi.dispose({ lotId: lot.lotId, unit: lot.unit, version: lot.version, kind: "SALE", quantity: v.quantity, reason: v.reason, siteId: v.siteId || undefined }, cmd)}>
+        <CommandDialog {...sell.props} title={tr("Ghi bán · {p0}", { p0: lot.lotCode })} endpoint="POST /distribution/quantities" description={lot.productName} schema={z.object({ siteId: z.string(), quantity: qty, reason: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(500) }).superRefine((v, ctx) => checkQuantityLimits(ctx, [{ path: ["quantity"], value: v.quantity, max: sites.find((s) => s.siteId === v.siteId)?.available, unit: lot.unit }]))} defaultValues={{ siteId: sites[0]?.siteId ?? "", quantity: "", reason: tr("Bán cho người tiêu dùng") }} version={lot.version} submitLabel={tr("Ghi bán")} invalidate={[["dist-report"], ["dist-tasks"], ["ws-lots"]]} run={(v, cmd) => distApi.dispose({ lotId: lot.lotId, unit: lot.unit, version: lot.version, kind: "SALE", quantity: v.quantity, reason: v.reason, siteId: v.siteId || undefined }, cmd)}>
           {(f) => (
             <>
               <div className="grid gap-3 sm:grid-cols-2">
                 <SelectField control={f.control} name="siteId" label={tr("Cơ sở")} options={sites.map((s) => ({ value: s.siteId, label: `${s.siteName} · ${tr("khả dụng")} ${fmtNumber(s.available)}` }))} />
-                <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: lot.unit })} inputMode="decimal" />
+                <TextField control={f.control} name="quantity" label={tr("Số lượng ({p0})", { p0: lot.unit })} inputMode="decimal" hint={maxQuantityHint(sites.find((s) => s.siteId === f.watch("siteId"))?.available, lot.unit)} />
               </div>
               <TextAreaField control={f.control} name="reason" label={tr("Ghi chú")} max={500} />
             </>

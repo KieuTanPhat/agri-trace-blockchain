@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from "react";
 import Link from "next/link";
-import { AlertTriangle, Inbox, Lock, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Inbox, Lock, RefreshCw, Search, X } from "lucide-react";
 import { getLedgerError } from "@/lib/ledger/errors";
 import { Button } from "@/components/ledger/ui/button";
 import { Skeleton } from "@/components/ledger/ui/skeleton";
@@ -149,7 +149,7 @@ export function Field({ label, children, mono, className }: { label: string; chi
   );
 }
 
-export function Callout({ tone = "neutral", title, children, icon, className }: { tone?: "neutral" | "warn" | "danger" | "info" | "ok"; title?: string; children: React.ReactNode; icon?: React.ReactNode; className?: string }) {
+export function Callout({ tone = "neutral", title, children, icon, className, onClose }: { tone?: "neutral" | "warn" | "danger" | "info" | "ok"; title?: string; children: React.ReactNode; icon?: React.ReactNode; className?: string; onClose?: () => void }) {
   const cls = {
     neutral: "bg-sunken text-ink",
     warn: "bg-warn-bg text-warn",
@@ -160,10 +160,15 @@ export function Callout({ tone = "neutral", title, children, icon, className }: 
   return (
     <div role="note" className={cn("flex gap-2.5 rounded-md px-3 py-2.5 text-[13px] leading-relaxed", cls, className)}>
       {icon && <span className="mt-0.5 shrink-0">{icon}</span>}
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         {title && <div className="font-semibold">{title}</div>}
         <div className={cn(title && "mt-0.5", tone !== "neutral" && "text-ink")}>{children}</div>
       </div>
+      {onClose && (
+        <button type="button" aria-label={tr("Đóng thông báo")} onClick={onClose} className="-mr-1 -mt-0.5 grid size-6 shrink-0 place-items-center rounded text-ink-2 hover:bg-black/5 hover:text-ink">
+          <X className="size-3.5" />
+        </button>
+      )}
     </div>
   );
 }

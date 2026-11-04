@@ -26,6 +26,7 @@ import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } fr
 import { Badge } from "@/components/ledger/kit/status";
 import { LineagePanel } from "@/components/ledger/workspace/lineage-panel";
 import { cn } from "@/lib/ledger/utils";
+import { checkQuantityLimits, maxQuantityHint } from "@/lib/ledger/quantity-limit";
 
 export const PROCESS_TYPE_LABEL: Record<string, string> = localized({ PRELIMINARY: "Sơ chế", PACKING: "Đóng gói", DRYING: "Sấy", FREEZING: "Cấp đông", MILLING: "Xay xát", JUICE_EXTRACT: "Ép nước", FERMENTING: "Lên men", OTHER: "Khác" });
 const LOSS_LABEL: Record<string, string> = localized({ TRIMMING: "Gọt, tỉa", MOISTURE: "Mất ẩm", SPILLAGE: "Rơi vãi", QUALITY_REJECT: "Loại do chất lượng", SAMPLING: "Lấy mẫu", OTHER: "Khác" });
@@ -325,6 +326,15 @@ const createSchema = linesSchema.extend({
   note: z.string().max(1000).optional(),
 }).refine((v) => v.inputs.length + v.externalInputs.length > 0, { path: ["inputs"], error: () => tr("Chọn ít nhất một nguyên liệu") });
 type LineValues = z.infer<typeof linesSchema>;
+/** Lượng dùng không vượt khả dụng của lô/phiếu nhập tại cơ sở của lệnh. */
+const lotAvailable = (materials: ProcessingMaterial[], siteId: string, lotId: string) => materials.find((m) => m.siteId === siteId && m.lotId === lotId);
+const receiptAvailable = (external: StockItem[], receiptId: string) => external.find((m) => m.receiptId === receiptId);
+function materialLimits(materials: ProcessingMaterial[], external: StockItem[], siteId: string) {
+  return (v: LineValues, ctx: z.RefinementCtx) => checkQuantityLimits(ctx, [
+    ...v.inputs.map((l, i) => { const m = lotAvailable(materials, siteId, l.lotId); return { path: ["inputs", i, "quantity"], value: l.quantity, max: m?.available, unit: m?.unit }; }),
+    ...v.externalInputs.map((l, i) => { const m = receiptAvailable(external, l.receiptId); return { path: ["externalInputs", i, "quantity"], value: l.quantity, max: m?.available, unit: m?.unit }; }),
+  ]);
+}
 
 /** Lập kế hoạch: sản phẩm chính và nguyên liệu; chưa giữ chỗ kho. */
 function CreateRun({ props, onCreated }: { props: { open: boolean; onOpenChange: (o: boolean) => void }; onCreated: (id: string) => void }) {
@@ -346,7 +356,7 @@ function CreateRun({ props, onCreated }: { props: { open: boolean; onOpenChange:
       title={tr("Lập kế hoạch chế biến")}
       endpoint="POST /processing-runs"
       description={tr("Kế hoạch chưa giữ chỗ kho. Khi bắt đầu, nguyên liệu được giữ chỗ; thành phẩm, phụ phẩm và hao hụt ghi khi ra lò.")}
-      schema={createSchema}
+      schema={createSchema.superRefine((v, ctx) => materialLimits(materials.data!, external, v.siteId)(v, ctx))}
       defaultValues={{ chainId: chains.data?.[0]?.id ?? "", siteId: workSites[0]?.id ?? "", productId: "", processType: "DRYING", baseUnit: "kg", recipe: "", note: "", inputs: [], externalInputs: [] }}
       submitLabel={tr("Lưu kế hoạch")}
       invalidate={[["proc-runs"]]}
@@ -383,6 +393,7 @@ function MaterialLines({ control, materials, external, fixed, exclude }: { contr
   const ext = useFieldArray({ control, name: "externalInputs" });
   const watched = useWatch({ control, name: ["siteId", "chainId", "baseUnit"] });
   const [siteId, chainId, baseUnit] = fixed ? [fixed.siteId, fixed.chainId, fixed.baseUnit] : watched;
+  const chosen = useWatch({ control, name: ["inputs", "externalInputs"] });
   const lotOptions = materials.filter((m) => m.siteId === siteId && m.chainId === chainId && same(m.unit, baseUnit ?? "") && !m.blocked && Number(m.available) > 0 && !exclude?.lotIds.includes(m.lotId)).map((m) => ({ value: m.lotId, label: `${m.lotCode} · ${m.productName} · ${tr("khả dụng")} ${fmtNumber(m.available)} ${m.unit}` }));
   const extOptions = external.filter((m) => m.siteId === siteId && same(m.unit, baseUnit ?? "") && !m.blocked && Number(m.available) > 0 && !exclude?.receiptIds.includes(m.receiptId!)).map((m) => ({ value: m.receiptId!, label: `${m.receiptCode} · ${m.productName} · ${m.sourceOrganization} · ${tr("khả dụng")} ${fmtNumber(m.available)} ${m.unit}` }));
   return (
@@ -393,7 +404,7 @@ function MaterialLines({ control, materials, external, fixed, exclude }: { contr
         {lots.fields.map((f, i) => (
           <div key={f.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px_auto] items-end gap-2">
             <SelectField control={control} name={`inputs.${i}.lotId`} label={tr("Lô nguyên liệu {p0}", { p0: i + 1 })} options={lotOptions} />
-            <TextField control={control} name={`inputs.${i}.quantity`} label={tr("Lượng dùng")} inputMode="decimal" />
+            <TextField control={control} name={`inputs.${i}.quantity`} label={tr("Lượng dùng")} inputMode="decimal" hint={(() => { const m = lotAvailable(materials, siteId, chosen[0]?.[i]?.lotId ?? ""); return maxQuantityHint(m?.available, m?.unit); })()} />
             <Button type="button" variant="ghost" size="icon-sm" aria-label={tr("Bỏ dòng này")} onClick={() => lots.remove(i)}><Trash2 /></Button>
           </div>
         ))}
@@ -405,7 +416,7 @@ function MaterialLines({ control, materials, external, fixed, exclude }: { contr
         {ext.fields.map((f, i) => (
           <div key={f.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px_auto] items-end gap-2">
             <SelectField control={control} name={`externalInputs.${i}.receiptId`} label={tr("Phiếu nhập {p0}", { p0: i + 1 })} options={extOptions} />
-            <TextField control={control} name={`externalInputs.${i}.quantity`} label={tr("Lượng dùng")} inputMode="decimal" />
+            <TextField control={control} name={`externalInputs.${i}.quantity`} label={tr("Lượng dùng")} inputMode="decimal" hint={(() => { const m = receiptAvailable(external, chosen[1]?.[i]?.receiptId ?? ""); return maxQuantityHint(m?.available, m?.unit); })()} />
             <Button type="button" variant="ghost" size="icon-sm" aria-label={tr("Bỏ dòng này")} onClick={() => ext.remove(i)}><Trash2 /></Button>
           </div>
         ))}
@@ -567,7 +578,7 @@ function RunSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
             )}
             {act.target === "INPUTS" && write && (
               materials.data && stock.data ? (
-                <CommandDialog {...act.props} title={tr("Bổ sung nguyên liệu cho {p0}", { p0: r.code })} endpoint="POST /processing-runs/:id/inputs" description={r.status === "IN_PROGRESS" ? tr("Nguyên liệu bổ sung được giữ chỗ ngay.") : undefined} schema={linesSchema.refine((v) => v.inputs.length + v.externalInputs.length > 0, { path: ["inputs"], error: () => tr("Chọn ít nhất một nguyên liệu") })} defaultValues={{ inputs: [], externalInputs: [] }} version={r.version} submitLabel={tr("Bổ sung")} invalidate={invalidate} wide run={(v, cmd) => procApi.addInputs(r.id, { version: r.version, ...v }, cmd)}>
+                <CommandDialog {...act.props} title={tr("Bổ sung nguyên liệu cho {p0}", { p0: r.code })} endpoint="POST /processing-runs/:id/inputs" description={r.status === "IN_PROGRESS" ? tr("Nguyên liệu bổ sung được giữ chỗ ngay.") : undefined} schema={linesSchema.refine((v) => v.inputs.length + v.externalInputs.length > 0, { path: ["inputs"], error: () => tr("Chọn ít nhất một nguyên liệu") }).superRefine((v, ctx) => materialLimits(materials.data!, stock.data!.materials.filter((m) => m.source === "EXTERNAL"), r.siteId)(v, ctx))} defaultValues={{ inputs: [], externalInputs: [] }} version={r.version} submitLabel={tr("Bổ sung")} invalidate={invalidate} wide run={(v, cmd) => procApi.addInputs(r.id, { version: r.version, ...v }, cmd)}>
                   {(f) => <MaterialLines control={f.control as unknown as Control<LineValues & { siteId: string; chainId: string; baseUnit: string }>} materials={materials.data!} external={stock.data!.materials.filter((m) => m.source === "EXTERNAL")} fixed={{ siteId: r.siteId, chainId: r.chainId, baseUnit: r.baseUnit }} exclude={{ lotIds: r.inputs.map((i) => i.lotId), receiptIds: (r.externalInputs ?? []).map((i) => i.receiptId) }} />}
                 </CommandDialog>
               ) : <LoadingRows rows={2} />

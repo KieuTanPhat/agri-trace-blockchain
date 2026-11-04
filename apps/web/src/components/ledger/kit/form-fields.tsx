@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useId } from "react";
+import { createContext, useContext, useId, useState } from "react";
+import { X } from "lucide-react";
 import type { z } from "zod";
 import {
   Controller,
@@ -78,21 +79,38 @@ function Shell({
   className?: string;
   required?: boolean;
 }) {
+  // Ẩn lỗi đã đóng cho tới khi nội dung lỗi đổi; viền đỏ của ô vẫn giữ.
+  const [closed, setClosed] = useState<string | null>(null);
+  const shownError = error && error !== closed ? error : undefined;
+  // Có gợi ý/bộ đếm thì dòng dưới đã giữ chỗ; không có thì lỗi nổi đè lên, không đẩy form.
+  const inline = !!hint || !!counter;
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("relative flex flex-col gap-1.5", className)}>
       <Label htmlFor={id} className="gap-0.5 text-[13px] font-medium">
         {label}
         {required && <span aria-hidden className="text-danger after:content-['*']" />}
       </Label>
       {children}
-      <div className="flex items-start justify-between gap-3 text-[12px]">
-        <span id={`${id}-msg`} className={error ? "text-danger" : "text-ink-2"}>
-          {error ?? hint}
-        </span>
-        {counter && (
-          <span className="shrink-0 font-mono text-ink-2">{counter}</span>
-        )}
-      </div>
+      {inline ? (
+        <div className="flex items-start justify-between gap-3 text-[12px]">
+          <span id={`${id}-msg`} className={cn("min-w-0 truncate", shownError ? "text-danger" : "text-ink-2")} title={shownError}>
+            {shownError ?? hint}
+          </span>
+          {counter && (
+            <span className="shrink-0 font-mono text-ink-2">{counter}</span>
+          )}
+        </div>
+      ) : (
+        <span id={`${id}-msg`} className="sr-only">{error}</span>
+      )}
+      {!inline && shownError && (
+        <div role="alert" className="absolute left-0 top-full z-20 mt-0.5 flex max-w-full items-center gap-1 rounded border border-danger/30 bg-danger-bg py-0.5 pl-2 pr-0.5 text-[11.5px] leading-4 text-danger shadow-sm">
+          <span className="min-w-0 truncate" title={shownError}>{shownError}</span>
+          <button type="button" aria-label={tr("Đóng thông báo")} onClick={() => setClosed(error ?? null)} className="grid size-4 shrink-0 place-items-center rounded hover:bg-danger/10">
+            <X className="size-3" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -138,7 +156,8 @@ export function TextField<T extends FieldValues>({
             id={id}
             type={type}
             placeholder={placeholder}
-            autoComplete={autoComplete}
+            // Ô số không dùng gợi ý lịch sử của trình duyệt (bóng "500" che form).
+            autoComplete={autoComplete ?? (inputMode === "decimal" || inputMode === "numeric" ? "off" : undefined)}
             inputMode={inputMode}
             aria-invalid={!!fieldState.error}
             aria-required={isRequired || undefined}

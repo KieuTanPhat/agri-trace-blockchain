@@ -357,6 +357,7 @@ function Body<S extends z.ZodType<FieldValues>>({
 
       {error && !inlineError && (
         <Callout
+          onClose={() => setError(null)}
           tone={error.isConflict ? "warn" : "danger"}
           title={
             error.isConflict

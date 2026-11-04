@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
-import { useFieldArray, useWatch, type Control } from "react-hook-form";
+import { useFieldArray, useWatch, type Control, type UseFormSetValue } from "react-hook-form";
 import { z } from "zod";
 import { Plus, Trash2 } from "lucide-react";
 import {usePathname,useRouter} from "next/navigation";
@@ -19,6 +19,7 @@ import { localized, t as tr } from "@/lib/ledger/i18n";
 import { isoToLocal, localToIso } from "@/lib/ledger/ops-dates";
 
 import { useNow } from "@/lib/ledger/use-now";
+import { checkQuantityLimits, maxQuantityHint } from "@/lib/ledger/quantity-limit";
 import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
 
@@ -206,14 +207,23 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
       title={request ? tr("Lập phiếu từ yêu cầu lấy hàng") : tr("Tạo chặng giao nhận")}
       endpoint="POST /distribution/transfers"
       description={tr("Lượng giao được giữ chỗ tại cơ sở giao cho tới khi lấy hàng hoặc hủy. Bên nhận là chế biến, phân phối hoặc bán lẻ đã liên kết đối tác với bạn; phiếu đi theo chuỗi của lô.")}
-      schema={createSchema}
+      schema={createSchema.superRefine((v, ctx) => {
+        const lots = stock.data?.lots ?? [];
+        checkQuantityLimits(ctx, v.lines.map((l, i) => {
+          const lot = lots.find((x) => x.lotId === l.lotId);
+          return { path: ["lines", i, "quantity"], value: l.quantity, max: lot?.siteHoldings.find((h) => h.siteId === v.senderSiteId)?.available, unit: lot?.unit };
+        }));
+      })}
       defaultValues={{ transportMode: request ? "RECEIVER_PICKUP" : "PLATFORM_CARRIER", externalHirer: "SENDER", carrierId: "", receiverId: request?.receiverId ?? "", senderSiteId: "", carrierSiteId: "", receiverSiteId: "", vehicleId: "", carrierName: "", registration: "", driverName: "", driverPhone: "", origin: "", destination: "", plannedPickupAt: isoToLocal(request?.preferredPickupAt ?? new Date(now + 3600_000).toISOString()), plannedDeliveryAt: "", note: request?.note ?? "", lines: [{ lotId: "", quantity: "" }] }}
       submitLabel={tr("Tạo chặng")}
       invalidate={[["dist-transfers"], ["dist-report"], ["dist-tasks"], ["dist-pickups"]]}
       wide
       run={(v, cmd) => {
         const platform = v.transportMode === "PLATFORM_CARRIER";
-        const details = { carrierName: v.transportMode === "EXTERNAL_CARRIER" ? v.carrierName || undefined : undefined, registration: v.registration || undefined, driverName: v.driverName || undefined, driverPhone: v.driverPhone || undefined };
+        const vehicleOrganization = v.transportMode === "PLATFORM_CARRIER" ? v.carrierId : v.transportMode === "SELF_DELIVERY" ? me : v.transportMode === "RECEIVER_PICKUP" ? v.receiverId : undefined;
+        const declaredVehicle = vehicleOrganization ? options.data?.vehicles.find((vehicle) => vehicle.id === v.vehicleId && vehicle.organizationId === vehicleOrganization) : undefined;
+        const registration = (v.transportMode === "SELF_DELIVERY" || v.transportMode === "RECEIVER_PICKUP") ? v.vehicleId ? declaredVehicle?.registration : v.registration : v.registration;
+        const details = { carrierName: v.transportMode === "EXTERNAL_CARRIER" ? v.carrierName || undefined : undefined, registration: registration || undefined, driverName: v.driverName || undefined, driverPhone: v.driverPhone || undefined };
         return distApi.create(
           {
             transportMode: v.transportMode,
@@ -242,14 +252,13 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
         const c = f.control as unknown as Control<z.infer<typeof createSchema>>;
         return (
           <>
-            <TransportFields control={c} request={!!request} me={me} carriers={partyOrgs.filter((o) => o.type === "TRANSPORTER")} sites={options.data?.items ?? []} vehicles={options.data?.vehicles ?? []} />
+            <TransportFields control={c} setValue={f.setValue} request={!!request} me={me} carriers={partyOrgs.filter((o) => o.type === "TRANSPORTER")} sites={options.data?.items ?? []} vehicles={options.data?.vehicles ?? []} />
             <div className="grid gap-3 sm:grid-cols-2">
               <SelectField control={c} name="senderSiteId" label={tr("Cơ sở giao (của bạn)")} options={(options.data?.items ?? []).filter((s) => s.organizationId === me).map((s) => ({ value: s.id, label: s.name }))} />
               <SelectField control={c} name="receiverId" label={tr("Bên nhận")} options={partyOrgs.filter((o) => ["PROCESSOR", "DISTRIBUTOR", "RETAILER"].includes(o.type) && (!request || o.id === request.receiverId)).map((o) => ({ value: o.id, label: o.name }))} />
               <PartySite control={c} party="receiverId" name="receiverSiteId" label={tr("Cơ sở nhận")} sites={options.data?.items ?? []} />
               <TextField control={c} name="plannedPickupAt" label={tr("Dự kiến lấy hàng")} type="datetime-local" />
-              <TextField control={c} name="origin" label={tr("Nơi lấy hàng")} />
-              <TextField control={c} name="destination" label={tr("Nơi giao")} />
+              <LinkedPlaceFields control={c} setValue={f.setValue} sites={options.data?.items ?? []} />
               <TextField control={c} name="plannedDeliveryAt" label={tr("Dự kiến giao")} type="datetime-local" />
             </div>
             <LinesField control={c} lots={(stock.data?.lots ?? []).filter((l) => !l.blocked)} />
@@ -260,8 +269,23 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
     </CommandDialog>
   );
 }
-function TransportFields({ control, request, me, carriers, sites, vehicles }: { control: Control<CreateValues>; request: boolean; me: string; carriers: { id: string; name: string }[]; sites: { id: string; organizationId: string; name: string }[]; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
+function TransportFields({ control, setValue, request, me, carriers, sites, vehicles }: { control: Control<CreateValues>; setValue: UseFormSetValue<CreateValues>; request: boolean; me: string; carriers: { id: string; name: string }[]; sites: { id: string; organizationId: string; name: string }[]; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
   const mode = useWatch({ control, name: "transportMode" });
+  const carrierId = useWatch({ control, name: "carrierId" });
+  const receiverId = useWatch({ control, name: "receiverId" });
+  const vehicleId = useWatch({ control, name: "vehicleId" });
+  const vehicleOrganization = mode === "PLATFORM_CARRIER" ? carrierId : mode === "SELF_DELIVERY" ? me : mode === "RECEIVER_PICKUP" ? receiverId : undefined;
+  const selectedVehicle = vehicleOrganization ? vehicles.find((vehicle) => vehicle.id === vehicleId && vehicle.organizationId === vehicleOrganization) : undefined;
+  useEffect(() => {
+    if (mode === "EXTERNAL_CARRIER") {
+      if (vehicleId) setValue("vehicleId", "");
+      setValue("registration", "");
+      return;
+    }
+    if (vehicleId && !selectedVehicle) setValue("vehicleId", "");
+    const autoPlate = selectedVehicle?.registration ?? "";
+    setValue("registration", autoPlate, { shouldValidate: true });
+  }, [mode, selectedVehicle, setValue, vehicleId]);
   return (
     <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
       <legend className="px-1 text-[13px] font-medium">{tr("Cách vận chuyển")}</legend>
@@ -273,6 +297,7 @@ function TransportFields({ control, request, me, carriers, sites, vehicles }: { 
             <SelectField control={control} name="carrierId" label={tr("Đơn vị vận chuyển")} options={carriers.map((o) => ({ value: o.id, label: o.name }))} />
             <PartySite control={control} party="carrierId" name="carrierSiteId" label={tr("Cơ sở vận chuyển")} sites={sites} />
             <PartyVehicle control={control} vehicles={vehicles} party="carrierId" />
+            <VehiclePlateValue registration={selectedVehicle?.registration} />
           </>
         ) : (
           <>
@@ -283,7 +308,9 @@ function TransportFields({ control, request, me, carriers, sites, vehicles }: { 
               </>
             )}
             {(mode === "SELF_DELIVERY" || mode === "RECEIVER_PICKUP") && <PartyVehicle control={control} vehicles={vehicles} party={mode === "SELF_DELIVERY" ? me : "receiverId"} label={tr("Xe đã khai (tùy chọn, để theo dõi GPS)")} />}
-            <TextField control={control} name="registration" label={tr("Biển số xe")} max={40} />
+            {mode === "EXTERNAL_CARRIER" || (!selectedVehicle && (mode === "SELF_DELIVERY" || mode === "RECEIVER_PICKUP")) ? (
+              <TextField control={control} name="registration" label={tr("Biển số xe")} hint={mode === "EXTERNAL_CARRIER" ? tr("Nhập biển số do đơn vị vận chuyển ngoài cung cấp.") : tr("Chọn xe đã khai để tự liên kết hoặc nhập biển số thủ công.")} autoComplete="off" max={40} />
+            ) : <VehiclePlateValue registration={selectedVehicle?.registration} />}
             <TextField control={control} name="driverName" label={tr("Tài xế / người nhận hàng")} max={255} />
             <TextField control={control} name="driverPhone" label={tr("Số điện thoại")} inputMode="tel" />
           </>
@@ -376,6 +403,46 @@ function PickupRequests({ onCreate }: { onCreate: (r: PickupRequest) => void }) 
   );
 }
 type CreateValues = z.infer<typeof createSchema>;
+function LinkedPlaceFields({ control, setValue, sites }: { control: Control<CreateValues>; setValue: UseFormSetValue<CreateValues>; sites: { id: string; organizationId: string; name: string }[] }) {
+  const senderSiteId = useWatch({ control, name: "senderSiteId" });
+  const receiverSiteId = useWatch({ control, name: "receiverSiteId" });
+  const senderSiteName = sites.find((site) => site.id === senderSiteId)?.name;
+  const receiverSiteName = sites.find((site) => site.id === receiverSiteId)?.name;
+  useEffect(() => {
+    setValue("origin", senderSiteName ?? "", { shouldValidate: !!senderSiteName });
+  }, [senderSiteId, senderSiteName, setValue]);
+  useEffect(() => {
+    setValue("destination", receiverSiteName ?? "", { shouldValidate: !!receiverSiteName });
+  }, [receiverSiteId, receiverSiteName, setValue]);
+  return <>
+    <LinkedPlaceValue label={tr("Nơi lấy hàng")} value={senderSiteName} empty={tr("Chọn cơ sở giao để tự điền")} />
+    <LinkedPlaceValue label={tr("Nơi giao")} value={receiverSiteName} empty={tr("Chọn cơ sở nhận để tự điền")} />
+  </>;
+}
+function LinkedPlaceValue({ label, value, empty }: { label: string; value?: string; empty: string }) {
+  const id = useId();
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span id={`${id}-label`} className="text-[13px] font-medium">{label}<span aria-hidden className="text-danger after:content-['*']" /></span>
+      <output aria-labelledby={`${id}-label`} aria-live="polite" className="flex h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-line bg-sunken px-2.5 text-sm">
+        <span className={value ? "truncate font-medium" : "truncate text-ink-2"}>{value ?? empty}</span>
+        {value && <span className="shrink-0 text-[11px] text-ink-2">{tr("Theo cơ sở")}</span>}
+      </output>
+    </div>
+  );
+}
+function VehiclePlateValue({ registration }: { registration?: string }) {
+  const id = useId();
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span id={`${id}-label`} className="text-[13px] font-medium">{tr("Biển số xe")}</span>
+      <output aria-labelledby={`${id}-label`} aria-live="polite" className="flex h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-line bg-sunken px-2.5 text-sm">
+        <span className={registration ? "truncate font-medium" : "truncate text-ink-2"}>{registration ?? tr("Chọn xe để tự liên kết biển số")}</span>
+        {registration && <span className="shrink-0 text-[11px] text-ink-2">{tr("Tự liên kết")}</span>}
+      </output>
+    </div>
+  );
+}
 function PartySite({ control, party, name, label, sites }: { control: Control<CreateValues>; party: "carrierId" | "receiverId"; name: "carrierSiteId" | "receiverSiteId"; label: string; sites: { id: string; organizationId: string; name: string }[] }) {
   const org = useWatch({ control, name: party });
   return <SelectField control={control} name={name} label={label} options={sites.filter((s) => s.organizationId === org).map((s) => ({ value: s.id, label: s.name }))} />;
@@ -388,6 +455,7 @@ function PartyVehicle({ control, vehicles, party, label }: { control: Control<Cr
 function LinesField({ control, lots }: { control: Control<CreateValues>; lots: { lotId: string; lotCode: string; productName: string; available: string; unit: string; siteHoldings: { siteId: string; available: string }[] }[] }) {
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
   const site = useWatch({ control, name: "senderSiteId" });
+  const lines = useWatch({ control, name: "lines" });
   const pickable = lots.filter((l) => l.siteHoldings.some((s) => s.siteId === site && Number(s.available) > 0));
   return (
     <fieldset className="flex flex-col gap-2">
@@ -396,7 +464,7 @@ function LinesField({ control, lots }: { control: Control<CreateValues>; lots: {
       {fields.map((f, i) => (
         <div key={f.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_auto]">
           <SelectField control={control} name={`lines.${i}.lotId`} label={tr("Lô {p0}", { p0: i + 1 })} className="min-w-0" options={pickable.map((l) => ({ value: l.lotId, label: `${l.lotCode} · ${l.productName} · ${tr("khả dụng")} ${fmtNumber(l.siteHoldings.find((s) => s.siteId === site)?.available)} ${l.unit}` }))} />
-          <TextField control={control} name={`lines.${i}.quantity`} label={tr("Số lượng")} inputMode="decimal" className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1" />
+          <TextField control={control} name={`lines.${i}.quantity`} label={tr("Số lượng")} inputMode="decimal" hint={(() => { const lot = pickable.find((l) => l.lotId === lines?.[i]?.lotId); return maxQuantityHint(lot?.siteHoldings.find((h) => h.siteId === site)?.available, lot?.unit); })()} className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1" />
           <Button type="button" variant="ghost" size="icon-sm" aria-label={tr("Bỏ dòng này")} onClick={() => remove(i)} disabled={fields.length === 1} className="col-start-2 row-start-1 mt-6 sm:col-start-3"><Trash2 /></Button>
         </div>
       ))}
