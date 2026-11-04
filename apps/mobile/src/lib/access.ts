@@ -21,16 +21,18 @@ export function useAccess() {
 }
 
 export type StaffTab = { route: string; label: string; icon: IconName };
-const CANDIDATES: (StaffTab & { show: (caps: string[]) => boolean })[] = [
-  { route: 'journal', label: 'Nhật ký', icon: 'journal', show: (c) => c.includes('FARM') },
-  { route: 'inbound', label: 'Chờ nhận', icon: 'box', show: (c) => ['PROCESSOR', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'].some((x) => c.includes(x)) },
-  { route: 'sales', label: 'Bán hàng', icon: 'store', show: (c) => c.includes('RETAILER') },
-  { route: 'transfers', label: 'Chuyến hàng', icon: 'truck', show: () => true },
+// A tab shows when the enterprise has the capability and the member holds the
+// permission, so a driver of a farm lands on its trips instead of the journal.
+const CANDIDATES: (StaffTab & { show: (caps: string[], perms: string[]) => boolean })[] = [
+  { route: 'journal', label: 'Nhật ký', icon: 'journal', show: (c, p) => c.includes('FARM') && p.includes('production.read') },
+  { route: 'inbound', label: 'Chờ nhận', icon: 'box', show: (c, p) => ['PROCESSOR', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'].some((x) => c.includes(x)) && p.includes('distribution.read') },
+  { route: 'sales', label: 'Bán hàng', icon: 'store', show: (c, p) => c.includes('RETAILER') && p.includes('quantity.adjust') },
+  { route: 'transfers', label: 'Chuyến hàng', icon: 'truck', show: (_c, p) => p.includes('distribution.read') },
 ];
 
 /** Home, the first two role tabs by priority, then More; the rest stay in More. */
-export function staffTabs(capabilities: string[]): StaffTab[] {
-  const middle = CANDIDATES.filter((t) => t.show(capabilities)).slice(0, 2);
+export function staffTabs(capabilities: string[], permissions: string[]): StaffTab[] {
+  const middle = CANDIDATES.filter((t) => t.show(capabilities, permissions)).slice(0, 2);
   return [
     { route: 'index', label: 'Trang chủ', icon: 'home' },
     ...middle.map(({ route, label, icon }) => ({ route, label, icon })),

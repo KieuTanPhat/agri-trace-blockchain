@@ -6,7 +6,7 @@ import { staffTabs, useAccess } from '../../../lib/access';
  * the ones not in the bar remain reachable from More. */
 export default function StaffTabs() {
   const { access } = useAccess();
-  const tabs = staffTabs(access?.capabilities ?? []);
+  const tabs = staffTabs(access?.capabilities ?? [], access?.permissions ?? []);
   return (
     <Tabs
       screenOptions={{ headerShown: false }}

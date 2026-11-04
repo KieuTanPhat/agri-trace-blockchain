@@ -2274,5 +2274,5 @@ export const EN: Record<string, string> = {
   "Vượt khả dụng (tối đa {p0})": "Exceeds available (max {p0})",
   "Khóa riêng nằm trên thiết bị và được tạo tự động khi đăng nhập; máy chủ chỉ nhận khóa công khai. Máy bị mất hoặc lạ thì tài khoản chủ doanh nghiệp thu hồi khóa.": "The private key stays on the device and is created at sign-in; the server only receives the public key. The primary account revokes the key of a lost or unknown device.",
   "Thiết bị đó không ký được nữa. Nếu là máy của nhân viên, lần đăng nhập sau sẽ tạo khóa mới.": "That device can no longer sign. On a staff member's device, the next sign-in creates a new key.",
-  "Trình duyệt này chưa có khóa ký. Tải lại trang để tạo khóa rồi ký lại.": "This browser has no signing key yet. Reload the page to create one, then sign again.",
+  "Chưa tạo được khóa ký trên trình duyệt này. Thử lại.": "Could not create a signing key in this browser. Try again.",
 };

@@ -50,13 +50,14 @@ const ACTION_LABEL: Record<string, string> = localized({
   RECONCILE_REMAINDER: "Đối soát phần còn lại",
 });
 const ROLE_LABEL: Record<string, string> = localized({ SENDER: "Bên giao", CARRIER: "Bên vận chuyển", RECEIVER: "Bên nhận" });
+const PHASE_STEP: Record<Phase, string> = localized({ CONSENT: "Đồng thuận", PICKUP: "Lấy hàng", DELIVERY: "Giao hàng" });
 const PHASE_LABEL: Record<Phase, string> = localized({ CONSENT: "Đồng thuận các bên", PICKUP: "Lấy hàng (giao + người chở)", DELIVERY: "Giao hàng (người chở + nhận)" });
 export const TRANSPORT_MODE_LABEL: Record<TransportMode, string> = localized({ PLATFORM_CARRIER: "Đơn vị vận chuyển trên AgriTrace", EXTERNAL_CARRIER: "Thuê đơn vị vận chuyển ngoài", SELF_DELIVERY: "Bên giao tự chở", RECEIVER_PICKUP: "Bên nhận tự đến lấy" });
 const TRANSPORT_MODE_HINT: Record<TransportMode, string> = localized({
   PLATFORM_CARRIER: "Ba bên ký: giao + vận chuyển ký lấy hàng, vận chuyển + nhận ký giao hàng. Xe đã khai có GPS thì vị trí được ghi tự động từ lúc ký lấy hàng đến lúc ký nhận.",
   EXTERNAL_CARRIER: "Bên thuê xe giữ trách nhiệm hàng trên đường. Bên giao thuê: bên giao + nhận ký khi giao. Bên nhận thuê: hai bên ký lúc xe lấy hàng.",
-  SELF_DELIVERY: "Bên giao giữ hàng tới nơi; bên giao + nhận ký khi giao hàng. Chọn xe đã khai có GPS để ghi hành trình.",
-  RECEIVER_PICKUP: "Bên giao + nhận ký tại điểm lấy hàng; quyền giữ hàng chuyển sang bên nhận ngay. Xe đã khai của bên nhận có GPS thì ghi hành trình.",
+  SELF_DELIVERY: "Bên giao giữ hàng tới nơi; bên giao + nhận ký khi giao hàng. Tài xế là nhân viên của bạn có nhóm quyền Tài xế giao hàng, ký trên app AgriTrace. Chọn xe đã khai có GPS để ghi hành trình.",
+  RECEIVER_PICKUP: "Bên giao + nhận ký tại điểm lấy hàng; quyền giữ hàng chuyển sang bên nhận ngay. Tài xế của bên nhận ký trên app AgriTrace. Xe đã khai của bên nhận có GPS thì ghi hành trình.",
 });
 const DEC = /^\d{1,11}(\.\d{1,3})?$/;
 const dec = (msg = () => tr("Số không âm, tối đa 3 chữ số thập phân")) => z.string().regex(DEC, { error: msg });
@@ -184,13 +185,14 @@ const createSchema = z
   .refine((v) => !v.plannedDeliveryAt || v.plannedDeliveryAt >= v.plannedPickupAt, { path: ["plannedDeliveryAt"], error: () => tr("Dự kiến giao không trước dự kiến lấy hàng") })
   .refine((v) => new Set(v.lines.map((l) => l.lotId)).size === v.lines.length, { path: ["lines"], error: () => tr("Không lặp lô trong cùng giao nhận") });
 
-function transportSummary(t: Pick<Transfer, "transportMode" | "transportDetails" | "carrierName" | "carrierId" | "senderId">) {
+function transportSummary(t: Pick<Transfer, "transportMode" | "transportDetails" | "carrierName" | "carrierId" | "senderId"> & { senderName?: string | null; receiverName?: string | null }) {
   const mode = t.transportMode ?? "PLATFORM_CARRIER";
   if (mode === "PLATFORM_CARRIER") return t.carrierName ?? "";
   const plate = t.transportDetails?.registration ? ` · ${t.transportDetails.registration}` : "";
   if (mode === "EXTERNAL_CARRIER")
     return `${t.transportDetails?.carrierName ?? ""} (${t.carrierId === t.senderId ? tr("bên giao thuê") : tr("bên nhận thuê")})${plate}`;
-  return `${TRANSPORT_MODE_LABEL[mode]}${plate}`;
+  // Self delivery and receiver pickup: the carrying party is the sender or the receiver itself.
+  return `${(mode === "SELF_DELIVERY" ? t.senderName : t.receiverName) ?? TRANSPORT_MODE_LABEL[mode]}${plate}`;
 }
 
 function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChange: (o: boolean) => void }; request?: PickupRequest | null }) {
@@ -423,7 +425,7 @@ function LinkedPlaceValue({ label, value, empty }: { label: string; value?: stri
   const id = useId();
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <span id={`${id}-label`} className="text-[13px] font-medium">{label}<span aria-hidden className="text-danger after:content-['*']" /></span>
+      <span id={`${id}-label`} className="text-[13px] font-medium">{label}<span aria-hidden className="ml-0.5 text-danger after:content-['*']" /></span>
       <output aria-labelledby={`${id}-label`} aria-live="polite" className="flex h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-line bg-sunken px-2.5 text-sm">
         <span className={value ? "truncate font-medium" : "truncate text-ink-2"}>{value ?? empty}</span>
         {value && <span className="shrink-0 text-[11px] text-ink-2">{tr("Theo cơ sở")}</span>}
@@ -564,12 +566,15 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                 <ul className="flex flex-col gap-1.5">
                   {(["CONSENT", "PICKUP", "DELIVERY"] as const).map((p) => {
                     const signed = t.attestations.filter((a) => a.phase === p && a.epoch === t.attestationEpoch);
-                    const need = p === "CONSENT" ? 3 : 2;
+                    // Same rule as the API (phaseParties): a party that also carries the goods signs once.
+                    const parties = [...new Set(p === "CONSENT" ? [t.senderId, t.carrierId, t.receiverId] : p === "PICKUP" ? [t.senderId, t.carrierId] : [t.carrierId, t.receiverId])];
+                    const name = (id: string) => (id === t.senderId ? t.senderName : id === t.receiverId ? t.receiverName : t.carrierName) ?? "";
+                    const done = parties.filter((id) => signed.some((a) => a.organizationId === id)).length;
                     return (
                       <li key={p} className="flex flex-wrap items-center gap-2 text-[13px]">
-                        <Badge tone={signed.length >= need ? "ok" : signed.length ? "warn" : "neutral"} dot>{signed.length}/{need}</Badge>
-                        <span>{PHASE_LABEL[p]}</span>
-                        <span className="text-[12px] text-ink-2">{signed.map((a) => (a.organizationId === t.senderId ? t.senderName : a.organizationId === t.carrierId ? t.carrierName : t.receiverName)).join(", ")}</span>
+                        <Badge tone={done >= parties.length ? "ok" : done ? "warn" : "neutral"} dot>{done}/{parties.length}</Badge>
+                        <span>{PHASE_STEP[p]}</span>
+                        <span className="text-[12px] text-ink-2">{parties.map((id) => `${signed.some((a) => a.organizationId === id) ? "✓ " : ""}${name(id)}`).join(" · ")}</span>
                       </li>
                     );
                   })}
