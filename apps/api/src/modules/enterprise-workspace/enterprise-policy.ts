@@ -79,14 +79,19 @@ export function enterpriseTransferWhere(
       {
         OR: auth.user.enterpriseRoles
           .filter((r) => r.role.permissions.includes(permission))
-          .map((r) => ({
-            chainId: { in: r.chainIds },
-            OR: [
-              { senderId: organizationId, senderSiteId: { in: r.siteIds } },
-              { carrierId: organizationId, carrierSiteId: { in: r.siteIds } },
-              { receiverId: organizationId, receiverSiteId: { in: r.siteIds } },
-            ],
-          })),
+          .map((r) =>
+            // A driver role (drive without write) sees only the trips it drives.
+            r.role.permissions.includes('distribution.drive') && !r.role.permissions.includes('distribution.write')
+              ? { chainId: { in: r.chainIds }, senderId: organizationId, driverUserId: actor.sub! }
+              : {
+                  chainId: { in: r.chainIds },
+                  OR: [
+                    { senderId: organizationId, senderSiteId: { in: r.siteIds } },
+                    { carrierId: organizationId, carrierSiteId: { in: r.siteIds } },
+                    { receiverId: organizationId, receiverSiteId: { in: r.siteIds } },
+                  ],
+                },
+          ),
       },
     ],
   };

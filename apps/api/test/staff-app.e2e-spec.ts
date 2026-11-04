@@ -56,11 +56,15 @@ describe('Staff app / isolated PostgreSQL', () => {
       db.organization.create({ data: { name: `Staff ${tag} ${type}`, type } });
     const farmOrg = await org('FARM');
     const foreignOrg = await org('FARM');
-    for (const [name, code, organizationId, loginPhone] of [
-      ['farm', 'FARM_STAFF', farmOrg.id, null],
-      ['foreign', 'FARM_STAFF', foreignOrg.id, null],
-      ['admin', 'SYSTEM_ADMIN', null, null],
-      ['consumer', 'CONSUMER', null, `+849${String(Date.now()).slice(-8)}`],
+    // The staff app signs in enterprise employees only; owners use the Web.
+    await db.role.upsert({ where: { code: 'ENTERPRISE_STAFF' }, create: { code: 'ENTERPRISE_STAFF', name: 'ENTERPRISE_STAFF' }, update: {} });
+    for (const [name, code, organizationId, loginPhone, supervisor] of [
+      ['owner', 'FARM_STAFF', farmOrg.id, null, null],
+      ['foreignOwner', 'FARM_STAFF', foreignOrg.id, null, null],
+      ['farm', 'ENTERPRISE_STAFF', farmOrg.id, null, 'owner'],
+      ['foreign', 'ENTERPRISE_STAFF', foreignOrg.id, null, 'foreignOwner'],
+      ['admin', 'SYSTEM_ADMIN', null, null, null],
+      ['consumer', 'CONSUMER', null, `+849${String(Date.now()).slice(-8)}`, null],
     ] as const) {
       const role = await db.role.findUniqueOrThrow({ where: { code } });
       emails[name] = loginPhone
@@ -75,6 +79,7 @@ describe('Staff app / isolated PostgreSQL', () => {
             passwordHash: await hash(password, 12),
             roleId: role.id,
             organizationId,
+            ...(supervisor ? { enterpriseTier: 3, supervisorId: userIds[supervisor] } : code === 'FARM_STAFF' ? { enterpriseTier: 1 } : {}),
           },
         })
       ).id;
@@ -83,7 +88,8 @@ describe('Staff app / isolated PostgreSQL', () => {
       ownerOrganizationId: farmOrg.id,
       memberOrganizationIds: [foreignOrg.id],
       grants: [
-        { userId: userIds.farm, organizationId: farmOrg.id, role: 'ORG_ADMIN' },
+        { userId: userIds.owner, organizationId: farmOrg.id, role: 'ORG_ADMIN' },
+        { userId: userIds.foreignOwner, organizationId: foreignOrg.id, role: 'ORG_ADMIN' },
         { userId: userIds.farm, organizationId: farmOrg.id, role: 'FARM_STAFF' },
         {
           userId: userIds.foreign,
@@ -98,6 +104,11 @@ describe('Staff app / isolated PostgreSQL', () => {
     const farm = await db.farm.create({
       data: { organizationId: farmOrg.id, name: `Staff ${tag} farm` },
     });
+    // Employees act only through the permission groups their owner assigned.
+    for (const [name, organizationId] of [['farm', farmOrg.id], ['foreign', foreignOrg.id]] as const) {
+      const group = await db.enterpriseRole.create({ data: { organizationId, name: `Staff ${tag} ${name}`, permissions: ['profile.read', 'production.read', 'trace.read'] } });
+      await db.enterpriseMemberRole.create({ data: { userId: userIds[name], organizationId, roleId: group.id, chainIds: [chainId], siteIds: name === 'farm' ? [farm.id] : [] } });
+    }
     const cycle = await db.productionCycle.create({
       data: {
         cycleCode: randomUUID(),
@@ -108,6 +119,8 @@ describe('Staff app / isolated PostgreSQL', () => {
         currentState: 'PLANTED',
       },
     });
+    // A tier-3 employee sees only the cycles it is assigned to.
+    await db.productionCycleStaff.create({ data: { cycleId: cycle.id, userId: userIds.farm, organizationId: farmOrg.id, assignedBy: userIds.owner } });
     // Read scope needs the FARM capability and an accepted production stage.
     await db.organizationCapability.createMany({
       data: [farmOrg.id, foreignOrg.id].map((organizationId) => ({
@@ -200,7 +213,7 @@ describe('Staff app / isolated PostgreSQL', () => {
     const session = response.body.data;
     expect(session.tokenType).toBe('Bearer');
     expect(session.refreshToken.length).toBeGreaterThanOrEqual(32);
-    expect(session.user.role.code).toBe('FARM_STAFF');
+    expect(session.user.role.code).toBe('ENTERPRISE_STAFF');
     expect(session.user).not.toHaveProperty('passwordHash');
     await request(app.getHttpServer())
       .get('/api/auth/me')
@@ -208,12 +221,12 @@ describe('Staff app / isolated PostgreSQL', () => {
       .expect(200);
   });
 
-  it('refuses platform and consumer accounts exactly like a wrong password', async () => {
+  it('refuses owners, platform and consumer accounts exactly like a wrong password', async () => {
     const wrong = await post('login', {
       email: emails.farm,
       password: 'not the password at all',
     }).expect(401);
-    for (const name of ['admin', 'consumer']) {
+    for (const name of ['owner', 'admin', 'consumer']) {
       const refused = await login(name).expect(401);
       expect(refused.body.error?.message ?? refused.body.message).toEqual(
         wrong.body.error?.message ?? wrong.body.message,
@@ -221,7 +234,7 @@ describe('Staff app / isolated PostgreSQL', () => {
     }
     expect(
       await db.refreshSession.count({
-        where: { userId: { in: [userIds.admin, userIds.consumer] } },
+        where: { userId: { in: [userIds.owner, userIds.admin, userIds.consumer] } },
       }),
     ).toBe(0);
   });

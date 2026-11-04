@@ -43,7 +43,6 @@ let dummyHash: Promise<string> | undefined;
 const timingHash = () => (dummyHash ??= hash('agritrace-timing-equalizer', 12));
 const isPlatformRole = (code: string) =>
   (PLATFORM_ROLES as readonly string[]).includes(code);
-const MACHINE_ROLES = ['IOT_DEVICE', 'SYSTEM_ACTOR'];
 
 /** Adds the business role a client acts as (an employee's comes from its
  * organization type) without exposing the organization type itself. */
@@ -87,12 +86,9 @@ export function audienceAllows(
   if (audience === 'consumer')
     return role === 'CONSUMER' && user.organizationId === null;
   if (role === 'CONSUMER') return false;
+  // The staff app is for enterprise employees only; owners work on the Web.
   if (audience === 'staff')
-    return (
-      user.organizationId !== null &&
-      !isPlatformRole(role) &&
-      !MACHINE_ROLES.includes(role)
-    );
+    return user.organizationId !== null && role === 'ENTERPRISE_STAFF';
   return true;
 }
 
