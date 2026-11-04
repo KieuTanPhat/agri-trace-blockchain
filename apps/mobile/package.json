@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo-google-fonts/be-vietnam-pro": "0.4.1",
     "@expo-google-fonts/nunito": "^0.4.2",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0",
@@ -22,6 +23,7 @@
     "expo-router": "~58.0.30",
     "expo-secure-store": "~58.0.2",
     "expo-status-bar": "~58.0.4",
+    "lucide-react-native": "1.59.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
@@ -36,8 +38,8 @@
     "@types/react": "~19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
-    "typescript": "~6.0.3",
-    "minimatch": "file:./compat/minimatch-legacy"
+    "minimatch": "file:./compat/minimatch-legacy",
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",

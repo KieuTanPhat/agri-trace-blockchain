@@ -3,7 +3,7 @@ import { createDeviceKey, deviceKeyRegistration, forgetKeys, listUserKeys } from
 
 type Call = <T>(path: string, init?: { body?: unknown; idempotencyKey?: string }) => Promise<T>;
 type ServerKey = { id: string; status: string; userId: string | null };
-export type DeviceKeyState = { state: 'active'; keyId: string };
+type DeviceKeyState = { state: 'active'; keyId: string };
 type Issued = { record: { id: string; status: string } };
 
 /**

@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -8,11 +7,9 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { createHmac } from 'node:crypto';
-import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
-import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { appendPlatformAudit, lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import { settingNumber } from '../billing/billing-core.js';
 import type {

@@ -1,186 +1,226 @@
+import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
-import { api, type Schemas } from '../../../api/client';
+import { Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
-import { CycleCard } from '../../../components/CycleCard';
 import { DeviceKeyCard } from '../../../components/DeviceKeyCard';
-import { decorative, Icon } from '../../../components/Icon';
-import { Card, Empty, GreenHeader, IconButton, IconTile, Loading, Notice, SegmentTabs, T } from '../../../components/ui';
-import { qty } from '../../../lib/format';
-import { readProvince } from '../../../lib/local';
+import { Icon, type IconName } from '../../../components/staff/Icon';
+import { Button, Card, Empty, IconButton, IconTile, initialOf, Notice, Pill, Screen, Section, T } from '../../../components/staff/ui';
+import { useAccess, type FeatureKey } from '../../../lib/access';
 import { readQueue } from '../../../lib/queue';
 import { useLoad } from '../../../lib/useApi';
-import { weatherText } from '../../../lib/weather';
-import { useAccess } from '../../../lib/access';
-import { color, shadow } from '../../../theme/tokens';
+import { color, radius, space, type Tone } from '../../../theme/staff';
 
 type User = Schemas['AuthUserDto'];
+type Task = { transferId: string; action: string; origin: string; destination: string; createdAt: string };
+const SHORT = { staleTimeMs: 20_000 };
+const TONES: Tone[] = ['green', 'blue', 'orange', 'purple'];
+const ACTION: Record<string, { label: string; t: Tone }> = {
+  CONSENT: { label: 'Ký đồng thuận', t: 'orange' },
+  PICKUP: { label: 'Ký lấy hàng', t: 'blue' },
+  DELIVERY: { label: 'Ký giao nhận', t: 'green' },
+  ACTUAL_RECEIPT: { label: 'Ghi thực nhận', t: 'purple' },
+};
+const WEEKDAY = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
+function greeting() {
+  const h = new Date().getHours();
+  return h < 11 ? 'Chào buổi sáng,' : h < 14 ? 'Chào buổi trưa,' : h < 18 ? 'Chào buổi chiều,' : 'Chào buổi tối,';
+}
+
+/** Date chip of the "Việc sắp tới" list: weekday over day/month. */
+function DateChip({ at }: { at: string }) {
+  const d = new Date(at);
+  const today = new Date().toDateString() === d.toDateString();
+  return (
+    <View style={{ width: 52, paddingVertical: 8, borderRadius: radius.md, backgroundColor: color.greenTint, alignItems: 'center' }}>
+      <T size={11} weight="medium" c={color.greenDeep}>
+        {today ? 'Hôm nay' : WEEKDAY[d.getDay()]}
+      </T>
+      <T size={13} weight="bold" c={color.greenDeep}>
+        {`${d.getDate()}/${d.getMonth() + 1}`}
+      </T>
+    </View>
+  );
+}
+
+/** Today's work for an employee: shortcuts, the main call to action and what is next. */
 export default function StaffHome() {
+  const insets = useSafeAreaInsets();
   const { user, call } = useSession<User>();
-  const { has } = useAccess();
-  // Production work only for farms; other capabilities start from their queue.
-  const farm = has('FARM');
-  const [chosen, setTab] = useState<'cycles' | 'lots'>('cycles');
-  const tab = farm ? chosen : 'lots';
+  const { features, active, data } = useAccess();
+  const has = (key: FeatureKey) => features.some((f) => f.key === key);
   const [pending, setPending] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      setPending(0);
-      if(user)void readQueue(user).then((q) => setPending(q.length));
+      if (user) void readQueue(user).then((q) => setPending(q.length));
     }, [user]),
   );
-  const cycles = useLoad(() => (farm ? call<Schemas['CycleListDto'][]>('/production-cycles') : Promise.resolve([])), [farm]);
-  const tasks = useLoad(() => (farm ? Promise.resolve(null) : call<{ counts: { transfers: number } }>('/distribution/tasks')), [farm]);
-  const lots = useLoad(() => call<Schemas['InternalLotDto'][]>('/lots'));
-  const weather = useLoad(async () => api<Schemas['PublicWeatherDto']>(`/public/weather?province=${await readProvince()}`));
-  const active = (cycles.data ?? []).filter((c) => !['COMPLETED', 'CANCELLED'].includes(c.currentState));
-  const held = (lots.data ?? []).filter((l) => l.availableQuantity > 0);
-  const firstName = (user?.fullName ?? '').replace(/\([^)]*\)/g, '').trim().split(/\s+/).at(-1) ?? '';
+  const tasks = useLoad(() => (has('tasks') ? call<{ transfers: Task[] }>('/distribution/tasks') : Promise.resolve(null)), [has('tasks')], { key: 'home-tasks', ...SHORT });
+  const cycles = useLoad(() => (has('journal') ? call<Schemas['CycleListDto'][]>('/production-cycles') : Promise.resolve(null)), [has('journal')], { key: 'home-cycles', ...SHORT });
+  const messages = useLoad(() => call<{ counts: { unread: number } }>('/enterprise-messages'), [], { key: 'home-messages', ...SHORT });
+  const name = (user?.fullName ?? '').replace(/\([^)]*\)/g, '').trim();
+  const signable = (tasks.data?.transfers ?? []).filter((t) => ACTION[t.action]);
+  const running = (cycles.data ?? []).filter((c) => ['PLANTED', 'GROWING'].includes(c.currentState));
+
+  const shortcuts: { label: string; icon: IconName; href: string }[] = [
+    { label: 'Quét mã', icon: 'scan', href: '/staff/scan' },
+    ...features
+      .filter((f) => !['messages', 'signing'].includes(f.key))
+      .slice(0, 3)
+      .map((f) => ({ label: f.label.replace(' được giao', '').replace('Việc chờ ký', 'Việc ký'), icon: f.icon, href: f.href })),
+  ];
+  const banner = signable.length
+    ? { tag: 'CẦN LÀM', title: `${signable.length} việc chờ bạn ký`, body: 'Kiểm tra lô, số lượng rồi ký bằng khóa trên điện thoại.', action: 'Xem việc chờ ký', href: '/staff/tasks', icon: 'tasks' as const }
+    : running.length
+      ? { tag: 'MÙA VỤ', title: `${running.length} vụ đang chăm sóc`, body: 'Ghi nhật ký chăm sóc và thu hoạch kèm ảnh tại vườn.', action: 'Mở vụ được giao', href: '/staff/journal', icon: 'leaf' as const }
+      : null;
+
+  const refresh = () => {
+    void tasks.reload();
+    void cycles.reload();
+    void messages.reload();
+  };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: color.bg }}
-      contentContainerStyle={{ paddingBottom: 72 }}
-      refreshControl={<RefreshControl refreshing={cycles.loading && !!cycles.data} onRefresh={() => { void cycles.reload(); void lots.reload(); }} />}
-    >
-      <GreenHeader extraBottom={64}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-            <T size={19} weight="heavy" c={color.green}>
-              {firstName[0]?.toUpperCase()}
-            </T>
-          </View>
-          <View style={{ flex: 1 }}>
-            <T size={20} weight="heavy" c="#fff">
-              Chào {firstName}
-            </T>
-            <T size={14} weight="bold" c="#fff" numberOfLines={1}>
-              {user?.email}
-            </T>
-          </View>
-          <IconButton name="bell" label="Lệnh chờ gửi" tint="#fff" onPress={() => router.push('/staff/sync')} />
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingHorizontal: 4 }}>
-          <View>
-            <T size={20} weight="heavy" c="#fff">
-              {weather.data ? `${weatherText(weather.data.current.weatherCode)} ${weather.data.current.temperatureC !== null ? `${Math.round(weather.data.current.temperatureC)}°C` : ''}` : 'Hôm nay ở vườn'}
-            </T>
-            <T size={14} weight="bold" c="#fff">
-              {weather.data ? weather.data.provinceName : 'Thời tiết tạm chưa có'}
-            </T>
-          </View>
-          <Svg width={64} height={46} viewBox="0 0 78 56" {...decorative}>
-            <Circle cx={46} cy={20} r={15} fill="#ffd25a" />
-            <Path d="M18 50h40a13 13 0 0 0 0-26 18 18 0 0 0-34 4 11 11 0 0 0-6 22z" fill="#eaf6ff" />
-          </Svg>
-        </View>
-      </GreenHeader>
-
-      <Card style={[{ marginTop: -58, marginHorizontal: 16, paddingVertical: 16, flexDirection: 'row' }, shadow.raised]}>
-        {(farm
-          ? ([
-            { label: 'Ghi thu hoạch', icon: 'basket', t: 'orange', go: () => router.push('/staff/journal') },
-            { label: 'Ghi nhật ký', icon: 'journal', t: 'purple', go: () => router.push('/staff/journal') },
-            { label: 'Quét lô', icon: 'scan', t: 'blue', go: () => router.push('/staff/scan') },
-          ] as const)
-          : ([
-            { label: 'Hàng chờ nhận', icon: 'box', t: 'orange', go: () => router.push('/staff/inbound') },
-            has('RETAILER')
-              ? ({ label: 'Bán hàng', icon: 'store', t: 'purple', go: () => router.push('/staff/sales') } as const)
-              : ({ label: 'Chuyến hàng', icon: 'truck', t: 'purple', go: () => router.push('/staff/transfers') } as const),
-            { label: 'Quét lô', icon: 'scan', t: 'blue', go: () => router.push('/staff/scan') },
-          ] as const)
-        ).map((a) => (
-          <Pressable key={a.label} accessibilityRole="button" onPress={a.go} style={{ flex: 1, alignItems: 'center', gap: 8 }}>
-            <IconTile name={a.icon} t={a.t} size={56} />
-            <T size={14} weight="bold">
-              {a.label}
-            </T>
-          </Pressable>
-        ))}
-      </Card>
-
-      {/* The personal signing key is created on first sign-in. */}
-      <View style={{ marginHorizontal: 16, marginTop: 12 }}>
-        <DeviceKeyCard quiet />
-      </View>
-      {pending > 0 && (
-        <Pressable accessibilityRole="button" onPress={() => router.push('/staff/sync')} style={{ marginHorizontal: 16, marginTop: 12 }}>
-          <Notice kind="warn" title={`${pending} lệnh đang chờ gửi`} body="Máy sẽ gửi lại bằng đúng mã lệnh cũ khi có mạng. Bấm để xem." />
+    <View style={{ flex: 1, backgroundColor: color.bg }}>
+      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: space.lg, paddingBottom: space.sm, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <Image source={require('../../../../assets/brand/logo-agritrace.webp')} style={{ width: 92, height: 34 }} contentFit="contain" accessibilityLabel="AgriTrace" />
+        <View style={{ flex: 1 }} />
+        {pending > 0 && <IconButton name="sync" label="Lệnh chờ gửi" badge={pending} onPress={() => router.push('/staff/sync')} />}
+        <IconButton name="bell" label="Thông báo nội bộ" badge={messages.data?.counts.unread} onPress={() => router.push('/staff/messages')} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Tài khoản" onPress={() => router.push('/staff/more')} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: color.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+          <T size={14} weight="bold" c={color.greenDeep}>
+            {initialOf(user?.fullName)}
+          </T>
         </Pressable>
-      )}
-
-      <Card style={{ marginHorizontal: 16, marginTop: 12, paddingVertical: 12, flexDirection: 'row' }}>
-        {[
-          farm
-            ? { v: String(active.length), l: 'Vụ đang chạy', c: color.orangeDeep }
-            : { v: String(tasks.data?.counts.transfers ?? 0), l: 'Việc chờ ký', c: color.orangeDeep },
-          { v: String(held.length), l: 'Lô đang giữ', c: color.blue },
-          { v: qty(held.reduce((s, l) => s + l.availableQuantity, 0), held[0]?.unit), l: 'Tồn kho', c: color.green },
-        ].map((s, i) => (
-          <View key={s.l} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i ? 1 : 0, borderLeftColor: color.line }}>
-            <T size={22} weight="heavy" c={s.c} numberOfLines={1}>
-              {s.v}
-            </T>
-            <T size={13.5} weight="bold" c={color.inkSoft}>
-              {s.l}
-            </T>
-          </View>
-        ))}
-      </Card>
-
-      {farm && <View style={{ marginTop: 12 }}>
-        <SegmentTabs
-          value={tab}
-          onChange={setTab}
-          items={[
-            { key: 'cycles', label: 'Mùa vụ của tôi' },
-            { key: 'lots', label: 'Lô đang giữ' },
-          ]}
-        />
-      </View>}
-      <View style={{ padding: 16, gap: 10 }}>
-        {tab === 'cycles' ? (
-          cycles.loading && !cycles.data ? (
-            <Loading />
-          ) : cycles.error ? (
-            <Notice kind="error" title={cycles.error} />
-          ) : active.length === 0 ? (
-            <Empty title="Chưa có mùa vụ nào được giao" body="Quản lý doanh nghiệp giao vụ cho bạn trên AgriTrace Web." icon="leaf" />
-          ) : (
-            active.map((c) => <CycleCard key={c.id} cycle={c} mine={!!user && (c.staffUserIds ?? []).includes(user.id)} />)
-          )
-        ) : lots.loading && !lots.data ? (
-          <Loading />
-        ) : lots.error ? (
-          <Notice kind="error" title={lots.error} />
-        ) : held.length === 0 ? (
-          <Empty title="Không có lô nào đang giữ" icon="box" />
-        ) : (
-          held.map((l) => (
-            <Pressable key={l.lotId} accessibilityRole="button" onPress={() => router.push(`/staff/lot/${l.lotId}`)}>
-            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 }}>
-              <IconTile name="box" t="orange" size={48} glyph={26} />
-              <View style={{ flex: 1 }}>
-                <T size={16} weight="heavy" numberOfLines={1}>
-                  {l.productName}
-                </T>
-                <T size={13} c={color.muted} style={{ fontFamily: 'monospace' }}>
-                  {l.lotCode}
-                </T>
-              </View>
-              <T size={15} weight="heavy" c={color.green}>
-                {qty(l.availableQuantity, l.unit)}
-              </T>
-              <Icon name="chevron" color={color.faint} />
-            </Card>
-            </Pressable>
-          ))
-        )}
       </View>
-    </ScrollView>
+      <Screen refreshing={tasks.loading || cycles.loading} onRefresh={refresh} style={{ paddingTop: space.sm, gap: space.lg }}>
+        <View style={{ gap: 2 }}>
+          <T size={14} c={color.inkSoft}>
+            {greeting()}
+          </T>
+          <T size={22} weight="heavy" numberOfLines={1}>
+            {name}
+          </T>
+          <T size={12.5} c={color.muted}>
+            Đây là công việc của bạn hôm nay.
+          </T>
+        </View>
+
+        {data && !active && <Notice kind="warn" title="Doanh nghiệp chưa hoạt động" body="Bạn chỉ xem được thông tin. Liên hệ chủ doanh nghiệp khi cần làm việc." />}
+
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          {shortcuts.map((s, i) => (
+            <Pressable key={s.href} accessibilityRole="button" accessibilityLabel={s.label} onPress={() => router.push(s.href as never)} style={({ pressed }) => ({ width: '23%', alignItems: 'center', gap: 6, opacity: pressed ? 0.75 : 1 })}>
+              <IconTile name={s.icon} t={TONES[i % TONES.length]} size={56} glyph={24} />
+              <T size={11.5} weight="medium" numberOfLines={1} style={{ textAlign: 'center' }}>
+                {s.label}
+              </T>
+            </Pressable>
+          ))}
+          {Array.from({ length: Math.max(0, 4 - shortcuts.length) }, (_, i) => (
+            <View key={`gap-${i}`} style={{ width: '23%' }} />
+          ))}
+        </View>
+
+        {banner && (
+          <View style={{ borderRadius: radius.xl, padding: space.lg, backgroundColor: color.greenTint, flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Pill label={banner.tag} t="green" />
+              <T size={17} weight="heavy" c={color.greenDeep}>
+                {banner.title}
+              </T>
+              <T size={12.5} c={color.inkSoft}>
+                {banner.body}
+              </T>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push(banner.href as never)}
+                style={({ pressed }) => ({ alignSelf: 'flex-start', marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.full, backgroundColor: color.greenDeep, opacity: pressed ? 0.85 : 1 })}
+              >
+                <T size={12.5} weight="bold" c="#fff">
+                  {banner.action}
+                </T>
+                <Icon name="chevron" size={14} color="#fff" />
+              </Pressable>
+            </View>
+            <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: '#d3ecdd', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={banner.icon} size={40} color={color.green} strokeWidth={1.6} />
+            </View>
+          </View>
+        )}
+
+        {pending > 0 && (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/staff/sync')}>
+            <Notice kind="warn" title={`${pending} lệnh đang chờ gửi`} body="Máy gửi lại bằng đúng mã lệnh cũ khi có mạng. Bấm để xem." />
+          </Pressable>
+        )}
+        {has('signing') && <DeviceKeyCard quiet />}
+
+        {has('tasks') && (
+          <Section title="Việc sắp tới" action={signable.length ? 'Xem tất cả ›' : undefined} onAction={() => router.push('/staff/tasks')}>
+            {signable.length === 0 ? (
+              <Empty title="Không có việc chờ ký" icon="tasks" />
+            ) : (
+              signable.slice(0, 4).map((t, i) => (
+                <Pressable
+                  key={`${t.transferId}:${t.action}`}
+                  accessibilityRole="button"
+                  onPress={() => router.push(`/staff/transfer/${t.transferId}`)}
+                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderTopWidth: i ? 1 : 0, borderTopColor: color.line, backgroundColor: pressed ? '#f9fbfa' : undefined })}
+                >
+                  <DateChip at={t.createdAt} />
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <T size={13.5} weight="bold" numberOfLines={1}>
+                      {t.destination}
+                    </T>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Icon name="location" size={12} color={color.muted} />
+                      <T size={11.5} c={color.muted} numberOfLines={1} style={{ flex: 1 }}>
+                        Từ {t.origin}
+                      </T>
+                    </View>
+                  </View>
+                  <Pill label={ACTION[t.action].label} t={ACTION[t.action].t} />
+                </Pressable>
+              ))
+            )}
+          </Section>
+        )}
+
+        {!has('tasks') && has('journal') && (
+          <Section title="Vụ đang làm" action={running.length ? 'Xem tất cả ›' : undefined} onAction={() => router.push('/staff/journal')}>
+            {running.length === 0 ? (
+              <Empty title="Chưa có vụ đang làm" icon="leaf" />
+            ) : (
+              running.slice(0, 4).map((c, i) => (
+                <Pressable key={c.id} accessibilityRole="button" onPress={() => router.push(`/staff/cycle/${c.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderTopWidth: i ? 1 : 0, borderTopColor: color.line }}>
+                  <IconTile name="leaf" t="green" size={40} glyph={18} />
+                  <View style={{ flex: 1 }}>
+                    <T size={13.5} weight="bold">
+                      {c.product.productName}
+                    </T>
+                    <T size={11.5} c={color.muted} numberOfLines={1}>
+                      {c.cycleCode} · {c.farm.name}
+                    </T>
+                  </View>
+                  <Icon name="chevron" size={16} color={color.faint} />
+                </Pressable>
+              ))
+            )}
+          </Section>
+        )}
+
+        {data && features.length <= 1 && (
+          <Card>
+            <Empty title="Bạn chưa được giao việc" body="Chủ doanh nghiệp gán nhóm quyền cho bạn trên AgriTrace Web; kéo xuống để tải lại." icon="tasks" />
+          </Card>
+        )}
+        {features.length > 4 && <Button label="Mọi chức năng của bạn" kind="outline" icon="more" onPress={() => router.push('/staff/more')} />}
+      </Screen>
+    </View>
   );
 }

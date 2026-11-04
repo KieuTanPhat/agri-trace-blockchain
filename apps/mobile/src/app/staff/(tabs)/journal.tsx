@@ -1,40 +1,40 @@
-import { FlatList, View } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
 import { CycleCard } from '../../../components/CycleCard';
-import { Empty, GreenHeader, Loading, Notice, T } from '../../../components/ui';
-import { useLoad } from '../../../lib/useApi';
-import { color } from '../../../theme/tokens';
+import { Card, Empty, Header, Loadable, Screen, SegmentTabs } from '../../../components/staff/ui';
+import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
+import { color } from '../../../theme/staff';
 
-/** All cycles the API lets this account see; write buttons live on the detail. */
+const RUNNING = ['CREATED', 'PLANTED', 'GROWING'];
+
+/** Cycles assigned to this employee; care and harvest are recorded from the detail. */
 export default function Journal() {
-  const { user, call } = useSession<Schemas['AuthUserDto']>();
-  const cycles = useLoad(() => call<Schemas['CycleListDto'][]>('/production-cycles'));
+  const { call } = useSession<Schemas['AuthUserDto']>();
+  const [tab, setTab] = useState<'running' | 'ended'>('running');
+  const cycles = useLoad(() => call<Schemas['CycleListDto'][]>('/production-cycles'), [], { key: 'cycles', staleTimeMs: 20_000 });
+  useReloadOnFocus(cycles.reloadIfStale);
+  const shown = (cycles.data ?? []).filter((c) => RUNNING.includes(c.currentState) === (tab === 'running'));
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <GreenHeader title="Nhật ký mùa vụ" />
-      {cycles.loading && !cycles.data ? (
-        <Loading />
-      ) : cycles.error ? (
-        <View style={{ padding: 16 }}>
-          <Notice kind="error" title={cycles.error} />
-        </View>
-      ) : (
-        <FlatList
-          data={cycles.data ?? []}
-          keyExtractor={(c) => c.id}
-          onRefresh={() => void cycles.reload()}
-          refreshing={cycles.loading}
-          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 72 }}
-          ListHeaderComponent={
-            <T size={14} c={color.muted} style={{ marginBottom: 4 }}>
-              Chọn một vụ để ghi nhật ký chăm sóc hoặc thu hoạch.
-            </T>
+      <Header title="Vụ được giao" subtitle="Chọn vụ để ghi nhật ký chăm sóc hoặc thu hoạch" />
+      <Screen refreshing={cycles.loading} onRefresh={() => void cycles.reload()} bottomInset={96}>
+        <SegmentTabs value={tab} onChange={setTab} items={[{ key: 'running', label: 'Đang làm' }, { key: 'ended', label: 'Đã kết thúc' }]} />
+        <Loadable {...cycles} reload={() => void cycles.reload()}>
+          {() =>
+            shown.length === 0 ? (
+              <Card>
+                <Empty title={tab === 'running' ? 'Chưa có vụ đang làm' : 'Chưa có vụ đã kết thúc'} body="Bạn chỉ thấy các vụ chủ doanh nghiệp giao cho bạn." icon="leaf" />
+              </Card>
+            ) : (
+              <Card style={{ overflow: 'hidden' }}>
+                {shown.map((c, i) => <CycleCard key={c.id} cycle={c} first={i === 0} />)}
+              </Card>
+            )
           }
-          ListEmptyComponent={<Empty title="Chưa có mùa vụ" body="Bạn chỉ thấy vụ được giao hoặc thuộc phạm vi quyền của mình." icon="leaf" />}
-          renderItem={({ item }) => <CycleCard cycle={item} mine={!!user && (item.staffUserIds ?? []).includes(user.id)} />}
-        />
-      )}
+        </Loadable>
+      </Screen>
     </View>
   );
 }

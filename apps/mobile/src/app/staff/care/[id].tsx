@@ -1,16 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Schemas } from '../../../api/client';
 import { useSession, useSessionScope } from '../../../auth/session';
 import { PhotoSlot } from '../../../components/PhotoSlot';
-import { Button, Card, Field, GreenHeader, Loading, Notice, T } from '../../../components/ui';
+import { Button, Card, Chips, Field, Header, Loading, Notice, T } from '../../../components/staff/ui';
 import { sendCommand, uploadCycleImage, type Photo } from '../../../lib/staffApi';
 import type { CommandOutcome } from '../../../lib/staff-command';
 import { useLoad } from '../../../lib/useApi';
 import { useSubmission } from '../../../lib/use-submission';
-import { color } from '../../../theme/tokens';
+import { color } from '../../../theme/staff';
 
 /** Same list as the Web journal (apps/web/src/lib/ledger/ops-labels.ts). */
 const CARE_TYPES = ['Tưới nước', 'Bón phân', 'Phun thuốc', 'Làm cỏ', 'Theo dõi sâu bệnh', 'Khác'];
@@ -35,7 +35,7 @@ function CareForm({ id }: { id: string }) {
   if (!cycle)
     return (
       <View style={{ flex: 1 }}>
-        <GreenHeader title="Ghi nhật ký" back />
+        <Header title="Ghi nhật ký" back />
         {loading ? <Loading /> : (
           <View style={{ padding: 16, gap: 12 }}>
             <Notice kind="error" title={loadError ?? 'Không tìm thấy mùa vụ'} />
@@ -75,7 +75,7 @@ function CareForm({ id }: { id: string }) {
   if (done)
     return (
       <View style={{ flex: 1, backgroundColor: color.bg }}>
-        <GreenHeader title="Ghi nhật ký" back />
+        <Header title="Ghi nhật ký" back />
         <View style={{ padding: 16, gap: 14 }}>
           {done.sent ? <Notice kind="success" title="Đã ghi nhật ký" body={`${careType} · ${name}`} />
             : <Notice kind={done.state === 'failed' ? 'error' : 'warn'} title={done.state === 'failed' ? 'Nhật ký bị từ chối' : 'Lệnh đang chờ đối soát'} body={done.error} />}
@@ -87,30 +87,22 @@ function CareForm({ id }: { id: string }) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: color.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
-        <GreenHeader title="Ghi nhật ký" back extraBottom={44}>
-          <T size={14.5} weight="bold" c="#fff" style={{ textAlign: 'center' }}>
+        <Header title="Ghi nhật ký" back>
+          <T size={14.5} weight="bold" c={color.muted}>
             {cycle.product.productName} · {cycle.farm.name}
           </T>
-        </GreenHeader>
-        <View style={{ marginTop: -40, paddingHorizontal: 16, gap: 12 }}>
+        </Header>
+        <View style={{ marginTop: 16, paddingHorizontal: 16, gap: 12 }}>
           <Card style={{ padding: 16, gap: 12 }}>
-            <T size={15.5} weight="heavy">
+            <T size={15} weight="bold">
               Loại công việc
             </T>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {CARE_TYPES.map((t) => (
-                <Pressable key={t} accessibilityRole="radio" accessibilityState={{ selected: careType === t }} onPress={() => setCareType(t)} style={{ paddingHorizontal: 14, height: 42, borderRadius: 999, justifyContent: 'center', borderWidth: 1.5, borderColor: careType === t ? color.purple : color.field, backgroundColor: careType === t ? color.purpleTint : '#fff' }}>
-                  <T size={14.5} weight="heavy" c={careType === t ? color.purpleDeep : color.inkSoft}>
-                    {t}
-                  </T>
-                </Pressable>
-              ))}
-            </View>
+            <Chips value={careType} onChange={setCareType} items={CARE_TYPES.map((t) => ({ key: t, label: t }))} />
             <Field label="Việc đã làm" required value={name} onChangeText={setName} placeholder="Ví dụ: tưới nhỏ giọt 30 phút" />
             <Field label="Ghi chú" value={note} onChangeText={setNote} placeholder="Không bắt buộc" />
           </Card>
           <Card style={{ padding: 16, gap: 10 }}>
-            <T size={15.5} weight="heavy">
+            <T size={15} weight="bold">
               Ảnh minh chứng <T c={color.red}>*</T>
             </T>
             <PhotoSlot label="Ảnh công việc" photo={photo} onChange={setPhoto} />

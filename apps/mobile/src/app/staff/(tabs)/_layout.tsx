@@ -1,21 +1,21 @@
 import { Tabs } from 'expo-router/tabs';
-import { TabBar } from '../../../components/TabBar';
+import { TabBar } from '../../../components/staff/TabBar';
 import { staffTabs, useAccess } from '../../../lib/access';
 
-/** Tabs follow the enterprise capabilities; every screen stays declared so
- * the ones not in the bar remain reachable from More. */
+/** The bar shows Home, the employee's first two assigned features and More;
+ * every screen stays declared so the others open from Home or More. */
 export default function StaffTabs() {
-  const { access } = useAccess();
-  const tabs = staffTabs(access?.capabilities ?? [], access?.permissions ?? []);
+  const { features } = useAccess();
   return (
     <Tabs
       screenOptions={{ headerShown: false }}
-      tabBar={(props) => <TabBar {...props} scanHref="/staff/scan" scanLabel="Quét mã lô" tabs={tabs} />}
+      tabBar={(props) => <TabBar {...props} tabs={staffTabs(features)} />}
     >
       {/* SDK 58 renders only declared screens. */}
       <Tabs.Screen name="index" />
       <Tabs.Screen name="journal" />
-      <Tabs.Screen name="inbound" />
+      <Tabs.Screen name="tasks" />
+      <Tabs.Screen name="stock" />
       <Tabs.Screen name="sales" />
       <Tabs.Screen name="transfers" />
       <Tabs.Screen name="more" />

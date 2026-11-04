@@ -4,11 +4,11 @@ import { ScrollView, View } from 'react-native';
 import { errorText, newIdempotencyKey, type Schemas } from '../../api/client';
 import { useSession } from '../../auth/session';
 import { DeviceKeyCard } from '../../components/DeviceKeyCard';
-import { Button, Card, GreenHeader, Loading, Notice, Pill, T } from '../../components/ui';
+import { Button, Card, Header, Loading, Notice, Pill, T } from '../../components/staff/ui';
 import { useAccess } from '../../lib/access';
 import { createChainKey, listDeviceKeys } from '../../lib/signing/keys';
 import { useLoad, useReloadOnFocus } from '../../lib/useApi';
-import { color } from '../../theme/tokens';
+import { color } from '../../theme/staff';
 
 type Chain = { id: string; name: string };
 type Context = { chainId: string; bindingDigest: string | null; handoverMode: string; keys: { keyRef: string; status: string; label: string }[] };
@@ -61,7 +61,7 @@ export default function Signing() {
   const data = load.data;
   return (
     <ScrollView style={{ flex: 1, backgroundColor: color.bg }} contentContainerStyle={{ paddingBottom: 32 }}>
-      <GreenHeader title="Khóa ký trên điện thoại" back />
+      <Header title="Khóa ký trên điện thoại" back />
       <View style={{ padding: 16, gap: 12 }}>
         <Notice kind="info" title="Khóa riêng không rời điện thoại" body="Máy chủ chỉ nhận khóa công khai và bằng chứng sở hữu. Gỡ ứng dụng hoặc đổi máy thì khóa mới được tạo lại và cần mã xác minh mới." />
         <DeviceKeyCard />

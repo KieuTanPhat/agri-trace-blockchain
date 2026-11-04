@@ -1,117 +1,93 @@
 import { useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
-import type { Schemas } from '../../../api/client';
-import { errorText } from '../../../api/client';
+import { View } from 'react-native';
 import { useSession } from '../../../auth/session';
-import { Button, Card, Empty, Field, GreenHeader, Loading, Notice, Pill, T } from '../../../components/ui';
+import { Button, Card, Chips, Empty, Field, Header, Loadable, Notice, Pill, Screen, T } from '../../../components/staff/ui';
 import { qty } from '../../../lib/format';
-import { sendCommand } from '../../../lib/staffApi';
-import { useAccess } from '../../../lib/access';
+import { lotStop, type StockLot } from '../../../lib/stock';
+import { quantityError, useCommand } from '../../../lib/use-command';
 import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
-import { color } from '../../../theme/tokens';
+import { color, space } from '../../../theme/staff';
 
-type Lot = {
-  lotId: string; version: number; lotCode: string; productName: string; unit: string; held: string; available: string;
-  blocked: boolean; expiryDate: string | null; notices: { kind: string }[];
-  siteHoldings: { siteId: string; siteName: string; available: string }[];
-};
-const DEC = /^\d{1,11}(\.\d{1,3})?$/;
-const today = () => new Date().toISOString().slice(0, 10);
-const stopped = (l: Lot) => l.blocked || l.notices.some((n) => n.kind === 'RECALL') || (!!l.expiryDate && l.expiryDate.slice(0, 10) < today());
-
-/** Retail desk: lots on hand and a sale that deducts stock by lot. */
+/** Retail desk: lots on hand and a sale that deducts stock by lot and site. */
 export default function Sales() {
-  const { call, user } = useSession<Schemas['AuthUserDto']>();
-  const { can } = useAccess();
-  const list = useLoad(() => call<{ lots: Lot[] }>('/distribution/reports'));
-  useReloadOnFocus(list.reload);
-  const [open, setOpen] = useState<string | null>(null);
-  const [site, setSite] = useState('');
-  const [amount, setAmount] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ kind: 'success' | 'error' | 'warn'; text: string } | null>(null);
+  const { call } = useSession();
+  const list = useLoad(() => call<{ lots: StockLot[] }>('/distribution/reports'), [], { key: 'stock-report', staleTimeMs: 15_000 });
+  useReloadOnFocus(list.reloadIfStale);
   const lots = (list.data?.lots ?? []).filter((l) => Number(l.held) > 0);
+  return (
+    <View style={{ flex: 1, backgroundColor: color.bg }}>
+      <Header title="Bán hàng" subtitle="Ghi bán trừ tồn theo lô" />
+      <Screen refreshing={list.loading} onRefresh={() => void list.reload()} bottomInset={96}>
+        <Loadable {...list} reload={() => void list.reload()}>
+          {() =>
+            lots.length === 0 ? (
+              <Card>
+                <Empty title="Chưa có lô nào để bán" icon="store" />
+              </Card>
+            ) : (
+              <>{lots.map((l) => <SaleCard key={l.lotId} lot={l} onDone={() => void list.reload()} />)}</>
+            )
+          }
+        </Loadable>
+      </Screen>
+    </View>
+  );
+}
 
-  async function sell(lot: Lot) {
-    if (!user || busy) return;
-    if (!DEC.test(amount) || Number(amount) <= 0) return setMessage({ kind: 'error', text: 'Nhập số lượng lớn hơn 0, tối đa 3 chữ số thập phân.' });
-    setBusy(true);
-    setMessage(null);
-    try {
-      const outcome = await sendCommand(call, user, {
+function SaleCard({ lot, onDone }: { lot: StockLot; onDone: () => void }) {
+  const { send, busy, message } = useCommand();
+  const sites = lot.siteHoldings.filter((s) => Number(s.available) > 0);
+  const [open, setOpen] = useState(false);
+  const [site, setSite] = useState(sites[0]?.siteId ?? '');
+  const [amount, setAmount] = useState('');
+  const stop = lotStop(lot);
+  const available = sites.find((s) => s.siteId === site)?.available ?? lot.available;
+  const sell = async () => {
+    const ok = await send(() => {
+      const bad = quantityError(amount, available);
+      if (bad) throw new Error(bad);
+      return {
         path: '/distribution/quantities',
         label: 'Ghi bán',
         detail: `${lot.lotCode} · ${amount} ${lot.unit}`,
         body: { lotId: lot.lotId, unit: lot.unit, version: lot.version, kind: 'SALE', quantity: amount, reason: 'Bán cho người tiêu dùng', ...(site ? { siteId: site } : {}) },
-      });
-      if (outcome.sent) {
-        setMessage({ kind: 'success', text: `Đã ghi bán ${amount} ${lot.unit} lô ${lot.lotCode}.` });
-        setOpen(null);
-        setAmount('');
-        void list.reload();
-      } else setMessage({ kind: outcome.state === 'failed' ? 'error' : 'warn', text: outcome.error });
-    } catch (error) {
-      setMessage({ kind: 'error', text: errorText(error) });
-    } finally {
-      setBusy(false);
+      };
+    }, `Đã ghi bán ${amount} ${lot.unit} lô ${lot.lotCode}.`);
+    if (ok) {
+      setOpen(false);
+      setAmount('');
+      onDone();
     }
-  }
-
+  };
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <GreenHeader title="Bán hàng" />
-      {list.loading && !list.data ? (
-        <Loading />
-      ) : list.error ? (
-        <View style={{ padding: 16 }}>
-          <Notice kind="error" title={list.error} action={<Button label="Thử tải lại" onPress={() => void list.reload()} />} />
+    <Card style={{ padding: space.lg, gap: space.sm }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
+        <View style={{ flex: 1 }}>
+          <T size={15} weight="bold" numberOfLines={1}>
+            {lot.productName}
+          </T>
+          <T size={13} c={color.muted}>
+            {lot.lotCode}
+          </T>
+        </View>
+        <Pill label={stop?.label ?? 'Đang bán'} t={stop?.t ?? 'green'} />
+      </View>
+      <T size={14} weight="bold" c={color.greenDeep}>
+        Khả dụng {qty(Number(lot.available), lot.unit)}
+      </T>
+      {message && <Notice kind={message.kind} title={message.text} />}
+      {open ? (
+        <View style={{ gap: space.sm }}>
+          {sites.length > 1 && <Chips value={site} onChange={setSite} items={sites.map((s) => ({ key: s.siteId, label: `${s.siteName} · ${s.available}` }))} />}
+          <Field label={`Số lượng bán (${lot.unit})`} required keyboardType="decimal-pad" value={amount} onChangeText={setAmount} hint={`Tối đa ${available}`} />
+          <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <Button label="Hủy" kind="outline" style={{ flex: 1 }} disabled={busy} onPress={() => setOpen(false)} />
+            <Button label="Ghi bán" style={{ flex: 1 }} loading={busy} onPress={() => void sell()} />
+          </View>
         </View>
       ) : (
-        <FlatList
-          data={lots}
-          keyExtractor={(l) => l.lotId}
-          onRefresh={() => void list.reload()}
-          refreshing={list.loading}
-          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 72 }}
-          ListHeaderComponent={message ? <Notice kind={message.kind} title={message.text} /> : !can('quantity.adjust') ? <Notice kind="info" title="Bạn chỉ xem được tồn" body="Ghi bán cần quyền điều chỉnh khối lượng." /> : undefined}
-          ListEmptyComponent={<Empty title="Chưa có lô nào để bán" icon="store" />}
-          renderItem={({ item }) => {
-            const blocked = stopped(item);
-            const sites = item.siteHoldings.filter((s) => Number(s.available) > 0);
-            return (
-              <Card style={{ padding: 14, gap: 8 }}>
-                <T size={16} weight="heavy" numberOfLines={1}>{item.productName}</T>
-                <T size={13} c={color.muted} style={{ fontFamily: 'monospace' }}>{item.lotCode}</T>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <T size={15} weight="heavy" c={color.green}>Khả dụng {qty(Number(item.available), item.unit)}</T>
-                  <Pill label={blocked ? (item.notices.some((n) => n.kind === 'RECALL') ? 'Thu hồi' : item.blocked ? 'Bị chặn' : 'Hết hạn') : 'Đang bán'} t={blocked ? 'red' : 'green'} />
-                </View>
-                {open === item.lotId ? (
-                  <View style={{ gap: 10 }}>
-                    {sites.length > 1 && (
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                        {sites.map((s) => (
-                          <Pressable key={s.siteId} accessibilityRole="radio" accessibilityState={{ checked: site === s.siteId }} onPress={() => setSite(s.siteId)}
-                            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: site === s.siteId ? color.green : color.line }}>
-                            <T size={13.5}>{s.siteName} · {s.available}</T>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
-                    <Field label={`Số lượng bán (${item.unit})`} required keyboardType="decimal-pad" value={amount} onChangeText={setAmount} />
-                    <Button label="Ghi bán" loading={busy} disabled={busy} onPress={() => void sell(item)} />
-                    <Button label="Hủy" kind="outline" onPress={() => setOpen(null)} />
-                  </View>
-                ) : (
-                  can('quantity.adjust') && !blocked && Number(item.available) > 0 && (
-                    <Button label="Ghi bán" kind="outline" onPress={() => { setOpen(item.lotId); setSite(sites[0]?.siteId ?? ''); setAmount(''); setMessage(null); }} />
-                  )
-                )}
-              </Card>
-            );
-          }}
-        />
+        !stop && sites.length > 0 && <Button label="Ghi bán" kind="outline" icon="store" onPress={() => setOpen(true)} />
       )}
-    </View>
+    </Card>
   );
 }

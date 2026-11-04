@@ -10,7 +10,7 @@ import { SessionGate } from './session-gate';
  * without secure storage: it keeps the token in sessionStorage, which the
  * browser drops when the tab closes.
  */
-export type Audience = 'consumer' | 'staff';
+type Audience = 'consumer' | 'staff';
 
 type Session<U> = { sessionId: string; accessToken: string; refreshToken: string; user: U };
 type State<U> = { status: 'loading' | 'anonymous' | 'signed-in'; user: U | null; scope: string };

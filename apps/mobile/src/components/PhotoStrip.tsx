@@ -1,8 +1,8 @@
 import { View } from 'react-native';
 import type { Photo } from '../lib/staffApi';
-import { color } from '../theme/tokens';
+import { color } from '../theme/staff';
 import { PhotoSlot } from './PhotoSlot';
-import { T } from './ui';
+import { T } from './staff/ui';
 
 /** Several evidence photos: tap a photo to replace it, the empty slot to add one. */
 export function PhotoStrip({ label, photos, onChange, required, max = 3 }: {

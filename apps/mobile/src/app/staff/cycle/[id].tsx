@@ -4,12 +4,12 @@ import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
-import { Icon } from '../../../components/Icon';
-import { Button, Card, GreenHeader, Loading, Notice, Pill, T } from '../../../components/ui';
+import { Icon } from '../../../components/staff/Icon';
+import { Button, Card, Header, Loading, Notice, Pill, T } from '../../../components/staff/ui';
 import { dateTime, qty } from '../../../lib/format';
 import { CYCLE_STATE } from '../../../lib/labels';
 import { useLoad } from '../../../lib/useApi';
-import { color } from '../../../theme/tokens';
+import { color } from '../../../theme/staff';
 
 type Cycle = Schemas['CycleDetailDto'];
 
@@ -26,7 +26,7 @@ export default function CycleDetail() {
   if (!cycle)
     return (
       <View style={{ flex: 1 }}>
-        <GreenHeader title="Mùa vụ" back />
+        <Header title="Mùa vụ" back />
         {loading ? <Loading /> : <View style={{ padding: 16 }}><Notice kind="error" title={error ?? 'Không tìm thấy mùa vụ'} /></View>}
       </View>
     );
@@ -44,8 +44,8 @@ export default function CycleDetail() {
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        <GreenHeader title="Mùa vụ" back extraBottom={34} />
-        <Card style={{ marginTop: -30, marginHorizontal: 16, padding: 16, gap: 8 }}>
+        <Header title="Mùa vụ" back />
+        <Card style={{ marginTop: 16, marginHorizontal: 16, padding: 16, gap: 8 }}>
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
             <Pill label={state.label} t={state.t} />
             {user && (cycle.staffUserIds ?? []).includes(user.id) && <Pill label="Bạn được giao" t="orange" />}

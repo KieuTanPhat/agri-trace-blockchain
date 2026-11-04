@@ -3,9 +3,9 @@ import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Field, IconButton, Notice, T } from '../../components/ui';
+import { Button, Field, IconButton, Notice, T } from '../../components/staff/ui';
 import { parseTraceToken } from '../../lib/format';
-import { color } from '../../theme/tokens';
+import { color } from '../../theme/staff';
 
 /** Scan a lot label; the lot view resolves it inside the caller's scope. */
 export default function StaffScan() {

@@ -8,19 +8,19 @@ import {
   Button,
   Card,
   Empty,
-  GreenHeader,
+  Header,
   IconTile,
   Notice,
   Pill,
   T,
-} from "../../components/ui";
+} from "../../components/staff/ui";
 import { dateTime } from "../../lib/format";
 import {
   readQueue,
   removeQueued,
   type QueuedCommand,
 } from "../../lib/queue";
-import { color } from "../../theme/tokens";
+import { color } from "../../theme/staff";
 
 /**
  * Commands kept on the device. Re-sending always uses the stored key, so a
@@ -55,7 +55,7 @@ export default function Sync() {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <GreenHeader title="Lệnh chờ gửi" back />
+      <Header title="Lệnh chờ gửi" back />
       <FlatList
         data={items}
         keyExtractor={(i) => i.key}

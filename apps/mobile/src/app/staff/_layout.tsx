@@ -1,8 +1,9 @@
 import { Redirect, Stack, useSegments } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { SessionProvider, useSession } from '../../auth/session';
-import { Loading } from '../../components/ui';
-import { color } from '../../theme/tokens';
+import { Loading } from '../../components/staff/ui';
+import { color } from '../../theme/staff';
 
 /** Every staff screen except sign-in needs a session. */
 function Gate() {
@@ -20,9 +21,13 @@ function Gate() {
   // An account created or reset by an administrator changes its password first.
   if (status === 'signed-in' && user?.mustChangePassword && !onPassword) return <Redirect href="/staff/password" />;
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>
+    <>
+      {/* Staff screens use white app bars. */}
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>
       <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
     </Stack>
+    </>
   );
 }
 

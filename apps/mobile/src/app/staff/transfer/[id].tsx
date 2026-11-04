@@ -4,7 +4,7 @@ import { ScrollView, View } from 'react-native';
 import { errorText, type Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
 import { PhotoStrip } from '../../../components/PhotoStrip';
-import { Button, Card, Field, GreenHeader, Loading, Notice, Pill, Row, T } from '../../../components/ui';
+import { Button, Card, Field, Header, Loading, Notice, Pill, Row, T } from '../../../components/staff/ui';
 import { dateTime, qty } from '../../../lib/format';
 import { readQueue } from '../../../lib/queue';
 import type { PreparedIntent } from '../../../lib/signing/canonical';
@@ -13,7 +13,7 @@ import { uploadPhotos, type Photo } from '../../../lib/staffApi';
 import { retryCommand, sendCommand, type CommandOutcome } from '../../../lib/staff-command';
 import { currentAttestations, transferStatus, type TransferDetail } from '../../../lib/transfers';
 import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
-import { color } from '../../../theme/tokens';
+import { color } from '../../../theme/staff';
 
 type Detail = TransferDetail & SignableTransfer & { allowedActions: string[]; receiverSiteId?: string | null; photos?: { phase: string; evidenceId: string }[] };
 type ReceiptRow = { received: string; rejected: string; quarantined: string };
@@ -42,7 +42,7 @@ export default function TransferScreen() {
   const transfer = data?.record;
   if (!transfer) return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <GreenHeader title="Chi tiết chuyến hàng" back />
+      <Header title="Chi tiết chuyến hàng" back />
       {loading ? <Loading /> : <View style={{ padding: 16, gap: 12 }}>
         <Notice kind="error" title={error ?? 'Không tìm thấy chuyến hàng'} body="Chuyến không tồn tại hoặc không thuộc phạm vi được giao." />
         <Button label="Thử tải lại" onPress={() => void reload()} />
@@ -150,17 +150,17 @@ export default function TransferScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: color.bg }} contentContainerStyle={{ paddingBottom: 32 }}>
-      <GreenHeader title="Chi tiết chuyến hàng" back />
+      <Header title="Chi tiết chuyến hàng" back />
       <View style={{ padding: 16, gap: 12 }}>
         <Card style={{ padding: 16, gap: 8 }}>
           <Pill label={status.label} t={status.t} />
-          <Row label="Nơi gửi" value={transfer.origin} />
-          <Row label="Nơi nhận" value={transfer.destination} />
-          <Row label="Bên gửi" value={transfer.senderName ?? '—'} />
-          <Row label="Vận chuyển" value={transfer.carrierName ?? '—'} />
-          <Row label="Bên nhận" value={transfer.receiverName ?? '—'} />
-          <Row label="Tạo lúc" value={dateTime(transfer.createdAt)} />
-          <Row label="Phiên bản" value={`v${transfer.version}`} mono />
+          <Row first icon="location" label="Nơi gửi" value={transfer.origin} />
+          <Row icon="location" label="Nơi nhận" value={transfer.destination} />
+          <Row icon="building" label="Bên gửi" value={transfer.senderName ?? '—'} />
+          <Row icon="truck" label="Vận chuyển" value={transfer.carrierName ?? '—'} />
+          <Row icon="building" label="Bên nhận" value={transfer.receiverName ?? '—'} />
+          <Row icon="clock" label="Tạo lúc" value={dateTime(transfer.createdAt)} />
+          <Row icon="info" label="Phiên bản" value={`v${transfer.version}`} mono />
         </Card>
         {message && <Notice kind={message.kind} title={message.title} body={message.body} />}
         {needsKey && (

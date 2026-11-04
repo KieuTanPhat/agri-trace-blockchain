@@ -1,70 +1,65 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { View } from 'react-native';
 import { useSession } from '../../../auth/session';
-import { Button, Card, Empty, GreenHeader, IconTile, Loading, Notice, Pill, SegmentTabs, T } from '../../../components/ui';
+import { Card, Empty, Header, ListItem, Loadable, Screen, Section } from '../../../components/staff/ui';
 import { dateTime } from '../../../lib/format';
 import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
-import { color } from '../../../theme/tokens';
+import { color } from '../../../theme/staff';
+import type { Tone } from '../../../theme/staff';
 
 type Task = { transferId: string; action: string; status: string; origin: string; destination: string; role: string; createdAt: string };
-const TASK_ACTION: Record<string, string> = {
-  CONSENT: 'Đồng thuận bàn giao',
-  PICKUP: 'Ký lấy hàng',
-  DELIVERY: 'Ký giao nhận hàng',
-  ACTUAL_RECEIPT: 'Ghi lượng thực nhận',
-  SIGN_RETURN: 'Ký trả hàng (trên Web)',
-  RECONCILE_REMAINDER: 'Đối soát hàng còn lại (trên Web)',
+const ACTION: Record<string, { label: string; t: Tone; web?: boolean }> = {
+  CONSENT: { label: 'Ký đồng thuận', t: 'orange' },
+  PICKUP: { label: 'Ký lấy hàng', t: 'blue' },
+  DELIVERY: { label: 'Ký giao nhận', t: 'green' },
+  ACTUAL_RECEIPT: { label: 'Ghi lượng thực nhận', t: 'purple' },
+  SIGN_RETURN: { label: 'Ký trả hàng · làm trên Web', t: 'gray', web: true },
+  RECONCILE_REMAINDER: { label: 'Đối soát phần còn lại · làm trên Web', t: 'gray', web: true },
 };
-const ROLE: Record<string, string> = { SENDER: 'Bên gửi', CARRIER: 'Vận chuyển', RECEIVER: 'Bên nhận' };
+const ROLE: Record<string, string> = { SENDER: 'Bên giao', CARRIER: 'Bên chở', RECEIVER: 'Bên nhận' };
 
-/** Handovers waiting for this enterprise, the same queue as the Web page. */
-export default function Inbound() {
+/** Signing work waiting for this employee, the same queue as the Web page. */
+export default function Tasks() {
   const { call } = useSession();
-  const [tab, setTab] = useState<'receive' | 'all'>('receive');
-  const list = useLoad(() => call<{ transfers: Task[] }>('/distribution/tasks'));
+  const list = useLoad(() => call<{ transfers: Task[] }>('/distribution/tasks'), [], { key: 'tasks', staleTimeMs: 15_000 });
   useReloadOnFocus(list.reload);
   const all = list.data?.transfers ?? [];
-  const receiving = all.filter((t) => t.role === 'RECEIVER' || (t.role === 'CARRIER' && t.action === 'PICKUP'));
+  const mine = all.filter((t) => !ACTION[t.action]?.web);
+  const web = all.filter((t) => ACTION[t.action]?.web);
+  const row = (t: Task, i: number) => {
+    const a = ACTION[t.action] ?? { label: t.action, t: 'gray' as const };
+    return (
+      <ListItem
+        key={`${t.transferId}:${t.action}`}
+        first={i === 0}
+        icon="truck"
+        t={a.t}
+        title={`${t.origin} → ${t.destination}`}
+        subtitle={`${ROLE[t.role] ?? t.role} · ${dateTime(t.createdAt)}`}
+        badge={{ label: a.label, t: a.t }}
+        onPress={() => router.push(`/staff/transfer/${t.transferId}`)}
+      />
+    );
+  };
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <GreenHeader title="Hàng chờ nhận" />
-      <View style={{ marginTop: 12 }}>
-        <SegmentTabs value={tab} onChange={setTab} items={[
-          { key: 'receive', label: `Chờ mình nhận (${receiving.length})` },
-          { key: 'all', label: `Mọi việc ký (${all.length})` },
-        ]} />
-      </View>
-      {list.loading && !list.data ? (
-        <Loading />
-      ) : list.error ? (
-        <View style={{ padding: 16 }}>
-          <Notice kind="error" title={list.error} action={<Button label="Thử tải lại" onPress={() => void list.reload()} />} />
-        </View>
-      ) : (
-        <FlatList
-          data={tab === 'receive' ? receiving : all}
-          keyExtractor={(t) => `${t.transferId}:${t.action}`}
-          onRefresh={() => void list.reload()}
-          refreshing={list.loading}
-          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 72 }}
-          ListEmptyComponent={<Empty title="Không có hàng chờ nhận" icon="box" />}
-          renderItem={({ item }) => (
-            <Card style={{ padding: 14, gap: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                <IconTile name="box" t="orange" size={44} glyph={24} />
-                <View style={{ flex: 1 }}>
-                  <T size={16} weight="heavy">{TASK_ACTION[item.action] ?? item.action}</T>
-                  <T size={13} c={color.muted}>{ROLE[item.role] ?? item.role} · {dateTime(item.createdAt)}</T>
-                </View>
-              </View>
-              <T size={14} c={color.inkSoft}>{item.origin} → {item.destination}</T>
-              <Pill label={item.status === 'IN_TRANSIT' ? 'Đang vận chuyển' : item.status === 'READY' ? 'Sẵn sàng lấy hàng' : 'Chờ xử lý'} t="orange" />
-              <Button label="Mở chuyến hàng" kind="outline" onPress={() => router.push(`/staff/transfer/${item.transferId}`)} />
-            </Card>
-          )}
-        />
-      )}
+      <Header title="Việc chờ ký" subtitle="Mở chuyến để kiểm tra và ký bằng khóa trên máy" />
+      <Screen refreshing={list.loading} onRefresh={() => void list.reload()} bottomInset={96}>
+        <Loadable {...list} reload={() => void list.reload()}>
+          {() =>
+            all.length === 0 ? (
+              <Card>
+                <Empty title="Không có việc chờ ký" body="Chuyến cần bạn ký sẽ hiện ở đây." icon="tasks" />
+              </Card>
+            ) : (
+              <>
+                {mine.length > 0 && <Section title={`Cần bạn ký (${mine.length})`}>{mine.map(row)}</Section>}
+                {web.length > 0 && <Section title="Làm trên AgriTrace Web">{web.map(row)}</Section>}
+              </>
+            )
+          }
+        </Loadable>
+      </Screen>
     </View>
   );
 }

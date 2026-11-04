@@ -1,66 +1,56 @@
 import { router } from 'expo-router';
-import { FlatList, View } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 import { useSession } from '../../../auth/session';
-import { Button, Card, Empty, GreenHeader, IconTile, Loading, Notice, Pill, T } from '../../../components/ui';
+import { Card, Empty, Header, ListItem, Loadable, Screen, SegmentTabs } from '../../../components/staff/ui';
 import { dateTime } from '../../../lib/format';
 import { transferStatus, type Transfer } from '../../../lib/transfers';
 import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
-import { color } from '../../../theme/tokens';
+import { color } from '../../../theme/staff';
 
-/** Transfers in the caller's scope; each one is signed from its detail screen
- * with the organization key kept on this phone. */
+const OPEN = ['PROPOSED', 'READY', 'IN_TRANSIT'];
+
+/** Transfers in the employee's scope (a driver sees only the trips it drives). */
 export default function Transfers() {
   const { call } = useSession();
-  const list = useLoad(() => call<{ items: Transfer[] }>('/distribution/transfers'));
-  useReloadOnFocus(list.reload);
+  const [tab, setTab] = useState<'open' | 'done'>('open');
+  const list = useLoad(() => call<{ items: Transfer[] }>('/distribution/transfers'), [], { key: 'transfers', staleTimeMs: 15_000 });
+  useReloadOnFocus(list.reloadIfStale);
+  const shown = (list.data?.items ?? []).filter((t) => OPEN.includes(t.status) === (tab === 'open'));
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
-      <GreenHeader title="Chuyến hàng" />
-      {list.loading && !list.data ? (
-        <Loading />
-      ) : list.error ? (
-        <View style={{ padding: 16 }}>
-          <Notice kind="error" title={list.error} action={<Button label="Thử tải lại" onPress={() => void list.reload()} />} />
-        </View>
-      ) : (
-        <FlatList
-          data={list.data?.items ?? []}
-          keyExtractor={(t) => t.id}
-          onRefresh={() => void list.reload()}
-          refreshing={list.loading}
-          contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 72 }}
-          ListHeaderComponent={<Notice kind="info" title="Ký bàn giao trên điện thoại" body="Mở chuyến hàng để ký lấy hàng, ký nhận hoặc ghi lượng thực nhận. Cần khóa ký trên máy (mục Thêm → Khóa ký)." />}
-          ListEmptyComponent={<Empty title="Chưa có chuyến hàng" icon="truck" />}
-          renderItem={({ item }) => {
-            const s = transferStatus(item.status);
-            return (
-              <Card style={{ padding: 14, gap: 10 }}>
-                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                  <IconTile name="truck" t="blue" size={48} glyph={26} />
-                  <View style={{ flex: 1 }}>
-                    <T size={16} weight="heavy" numberOfLines={1}>
-                      {item.lines.map((l) => l.productName).filter(Boolean).join(', ') || 'Chuyến hàng'}
-                    </T>
-                    <T size={13.5} c={color.muted}>
-                      {dateTime(item.createdAt)}
-                    </T>
-                  </View>
-                  <T size={16} weight="heavy" c={color.green}>
-                    {item.lines.length} dòng hàng
-                  </T>
-                </View>
-                <Pill label={s.label} t={s.t} />
-                <T size={14} c={color.inkSoft}>
-                  {item.senderName ?? '—'} → {item.receiverName ?? '—'}
-                  {item.carrierName ? ` · Vận chuyển: ${item.carrierName}` : ''}
-                </T>
-                <T size={14} c={color.muted}>{item.origin} → {item.destination}</T>
-                <Button label="Xem chuyến hàng" kind="outline" onPress={() => router.push(`/staff/transfer/${item.id}`)} />
+      <Header title="Chuyến hàng" />
+      <Screen refreshing={list.loading} onRefresh={() => void list.reload()} bottomInset={96}>
+        <SegmentTabs value={tab} onChange={setTab} items={[{ key: 'open', label: 'Đang xử lý' }, { key: 'done', label: 'Đã xong / hủy' }]} />
+        <Loadable {...list} reload={() => void list.reload()}>
+          {() =>
+            shown.length === 0 ? (
+              <Card>
+                <Empty title="Không có chuyến hàng" icon="truck" />
               </Card>
-            );
-          }}
-        />
-      )}
+            ) : (
+              <Card style={{ overflow: 'hidden' }}>
+                {shown.map((t, i) => {
+                  const s = transferStatus(t.status);
+                  const goods = t.lines.map((l) => l.productName).filter(Boolean).join(', ');
+                  return (
+                    <ListItem
+                      key={t.id}
+                      first={i === 0}
+                      icon="truck"
+                      t={s.t}
+                      title={`${t.origin} → ${t.destination}`}
+                      subtitle={`${goods || `${t.lines.length} dòng hàng`} · ${dateTime(t.createdAt)}`}
+                      badge={s}
+                      onPress={() => router.push(`/staff/transfer/${t.id}`)}
+                    />
+                  );
+                })}
+              </Card>
+            )
+          }
+        </Loadable>
+      </Screen>
     </View>
   );
 }

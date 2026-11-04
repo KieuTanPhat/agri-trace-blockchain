@@ -11,7 +11,7 @@ export class PhoneAuthError extends Error {
     super(message);
   }
 }
-export const normalizePhone = (value: string) => {
+const normalizePhone = (value: string) => {
   const phone = value.replace(/\s+/g, "").replace(/^0/, "+84");
   if (!/^\+84[35789]\d{8}$/.test(phone))
     throw new PhoneAuthError("Số điện thoại Việt Nam chưa đúng.");

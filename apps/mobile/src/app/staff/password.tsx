@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { errorText } from '../../api/client';
 import { useSession } from '../../auth/session';
-import { Button, Field, GreenHeader, Notice } from '../../components/ui';
-import { color } from '../../theme/tokens';
+import { Button, Field, Header, Notice } from '../../components/staff/ui';
+import { color } from '../../theme/staff';
 
 const bytes = (text: string) => new TextEncoder().encode(text).length;
 
@@ -41,17 +41,15 @@ export default function StaffPassword() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: color.bg }}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
-        <GreenHeader title="Đổi mật khẩu" back={!forced} />
-        <View style={{ padding: 16, gap: 12 }}>
-          {forced && <Notice kind="warn" title="Đổi mật khẩu trước khi làm việc" body="Tài khoản do quản trị doanh nghiệp cấp hoặc vừa được đặt lại mật khẩu." />}
+      <Header title="Đổi mật khẩu" back={!forced} />
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 32 }}>
+          {forced && <Notice kind="warn" title="Đổi mật khẩu trước khi làm việc" body="Tài khoản do chủ doanh nghiệp cấp hoặc vừa được đặt lại mật khẩu." />}
           {error && <Notice kind="error" title={error} />}
-          <Field label="Mật khẩu hiện tại" required secureTextEntry autoCapitalize="none" value={current} onChangeText={setCurrent} />
-          <Field label="Mật khẩu mới (tối thiểu 12 ký tự)" required secureTextEntry autoCapitalize="none" value={next} onChangeText={setNext} />
-          <Field label="Nhập lại mật khẩu mới" required secureTextEntry autoCapitalize="none" value={confirm} onChangeText={setConfirm} />
+          <Field label="Mật khẩu hiện tại" required secure autoCapitalize="none" autoComplete="current-password" value={current} onChangeText={setCurrent} />
+          <Field label="Mật khẩu mới (tối thiểu 12 ký tự)" required secure autoCapitalize="none" autoComplete="new-password" value={next} onChangeText={setNext} />
+          <Field label="Nhập lại mật khẩu mới" required secure autoCapitalize="none" autoComplete="new-password" value={confirm} onChangeText={setConfirm} />
           <Button label="Đổi mật khẩu" loading={busy} disabled={busy || !current || !next || !confirm} onPress={() => void submit()} />
           {forced && <Button label="Đăng xuất" kind="outline" disabled={busy} onPress={() => void signOut().then(() => router.replace('/staff/login'))} />}
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

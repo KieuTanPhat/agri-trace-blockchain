@@ -62,9 +62,8 @@ export function useResource<T>(
     cacheOptions?.key ?? null,
     ...deps.map((value) => [typeof value, value]),
   ]);
-  const cacheKey = cacheOptions
-    ? JSON.stringify([scope, cacheOptions.key])
-    : null;
+  // The cache entry covers the same inputs as the read itself.
+  const cacheKey = cacheOptions ? key : null;
   const staleTimeMs = cacheOptions?.staleTimeMs ?? 0;
   const initialCached =
     cacheKey && staleTimeMs > 0
@@ -188,5 +187,6 @@ export function useResource<T>(
         error: null,
         loading: !freshForCurrentKey,
       };
-  return { ...visible, reload, reloadIfStale, setData };
+  // Never expose the internal state key: callers spread this object into props.
+  return { data: visible.data, error: visible.error, loading: visible.loading, reload, reloadIfStale, setData };
 }

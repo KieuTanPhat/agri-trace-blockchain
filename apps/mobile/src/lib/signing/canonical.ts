@@ -6,16 +6,16 @@ import { sha256 } from '@noble/hashes/sha2.js';
  * byte must match the API encoder; the signer recomputes digests itself and
  * never trusts the ones the server sends.
  */
-export type StringMap = Record<string, string>;
+type StringMap = Record<string, string>;
 
-export const INTENT_PROTOCOL = 'agritrace-intent/2';
+const INTENT_PROTOCOL = 'agritrace-intent/2';
 const INTENT_DOMAIN = 'agritrace:intent:c2';
 const PAYLOAD_DOMAIN = 'agritrace:intent-payload:c2';
 const SIGNATURE_DOMAIN = 'agritrace:intent-signature:c2';
 const KEY_POP_DOMAIN = 'agritrace:signing-key-pop:c1';
 const encoder = new TextEncoder();
 
-export function canonicalize(value: StringMap): string {
+function canonicalize(value: StringMap): string {
   const sorted: StringMap = {};
   for (const key of Object.keys(value).sort()) {
     if (typeof value[key] !== 'string') throw new Error(`Giá trị "${key}" phải là chuỗi`);
@@ -37,7 +37,7 @@ export function canonicalJson(value: unknown): string {
   throw new Error('Nội dung ký không hợp lệ');
 }
 
-export function withDomain(domain: string, body: string): Uint8Array {
+function withDomain(domain: string, body: string): Uint8Array {
   const prefix = encoder.encode(domain);
   const text = encoder.encode(body);
   const out = new Uint8Array(prefix.length + 1 + text.length);

@@ -3,11 +3,12 @@ import { ScrollView, View } from 'react-native';
 import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
 import { LotIncident } from '../../../components/LotIncident';
-import { Button, Card, GreenHeader, IconTile, Loading, Notice, Pill, Row, T } from '../../../components/ui';
+import { Button, Card, Header, IconTile, Loading, Notice, Pill, Row, T } from '../../../components/staff/ui';
 import { date, dateTime, qty } from '../../../lib/format';
 import { LOT_STATE } from '../../../lib/labels';
+import { useAccess } from '../../../lib/access';
 import { useLoad } from '../../../lib/useApi';
-import { color } from '../../../theme/tokens';
+import { color } from '../../../theme/staff';
 
 type Lot = Schemas['InternalLotDto'];
 
@@ -15,6 +16,7 @@ type Lot = Schemas['InternalLotDto'];
 export default function StaffLot() {
   const { id, token } = useLocalSearchParams<{ id: string; token?: string }>();
   const { call } = useSession();
+  const { can } = useAccess();
   const { data: lot, error, loading } = useLoad(
     () => call<Lot>(token ? `/lots/by-trace-token/${encodeURIComponent(token)}` : `/lots/${id}`),
     [id, token],
@@ -22,7 +24,7 @@ export default function StaffLot() {
   if (!lot)
     return (
       <View style={{ flex: 1 }}>
-        <GreenHeader title="Lô hàng" back />
+        <Header title="Lô hàng" back />
         {loading ? (
           <Loading label="Đang tìm lô…" />
         ) : (
@@ -37,12 +39,12 @@ export default function StaffLot() {
   const ratio = lot.initialQuantity > 0 ? lot.availableQuantity / lot.initialQuantity : 0;
   return (
     <ScrollView style={{ flex: 1, backgroundColor: color.bg }} contentContainerStyle={{ paddingBottom: 40 }}>
-      <GreenHeader title="Lô hàng" back extraBottom={34} />
-      <Card style={{ marginTop: -30, marginHorizontal: 16, padding: 16, gap: 10 }}>
+      <Header title="Lô hàng" back />
+      <Card style={{ marginTop: 16, marginHorizontal: 16, padding: 16, gap: 10 }}>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-          <IconTile name="box" t="orange" size={56} />
+          <IconTile name="box" t="green" size={48} glyph={24} />
           <View style={{ flex: 1, gap: 2 }}>
-            <T size={20} weight="heavy">
+            <T size={18} weight="bold">
               {lot.productName}
             </T>
             <T size={13} c={color.muted} style={{ fontFamily: 'monospace' }}>
@@ -73,13 +75,13 @@ export default function StaffLot() {
           <Notice key={w} kind="warn" title={w} />
         ))}
         <Card style={{ paddingHorizontal: 16, paddingVertical: 4 }}>
-          <Row label="THU HOẠCH" value={dateTime(lot.harvestTime)} />
-          <Row label="HẠN SỬ DỤNG" value={date(lot.expiryDate)} />
-          {lot.productionCycle && <Row label="MÙA VỤ" value={lot.productionCycle.cycleCode} mono />}
-          <Row label="ĐƠN VỊ SẢN XUẤT" value={lot.farmOrg.name} />
+          <Row first icon="basket" label="Thu hoạch" value={dateTime(lot.harvestTime)} />
+          <Row icon="clock" label="Hạn sử dụng" value={date(lot.expiryDate)} />
+          {lot.productionCycle && <Row icon="leaf" label="Mùa vụ" value={lot.productionCycle.cycleCode} mono />}
+          <Row icon="building" label="Đơn vị sản xuất" value={lot.farmOrg.name} />
         </Card>
         <LotIncident lotId={lot.lotId} lotCode={lot.lotCode} />
-        {lot.productionCycle && <Button label="Xem mùa vụ" kind="outline" onPress={() => router.push(`/staff/cycle/${lot.productionCycle!.cycleId}`)} />}
+        {lot.productionCycle && can('production.read') && <Button label="Xem mùa vụ" kind="outline" onPress={() => router.push(`/staff/cycle/${lot.productionCycle!.cycleId}`)} />}
       </View>
     </ScrollView>
   );

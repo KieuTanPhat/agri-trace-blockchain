@@ -22,7 +22,7 @@ function fixed(value: unknown) {
 }
 
 /** Field for field the snapshot the Web signer derives from the record. */
-export function transferSnapshot(t: Row) {
+function transferSnapshot(t: Row) {
   const mode = t.transportMode as string | undefined;
   return {
     id: t.id, chainId: t.chainId, senderId: t.senderId, carrierId: t.carrierId, receiverId: t.receiverId,

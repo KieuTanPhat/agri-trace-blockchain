@@ -63,7 +63,7 @@ export async function uploadCycleImage(
   return result.record.id;
 }
 
-export type PhotoSubject = {
+type PhotoSubject = {
   entityType: "TRANSFER" | "LOT";
   entityId: string;
   kind: "TRANSFER_IMAGE" | "DAMAGE_IMAGE";

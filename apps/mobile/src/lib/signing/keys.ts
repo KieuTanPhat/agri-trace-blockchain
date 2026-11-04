@@ -9,7 +9,7 @@ import { distributionMessage, ed25519Spki, fromBase64Url, keyPopMessage, toBase6
  * read back only to sign; the API receives the public key and a
  * proof-of-possession, as the Web signer sends.
  */
-export type DeviceKey = {
+type DeviceKey = {
   id: string;
   /** Chain id for c2 keys, "device" for the personal standard handover key. */
   chainId: string;

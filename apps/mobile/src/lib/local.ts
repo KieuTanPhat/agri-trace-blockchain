@@ -27,4 +27,3 @@ export async function rememberView(token: string, productName: string,imageUrl?:
 export const clearHistory = () => AsyncStorage.removeItem(HISTORY).catch(() => undefined);
 
 export const readProvince = async () => (await AsyncStorage.getItem(PROVINCE).catch(() => null)) ?? '66';
-export const saveProvince = (code: string) => AsyncStorage.setItem(PROVINCE, code).catch(() => undefined);
