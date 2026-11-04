@@ -307,10 +307,13 @@ quyền hiện hành trước khi sử dụng. Domain mới yêu cầu đăng nh
   Mọi thay đổi dùng version, idempotency và platform audit.
 - Logo và ảnh sản phẩm dùng tham số `v` theo evidence công khai hiện hành;
   endpoint vẫn kiểm quyền công khai/thu hồi trên mọi request, kể cả URL phiên bản cũ.
-  Mobile lưu URL ảnh công khai cùng lịch sử xem, tải lại danh mục khi quay về màn
-  hình và chỉ tự thử lại ảnh lỗi một lần; lỗi kéo dài có nút tải lại thủ công.
+  Mobile lưu URL ảnh công khai cùng lịch sử xem và chỉ tự thử lại ảnh lỗi một lần;
+  lỗi kéo dài có nút tải lại thủ công. Danh mục, bài viết và hồ sơ công khai được
+  giữ trong bộ nhớ ứng dụng tối đa 60 giây (chi tiết sản phẩm tối đa 30 giây),
+  chỉ ở RAM và mất khi đóng ứng dụng. Khi quay lại màn hình chỉ tải mới nếu cache
+  hết hạn; kéo để làm mới vẫn gọi API ngay.
 - Mobile đọc cùng nguồn `/public/news`; bản nháp, tin đã ẩn/lưu trữ và tin hẹn
-  giờ chưa đến hạn không được trả về. Danh sách cập nhật khi trở lại màn hình;
+  giờ chưa đến hạn không được trả về. Danh sách hiển thị cache còn hạn khi quay lại;
   người dùng cũng có thể kéo để tải lại bảng tin.
 - Web và mobile nhóm hành trình theo từng địa điểm, thiếu địa điểm thì nhóm
   theo doanh nghiệp. Mở từng nhóm để xem nhật ký, ảnh, liên hệ và chứng nhận

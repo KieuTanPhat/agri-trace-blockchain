@@ -1,9 +1,9 @@
 import { useCallback, useRef } from "react";
 import { useFocusEffect } from "expo-router";
 import { useSessionScope } from "../auth/session";
-import { useResource } from "./use-resource";
+import { useResource, type ResourceCacheOptions } from "./use-resource";
 
-/** Mount is loaded by useLoad; refresh an existing screen when returning to it. */
+/** Refresh on return; cached public reads can skip this while their data is fresh. */
 export function useReloadOnFocus(reload: () => Promise<void>) {
   const visited = useRef(false);
   useFocusEffect(
@@ -17,6 +17,7 @@ export function useReloadOnFocus(reload: () => Promise<void>) {
 export function useLoad<T>(
   load: () => Promise<T>,
   deps: readonly (string | number | boolean | null | undefined)[] = [],
+  cacheOptions?: ResourceCacheOptions,
 ) {
-  return useResource(load, useSessionScope(), deps);
+  return useResource(load, useSessionScope(), deps, cacheOptions);
 }

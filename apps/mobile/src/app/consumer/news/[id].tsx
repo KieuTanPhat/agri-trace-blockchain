@@ -1,17 +1,20 @@
 import {NewsCover} from '../../../components/NewsCover';
-import { useLocalSearchParams,useFocusEffect } from 'expo-router';
-import {useCallback} from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import { api, type Schemas } from '../../../api/client';
 import { GreenHeader, Loading, Notice, T } from '../../../components/ui';
 import { date } from '../../../lib/format';
-import { useLoad } from '../../../lib/useApi';
+import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
 import { color } from '../../../theme/tokens';
 
 export default function NewsDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data, error, loading,reload } = useLoad(() => api<Schemas['PublicNewsDetailDto']>(`/public/news/${encodeURIComponent(id ?? '')}`), [id]);
-  useFocusEffect(useCallback(()=>{void reload();},[reload]));
+  const { data, error, loading, reloadIfStale } = useLoad(
+    () => api<Schemas['PublicNewsDetailDto']>(`/public/news/${encodeURIComponent(id ?? '')}`),
+    [id],
+    { key: `public:news:${id}`, staleTimeMs: 60_000 },
+  );
+  useReloadOnFocus(reloadIfStale);
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <GreenHeader title="Bài viết" back />

@@ -8,8 +8,29 @@ import { Card, T } from "./ui";
 import { date, dateTime } from "../lib/format";
 import { color } from "../theme/tokens";
 type Group = Schemas["PublicJourneyGroupDto"];
+type JourneyEntry = Group["entries"][number];
+
+function isCareJournal(entry: JourneyEntry) {
+  return (
+    /chăm sóc|nhật ký|nhật kí|care log|care activity/i.test(entry.title) ||
+    entry.facts.some((fact) => fact.label === "Công việc")
+  );
+}
+
+function entriesForDisplay(entries: JourneyEntry[], showAllCareLogs: boolean) {
+  const careLogs = entries.filter(isCareJournal);
+  if (careLogs.length <= 2 || showAllCareLogs) return entries;
+  const visibleCareIds = new Set([careLogs[0].id, careLogs[careLogs.length - 1].id]);
+  return entries.filter(
+    (entry) => !isCareJournal(entry) || visibleCareIds.has(entry.id),
+  );
+}
+
 function JourneyGroup({ group, index }: { group: Group; index: number }) {
   const [open, setOpen] = useState(index === 0);
+  const [showAllCareLogs, setShowAllCareLogs] = useState(false);
+  const careLogCount = group.entries.filter(isCareJournal).length;
+  const displayedEntries = entriesForDisplay(group.entries, showAllCareLogs);
   return (
     <Card style={{ overflow: "hidden" }}>
       <Pressable
@@ -179,7 +200,7 @@ function JourneyGroup({ group, index }: { group: Group; index: number }) {
             </View>
           )}
           <View style={{ gap: 14 }}>
-            {group.entries.map((e) => (
+            {displayedEntries.map((e) => (
               <View key={e.id} style={{ flexDirection: "row", gap: 11 }}>
                 <View
                   style={{
@@ -205,6 +226,29 @@ function JourneyGroup({ group, index }: { group: Group; index: number }) {
                 </View>
               </View>
             ))}
+            {careLogCount > 2 && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showAllCareLogs
+                    ? "Thu gọn nhật ký chăm sóc"
+                    : "Xem tất cả " + careLogCount + " nhật ký chăm sóc"
+                }
+                accessibilityState={{ expanded: showAllCareLogs }}
+                onPress={() => setShowAllCareLogs((value) => !value)}
+                style={({ pressed }) => ({
+                  alignSelf: "flex-start",
+                  paddingVertical: 4,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <T size={12.5} weight="bold" c={color.green}>
+                  {showAllCareLogs
+                    ? "Thu gọn nhật ký"
+                    : "Xem tất cả " + careLogCount + " nhật ký chăm sóc"}
+                </T>
+              </Pressable>
+            )}
           </View>
           {!!group.certificates.length && (
             <View

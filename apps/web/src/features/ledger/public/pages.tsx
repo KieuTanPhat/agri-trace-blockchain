@@ -39,24 +39,29 @@ export function AboutPage() {
         description={pt("AgriTrace giúp nông trại, nhà chế biến, đơn vị vận chuyển và bán lẻ cùng ghi lại hành trình nông sản, để người mua tự kiểm tra được nguồn gốc.")}
       />
       <section className="py-20">
-        <Container className="grid items-start gap-12 lg:grid-cols-2">
-          <SectionHeading
-            align="left"
-            eyebrow={pt("Sứ mệnh")}
-            title={pt("Đưa niềm tin vào từng lô nông sản Việt")}
-            description={pt("Thay vì một con tem chỉ ghi tên sản phẩm, mỗi mã AgriTrace cho thấy ai đã làm gì, vào lúc nào, kèm ảnh và giấy tờ. Doanh nghiệp làm đúng có cách chứng minh; người mua có cách kiểm tra.")}
-          />
-          <ol className="flex flex-col gap-4">
-            {TRACE_STEPS.map((s, i) => (
-              <Reveal as="li" key={s.title} delay={i * 90} className="flex gap-4 rounded-2xl border border-line bg-card p-5">
-                <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-brand text-[15px] font-semibold text-white">{i + 1}</span>
-                <div>
-                  <h3 className="font-semibold">{pt(s.title)}</h3>
-                  <p className="text-[15px] leading-relaxed text-ink-2">{pt(s.copy)}</p>
-                </div>
-              </Reveal>
-            ))}
-          </ol>
+        <Container className="grid items-center gap-10 lg:grid-cols-[1fr_0.9fr] lg:gap-14">
+          <div className="flex flex-col gap-8">
+            <SectionHeading
+              align="left"
+              eyebrow={pt("Sứ mệnh")}
+              title={pt("Đưa niềm tin vào từng lô nông sản Việt")}
+              description={pt("Thay vì một con tem chỉ ghi tên sản phẩm, mỗi mã AgriTrace cho thấy ai đã làm gì, vào lúc nào, kèm ảnh và giấy tờ. Doanh nghiệp làm đúng có cách chứng minh; người mua có cách kiểm tra.")}
+            />
+            <ol className="flex flex-col gap-4">
+              {TRACE_STEPS.map((s, i) => (
+                <Reveal as="li" key={s.title} delay={i * 90} className="flex gap-4 rounded-2xl border border-line bg-card p-5">
+                  <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-brand text-[15px] font-semibold text-white">{i + 1}</span>
+                  <div>
+                    <h3 className="font-semibold">{pt(s.title)}</h3>
+                    <p className="text-[15px] leading-relaxed text-ink-2">{pt(s.copy)}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </ol>
+          </div>
+          <Reveal className="relative mx-auto aspect-[4/5] w-full max-w-[520px] overflow-hidden rounded-3xl bg-brand-weak lg:mx-0">
+            <Image src={PHOTOS.aboutGrowerPartner} alt="" fill placeholder="blur" sizes="(max-width: 1024px) 100vw, 44vw" className="object-cover" />
+          </Reveal>
         </Container>
       </section>
       <section className="bg-card py-20">

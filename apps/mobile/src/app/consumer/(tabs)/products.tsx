@@ -6,14 +6,15 @@ import {DirectoryProductCard} from '../../../components/DirectoryCards';
 import {Empty,Loading,Notice,T} from '../../../components/ui';
 import {Icon} from '../../../components/Icon';
 import {directoryColor as dc,loadDirectory,normalized,type DirectoryProduct} from '../../../lib/directory';
-import {useLoad} from '../../../lib/useApi';
+import {useLoad,useReloadOnFocus} from '../../../lib/useApi';
 
 export default function Products(){
   const params=useLocalSearchParams<{q?:string}>();
   const query=params.q??'';
   const setQuery=(value:string)=>router.setParams({q:value});
   const [province,setProvince]=useState(''),[category,setCategory]=useState(''),[sort,setSort]=useState('default');
-  const page=useLoad(()=>loadDirectory<DirectoryProduct>('products'));
+  const page=useLoad(()=>loadDirectory<DirectoryProduct>('products'),[],{key:'public:directory:products',staleTimeMs:60_000});
+  useReloadOnFocus(page.reloadIfStale);
   const all=page.data??[];
   const provinces=[...new Set(all.map(p=>p.province).filter((s):s is string=>!!s))].sort();
   const categories=[...new Set(all.map(p=>p.category).filter((s):s is string=>!!s))].sort();

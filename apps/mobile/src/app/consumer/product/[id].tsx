@@ -23,9 +23,9 @@ export default function Product(){
 function ProductDetail({id}:{id:string}){
   const insets=useSafeAreaInsets();
   const [expanded,setExpanded]=useState(false),[moreLots,setMoreLots]=useState<Schemas['PublicTraceLinkDto'][]>([]),[loadingMore,setLoadingMore]=useState(false),[nextCursor,setNextCursor]=useState<string|null|undefined>(undefined);
-  const {data,error,loading,reload}=useLoad(()=>api<Schemas['PublicProductDetailDto']>(`/public/products/${encodeURIComponent(id??'')}?limit=20`),[id]);
-  useReloadOnFocus(reload);
-  const related=useLoad(()=>loadDirectory<DirectoryProduct>('products'));
+  const {data,error,loading,reloadIfStale}=useLoad(()=>api<Schemas['PublicProductDetailDto']>(`/public/products/${encodeURIComponent(id??'')}?limit=20`),[id],{key:`public:product:${id}`,staleTimeMs:30_000});
+  useReloadOnFocus(reloadIfStale);
+  const related=useLoad(()=>loadDirectory<DirectoryProduct>('products'),[],{key:'public:directory:products',staleTimeMs:60_000});
   if(!data||data.id!==id)return <View style={{flex:1,backgroundColor:dc.bg}}><GreenHeader title="Sản phẩm" back/>{loading?<Loading/>:<View style={{padding:16}}><Notice kind="error" title={error??'Không tìm thấy sản phẩm'}/></View>}</View>;
   const lots=[...data.lots.items,...moreLots],firstLot=data.lots.items[0],recommendations=(related.data??[]).filter(p=>p.id!==id&&p.category===data.category).slice(0,6);
   const cursor=nextCursor===undefined?data.lots.nextCursor:nextCursor;

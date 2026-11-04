@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -72,10 +72,65 @@ const SORTS = [
   { value: "name", label: "Tên A–Z" },
 ] as const;
 type Sort = (typeof SORTS)[number]["value"];
+const PRODUCTS_PER_PAGE = 12;
 
 export function sortProducts(items: PublicProduct[], sort: Sort) {
   return [...items].sort((a, b) =>
     sort === "newest" ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : sort === "name" ? a.productName.localeCompare(b.productName, "vi") : b.traceCount - a.traceCount || a.productName.localeCompare(b.productName, "vi"),
+  );
+}
+
+function ProductPagination({
+  current,
+  count,
+  onChange,
+}: {
+  current: number;
+  count: number;
+  onChange: (page: number) => void;
+}) {
+  if (count < 2) return null;
+  return (
+    <nav
+      aria-label={pt("Phân trang sản phẩm")}
+      className="flex flex-wrap items-center justify-center gap-2 py-6"
+    >
+      <button
+        type="button"
+        aria-label={pt("Trang trước")}
+        disabled={current === 1}
+        onClick={() => onChange(current - 1)}
+        className="inline-flex h-10 items-center gap-1 rounded-md border border-line bg-card px-3 text-sm disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        <ChevronRight aria-hidden className="size-4 rotate-180" /> {pt("Trước")}
+      </button>
+      {Array.from({ length: count }, (_, index) => index + 1).map((page) => (
+        <button
+          type="button"
+          key={page}
+          aria-label={pt("Trang {page}", { page })}
+          aria-current={current === page ? "page" : undefined}
+          onClick={() => onChange(page)}
+          className={cn(
+            "size-10 rounded-md border text-sm font-medium",
+            current === page
+              ? "border-brand bg-brand text-white"
+              : "border-line bg-card hover:bg-brand-weak",
+          )}
+        >
+          {page}
+        </button>
+      ))}
+      <button
+        type="button"
+        aria-label={pt("Trang sau")}
+        disabled={current === count}
+        onClick={() => onChange(current + 1)}
+        className="inline-flex h-10 items-center gap-1 rounded-md border border-line bg-card px-3 text-sm disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        {pt("Sau")} <ChevronRight aria-hidden className="size-4" />
+      </button>
+    </nav>
   );
 }
 
@@ -135,6 +190,7 @@ export function ProductsPage() {
   const [province, setProvince] = useState("");
   const [selling, setSelling] = useState(false);
   const [sort, setSort] = useState<Sort>("traces");
+  const [page, setPage] = useState(1);
   const products = usePublicProducts();
   const all = useMemo(() => products.data ?? [], [products.data]);
   const categories = useMemo(() => categoriesOf(all), [all]);
@@ -154,6 +210,12 @@ export function ProductsPage() {
       sort,
     );
   }, [all, category, enterprise, province, selling, query, sort]);
+  useEffect(() => setPage(1), [category, enterprise, province, selling, query, sort]);
+  const pageCount = Math.max(1, Math.ceil(shown.length / PRODUCTS_PER_PAGE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleProducts = shown.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE);
+  const firstItem = shown.length ? (currentPage - 1) * PRODUCTS_PER_PAGE + 1 : 0;
+  const lastItem = Math.min(currentPage * PRODUCTS_PER_PAGE, shown.length);
   const pick = (key: "category" | "enterprise", value: string) => {
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value);
@@ -207,15 +269,31 @@ export function ProductsPage() {
             <ErrorState error={products.error} onRetry={() => void products.refetch()} />
           ) : (
             <>
-              <p className="text-[14px] text-ink-2">{pt("{p0} sản phẩm", { p0: shown.length })}</p>
+              <p className="text-[14px] text-ink-2">
+                {pt("Hiển thị {from}–{to} trong {count} sản phẩm", {
+                  from: firstItem,
+                  to: lastItem,
+                  count: shown.length,
+                })}
+              </p>
               {shown.length ? (
-                <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4 xl:gap-5">
-                  {shown.map((p) => (
-                    <li key={p.id}>
-                      <ProductCard product={p} />
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <ul
+                    id="product-results"
+                    className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4 xl:gap-5"
+                  >
+                    {visibleProducts.map((p) => (
+                      <li key={p.id}>
+                        <ProductCard product={p} />
+                      </li>
+                    ))}
+                  </ul>
+                  <ProductPagination
+                    current={currentPage}
+                    count={pageCount}
+                    onChange={setPage}
+                  />
+                </>
               ) : (
                 <div className="rounded-2xl border border-dashed border-line bg-card p-10 text-center text-[15px] text-ink-2">{pt("Không có sản phẩm phù hợp bộ lọc.")}</div>
               )}

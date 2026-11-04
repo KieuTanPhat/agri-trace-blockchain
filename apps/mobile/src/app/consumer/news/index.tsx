@@ -1,20 +1,20 @@
 import {NewsCover} from '../../../components/NewsCover';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router } from 'expo-router';
+import { useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { api, type Schemas } from '../../../api/client';
 import { Empty, GreenHeader, Loading, Notice, T } from '../../../components/ui';
 import { date } from '../../../lib/format';
-import { useLoad } from '../../../lib/useApi';
+import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
 import { color } from '../../../theme/tokens';
 
 /** News list (photo-left rows from the reference) and system notices. */
 export default function News() {
   const [tab, setTab] = useState<'news' | 'notices'>('news');
-  const news = useLoad(() => api<Schemas['PublicNewsPageDto']>('/public/news?limit=20'));
-  const notices = useLoad(() => api<Schemas['PublicAnnouncementsPageDto']>('/public/announcements?limit=20'));
-  const reloadNews = news.reload, reloadNotices = notices.reload;
-  useFocusEffect(useCallback(()=>{void reloadNews();void reloadNotices();},[reloadNews,reloadNotices]));
+  const news = useLoad(() => api<Schemas['PublicNewsPageDto']>('/public/news?limit=20'), [], { key: 'public:news:list', staleTimeMs: 60_000 });
+  const notices = useLoad(() => api<Schemas['PublicAnnouncementsPageDto']>('/public/announcements?limit=20'), [], { key: 'public:announcements:list', staleTimeMs: 60_000 });
+  useReloadOnFocus(news.reloadIfStale);
+  useReloadOnFocus(notices.reloadIfStale);
   const current = tab === 'news' ? news : notices;
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>

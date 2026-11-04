@@ -49,6 +49,8 @@ export const PUBLIC_EN: Record<string, string> = {
   "Trang sau": "Next page",
   "Trước": "Previous",
   "Sau": "Next",
+  "Xem tất cả {count} nhật ký chăm sóc": "Show all {count} care logs",
+  "Thu gọn nhật ký": "Show fewer care logs",
   "Giới thiệu": "About",
   "Giải pháp": "Solutions",
   "Bảng giá": "Pricing",

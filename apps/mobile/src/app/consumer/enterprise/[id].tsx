@@ -25,14 +25,15 @@ function EnterpriseDetail({ id }: { id: string }) {
     ),
     [cursor, setCursor] = useState<string | null | undefined>(),
     [loadingMore, setLoadingMore] = useState(false);
-  const { data, error, loading, reload } = useLoad(
+  const { data, error, loading, reloadIfStale } = useLoad(
     () =>
       api<Schemas["PublicEnterpriseDetailDto"]>(
         `/public/enterprises/${id}?limit=50`,
       ),
     [id],
+    { key: `public:enterprise:${id}`, staleTimeMs: 60_000 },
   );
-  useReloadOnFocus(reload);
+  useReloadOnFocus(reloadIfStale);
   if (!data || data.id !== id)
     return (
       <View style={{ flex: 1, backgroundColor: dc.bg }}>

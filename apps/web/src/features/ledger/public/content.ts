@@ -1,10 +1,11 @@
 /**
  * Nội dung tĩnh của trang công khai (tiếng Việt là khóa dịch, xem public-i18n-en.ts).
  * Chỉ mô tả năng lực đã có trong hệ thống; không đặt số liệu, khách hàng hay giá chưa xác nhận.
- * Ảnh Unsplash ghi nguồn trong PHOTO_CREDITS; ảnh bìa, người tiêu dùng, kiểm định và chế biến do chủ dự án cung cấp.
+ * Ảnh Unsplash ghi nguồn trong PHOTO_CREDITS; ảnh bìa và minh họa About tạo riêng cho trang; ảnh người tiêu dùng, kiểm định và chế biến do chủ dự án cung cấp.
  */
 import type { StaticImageData } from "next/image";
-import heroAgritrace from "../../../../public/images/site/hero-agritrace.webp";
+import heroAgritrace from "../../../../public/images/site/hero-agritrace-v2.webp";
+import aboutGrowerPartner from "../../../../public/images/site/about-grower-partner.webp";
 import teaHills from "../../../../public/images/site/tea-hills.jpg";
 import teaLeaves from "../../../../public/images/site/tea-leaves.jpg";
 import roleFarm from "../../../../public/images/site/role-farm.jpg";
@@ -14,7 +15,7 @@ import roleRetail from "../../../../public/images/site/role-retail.jpg";
 import roleInspection from "../../../../public/images/site/role-inspection-lab.jpg";
 import roleConsumer from "../../../../public/images/site/role-consumer-market.jpg";
 
-export const PHOTOS = { heroAgritrace, teaHills, teaLeaves };
+export const PHOTOS = { heroAgritrace, aboutGrowerPartner, teaHills, teaLeaves };
 
 export const PHOTO_CREDITS = [
   ["tea-hills", "Colin Roe", "https://unsplash.com/photos/H1RWuPMIgBY"],
