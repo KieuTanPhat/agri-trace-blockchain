@@ -122,7 +122,7 @@ export const PUBLIC_EN: Record<string, string> = {
   "Bàn giao có ký xác nhận giữa các bên, theo dõi số lượng thực nhận và hàng trả.": "Signed handovers between parties, tracking received and returned quantities.",
   "Kế hoạch giao nhận đồng thuận từng bên": "Delivery plans agreed by each party",
   "Ký nhận trên điện thoại khi bàn giao": "Sign on the phone at each handover",
-  "Dữ liệu cảm biến nhiệt độ, độ ẩm theo chuyến": "Temperature and humidity sensor data per trip",
+  "Hành trình GPS của xe được niêm phong khi ký nhận": "The vehicle's GPS journey is sealed at delivery sign-off",
   "Nhà bán lẻ": "Retailers",
   "Nhận hàng, kiểm tra nguồn gốc và cho người mua quét mã ngay tại quầy.": "Receive goods, check their origin and let shoppers scan right at the shelf.",
   "Xác nhận nhận hàng và số lượng": "Confirm receipt and quantities",
@@ -154,7 +154,10 @@ export const PUBLIC_EN: Record<string, string> = {
   "Truy xuất công khai": "Public trace",
   "Không cần đăng nhập để đọc thông tin được cho phép công bố.": "No sign-in needed to read information cleared for publication.",
   "Nhiệt độ, độ ẩm": "Temperature and humidity",
-  "Cảm biến ghi nhiệt độ, độ ẩm trong lúc trồng và vận chuyển.": "Sensors record temperature and humidity while growing and in transit.",
+  "Cảm biến và định vị": "Sensors and GPS tracking",
+  "Cảm biến vùng trồng": "Growing-area sensors",
+  "Dữ liệu mô phỏng": "Simulated data",
+  "Cảm biến ghi nhiệt độ, độ ẩm tại vùng trồng; GPS ghi hành trình xe khi vận chuyển.": "Sensors record temperature and humidity in growing areas; GPS records the vehicle's journey in transit.",
 
   "Quét bằng camera": "Scan with camera",
   "Cách hoạt động": "How it works",
@@ -177,7 +180,7 @@ export const PUBLIC_EN: Record<string, string> = {
   "Toàn bộ gói Doanh nghiệp": "Everything in Business",
   "Kế hoạch giao nhận, các bên cùng ký nhận": "Delivery plans signed by every party",
   "Máy chủ lưu trữ riêng cho chuỗi": "A dedicated storage server for the chain",
-  "Theo dõi nhiệt độ, độ ẩm theo chuyến": "Temperature and humidity per trip",
+  "Cảm biến vùng trồng và định vị GPS theo chuyến": "Growing-area sensors and GPS tracking per trip",
 
   // Giới thiệu
   "Minh bạch đúng phạm vi": "Transparency within scope",

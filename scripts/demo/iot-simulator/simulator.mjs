@@ -3,8 +3,8 @@
 //
 // Each device behaves like real hardware: it keeps its own Ed25519 private key,
 // numbers every record, buffers while out of coverage and uploads the backlog
-// when the signal returns. It knows nothing about transfers or cycles; the API
-// decides where each record belongs. Devices registered from here must be
+// when the signal returns. It asks the API for its assigned asset and trip;
+// the API decides where each record belongs. Devices registered from here must be
 // marked "simulated" in AgriTrace so every screen labels the data.
 //
 //   node scripts/demo/iot-simulator/simulator.mjs
@@ -13,7 +13,7 @@
 // The control panel listens on 127.0.0.1 only.
 import { createServer } from 'node:http';
 import { generateKeyPairSync, createPrivateKey, sign, randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rename, writeFile, readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canonicalize } from 'json-canonicalize';
@@ -70,16 +70,38 @@ async function planned(from, to) {
 let state = { devices: [] };
 try {
   state = JSON.parse(await readFile(STATE_FILE, 'utf8'));
-} catch {
-  /* first run */
+} catch (error) {
+  if (error.code !== 'ENOENT') throw new Error('Không đọc được trạng thái thiết bị; giữ file để khôi phục từ bản sao lưu', { cause: error });
 }
+// Devices saved before automatic dispatch was added adopt the new default too.
+for (const device of state.devices) device.mode ??= 'AUTO';
 let dirty = false;
+let persisting = false;
 const save = () => { dirty = true; };
 setInterval(async () => {
-  if (!dirty) return;
+  if (!dirty || persisting) return;
   dirty = false;
-  await mkdir(STATE_DIR, { recursive: true });
-  await writeFile(STATE_FILE, JSON.stringify(state, null, 1));
+  persisting = true;
+  try {
+    await mkdir(STATE_DIR, { recursive: true });
+    // Private keys exist only here: keep a copy before any device disappears.
+    try {
+      const previous = JSON.parse(await readFile(STATE_FILE, 'utf8'));
+      if ((previous.devices?.length ?? 0) > state.devices.length)
+        await copyFile(STATE_FILE, join(STATE_DIR, `state-${new Date().toISOString().replace(/[:.]/g, '-')}.bak.json`));
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    // A crash during writing must not replace the saved device identities with
+    // a truncated JSON file and make the next startup lose the device list.
+    await writeFile(`${STATE_FILE}.tmp`, JSON.stringify(state, null, 1));
+    await rename(`${STATE_FILE}.tmp`, STATE_FILE);
+  } catch (error) {
+    dirty = true;
+    console.error(`Không lưu được trạng thái thiết bị: ${error.message}`);
+  } finally {
+    persisting = false;
+  }
 }, 3000).unref();
 
 function newKeys() {
@@ -105,6 +127,7 @@ async function upload(device, records, { forged = false, replay = null } = {}) {
   try {
     const res = await fetch(`${API}/iot/v2/ingest/${kind}`, {
       method: 'POST',
+      signal: AbortSignal.timeout(10_000),
       headers: { 'content-type': 'application/json', 'x-device-signature': signature },
       body: JSON.stringify(body),
     });
@@ -181,7 +204,10 @@ function gpsFix(device, at) {
   };
 }
 function tickGps(device, at, dt) {
-  if (device.power === 'OFF') return;
+  if (device.power === 'OFF' || device.assignment?.device?.active === false) return;
+  // Do not report the previous route while a newly assigned trip is being
+  // planned (or its pickup/delivery coordinates are still missing).
+  if (device.mode === 'AUTO' && device.assignment?.trip && device.trip?.transferId !== device.assignment.trip.transferId) return;
   if (device.power === 'BATTERY') {
     device.battery = Math.max(0, device.battery - dt * (0.5 / 60));
     if (device.battery <= 0) {
@@ -203,10 +229,11 @@ function tickGps(device, at, dt) {
 // ---- Field sensor -----------------------------------------------------------
 function readingsAt(device, at) {
   const c = fieldClimate(device.id, at, device);
+  device.lastReadings = Object.fromEntries(Object.entries(c).map(([k, v]) => [k, `${v.value} ${v.unit}`]));
   return Object.entries(c).map(([sensorType, v]) => ({ sequence: device.sequence++, sensorType, value: v.value, unit: v.unit, recordedAt: at.toISOString() }));
 }
 function tickField(device, at, dt) {
-  if (device.power === 'OFF') return;
+  if (device.power === 'OFF' || device.assignment?.device?.active === false) return;
   device.soil = drySoil(device.id, device.soil, at, dt / 60, device.drought);
   if (at.getTime() - (device.lastFixAt ?? 0) < device.intervalSec * 1000) return;
   device.lastFixAt = at.getTime();
@@ -226,7 +253,7 @@ setInterval(async () => {
   busy = true;
   try {
     for (const d of state.devices) {
-      if (!d.queue.length || inSignalLoss(d) || d.power === 'OFF' || now < (d.retryAt ?? 0)) continue;
+      if (!d.queue.length || inSignalLoss(d) || d.power === 'OFF' || d.assignment?.device?.active === false || now < (d.retryAt ?? 0)) continue;
       const batch = d.queue.slice(0, BATCH);
       const r = await upload(d, batch);
       // Like real firmware: keep the backlog while the device is not (yet)
@@ -244,16 +271,87 @@ setInterval(async () => {
   }
 }, 1000);
 
+// ---- Dispatch (ADR-006) -------------------------------------------------------------
+async function fetchAssignment(device) {
+  const body = { deviceCode: device.deviceCode, sentAt: new Date().toISOString() };
+  try {
+    const res = await fetch(`${API}/iot/v2/device/assignment`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(10_000),
+      headers: { 'content-type': 'application/json', 'x-device-signature': signBody(device, body) },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.status === 401) return { error: 'Chưa đăng ký trong AgriTrace hoặc khóa công khai chưa khớp' };
+    if (!res.ok) return { error: `${res.status} ${json?.error?.message ?? ''}`.trim() };
+    return { assignment: json.data };
+  } catch (e) {
+    return { error: `Không kết nối được API (${e.cause?.code ?? e.message})` };
+  }
+}
+async function dispatch(device) {
+  const { assignment, error } = await fetchAssignment(device);
+  device.assignmentAt = new Date().toISOString();
+  device.assignmentError = error ?? null;
+  if (!assignment) return;
+  const before = device.assignment?.device?.active;
+  device.assignment = assignment;
+  if (before !== false && assignment.device.active === false) log(device, 'AgriTrace đã ngừng thiết bị: ngừng đo và gửi');
+  if (before === false && assignment.device.active) log(device, 'AgriTrace kích hoạt lại thiết bị');
+  if (device.kind !== 'GPS_TRACKER' || device.mode !== 'AUTO') return;
+  const trip = assignment.trip;
+  if (trip && device.trip?.transferId !== trip.transferId) {
+    device.parked = device.trip?.position ?? device.parked;
+    device.trip = null;
+    const { origin, destination } = trip;
+    if (origin.latitude == null || destination.latitude == null) {
+      device.assignmentError = 'Phiếu thiếu tọa độ hoặc tỉnh/thành của cơ sở giao/nhận';
+      return;
+    }
+    log(device, `Nhận lệnh điều xe: ${origin.name} → ${destination.name} (từ lúc ký lấy hàng ${new Date(trip.inTransitAt).toLocaleString('vi-VN')})`);
+    await startTrip(device, { from: origin, to: destination, departAt: trip.inTransitAt, transferId: trip.transferId });
+  } else if (!trip && device.trip) {
+    device.parked = device.trip.position ?? device.parked;
+    device.trip = null;
+    log(device, 'Không còn phiếu đang chở: kết thúc chuyến, xe đỗ');
+  }
+}
+let dispatching = false;
+async function dispatchAll() {
+  if (dispatching) return;
+  dispatching = true;
+  try {
+    for (const d of state.devices) {
+      if (d.power === 'OFF' || inSignalLoss(d)) continue;
+      try {
+        await dispatch(d);
+      } catch (error) {
+        d.assignmentError = `Không chuẩn bị được chuyến: ${error.message}`;
+        log(d, d.assignmentError);
+      }
+    }
+  } finally {
+    dispatching = false;
+    save();
+  }
+}
+setInterval(dispatchAll, 15_000);
+setTimeout(dispatchAll, 1000);
+
 // ---- Actions ----------------------------------------------------------------------
-function createDevice({ kind, name }) {
+function createDevice({ kind, name, deviceCode }) {
   const keys = newKeys();
   const id = randomUUID();
   const prefix = kind === 'GPS_TRACKER' ? 'SIM-GPS' : 'SIM-FIELD';
+  const code = deviceCode?.trim();
+  if (code && !/^[A-Za-z0-9._:-]{3,120}$/.test(code)) throw new Error('Mã thiết bị không hợp lệ');
+  if (code && state.devices.some((d) => d.deviceCode === code)) throw new Error('Mã thiết bị đã có trong bảng điều khiển');
   const device = {
     id,
     kind,
     name: name || (kind === 'GPS_TRACKER' ? 'GPS xe (ảo)' : 'Cảm biến ruộng (ảo)'),
-    deviceCode: `${prefix}-${id.slice(0, 8).toUpperCase()}`,
+    deviceCode: code || `${prefix}-${id.slice(0, 8).toUpperCase()}`,
+    mode: 'AUTO',
     ...keys,
     sequence: 1,
     queue: [],
@@ -267,18 +365,18 @@ function createDevice({ kind, name }) {
     trip: null,
     log: [],
   };
-  log(device, 'Đã tạo thiết bị và khóa riêng');
+  log(device, code ? 'Nhận lại mã cũ với khóa mới: vào AgriTrace → Thiết bị IoT → Đổi khóa' : 'Đã tạo thiết bị và khóa riêng');
   state.devices.push(device);
   save();
   return device;
 }
 /** Starts a trip; a past departure is replayed as if the device had been buffering since then. */
-async function startTrip(device, { routeId, departAt, from, to }) {
+async function startTrip(device, { routeId, departAt, from, to, transferId = null }) {
   if (from && to) routeId = (await planned(from, to)).id;
   const route = routes.get(routeId);
   if (!route) throw new Error('Không có tuyến này');
   const start = departAt ? new Date(departAt).getTime() : Date.now();
-  device.trip = { routeId, startedAt: new Date(start).toISOString(), progress: 0, speed: 0, rested: false, stopUntil: null, manualStop: false, position: route.coordinates[0] };
+  device.trip = { routeId, transferId, startedAt: new Date(start).toISOString(), progress: 0, speed: 0, rested: false, stopUntil: null, manualStop: false, position: route.coordinates[0] };
   device.lastFixAt = 0;
   device.bootAt = Math.min(device.bootAt, start - 60_000);
   let backfilled = 0;
@@ -321,7 +419,10 @@ async function action(device, a, body) {
     case 'irrigate': device.soil = Math.min(62, device.soil + 22); log(device, 'Tưới: độ ẩm đất tăng'); break;
     case 'interval': device.intervalSec = Math.max(30, Number(body.seconds) || 300); log(device, `Chu kỳ đo ${device.intervalSec}s`); break;
     case 'backfill': backfillField(device, Math.min(120, Math.max(1, Number(body.days) || 30))); break;
-    case 'trip': await startTrip(device, body); break;
+    case 'trip': device.mode = 'MANUAL'; await startTrip(device, body); break;
+    case 'auto': device.mode = 'AUTO'; if (device.trip && !device.trip.transferId) device.trip = null; log(device, 'Chế độ tự động: chạy theo phiếu giao nhận trong AgriTrace'); await dispatch(device); break;
+    case 'manual': device.mode = 'MANUAL'; log(device, 'Chế độ thủ công: tự chọn tuyến để demo'); break;
+    case 'sync': await dispatch(device); break;
     case 'replay':
       if (!device.lastBody) throw new Error('Chưa có gói nào để gửi lại');
       log(device, 'Gửi lại nguyên gói đã ký trước đó (replay)');
@@ -346,8 +447,9 @@ function view(d) {
     signal: !inSignalLoss(d), manualSignal: d.signal, power: d.power, battery: +d.battery.toFixed(0), queue: d.queue.length,
     sequence: d.sequence, lastError: d.lastError ?? null, lastResult: d.lastResult ?? null, log: d.log ?? [],
     soil: +d.soil.toFixed(1), drought: d.drought, intervalSec: d.intervalSec,
+    lastReadings: d.lastReadings ?? null, mode: d.mode ?? 'AUTO', assignment: d.assignment ?? null, assignmentError: d.assignmentError ?? null, assignmentAt: d.assignmentAt ?? null,
     trip: d.trip && {
-      routeId: d.trip.routeId, routeName: route.name, startedAt: d.trip.startedAt,
+      routeId: d.trip.routeId, routeName: route.name, startedAt: d.trip.startedAt, transferId: d.trip.transferId ?? null,
       progressKm: +(d.trip.progress / 1000).toFixed(1), totalKm: +(route.length / 1000).toFixed(1),
       estimated: !!route.estimated, source: route.source ?? null,
       remainingMin: d.trip.speed > 1 ? Math.round((route.length - d.trip.progress) / (d.trip.speed / 3.6) / 60) : null,
@@ -357,7 +459,7 @@ function view(d) {
 }
 
 const panel = await readFile(join(here, 'panel.html'), 'utf8');
-createServer(async (req, res) => {
+const panelServer = createServer(async (req, res) => {
   const send = (code, data) => { res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); };
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
@@ -379,6 +481,6 @@ createServer(async (req, res) => {
     send(400, { error: e.message });
   }
 }).listen(PORT, '127.0.0.1', () => {
-  console.log(`Thiết bị ảo AgriTrace: http://127.0.0.1:${PORT}  →  API ${API}`);
+  console.log(`Thiết bị ảo AgriTrace: http://127.0.0.1:${panelServer.address().port}  →  API ${API}`);
   console.log(`Trạng thái và khóa thử nghiệm lưu tại ${STATE_FILE}`);
 });

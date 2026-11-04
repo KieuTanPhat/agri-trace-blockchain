@@ -61,6 +61,8 @@ export class SensorEvidenceDto {
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   finalizedAt!: string | null;
   @ApiProperty() lateReadingCount!: number;
+  @ApiProperty({ description: 'Readings come from a virtual (simulated) device (ADR-006)' })
+  simulated!: boolean;
 }
 export class LotProofDto {
   @ApiProperty() network!: string;

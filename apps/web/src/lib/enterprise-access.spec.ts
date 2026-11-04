@@ -58,7 +58,7 @@ describe("Current enterprise navigation authority", () => {
     ])
       expect(canUseEnterpriseRoute(path, pending)).toBe(false);
   });
-  it("hides producer and vehicle administration from a distributor without those capabilities", () => {
+  it("allows a distributor's own vehicles and devices while keeping production behind its capability", () => {
     const distributor = {
       ...staff,
       primary: true,
@@ -67,6 +67,7 @@ describe("Current enterprise navigation authority", () => {
         "profile.read",
         "production.read",
         "vehicles.read",
+        "devices.read",
         "distribution.read",
       ],
     };
@@ -75,8 +76,14 @@ describe("Current enterprise navigation authority", () => {
       false,
     );
     expect(canUseEnterpriseRoute("/enterprise/vehicles", distributor)).toBe(
-      false,
+      true,
     );
+    expect(canUseEnterpriseRoute("/enterprise/devices", distributor)).toBe(true);
+    expect(canUseEnterpriseRoute("/iot-simulator", distributor)).toBe(true);
+    const reader = { ...distributor, permissions: ["profile.read"] };
+    expect(canUseEnterpriseRoute("/enterprise/vehicles", reader)).toBe(false);
+    expect(canUseEnterpriseRoute("/enterprise/devices", reader)).toBe(false);
+    expect(canUseEnterpriseRoute("/iot-simulator", reader)).toBe(false);
   });
 });
 

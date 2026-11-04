@@ -25,6 +25,8 @@ export function canAccessManagementRoute(
 ): boolean {
   const within = (prefix: string) =>
     path === prefix || path.startsWith(prefix + "/");
+  // The retired simulator address has the same boundary as its redirect target.
+  if (within("/iot-simulator")) path = "/enterprise/devices";
   // Every signed-in account may change its own password.
   if (path === "/account/password" || path === "/account/privacy") return true;
   // Every platform account has a notifications page behind the header bell.
@@ -130,7 +132,6 @@ export function canAccessManagementRoute(
     return false;
   if (within("/admin")) return false;
   if (within("/production-cycles") && productionAccess) return true;
-  if (within("/iot-simulator")) return canWriteFarm(role, productionAccess);
   if (within("/compliance"))
     return [
       "SYSTEM_ADMIN",

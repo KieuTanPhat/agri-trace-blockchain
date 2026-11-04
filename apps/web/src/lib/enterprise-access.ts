@@ -53,7 +53,7 @@ export function canUseEnterpriseRoute(
     return has(path.endsWith("/new") ? "sites.manage" : "sites.read");
   if (within("/enterprise/vehicles"))
     return has(path.endsWith("/new") ? "vehicles.manage" : "vehicles.read");
-  if (within("/enterprise/devices")) return has("devices.read");
+  if (within("/enterprise/devices") || within("/iot-simulator")) return has("devices.read");
   if (within("/enterprise/inventory")) return has("inventory.manage") || has("quarantine.manage");
   if (within("/enterprise/materials")) return access.capabilities.includes('FARM') && has(path.endsWith('/new') ? 'materials.manage' : 'materials.read');
   if (within("/enterprise/qr")) return has("qr.manage");
@@ -102,8 +102,6 @@ export function canUseEnterpriseRoute(
           : "production.read",
       )
     );
-  if (within("/iot-simulator"))
-    return access.capabilities.includes("FARM") && has("production.write");
   if (within("/lots") || within("/dashboard"))
     return (
       has("trace.read") || has("production.read") || has("distribution.read")

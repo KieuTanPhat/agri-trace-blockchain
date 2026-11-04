@@ -37,10 +37,10 @@ describe("Web business permissions", () => {
     ).toBe(false);
   });
   it.each(["AUDITOR", "TRANSPORTER", "RETAILER"] as const)(
-    "keeps %s from farmer writes and the user IoT simulator",
+    "keeps %s from farmer writes while IoT follows device-route permissions",
     (role) => {
       expect(canWriteFarm(role)).toBe(false);
-      expect(canAccessManagementRoute("/iot-simulator", role)).toBe(false);
+      expect(canAccessManagementRoute("/iot-simulator", role)).toBe(canAccessManagementRoute("/enterprise/devices", role));
       expect(canAccessManagementRoute("/production-cycles", role)).toBe(true);
     },
   );
@@ -119,13 +119,10 @@ describe("Web business permissions", () => {
       false,
     );
   });
-  it("uses current server production access for the scoped IoT route", () => {
-    expect(
-      canAccessManagementRoute("/iot-simulator", "TRANSPORTER", true),
-    ).toBe(true);
-    expect(
-      canAccessManagementRoute("/iot-simulator", "FARM_STAFF", false),
-    ).toBe(false);
+  it("gives the retired IoT address the same boundary as device management", () => {
+    for (const role of ["FARM_STAFF", "TRANSPORTER", "DISTRIBUTOR", "RETAILER", "AUDITOR", "SYSTEM_ADMIN", "IOT_DEVICE"] as const)
+      for (const production of [true, false])
+        expect(canAccessManagementRoute("/iot-simulator", role, production)).toBe(canAccessManagementRoute("/enterprise/devices", role, production));
     expect(canAccessManagementRoute("/admin", "TRANSPORTER", true)).toBe(false);
   });
 });

@@ -106,6 +106,55 @@ export class DeviceIngestResultDto {
   @ApiProperty({ description: 'Bị từ chối vì thời gian không hợp lệ' }) rejected!: number;
 }
 
+/** A device asks what it is attached to and which trip its vehicle is on. */
+export class DeviceAssignmentInput {
+  @ApiProperty() @Matches(CODE) deviceCode!: string;
+  @ApiProperty({ format: 'date-time' }) @IsDateString() sentAt!: string;
+}
+
+class AssignedDeviceDto {
+  @ApiProperty() deviceCode!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() type!: string;
+  @ApiProperty() status!: string;
+  @ApiProperty() simulated!: boolean;
+  @ApiProperty() active!: boolean;
+}
+class AssignedPlotDto {
+  @ApiProperty() name!: string;
+  @ApiProperty() farmName!: string;
+  @ApiProperty({ type: [String] }) runningCycles!: string[];
+}
+class AssignedVehicleDto {
+  @ApiProperty() registration!: string;
+  @ApiProperty() kind!: string;
+  @ApiProperty() status!: string;
+}
+class AssignedPlaceDto {
+  @ApiProperty() name!: string;
+  @ApiProperty({ type: Number, nullable: true }) latitude!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) longitude!: number | null;
+  @ApiProperty({ enum: ['SITE', 'PROVINCE'], nullable: true }) source!: string | null;
+}
+class PlannedTripDto {
+  @ApiProperty() distanceM!: number;
+  @ApiProperty() durationS!: number;
+  @ApiProperty() estimated!: boolean;
+}
+class AssignedTripDto {
+  @ApiProperty({ format: 'uuid' }) transferId!: string;
+  @ApiProperty({ type: String, format: 'date-time' }) inTransitAt!: string;
+  @ApiProperty({ type: AssignedPlaceDto }) origin!: AssignedPlaceDto;
+  @ApiProperty({ type: AssignedPlaceDto }) destination!: AssignedPlaceDto;
+  @ApiProperty({ type: PlannedTripDto, nullable: true }) planned!: PlannedTripDto | null;
+}
+export class DeviceAssignmentDto {
+  @ApiProperty({ type: AssignedDeviceDto }) device!: AssignedDeviceDto;
+  @ApiProperty({ type: AssignedPlotDto, nullable: true }) plot!: AssignedPlotDto | null;
+  @ApiProperty({ type: AssignedVehicleDto, nullable: true }) vehicle!: AssignedVehicleDto | null;
+  @ApiProperty({ type: AssignedTripDto, nullable: true }) trip!: AssignedTripDto | null;
+}
+
 export class CycleReadingsQuery {
   @ApiPropertyOptional({ description: 'Số giờ gần nhất (mặc định cả vụ)' })
   @IsOptional()

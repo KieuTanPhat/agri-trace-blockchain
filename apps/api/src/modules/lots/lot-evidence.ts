@@ -69,6 +69,7 @@ export function lotEvidence(
       periodEnd: window?.periodEnd.toISOString() ?? null,
       finalizedAt: window?.finalizedAt.toISOString() ?? null,
       lateReadingCount: lot.harvest?._count.lateReadings ?? 0,
+      simulated: !!window?.readings.some((r) => r.reading.device.simulated),
     },
   };
 }

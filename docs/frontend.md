@@ -216,10 +216,19 @@ QUARANTINE. Đọc/quản lý chứng cứ giữ quyền evidence.read/evidence.
 
 Chế biến giữ input/output decimal, packaging, conversions bất biến và version complete/cancel.
 Cân bằng UI chỉ là ước tính; API quyết định base quantity/tồn kho/output lot. Không hiện
-output thành công trước response. IoT dùng journal `INGEST_SENSOR_READING`, chặn bản đo
-mới cùng thiết bị khi yêu cầu cũ chưa rõ; đối soát đúng body/key gốc. Đổi loại cảm biến
-đồng bộ đơn vị °C/%; JSON yêu cầu/phản hồi và nút sao chép chỉ giữ snapshot bản ghi
-trong bộ nhớ trang, không thay body/key của yêu cầu đang chờ.
+output thành công trước response.
+
+IoT hiện hành ở `/enterprise/devices`, theo quyền `devices.read`/`devices.manage`;
+`/iot-simulator` chuyển sang trang này. Cảm biến gắn thửa tự ghi vào các vụ
+`PLANTED`/`GROWING`; GPS gắn xe tự ghi trong cửa sổ giao nhận. Thiết bị ảo hỏi
+`POST /iot/v2/device/assignment` bằng chữ ký riêng, nhận điểm giao/nhận từ phiếu
+và tự chạy sau khi ký lấy hàng, dừng khi ký nhận. Bảng điều khiển demo chỉ cần
+ghép nối ban đầu; thao tác tạo sự cố và chạy tuyến thủ công nằm trong mục nâng cao.
+Không gắn, tháo hoặc chuyển GPS khi xe đang chở hàng. Phiếu hiển thị quãng đường/
+thời gian dự kiến từ tọa độ cơ sở hoặc điểm đại diện tỉnh/thành; đây là ước lượng.
+Dữ liệu thiết bị ảo có nhãn mô phỏng trên biểu đồ, hành trình và QR Web/mobile.
+Đường API IoT legacy giữ journal `INGEST_SENSOR_READING` và recovery body/key gốc;
+giao diện nhập tay cũ đã bỏ. Xem [ADR-006](adr-006-iot-plot-vehicle-tracking.md).
 
 ## Công khai, camera và PWA
 
@@ -348,7 +357,7 @@ API trả NOT_FOUND; PROCESSING/RECONCILIATION_REQUIRED không thực thi lại.
 Care và thời điểm nhận được ghi cùng trace/outbox/journal, không sửa lịch sử cũ.
 
 Fixture chỉ ở test, không import vào runtime. Gate trong plan kiểm baseline scope,
-provenance, 143 wrapper/screen và evidence action; source-review khác browser/live acceptance.
+provenance của wrapper/screen, alias chuyển hướng và evidence action; source-review khác browser/live acceptance.
 Kiểm ảnh đại diện 1440/390, spot-check 320/768, sáng-VI/tối-EN và một flow keyboard/focus/
 Escape/reduced-motion. Thay đổi nhỏ chạy subset bị ảnh hưởng.
 

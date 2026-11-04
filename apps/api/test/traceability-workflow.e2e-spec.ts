@@ -713,7 +713,7 @@ const prisma = new PrismaClient({
       const [senderSite, receiverSite] = await Promise.all(
         [farmOrgId, receiver.id].map((organizationId) =>
           prisma.enterpriseSite.create({
-            data: { organizationId, name: 'Self delivery depot', kind: 'WAREHOUSE', address: 'Isolated test depot' },
+            data: { organizationId, name: 'Self delivery depot', kind: 'WAREHOUSE', address: 'Isolated test depot', region: 'Lâm Đồng' },
           }),
         ),
       );
@@ -735,6 +735,18 @@ const prisma = new PrismaClient({
         }).expect(201)
       ).body.data.record;
       expect(gpsDevice).toMatchObject({ type: 'GPS_TRACKER', vehicleId: vehicle.id, simulated: true });
+      const readAssignment = (privateKey = gps.privateKey, sentAt = new Date().toISOString()) => {
+        const body = { deviceCode, sentAt };
+        const signature = sign(
+          null,
+          Buffer.concat([Buffer.from('agritrace:iot-device:1'), Buffer.from([0]), Buffer.from(canonicalize(body))]),
+          privateKey,
+        ).toString('base64url');
+        return request(app.getHttpServer()).post('/api/iot/v2/device/assignment').set('x-device-signature', signature).send(body);
+      };
+      expect((await readAssignment().expect(200)).body.data).toMatchObject({ device: { active: true }, vehicle: { registration: vehicle.registration }, trip: null });
+      await readAssignment(generateKeyPairSync('ed25519').privateKey).expect(401);
+      await readAssignment(gps.privateKey, new Date(Date.now() - 10 * 60_000).toISOString()).expect(401);
       const sendPositions = (
         positions: { sequence: number; recordedAt: string; latitude: number; longitude: number; accuracyM?: number }[],
         privateKey = gps.privateKey,
@@ -864,6 +876,16 @@ const prisma = new PrismaClient({
       expect(pickup.status, JSON.stringify(pickup.body)).toBe(201);
       transfer = pickup.body.data.record;
       expect(transfer.status).toBe('IN_TRANSIT');
+      const assigned = (await readAssignment().expect(200)).body.data;
+      expect(assigned.trip).toMatchObject({ transferId: transfer.id, origin: { source: 'PROVINCE' }, destination: { source: 'SITE' }, planned: { estimated: true } });
+      expect(assigned.trip.planned.distanceM).toBeGreaterThan(0);
+      expect(Object.keys(assigned.trip).sort()).toEqual(['destination', 'inTransitAt', 'origin', 'planned', 'transferId']);
+      // Neither removing nor moving the GPS can interrupt a trip in progress.
+      await post(`/iot/v2/devices/${gpsDevice.id}/binding`, { version: gpsDevice.authorityRevision }).expect(409);
+      const otherVehicle = await prisma.enterpriseVehicle.create({ data: { organizationId: farmOrgId, registration: `GPS-${randomUUID().slice(0, 6)}`, kind: 'Xe tải' } });
+      await post(`/iot/v2/devices/${gpsDevice.id}/binding`, { version: gpsDevice.authorityRevision, vehicleId: otherVehicle.id }).expect(409);
+      const options = (await get('/iot/v2/device-options').expect(200)).body.data;
+      expect(options.vehicles.find((v: { id: string }) => v.id === vehicle.id)).toMatchObject({ inTransit: true, trackerId: gpsDevice.id });
       const sent = await prisma.lotHolding.findUniqueOrThrow({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId } },
       });
@@ -934,6 +956,7 @@ const prisma = new PrismaClient({
         }
       }
       expect(transfer.status).toBe('DELIVERED');
+      expect((await readAssignment().expect(200)).body.data.trip).toBeNull();
       const seal = await prisma.distributionRouteSeal.findUniqueOrThrow({ where: { transferId: transfer.id } });
       expect(seal).toMatchObject({ source: 'SIMULATED', pointCount: 3, anomalyCount: 1 });
       const delivered = await prisma.traceEvent.findFirstOrThrow({
@@ -1088,6 +1111,10 @@ const prisma = new PrismaClient({
       expect(harvest.status, JSON.stringify(harvest.body)).toBe(201);
       const window = await prisma.harvestSensorWindow.findFirstOrThrow({ where: { cycleId: cycle.id } });
       expect(window.readingCount).toBe(3);
+      const sensorLot = harvest.body.data.lot;
+      expect((await get(`/lots/${sensorLot.id}`).expect(200)).body.data.sensorEvidence).toMatchObject({ simulated: true, status: 'FINALIZED', digestHash: window.digestHash });
+      const sensorQr = await prisma.traceQr.findUniqueOrThrow({ where: { lotId: sensorLot.id } });
+      expect((await request(app.getHttpServer()).get(`/api/public/trace/${sensorQr.traceToken}`).expect(200)).body.data.sensorEvidence).toMatchObject({ simulated: true, status: 'FINALIZED', digestHash: window.digestHash });
     });
 
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {

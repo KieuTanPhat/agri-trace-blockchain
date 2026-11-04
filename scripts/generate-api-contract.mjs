@@ -79,8 +79,9 @@ function validateContract(document) {
       if (['success', 'data', 'timestamp', 'requestId'].some(field => !fields[field]))
         throw new Error(`${method.toUpperCase()} ${path} ${code} is missing its response envelope/schema`);
     }
-    // Signed device ingest (ADR-006) deduplicates by the per-device sequence, not by Idempotency-Key.
-    const deviceIngest = method === 'post' && path.startsWith('/api/iot/v2/ingest/');
+    // Signed device ingest (ADR-006) deduplicates by the per-device sequence; the
+    // signed assignment read changes nothing. Neither uses an Idempotency-Key.
+    const deviceIngest = method === 'post' && (path.startsWith('/api/iot/v2/ingest/') || path === '/api/iot/v2/device/assignment');
     const needsKey = method === 'post' && !path.startsWith('/api/auth/') && !deviceIngest || method === 'patch' && path === '/api/certificates/{id}/review';
     if (needsKey && !(operation.parameters ?? []).some(parameter => parameter.in === 'header' && parameter.name.toLowerCase() === 'idempotency-key' && parameter.required))
       throw new Error(`${method.toUpperCase()} ${path} must document required Idempotency-Key`);

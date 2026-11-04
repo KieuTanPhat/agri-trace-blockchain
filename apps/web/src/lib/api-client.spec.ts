@@ -324,6 +324,7 @@ describe("public API", () => {
         periodEnd: "2026-10-09T00:00:00.000Z",
         finalizedAt: "2026-10-09T00:00:00.000Z",
         lateReadingCount: 0,
+        simulated: false,
       },
       productionCycle: {
         cycleId: "cycle-1",

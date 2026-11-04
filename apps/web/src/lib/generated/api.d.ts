@@ -2657,6 +2657,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/iot/v2/device/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_assignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/iot/v2/devices": {
         parameters: {
             query?: never;
@@ -5679,6 +5695,40 @@ export interface components {
             responseDueAt?: string;
             version: number;
         };
+        AssignedDeviceDto: {
+            active: boolean;
+            deviceCode: string;
+            name: string;
+            simulated: boolean;
+            status: string;
+            type: string;
+        };
+        AssignedPlaceDto: {
+            latitude: number | null;
+            longitude: number | null;
+            name: string;
+            /** @enum {string|null} */
+            source: "SITE" | "PROVINCE" | null;
+        };
+        AssignedPlotDto: {
+            farmName: string;
+            name: string;
+            runningCycles: string[];
+        };
+        AssignedTripDto: {
+            destination: components["schemas"]["AssignedPlaceDto"];
+            /** Format: date-time */
+            inTransitAt: string;
+            origin: components["schemas"]["AssignedPlaceDto"];
+            planned: components["schemas"]["PlannedTripDto"] | null;
+            /** Format: uuid */
+            transferId: string;
+        };
+        AssignedVehicleDto: {
+            kind: string;
+            registration: string;
+            status: string;
+        };
         AssignmentListDto: {
             audits: components["schemas"]["ComplianceAssignmentAuditRecordDto"][];
             farm: components["schemas"]["NamedDto"];
@@ -6720,6 +6770,17 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             version: number;
+        };
+        DeviceAssignmentDto: {
+            device: components["schemas"]["AssignedDeviceDto"];
+            plot: components["schemas"]["AssignedPlotDto"] | null;
+            trip: components["schemas"]["AssignedTripDto"] | null;
+            vehicle: components["schemas"]["AssignedVehicleDto"] | null;
+        };
+        DeviceAssignmentInput: {
+            deviceCode: string;
+            /** Format: date-time */
+            sentAt: string;
         };
         DeviceIngestResultDto: {
             accepted: number;
@@ -8632,6 +8693,11 @@ export interface components {
             partners: number;
             products: number;
         };
+        PlannedTripDto: {
+            distanceM: number;
+            durationS: number;
+            estimated: boolean;
+        };
         PlanningLotDto: {
             /** Format: uuid */
             id: string;
@@ -10289,6 +10355,8 @@ export interface components {
             /** Format: date-time */
             periodStart: string | null;
             readingCount: number;
+            /** @description Readings come from a virtual (simulated) device (ADR-006) */
+            simulated: boolean;
             /**
              * @description NOT_APPLICABLE for lots created by processing
              * @enum {string}
@@ -33301,6 +33369,128 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_assignment: {
+        parameters: {
+            query?: never;
+            header: {
+                "x-device-signature": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceAssignmentInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeviceAssignmentDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;

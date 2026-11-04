@@ -455,6 +455,143 @@
         ],
         "type": "object"
       },
+      "AssignedDeviceDto": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "deviceCode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "simulated": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "deviceCode",
+          "name",
+          "type",
+          "status",
+          "simulated",
+          "active"
+        ],
+        "type": "object"
+      },
+      "AssignedPlaceDto": {
+        "properties": {
+          "latitude": {
+            "nullable": true,
+            "type": "number"
+          },
+          "longitude": {
+            "nullable": true,
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "SITE",
+              "PROVINCE"
+            ],
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "latitude",
+          "longitude",
+          "source"
+        ],
+        "type": "object"
+      },
+      "AssignedPlotDto": {
+        "properties": {
+          "farmName": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "runningCycles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "farmName",
+          "runningCycles"
+        ],
+        "type": "object"
+      },
+      "AssignedTripDto": {
+        "properties": {
+          "destination": {
+            "$ref": "#/components/schemas/AssignedPlaceDto"
+          },
+          "inTransitAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/AssignedPlaceDto"
+          },
+          "planned": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlannedTripDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "transferId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transferId",
+          "inTransitAt",
+          "origin",
+          "destination",
+          "planned"
+        ],
+        "type": "object"
+      },
+      "AssignedVehicleDto": {
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "registration": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "registration",
+          "kind",
+          "status"
+        ],
+        "type": "object"
+      },
       "AssignmentListDto": {
         "properties": {
           "audits": {
@@ -3981,6 +4118,63 @@
           "updatedAt",
           "product",
           "organization"
+        ],
+        "type": "object"
+      },
+      "DeviceAssignmentDto": {
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/AssignedDeviceDto"
+          },
+          "plot": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedPlotDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "trip": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedTripDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "vehicle": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssignedVehicleDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "device",
+          "plot",
+          "vehicle",
+          "trip"
+        ],
+        "type": "object"
+      },
+      "DeviceAssignmentInput": {
+        "properties": {
+          "deviceCode": {
+            "type": "string"
+          },
+          "sentAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deviceCode",
+          "sentAt"
         ],
         "type": "object"
       },
@@ -11085,6 +11279,25 @@
         ],
         "type": "object"
       },
+      "PlannedTripDto": {
+        "properties": {
+          "distanceM": {
+            "type": "number"
+          },
+          "durationS": {
+            "type": "number"
+          },
+          "estimated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "distanceM",
+          "durationS",
+          "estimated"
+        ],
+        "type": "object"
+      },
       "PlanningLotDto": {
         "properties": {
           "id": {
@@ -16855,6 +17068,10 @@
           "readingCount": {
             "type": "number"
           },
+          "simulated": {
+            "description": "Readings come from a virtual (simulated) device (ADR-006)",
+            "type": "boolean"
+          },
           "status": {
             "description": "NOT_APPLICABLE for lots created by processing",
             "enum": [
@@ -16873,7 +17090,8 @@
           "periodStart",
           "periodEnd",
           "finalizedAt",
-          "lateReadingCount"
+          "lateReadingCount",
+          "simulated"
         ],
         "type": "object"
       },
@@ -50557,6 +50775,170 @@
             "bearer": []
           }
         ],
+        "tags": [
+          "iot-devices"
+        ]
+      }
+    },
+    "/api/iot/v2/device/assignment": {
+      "post": {
+        "operationId": "DevicesController_assignment",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-device-signature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceAssignmentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DeviceAssignmentDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
         "tags": [
           "iot-devices"
         ]

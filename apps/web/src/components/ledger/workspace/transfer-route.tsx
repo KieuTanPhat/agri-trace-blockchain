@@ -28,7 +28,7 @@ export function TransferRouteSection({ transferId, status }: { transferId: strin
   if (q.error) return <ErrorState compact error={q.error} onRetry={() => q.refetch()} />;
   const r = q.data;
   if (!r) return <LoadingRows rows={3} />;
-  if (!r.trackable && !r.points.length)
+  if (r.window.inTransitAt && !r.trackable && !r.points.length)
     return (
       <section className="flex flex-col gap-2">
         <h3 className="text-[13px] font-semibold">{tr("Hành trình")}</h3>
@@ -36,6 +36,32 @@ export function TransferRouteSection({ transferId, status }: { transferId: strin
       </section>
     );
   const shown = r.seal?.source ?? r.source;
+  const plannedText = r.planned
+    ? tr("{p0} → {p1}: khoảng {p2} km, {p3}", {
+        p0: r.origin?.name ?? "—",
+        p1: r.destination?.name ?? "—",
+        p2: Math.round(r.planned.distanceM / 1000),
+        p3: fmtSeconds(r.planned.durationS),
+      })
+    : null;
+  const byProvince = r.origin?.source === "PROVINCE" || r.destination?.source === "PROVINCE";
+  if (!r.window.inTransitAt)
+    return (
+      <section className="flex flex-col gap-2" data-testid="transfer-route">
+        <h3 className="text-[13px] font-semibold">{tr("Hành trình dự kiến")}</h3>
+        {plannedText ? <p className="text-[13px]">{plannedText}</p> : <Callout>{tr("Cơ sở giao/nhận chưa có tọa độ hoặc tỉnh/thành nên chưa ước tính được quãng đường.")}</Callout>}
+        {byProvince && <p className="text-[12px] text-ink-2">{tr("Ước tính theo điểm đại diện tỉnh/thành của cơ sở (đường chim bay × 1,3); thêm tọa độ cơ sở để chính xác hơn.")}</p>}
+        <p className="text-[12px] text-ink-2">
+          {r.tracker
+            ? tr("Xe {p0} có GPS {p1}: tự ghi vị trí từ lúc ký lấy hàng đến lúc ký nhận.", { p0: r.vehicle?.registration ?? "", p1: r.tracker.deviceCode })
+            : r.trackable
+              ? tr("Xe {p0} chưa gắn GPS nên chuyến này sẽ không có định vị tự động.", { p0: r.vehicle?.registration ?? "" })
+              : r.transportMode === "EXTERNAL_CARRIER"
+                ? tr("Xe thuê ngoài: không có định vị tự động.")
+                : tr("Phiếu chưa chọn xe đã khai nên không có định vị tự động.")}
+        </p>
+      </section>
+    );
   return (
     <section className="flex flex-col gap-3" data-testid="transfer-route">
       <div className="flex flex-wrap items-center gap-2">
@@ -47,7 +73,7 @@ export function TransferRouteSection({ transferId, status }: { transferId: strin
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px] sm:grid-cols-4">
         <div><dt className="text-ink-2">{tr("Xe")}</dt><dd className="font-mono">{r.vehicle?.registration ?? "—"}</dd></div>
         <div><dt className="text-ink-2">{tr("Thiết bị")}</dt><dd className="font-mono">{r.tracker?.deviceCode ?? tr("Chưa gắn GPS")}</dd></div>
-        <div><dt className="text-ink-2">{tr("Quãng đường")}</dt><dd>{r.summary ? `${(r.summary.distanceM / 1000).toFixed(1)} km` : "—"}</dd></div>
+        <div><dt className="text-ink-2">{tr("Quãng đường")}</dt><dd>{r.summary ? `${(r.summary.distanceM / 1000).toFixed(1)} km` : "—"}{r.planned ? <span className="text-ink-2"> / ~{Math.round(r.planned.distanceM / 1000)} km {tr("dự kiến")}</span> : null}</dd></div>
         <div><dt className="text-ink-2">{tr("Độ phủ tín hiệu")}</dt><dd>{r.summary ? `${Math.round(r.summary.coveragePercent)}%` : "—"}</dd></div>
         <div><dt className="text-ink-2">{tr("Bắt đầu")}</dt><dd>{fmtDateTime(r.window.inTransitAt)}</dd></div>
         <div><dt className="text-ink-2">{tr("Kết thúc")}</dt><dd>{fmtDateTime(r.window.deliveredAt)}</dd></div>

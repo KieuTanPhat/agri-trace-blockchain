@@ -67,7 +67,7 @@ export class DeviceRegistryService {
         select: { id: true, cycleCode: true, plotId: true },
       }),
       this.prisma.distributionTransfer.findMany({
-        where: { vehicleId: { in: vehicleIds }, status: 'IN_TRANSIT' },
+        where: { vehicleId: { in: vehicleIds }, status: 'IN_TRANSIT', inTransitAt: { not: null } },
         select: { id: true, vehicleId: true, origin: true, destination: true },
       }),
     ]);
@@ -126,7 +126,7 @@ export class DeviceRegistryService {
     }
     const [activeTransfer, positions, last24h] = await Promise.all([
       device.vehicleId
-        ? this.prisma.distributionTransfer.findFirst({ where: { vehicleId: device.vehicleId, status: 'IN_TRANSIT' }, select: { id: true, origin: true, destination: true, inTransitAt: true } })
+        ? this.prisma.distributionTransfer.findFirst({ where: { vehicleId: device.vehicleId, status: 'IN_TRANSIT', inTransitAt: { not: null } }, select: { id: true, origin: true, destination: true, inTransitAt: true } })
         : null,
       this.prisma.distributionPosition.findMany({
         where: { deviceId: id },
@@ -165,11 +165,30 @@ export class DeviceRegistryService {
       }),
       this.prisma.enterpriseVehicle.findMany({
         where: { organizationId: actor.organizationId!, status: 'ACTIVE' },
-        select: { id: true, registration: true, kind: true },
+        select: {
+          id: true,
+          registration: true,
+          kind: true,
+          devices: { where: { status: 'ACTIVE', type: 'GPS_TRACKER' }, select: { id: true, name: true } },
+        },
         orderBy: { registration: 'asc' },
       }),
     ]);
-    return { plots, vehicles };
+    const moving = new Set(
+      (await this.prisma.distributionTransfer.findMany({
+        where: { vehicleId: { in: vehicles.map((v) => v.id) }, status: 'IN_TRANSIT', inTransitAt: { not: null } },
+        select: { vehicleId: true },
+      })).map((t) => t.vehicleId),
+    );
+    return {
+      plots,
+      vehicles: vehicles.map(({ devices, ...v }) => ({
+        ...v,
+        inTransit: moving.has(v.id),
+        trackerId: devices[0]?.id ?? null,
+        trackerName: devices[0]?.name ?? null,
+      })),
+    };
   }
 
   register(actor: CommandActor, input: RegisterDeviceInput) {
@@ -200,9 +219,12 @@ export class DeviceRegistryService {
     return commandTransaction(this.prisma, async (tx) => {
       await enterpriseAuthority(tx, actor, 'devices.manage', undefined, undefined, true);
       const device = await this.lockDevice(tx, actor, id, input.version);
+      if (device.type === 'GPS_TRACKER') await this.lockVehicles(tx, [device.vehicleId, input.vehicleId ?? null]);
       const binding = await this.assertBinding(tx, actor, device.type, input.plotId ?? null, input.vehicleId ?? null, true, id);
-      if (device.vehicleId && device.vehicleId !== binding.vehicleId && (await tx.distributionTransfer.count({ where: { vehicleId: device.vehicleId, status: 'IN_TRANSIT' } })))
-        throw new ConflictException('Xe đang chở hàng; tháo GPS sau khi phiếu được ký nhận');
+      if (device.vehicleId && (await tx.distributionTransfer.count({ where: { vehicleId: device.vehicleId, status: 'IN_TRANSIT', inTransitAt: { not: null } } })))
+        throw new ConflictException('Xe đang chở hàng; chỉ tháo hoặc đổi GPS sau khi phiếu được ký nhận');
+      if (device.plotId === binding.plotId && device.vehicleId === binding.vehicleId)
+        throw new ConflictException('Thiết bị đã gắn vào tài sản này');
       const record = await tx.iotDevice.update({ where: { id }, data: binding, select: DEVICE_SELECT });
       return { record };
     });
@@ -314,6 +336,12 @@ export class DeviceRegistryService {
     return device;
   }
 
+  /** Serialize GPS rebinding with pickup, including pickup signed by another party. */
+  private async lockVehicles(tx: Prisma.TransactionClient, ids: (string | null)[]) {
+    for (const id of [...new Set(ids.filter((id): id is string => !!id))].sort())
+      await tx.$queryRaw`SELECT id FROM enterprise_vehicle WHERE id=${id}::uuid FOR UPDATE`;
+  }
+
   /** Field sensors bind to plots (production.write), trackers to vehicles (vehicles.manage). */
   private async assertBinding(
     tx: Prisma.TransactionClient,
@@ -343,10 +371,14 @@ export class DeviceRegistryService {
         throw new UnprocessableEntityException('Chọn xe để gắn GPS');
       }
       await enterpriseAuthority(tx, actor, 'vehicles.manage');
+      await this.lockVehicles(tx, [vehicleId]);
       const vehicle = await tx.enterpriseVehicle.findFirst({ where: { id: vehicleId, organizationId: actor.organizationId! } });
       if (!vehicle || vehicle.status !== 'ACTIVE') throw new ForbiddenException('Xe không thuộc doanh nghiệp hoặc đã ngừng');
       if (await tx.iotDevice.count({ where: { vehicleId, status: 'ACTIVE', ...(deviceId ? { id: { not: deviceId } } : {}) } }))
         throw new ConflictException('Xe đã có GPS đang hoạt động');
+      // A route must cover the whole trip: no tracker joins a vehicle mid-trip.
+      if (await tx.distributionTransfer.count({ where: { vehicleId, status: 'IN_TRANSIT', inTransitAt: { not: null } } }))
+        throw new ConflictException('Xe đang chở hàng; gắn GPS sau khi phiếu được ký nhận');
       return { plotId: null, vehicleId };
     }
     throw new UnprocessableEntityException('Loại thiết bị không hỗ trợ');

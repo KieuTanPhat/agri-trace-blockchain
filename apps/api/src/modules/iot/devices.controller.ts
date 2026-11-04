@@ -22,6 +22,8 @@ import { WorkspaceListDto, WorkspaceRecordDto } from '../enterprise-workspace/dt
 import {
   BindDeviceInput,
   CycleReadingsQuery,
+  DeviceAssignmentDto,
+  DeviceAssignmentInput,
   DeviceIngestResultDto,
   DeviceStatusInput,
   RegisterDeviceInput,
@@ -133,6 +135,16 @@ export class DevicesController {
   @ApiDataResponse(DeviceIngestResultDto)
   readings(@Body() dto: SignedReadingsInput, @Headers('x-device-signature') signature?: string) {
     return this.ingest.readings(dto, signature);
+  }
+
+  /** Signed like ingest; tells the device its asset and current trip. */
+  @Post('device/assignment')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  @ApiHeader({ name: 'X-Device-Signature', required: true })
+  @ApiDataResponse(DeviceAssignmentDto)
+  assignment(@Body() dto: DeviceAssignmentInput, @Headers('x-device-signature') signature?: string) {
+    return this.ingest.assignment(dto, signature);
   }
 
   @Post('ingest/positions')

@@ -10,7 +10,8 @@ import type { IotDevice, Prisma } from '../../generated/prisma/client.js';
 import { markLateReading, validateSensorTime } from './harvest-sensor-window.js';
 import { classifyPosition } from './route-seal.js';
 import { sentAtWithinSkew, verifyDeviceSignature } from './device-signature.js';
-import type { SignedPositionsInput, SignedReadingsInput } from './device-dto.js';
+import type { DeviceAssignmentInput, SignedPositionsInput, SignedReadingsInput } from './device-dto.js';
+import { transferPlaces } from './transfer-places.js';
 
 const RUNNING_STATES = ['PLANTED', 'GROWING'];
 /** Device clocks may run slightly ahead; later instants are refused. */
@@ -63,6 +64,53 @@ export class DeviceIngestService {
     if (device.type !== kind)
       throw new ForbiddenException('Loại dữ liệu không đúng loại thiết bị');
     return device;
+  }
+
+  /**
+   * Dispatch view for the device itself (ADR-006): what it is attached to in
+   * AgriTrace and, for a GPS tracker, the trip its vehicle is carrying now.
+   * Only places and timing are returned, never goods, quantities or parties.
+   */
+  async assignment(body: DeviceAssignmentInput, signature: string | undefined) {
+    const device = await this.prisma.iotDevice.findUnique({
+      where: { deviceCode: body.deviceCode },
+      include: {
+        organization: { select: { status: true } },
+        plot: { select: { name: true, farm: { select: { name: true } } } },
+        vehicle: { select: { registration: true, kind: true, status: true } },
+      },
+    });
+    if (!device || !device.publicKey || !signature || !verifyDeviceSignature(device.publicKey, body, signature))
+      throw new UnauthorizedException('Chữ ký thiết bị không hợp lệ');
+    if (!sentAtWithinSkew(body.sentAt))
+      throw new UnauthorizedException('Thời điểm gửi lệch quá giới hạn; đồng bộ đồng hồ thiết bị');
+    const active = device.status === 'ACTIVE' && device.organization.status === 'ACTIVE';
+    const cycles = active && device.plotId
+      ? await this.prisma.productionCycle.findMany({
+          where: { plotId: device.plotId, farmOrgId: device.organizationId, currentState: { in: RUNNING_STATES as never } },
+          select: { cycleCode: true },
+        })
+      : [];
+    const transfer = active && device.vehicleId
+      ? await this.prisma.distributionTransfer.findFirst({
+          where: { vehicleId: device.vehicleId, status: 'IN_TRANSIT', inTransitAt: { not: null } },
+          orderBy: { inTransitAt: 'desc' },
+          select: { id: true, inTransitAt: true, senderSiteId: true, receiverSiteId: true, origin: true, destination: true },
+        })
+      : null;
+    const places = transfer ? await transferPlaces(this.prisma, transfer) : null;
+    return {
+      device: { deviceCode: device.deviceCode, name: device.name, type: device.type, status: device.status, simulated: device.simulated, active },
+      plot: device.plot && { name: device.plot.name, farmName: device.plot.farm.name, runningCycles: cycles.map((c) => c.cycleCode) },
+      vehicle: device.vehicle && { registration: device.vehicle.registration, kind: device.vehicle.kind, status: device.vehicle.status },
+      trip: transfer && places && {
+        transferId: transfer.id,
+        inTransitAt: transfer.inTransitAt,
+        origin: places.origin,
+        destination: places.destination,
+        planned: places.planned,
+      },
+    };
   }
 
   async readings(body: SignedReadingsInput, signature: string | undefined) {
@@ -128,7 +176,7 @@ export class DeviceIngestService {
       const result = empty();
       const vehicleId = device.vehicleId;
       const active = vehicleId
-        ? await tx.distributionTransfer.findFirst({ where: { vehicleId, status: 'IN_TRANSIT' }, select: { id: true } })
+        ? await tx.distributionTransfer.findFirst({ where: { vehicleId, status: 'IN_TRANSIT', inTransitAt: { not: null } }, select: { id: true } })
         : null;
       // Serialize with the DELIVERY seal, which locks the same row.
       if (active) await tx.$queryRaw`SELECT id FROM distribution_transfer WHERE id=${active.id}::uuid FOR UPDATE`;

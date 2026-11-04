@@ -54,6 +54,7 @@ function sampleEvidence(
       periodEnd: harvestTime,
       finalizedAt: harvestTime,
       lateReadingCount: 0,
+      simulated: false,
     },
   };
 }

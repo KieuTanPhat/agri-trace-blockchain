@@ -46,7 +46,7 @@ export const SOLUTIONS: Solution[] = [
     image: roleTransport,
     title: "Vận chuyển và phân phối",
     summary: "Bàn giao có ký xác nhận giữa các bên, theo dõi số lượng thực nhận và hàng trả.",
-    points: ["Kế hoạch giao nhận đồng thuận từng bên", "Ký nhận trên điện thoại khi bàn giao", "Dữ liệu cảm biến nhiệt độ, độ ẩm theo chuyến"],
+    points: ["Kế hoạch giao nhận đồng thuận từng bên", "Ký nhận trên điện thoại khi bàn giao", "Hành trình GPS của xe được niêm phong khi ký nhận"],
   },
   {
     slug: "ban-le",
@@ -82,7 +82,7 @@ export const PLATFORM_FEATURES: { title: string; copy: string }[] = [
   { title: "Thông tin kiểm tra được", copy: "Dữ liệu đã ghi không sửa được; cảnh báo và chứng nhận hiện riêng, rõ ràng." },
   { title: "Theo từng lô hàng", copy: "Xem nguồn nguyên liệu, lịch sử sản xuất và hành trình giao nhận." },
   { title: "Truy xuất công khai", copy: "Không cần đăng nhập để đọc thông tin được cho phép công bố." },
-  { title: "Nhiệt độ, độ ẩm", copy: "Cảm biến ghi nhiệt độ, độ ẩm trong lúc trồng và vận chuyển." },
+  { title: "Cảm biến và định vị", copy: "Cảm biến ghi nhiệt độ, độ ẩm tại vùng trồng; GPS ghi hành trình xe khi vận chuyển." },
 ];
 
 export type Plan = { name: string; audience: string; features: string[]; highlight?: boolean };
@@ -102,6 +102,6 @@ export const PLANS: Plan[] = [
   {
     name: "Chuỗi cung ứng",
     audience: "Chuỗi nhiều bên cùng chia sẻ dữ liệu giao nhận",
-    features: ["Toàn bộ gói Doanh nghiệp", "Kế hoạch giao nhận, các bên cùng ký nhận", "Máy chủ lưu trữ riêng cho chuỗi", "Theo dõi nhiệt độ, độ ẩm theo chuyến"],
+    features: ["Toàn bộ gói Doanh nghiệp", "Kế hoạch giao nhận, các bên cùng ký nhận", "Máy chủ lưu trữ riêng cho chuỗi", "Cảm biến vùng trồng và định vị GPS theo chuyến"],
   },
 ];

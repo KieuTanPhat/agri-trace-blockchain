@@ -91,7 +91,7 @@ export const fieldIndex: Record<string, FieldSection[]> = {
     { page: "Thêm giống / vật tư", href: "/enterprise/materials/new", fields: ["Mã đầu vào", "Tên", "Loại", "Loại giống", "Đơn vị", "Xuất xứ", "Nhà sản xuất", "Nhà cung cấp", "Mô tả", "Lô đầu vào", "Thành phần / hoạt chất", "Cách ly khai báo (ngày)", "Hạn dùng"] },
   ],
   "/lots": [{ fields: ["Nông sản", "Mã lô", "Nông trại", "Cập nhật gần nhất", "Trạng thái", "Tìm lô", "Lọc trạng thái", "Lọc trang trại", "Tổng số lô", "Đang vận chuyển", "Đã thu hoạch"] }],
-  "/iot-simulator": [{ fields: ["Thiết bị", "Vụ trồng", "Loại cảm biến", "Giá trị và đơn vị", "Thời điểm ghi nhận UTC", "Cấu hình cảm biến"] }],
+  "/enterprise/devices": [{ fields: ["Thiết bị IoT", "Cảm biến vùng trồng", "GPS trên xe", "Thửa", "Xe", "Dữ liệu mô phỏng", "Gắn thiết bị", "Khóa công khai"] }],
   "/enterprise/sites": [
     { fields: ["Tên cơ sở", "Loại cơ sở", "Địa chỉ", "Trạng thái"] },
     { page: "Thêm cơ sở", href: "/enterprise/sites/new", fields: siteFields },

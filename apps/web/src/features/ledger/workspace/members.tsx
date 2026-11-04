@@ -16,6 +16,7 @@ import { PERMISSION_LABEL, TIER_LABEL, type EnterprisePermission } from "@/lib/l
 import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
 import { Input } from "@/components/ledger/ui/input";
+import { FilterSelect } from "@/components/ledger/kit/filters";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ledger/ui/dialog";
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
@@ -67,6 +68,9 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
   const [tab, setTab] = useState<"tree" | "invitations">((view === "invitations" || params.get("tab") === "invitations") ? "invitations" : "tree");
   const [selectedId, setSelected] = useState<string | null>(null);
   const [showRemoved, setShowRemoved] = useState(false);
+  const [search, setSearch] = useState("");
+  const [tierFilter, setTierFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const [createdMember, setCreatedMember] = useState<string>();
   const [uploadError, setUploadError] = useState("");
   const members = useQuery({ queryKey: ["ws-members"], queryFn: wapi.members, enabled: can("members.read") });
@@ -78,19 +82,18 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
   const create = useDialog<"member" | "invite">();
   const [inviteLink, setInviteLink] = useState<string | null>(null);
 
+  // Flat list (no tree indentation): tier first, then name; filters narrow it.
   const tree = useMemo(() => {
-    const list = (members.data ?? []).filter(member => memberId || (showRemoved ? member.accountStatus === "INACTIVE" : member.accountStatus !== "INACTIVE"));
-    const ids = new Set(list.map((m) => m.id));
-    const rows: { m: Member; depth: number }[] = [];
-    const walk = (parent: string | null, depth: number) => {
-      for (const m of list.filter((x) => (parent === null ? !x.supervisorId || !ids.has(x.supervisorId) : x.supervisorId === parent)).sort((a, b) => (a.enterpriseTier ?? 1) - (b.enterpriseTier ?? 1) || a.fullName.localeCompare(b.fullName, "vi"))) {
-        rows.push({ m, depth });
-        walk(m.id, depth + 1);
-      }
-    };
-    walk(null, 0);
-    return rows;
-  }, [members.data, memberId, showRemoved]);
+    const q = search.trim().toLocaleLowerCase("vi");
+    return (members.data ?? [])
+      .filter((member) => memberId || (showRemoved ? member.accountStatus === "INACTIVE" : member.accountStatus !== "INACTIVE"))
+      .filter((m) => !tierFilter || String(m.enterpriseTier ?? 1) === tierFilter)
+      .filter((m) => !roleFilter || m.enterpriseRoles.some((r) => r.roleId === roleFilter))
+      .filter((m) => !q || [m.fullName, m.email, m.memberCode, m.jobTitle, m.phone].some((v) => v?.toLocaleLowerCase("vi").includes(q)))
+      .sort((a, b) => (a.enterpriseTier ?? 1) - (b.enterpriseTier ?? 1) || a.fullName.localeCompare(b.fullName, "vi"))
+      .map((m) => ({ m }));
+  }, [members.data, memberId, showRemoved, search, tierFilter, roleFilter]);
+  const supervisorName = (id: string | null) => members.data?.find((x) => x.id === id)?.fullName;
 
   if (!can("members.read")) return <ErrorState error={new Error(tr("Bạn chưa có quyền members.read"))} />;
   const current = memberId ? tree.find(r => r.m.id === memberId)?.m : tree.find((r) => r.m.id === selectedId)?.m ?? tree[0]?.m;
@@ -124,7 +127,7 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
           <div role="tablist" className="flex gap-1">
             {(["tree", "invitations"] as const).map((k) => (
               <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)} className={cn("h-8 rounded-md border px-3 text-[12.5px] font-medium", tab === k ? "border-ink bg-ink text-canvas" : "border-line bg-card")}>
-                {k === "tree" ? tr("Cây thành viên") : tr("Lời mời")}
+                {k === "tree" ? tr("Thành viên") : tr("Lời mời")}
               </button>
             ))}
           </div>
@@ -135,25 +138,35 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
           <ErrorState error={members.error} onRetry={() => members.refetch()} />
         ) : !members.data ? (
           <LoadingRows />
-        ) : !tree.length ? (
-          <EmptyState title={tr("Chưa có thành viên trực thuộc")}>{tr("Tạo thành viên hoặc gửi lời mời để giao việc.")}</EmptyState>
         ) : (
           <div className="flex flex-wrap items-start gap-5">
-            <ul aria-label={tr("Cây thành viên")} className="min-w-0 flex-[1_1_380px] overflow-hidden rounded-md border border-line bg-card py-1">
-              {tree.map(({ m, depth }) => (
+            <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Input aria-label={tr("Tìm thành viên")} placeholder={tr("Tìm tên, email, mã NV, chức vụ")} value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 min-w-[200px] flex-1 text-[13px]" />
+              <FilterSelect label={tr("Cấp")} value={tierFilter} onChange={setTierFilter} options={[{ value: "1", label: tr("Cấp 1") }, { value: "2", label: tr("Cấp 2") }, { value: "3", label: tr("Cấp 3") }]} />
+              <FilterSelect label={tr("Nhóm quyền")} value={roleFilter} onChange={setRoleFilter} options={(roles.data ?? []).map((r) => ({ value: r.id, label: r.name }))} />
+            </div>
+            {!tree.length ? (
+              <EmptyState title={search || tierFilter || roleFilter ? tr("Không có thành viên khớp bộ lọc") : tr("Chưa có thành viên trực thuộc")}>{search || tierFilter || roleFilter ? null : tr("Tạo thành viên hoặc gửi lời mời để giao việc.")}</EmptyState>
+            ) : (
+            <ul aria-label={tr("Danh sách thành viên")} className="min-w-0 overflow-hidden rounded-md border border-line bg-card py-1">
+              {tree.map(({ m }, index) => (
                 <li key={m.id}>
                   <button
                     type="button"
                     onClick={() => setSelected(m.id)}
                     aria-current={current?.id === m.id || undefined}
-                    className={cn("flex w-full items-center justify-between gap-3 py-2.5 pr-4 text-left hover:bg-row-alt", current?.id === m.id && "bg-brand-weak shadow-[inset_3px_0_0_var(--brand)] hover:bg-brand-weak")}
-                    style={{ paddingLeft: 16 + depth * 24 }}
+                    className={cn("flex w-full items-center justify-between gap-3 py-2.5 pl-4 pr-4 text-left hover:bg-row-alt", current?.id === m.id && "bg-brand-weak shadow-[inset_3px_0_0_var(--brand)] hover:bg-brand-weak")}
                   >
-                    <span className="flex min-w-0 flex-col">
+                    <span className="w-6 shrink-0 text-right font-mono text-[12px] text-ink-2 tabular-nums">{index + 1}</span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className={cn("truncate text-[13px] font-medium", m.accountStatus !== "ACTIVE" && "text-ink-2 line-through")}>
                         {m.fullName} {m.id === user?.id && <span className="font-normal text-ink-2">{tr("(bạn)")}</span>}
                       </span>
-                      <span className="truncate text-[12px] text-ink-2">{m.jobTitle ?? "—"}</span>
+                      <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
+                        {m.jobTitle ? <span className="rounded-sm bg-brand-weak px-1.5 py-0.5 text-[11.5px] font-medium text-brand-ink">{m.jobTitle}</span> : <span>—</span>}
+                        {m.supervisorId && supervisorName(m.supervisorId) && <span className="truncate">{tr("Quản lý trực tiếp: {p0}", { p0: supervisorName(m.supervisorId)! })}</span>}
+                      </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {m.accountStatus !== "ACTIVE" && <Status group="account" value={m.accountStatus} />}
@@ -163,6 +176,8 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
                 </li>
               ))}
             </ul>
+            )}
+            </div>
             {memberId && !current && !members.isLoading && <EmptyState title={tr("Không tìm thấy thành viên")}/>}
             {current && <MemberDetail canonicalEdit={view === "edit"} m={current} all={members.data} manage={manage} primary={primary} {...sharedOpts} invalidate={invalidate} />}
           </div>

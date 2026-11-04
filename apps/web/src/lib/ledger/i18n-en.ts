@@ -295,7 +295,7 @@ export const EN: Record<string, string> = {
   "Cấu hình triển khai bắt buộc MFA": "Deployment config requires MFA",
   "Cấu hình triển khai giả lập": "Simulated deployment config",
   "Cây lô": "Lot tree",
-  "Cây thành viên": "Member tree",
+  "Danh sách thành viên": "Member list",
   "Cây trồng": "Crops",
   "Chặn đường trực tiếp (409) với thao tác cần phê duyệt hai bước.":
     "Blocks the direct path (409) for actions that need two-step approval.",
@@ -651,6 +651,8 @@ export const EN: Record<string, string> = {
   "Đã xuất {p0} dòng{p1}": "Exported {p0} rows{p1}",
   "Đã xử lý": "Handled",
   "Đang bán": "On sale",
+  "Đang sử dụng": "In use",
+  "Ngừng sử dụng": "Inactive",
   "Đang chạy": "Running",
   "Đang chờ xét": "Pending review",
   "Đang chuyển hướng…": "Redirecting…",

@@ -52,10 +52,10 @@ const ROLE_LABEL: Record<string, string> = localized({ SENDER: "Bên giao", CARR
 const PHASE_LABEL: Record<Phase, string> = localized({ CONSENT: "Đồng thuận các bên", PICKUP: "Lấy hàng (giao + người chở)", DELIVERY: "Giao hàng (người chở + nhận)" });
 export const TRANSPORT_MODE_LABEL: Record<TransportMode, string> = localized({ PLATFORM_CARRIER: "Đơn vị vận chuyển trên AgriTrace", EXTERNAL_CARRIER: "Thuê đơn vị vận chuyển ngoài", SELF_DELIVERY: "Bên giao tự chở", RECEIVER_PICKUP: "Bên nhận tự đến lấy" });
 const TRANSPORT_MODE_HINT: Record<TransportMode, string> = localized({
-  PLATFORM_CARRIER: "Ba bên ký: giao + vận chuyển ký lấy hàng, vận chuyển + nhận ký giao hàng. Đơn vị vận chuyển ghi được nhiệt độ trên đường.",
+  PLATFORM_CARRIER: "Ba bên ký: giao + vận chuyển ký lấy hàng, vận chuyển + nhận ký giao hàng. Xe đã khai có GPS thì vị trí được ghi tự động từ lúc ký lấy hàng đến lúc ký nhận.",
   EXTERNAL_CARRIER: "Bên thuê xe giữ trách nhiệm hàng trên đường. Bên giao thuê: bên giao + nhận ký khi giao. Bên nhận thuê: hai bên ký lúc xe lấy hàng.",
-  SELF_DELIVERY: "Bên giao giữ hàng tới nơi; bên giao + nhận ký khi giao hàng.",
-  RECEIVER_PICKUP: "Bên giao + nhận ký tại điểm lấy hàng; quyền giữ hàng chuyển sang bên nhận ngay.",
+  SELF_DELIVERY: "Bên giao giữ hàng tới nơi; bên giao + nhận ký khi giao hàng. Chọn xe đã khai có GPS để ghi hành trình.",
+  RECEIVER_PICKUP: "Bên giao + nhận ký tại điểm lấy hàng; quyền giữ hàng chuyển sang bên nhận ngay. Xe đã khai của bên nhận có GPS thì ghi hành trình.",
 });
 const DEC = /^\d{1,11}(\.\d{1,3})?$/;
 const dec = (msg = () => tr("Số không âm, tối đa 3 chữ số thập phân")) => z.string().regex(DEC, { error: msg });
@@ -507,7 +507,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                   })}
                 </ul>
               </section>
-              {["IN_TRANSIT", "DELIVERED"].includes(t.status) && <TransferRouteSection transferId={t.id} status={t.status} />}
+              {t.status !== "CANCELLED" && <TransferRouteSection transferId={t.id} status={t.status} />}
               {(t.photos?.length || t.receipt?.photos?.length) ? (
                 <section className="flex flex-col gap-1 text-[13px]">
                   <h3 className="text-[13px] font-semibold">{tr("Ảnh xác nhận")}</h3>

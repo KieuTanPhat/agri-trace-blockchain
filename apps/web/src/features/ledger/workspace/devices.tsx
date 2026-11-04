@@ -47,7 +47,13 @@ export default function DevicesPage() {
   const rotate = useDialog<Device>();
   const toggle = useDialog<Device>();
   const plots = (options.data?.plots ?? []).map((p) => ({ value: p.id, label: `${p.farm.name} · ${p.name}` }));
-  const vehicles = (options.data?.vehicles ?? []).map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }));
+  // A GPS goes only on a parked vehicle without another active tracker.
+  const vehicleOptions = (deviceId?: string) =>
+    (options.data?.vehicles ?? [])
+      .filter((v) => !v.inTransit && (!v.trackerId || v.trackerId === deviceId))
+      .map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }));
+  const vehicles = vehicleOptions();
+  const busyVehicles = (options.data?.vehicles ?? []).filter((v) => v.inTransit || v.trackerId);
   const manage = can("devices.manage");
   const [openId, setOpenId] = useState<string | null>(null);
   const opened = devices.data?.find((d) => d.id === openId) ?? null;
@@ -111,7 +117,7 @@ export default function DevicesPage() {
           <span className="flex flex-wrap gap-1">
             <Button size="xs" variant="outline" onClick={() => setOpenId(d.id)}>{tr("Chi tiết")}</Button>
             {manage && <>
-            <Button size="xs" variant="outline" onClick={() => { void options.refetch(); bind.open(d); }}>{tr("Gắn")}</Button>
+            <Button size="xs" variant="outline" disabled={!!d.activeTransfer} title={d.activeTransfer ? tr("Xe đang chở hàng; đổi hoặc tháo GPS sau khi phiếu được ký nhận") : undefined} onClick={() => { void options.refetch(); bind.open(d); }}>{tr("Gắn")}</Button>
             <Button size="xs" variant="outline" onClick={() => rotate.open(d)}>{tr("Đổi khóa")}</Button>
             <Button size="xs" variant="outline" onClick={() => toggle.open(d)}>{d.status === "ACTIVE" ? tr("Ngừng") : tr("Kích hoạt")}</Button>
             </>}
@@ -183,7 +189,7 @@ export default function DevicesPage() {
                 {kind === "FIELD_SENSOR" ? (
                   <SelectField control={f.control} name="plotId" label={tr("Thửa")} options={plots} hint={plots.length ? undefined : tr("Doanh nghiệp chưa có thửa đang hoạt động. Tạo thửa ở Quản lý vùng sản xuất.")} />
                 ) : (
-                  <SelectField control={f.control} name="vehicleId" label={tr("Xe")} options={vehicles} hint={vehicles.length ? undefined : tr("Doanh nghiệp chưa khai xe nào đang hoạt động. Thêm xe ở Tài nguyên → Phương tiện.")} />
+                  <SelectField control={f.control} name="vehicleId" label={tr("Xe")} options={vehicles} hint={vehicles.length ? (busyVehicles.length ? tr("Không hiện xe đang chở hàng hoặc đã có GPS: {p0}", { p0: busyVehicles.map((v) => v.registration).join(", ") }) : undefined) : (options.data?.vehicles.length ? tr("Mọi xe đang chở hàng hoặc đã có GPS. Gắn sau khi phiếu được ký nhận.") : tr("Doanh nghiệp chưa khai xe nào đang hoạt động. Thêm xe ở Tài nguyên → Phương tiện."))} />
                 )}
                 <ChoiceField control={f.control} name="simulated" label={tr("Nguồn thiết bị")} options={[{ value: "yes", label: tr("Thiết bị ảo (mô phỏng)"), help: tr("Dữ liệu luôn hiện nhãn mô phỏng, kể cả trên QR") }, { value: "no", label: tr("Thiết bị thật") }]} />
               </>
@@ -210,7 +216,7 @@ export default function DevicesPage() {
           }}
         >
           {(f) => (
-            <SelectField control={f.control} name="target" label={bind.target!.type === "FIELD_SENSOR" ? tr("Thửa (để trống để tháo)") : tr("Xe (để trống để tháo)")} options={[{ value: "", label: tr("— Tháo khỏi tài sản —") }, ...(bind.target!.type === "FIELD_SENSOR" ? plots : vehicles)]} />
+            <SelectField control={f.control} name="target" label={bind.target!.type === "FIELD_SENSOR" ? tr("Thửa (để trống để tháo)") : tr("Xe (để trống để tháo)")} options={[{ value: "", label: tr("— Tháo khỏi tài sản —") }, ...(bind.target!.type === "FIELD_SENSOR" ? plots : vehicleOptions(bind.target!.id))]} />
           )}
         </CommandDialog>
       )}

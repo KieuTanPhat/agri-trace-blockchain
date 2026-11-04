@@ -1011,6 +1011,9 @@ export class DistributionService {
       const transition: { inTransitAt?: Date; deliveredAt?: Date } = {};
       let routeSeal: Prisma.InputJsonObject | undefined;
       if (input.phase === 'PICKUP' && phaseCount === required) {
+        // GPS binding takes this lock too, so a concurrent rebind completes
+        // before pickup or observes IN_TRANSIT and is refused.
+        if (t.vehicleId) await tx.$queryRaw`SELECT id FROM enterprise_vehicle WHERE id=${t.vehicleId}::uuid FOR UPDATE`;
         status = 'IN_TRANSIT';
         transition.inTransitAt = new Date();
         // ADR-006: one moving transfer per vehicle (backed by a partial unique index).

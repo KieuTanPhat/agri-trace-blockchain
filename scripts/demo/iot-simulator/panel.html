@@ -8,51 +8,58 @@
   :root { --ink:#1d2939; --ink2:#667085; --line:#e4e7ec; --card:#fff; --bg:#f6f7f9; --ok:#1f7a4d; --warn:#b54708; --bad:#b42318; }
   * { box-sizing: border-box; }
   body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
-  header { padding: 16px 20px; border-bottom: 1px solid var(--line); background: var(--card); }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--card); }
   header h1 { margin: 0; font-size: 18px; }
   header p { margin: 4px 0 0; color: var(--ink2); font-size: 13px; }
   main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
   button, select, input { font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; background: #fff; }
   button { cursor: pointer; }
   button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
   button.danger { color: var(--bad); }
-  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); white-space: nowrap; }
   .ok { color: var(--ok); border-color: #a6d8bf; background: #ecfdf3; }
   .warn { color: var(--warn); border-color: #fedf89; background: #fffaeb; }
   .bad { color: var(--bad); border-color: #fecdca; background: #fef3f2; }
-  code, .mono { font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 12px; word-break: break-all; }
-  h2 { font-size: 15px; margin: 0 0 6px; }
-  h3 { font-size: 13px; margin: 12px 0 6px; color: var(--ink2); font-weight: 600; }
-  ol.log { margin: 6px 0 0; padding-left: 18px; max-height: 160px; overflow: auto; font-size: 12px; color: var(--ink2); }
-  .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12.5px; }
+  .muted { color: var(--ink2); font-size: 12.5px; }
+  code { font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 12px; word-break: break-all; }
+  h2 { font-size: 15px; margin: 0; }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 3px 10px; font-size: 13px; margin: 10px 0 0; }
   .kv dt { color: var(--ink2); }
-  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .kv dd { margin: 0; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 4px; }
   .bar > span { display: block; height: 100%; background: var(--ok); }
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .metric { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  .metric b { display: block; font-size: 18px; font-family: ui-monospace, monospace; }
+  details { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+  summary { cursor: pointer; color: var(--ink2); font-size: 13px; }
+  ol.log { margin: 6px 0 0; padding-left: 18px; max-height: 140px; overflow: auto; font-size: 12px; color: var(--ink2); }
 </style>
 </head>
 <body>
 <header>
   <h1>Thiết bị ảo AgriTrace</h1>
-  <p>Mỗi thiết bị tự giữ khóa riêng, đánh số từng bản ghi, lưu tạm khi mất sóng và gửi bù. Dữ liệu từ đây là <b>mô phỏng</b>; khi đăng ký trong AgriTrace hãy chọn "Thiết bị ảo". API: <span id="api" class="mono"></span></p>
+  <p>Thiết bị tự hỏi AgriTrace mỗi 15 giây: đang gắn vào thửa/xe nào, xe đang chở phiếu nào. Khi phiếu được ký lấy hàng, GPS tự chạy theo điểm đi/điểm đến của phiếu; ký nhận xong thì tự dừng. Dữ liệu là <b>mô phỏng</b>. API: <code id="api"></code></p>
 </header>
 <main>
   <section class="card">
-    <h2>Tạo thiết bị</h2>
-    <div class="row">
+    <h2>Thêm thiết bị</h2>
+    <div class="row" style="margin-top:8px">
       <select id="kind"><option value="GPS_TRACKER">GPS trên xe</option><option value="FIELD_SENSOR">Cảm biến vùng trồng</option></select>
       <input id="name" placeholder="Tên gợi nhớ (tùy chọn)">
+      <input id="code" placeholder="Mã cũ để nhận lại (tùy chọn)" size="24">
       <button class="primary" onclick="create()">Tạo</button>
     </div>
-    <p style="color:var(--ink2);font-size:12.5px;margin:8px 0 0">Sau khi tạo: vào AgriTrace → Thiết bị IoT → Đăng ký thiết bị, dán <b>mã thiết bị</b> và <b>khóa công khai</b> bên dưới, gắn vào thửa hoặc xe.</p>
+    <p class="muted" style="margin:8px 0 0">Sau khi tạo: AgriTrace → Thiết bị IoT → Đăng ký thiết bị, dán mã và khóa công khai, gắn vào thửa hoặc xe. Nhận lại mã cũ thì dùng "Đổi khóa" trong AgriTrace với khóa mới.</p>
   </section>
   <section id="devices" class="grid"></section>
 </main>
 <script>
-let routes = [];
 let provinces = [];
+const open = new Set();
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 async function call(path, body, method = 'POST') {
@@ -62,121 +69,114 @@ async function call(path, body, method = 'POST') {
   refresh();
   return j;
 }
-const create = () => call('/api/devices', { kind: $('#kind').value, name: $('#name').value });
+const create = () => call('/api/devices', { kind: $('#kind').value, name: $('#name').value, deviceCode: $('#code').value });
 const act = (id, a, body = {}) => call(`/api/devices/${id}/${a}`, body);
-const del = (id) => confirm('Xóa thiết bị ảo này khỏi bảng điều khiển? (Không xóa trong AgriTrace)') && call(`/api/devices/${id}`, null, 'DELETE');
+const del = (id) => confirm('Xóa thiết bị ảo này? Khóa riêng của nó sẽ mất (bản sao lưu vẫn được giữ trong .iot-simulator).') && call(`/api/devices/${id}`, null, 'DELETE');
 const copy = (t) => navigator.clipboard.writeText(t);
-function localNow(minutesAgo = 0) {
-  const d = new Date(Date.now() - minutesAgo * 60000 - new Date().getTimezoneOffset() * 60000);
+const LABEL = { TEMPERATURE: 'Nhiệt độ', HUMIDITY: 'Độ ẩm KK', SOIL_MOISTURE: 'Độ ẩm đất' };
+function localNow() {
+  const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
   return d.toISOString().slice(0, 16);
 }
-function placeOptions(selected) {
-  return provinces.map((p) => `<option value="${p.code}" ${p.code === selected ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+function agriStatus(d) {
+  if (d.assignmentError) return `<span class="badge bad">${esc(d.assignmentError)}</span>`;
+  if (!d.assignment) return '<span class="badge">đang kết nối…</span>';
+  return d.assignment.device.active ? '<span class="badge ok">AgriTrace: hoạt động</span>' : '<span class="badge warn">AgriTrace: đã ngừng</span>';
 }
-function readPlace(id, which) {
-  const mode = document.getElementById(`${which}m-${id}`).value;
-  if (mode !== 'coord') return { code: mode };
-  const [latitude, longitude] = document.getElementById(`${which}c-${id}`).value.split(',').map((v) => Number(v.trim()));
-  return { latitude, longitude, name: document.getElementById(`${which}n-${id}`).value };
+function attached(d) {
+  const a = d.assignment;
+  if (!a) return '—';
+  if (a.plot) return `${esc(a.plot.farmName)} · ${esc(a.plot.name)}<div class="muted">${a.plot.runningCycles.length ? 'Vụ đang nhận dữ liệu: ' + a.plot.runningCycles.map(esc).join(', ') : 'Thửa chưa có vụ đang trồng: dữ liệu sẽ bị bỏ qua'}</div>`;
+  if (a.vehicle) return `Xe <b>${esc(a.vehicle.registration)}</b> · ${esc(a.vehicle.kind)}`;
+  return '<span class="muted">Chưa gắn vào thửa hoặc xe</span>';
 }
-function toggleCoord(id, which) {
-  document.getElementById(`${which}x-${id}`).style.display = document.getElementById(`${which}m-${id}`).value === 'coord' ? 'flex' : 'none';
-}
-async function depart(id) {
-  const kind = document.getElementById(`k-${id}`).value;
-  const departAt = new Date(document.getElementById(`t-${id}`).value).toISOString();
-  const body = kind === 'custom'
-    ? { from: readPlace(id, 'f'), to: readPlace(id, 'd'), departAt }
-    : { routeId: document.getElementById(`r-${id}`).value, departAt };
-  document.getElementById(`go-${id}`).textContent = 'Đang tính tuyến…';
-  await act(id, 'trip', body);
-}
-function placePicker(id, which, label, selected) {
-  return `<div class="row"><label style="min-width:62px">${label}</label>
-    <select id="${which}m-${id}" onchange="toggleCoord('${id}','${which}')">${placeOptions(selected)}<option value="coord">Nhập tọa độ…</option></select></div>
-    <div class="row" id="${which}x-${id}" style="display:none;margin-left:70px">
-      <input id="${which}c-${id}" placeholder="vĩ độ, kinh độ (vd 10.86, 106.77)" size="26">
-      <input id="${which}n-${id}" placeholder="Tên điểm (tùy chọn)" size="18"></div>`;
-}
-function gpsControls(d) {
-  if (!d.trip) {
-    return `<h3>Chuyến đi</h3>
-      <div class="row"><select id="k-${d.id}" onchange="document.getElementById('pre-${d.id}').style.display=this.value==='custom'?'none':'flex';document.getElementById('cus-${d.id}').style.display=this.value==='custom'?'grid':'none'">
-        <option value="custom">Tự chọn điểm đi / điểm đến</option><option value="preset">Tuyến có sẵn</option></select></div>
-      <div id="cus-${d.id}" style="display:grid;gap:6px;margin-top:6px">${placePicker(d.id, 'f', 'Điểm đi', '68')}${placePicker(d.id, 'd', 'Điểm đến', '79')}</div>
-      <div class="row" id="pre-${d.id}" style="display:none;margin-top:6px"><select id="r-${d.id}">${routes.map((r) => `<option value="${r.id}">${esc(r.name)} (${r.km} km)</option>`).join('')}</select></div>
-      <div class="row" style="margin-top:6px">
-        <label>Xuất phát <input type="datetime-local" id="t-${d.id}" value="${localNow()}"></label>
-        <button class="primary" id="go-${d.id}" onclick="depart('${d.id}')">Xuất phát</button>
-      </div><p style="color:var(--ink2);font-size:12px">Tuyến đường thật lấy từ OSRM (OpenStreetMap); không có mạng thì dùng tuyến ước lượng. Ký lấy hàng trong AgriTrace trước. Giờ xuất phát trong quá khứ = thiết bị đã chạy và lưu tạm từ lúc đó; điểm trước lúc ký lấy hàng bị máy chủ bỏ qua.</p>`;
-  }
+function tripBlock(d) {
   const t = d.trip;
-  return `<h3>Chuyến: ${esc(t.routeName)}</h3>
-    <div class="bar"><span style="width:${Math.min(100, (t.progressKm / t.totalKm) * 100)}%"></span></div>
-    <p style="font-size:12.5px;margin:4px 0">${t.progressKm}/${t.totalKm} km · ${t.speed} km/h${t.remainingMin != null ? ` · còn khoảng ${t.remainingMin} phút` : ''} ${t.stopped ? '<span class="badge warn">đang dừng</span>' : ''} ${t.arrivedAt ? '<span class="badge ok">đã tới nơi</span>' : ''} ${t.estimated ? '<span class="badge warn">tuyến ước lượng</span>' : ''}</p>
-    <div class="row">
-      ${t.stopped ? `<button onclick="act('${d.id}','resume')">Chạy tiếp</button>` : `<button onclick="act('${d.id}','stop')">Dừng bất thường</button>`}
-      <button onclick="act('${d.id}','finish')">Tua tới gần điểm nhận</button>
-      <button onclick="act('${d.id}','end_trip')">Kết thúc chuyến</button>
-    </div>`;
+  const a = d.assignment?.trip;
+  if (!t) {
+    if (d.mode === 'AUTO') return `<p class="muted" style="margin:8px 0 0">Đang chờ phiếu: lập phiếu giao nhận chọn xe này và ký lấy hàng, xe sẽ tự chạy.</p>`;
+    return `<p class="muted" style="margin:8px 0 0">Chế độ thủ công: chọn tuyến trong mục Nâng cao.</p>`;
+  }
+  const pct = Math.min(100, (t.progressKm / t.totalKm) * 100);
+  return `<dl class="kv">
+      <dt>Chuyến</dt><dd>${esc(t.routeName)}${t.transferId ? '' : ' <span class="badge warn">thủ công</span>'}${t.estimated ? ' <span class="badge warn">tuyến ước lượng</span>' : ''}</dd>
+      ${a ? `<dt>Theo phiếu</dt><dd><code>${esc(a.transferId.slice(0, 8))}</code> · ký lấy hàng ${new Date(a.inTransitAt).toLocaleString('vi-VN')}</dd>` : ''}
+      <dt>Tiến độ</dt><dd>${t.progressKm}/${t.totalKm} km · ${t.speed} km/h${t.remainingMin != null ? ` · còn ~${t.remainingMin} phút` : ''} ${t.stopped ? '<span class="badge warn">đang dừng</span>' : ''} ${t.arrivedAt ? '<span class="badge ok">đã tới nơi, chờ ký nhận</span>' : ''}
+        <div class="bar"><span style="width:${pct}%"></span></div></dd>
+    </dl>`;
 }
-function fieldControls(d) {
-  return `<h3>Vùng trồng</h3><p style="font-size:12.5px;margin:0">Độ ẩm đất hiện tại ${d.soil}% ${d.drought ? '<span class="badge warn">đang khô hạn</span>' : ''} · đo mỗi ${d.intervalSec}s</p>
+function fieldBlock(d) {
+  const r = d.lastReadings ?? {};
+  return `<div class="metrics">${['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'].map((k) => `<div class="metric"><span class="muted">${LABEL[k]}</span><b>${r[k] ?? '—'}</b></div>`).join('')}</div>
+    <p class="muted" style="margin:6px 0 0">Đo mỗi ${d.intervalSec}s${d.drought ? ' · <span class="badge warn">đang khô hạn</span>' : ''}</p>`;
+}
+function incidents(d) {
+  const gps = d.kind === 'GPS_TRACKER';
+  return `<div class="row" style="margin-top:6px">
+    ${d.manualSignal ? `<button onclick="act('${d.id}','signal_off')">Mất sóng</button>` : `<button onclick="act('${d.id}','signal_on')">Có sóng lại</button>`}
+    ${gps && d.trip ? (d.trip.stopped ? `<button onclick="act('${d.id}','resume')">Chạy tiếp</button>` : `<button onclick="act('${d.id}','stop')">Dừng bất thường</button>`) : ''}
+    ${gps && d.trip ? `<button onclick="act('${d.id}','finish')">Tua tới gần điểm nhận</button>` : ''}
+    ${gps ? (d.power === 'MAINS' ? `<button onclick="act('${d.id}','unplug')">Rút nguồn</button>` : `<button onclick="act('${d.id}','plug')">Cắm nguồn</button>`) : ''}
+    ${gps ? `<button onclick="act('${d.id}','spoof')">GPS bị giả mạo</button>` : `<button onclick="act('${d.id}','drought')">${d.drought ? 'Hết khô hạn' : 'Khô hạn'}</button><button onclick="act('${d.id}','irrigate')">Tưới</button>`}
+    <button onclick="act('${d.id}','replay')">Gửi lại gói cũ</button>
+    <button onclick="act('${d.id}','forge')">Giả chữ ký</button>
+  </div>`;
+}
+function advanced(d) {
+  const gps = d.kind === 'GPS_TRACKER';
+  const options = (sel) => provinces.map((p) => `<option value="${p.code}" ${p.code === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+  const manual = gps ? `
+    <p class="muted" style="margin:8px 0 4px">${d.mode === 'AUTO' ? 'Đang tự động theo phiếu. Có thể chạy thử một tuyến tùy chọn (không theo phiếu):' : 'Chế độ thủ công: chọn tuyến rồi chạy thử.'}</p>
+    <div class="row"><select id="fm-${d.id}">${options('68')}</select> → <select id="dm-${d.id}">${options('79')}</select></div>
+    <div class="row" style="margin-top:6px"><label>Xuất phát <input type="datetime-local" id="t-${d.id}" value="${localNow()}"></label>
+      <button onclick="act('${d.id}','trip',{from:{code:document.getElementById('fm-${d.id}').value},to:{code:document.getElementById('dm-${d.id}').value},departAt:new Date(document.getElementById('t-${d.id}').value).toISOString()})">Chạy thử</button>
+      ${d.mode === 'AUTO' ? '' : `<button class="primary" onclick="act('${d.id}','auto')">Về tự động</button>`}
+      ${d.trip ? `<button onclick="act('${d.id}','end_trip')">Kết thúc chuyến</button>` : ''}</div>` : `
     <div class="row" style="margin-top:6px">
-      <button onclick="act('${d.id}','drought')">${d.drought ? 'Hết khô hạn' : 'Khô hạn'}</button>
-      <button onclick="act('${d.id}','irrigate')">Tưới</button>
       <button onclick="act('${d.id}','interval',{seconds:60})">Đo mỗi 60s</button>
       <button onclick="act('${d.id}','interval',{seconds:300})">Đo mỗi 5 phút</button>
-      <button onclick="act('${d.id}','backfill',{days:Number(prompt('Số ngày lịch sử', '60'))})">Nạp lịch sử</button>
-    </div>`;
+      <button onclick="act('${d.id}','backfill',{days:Number(prompt('Số ngày lịch sử', '60'))})">Nạp lịch sử</button></div>`;
+  return `${manual}
+    <dl class="kv"><dt>Khóa công khai</dt><dd><code>${esc(d.publicKey)}</code> <button onclick="copy('${d.publicKey}')">Chép</button></dd>
+      <dt>Số thứ tự kế</dt><dd>${d.sequence} · lưu tạm ${d.queue}</dd></dl>
+    <div class="row" style="margin-top:6px">
+      <button onclick="confirm('Tạo khóa mới? Cần Đổi khóa trong AgriTrace.') && act('${d.id}','rotate_key')">Tạo khóa mới</button>
+      <button class="danger" onclick="del('${d.id}')">Xóa</button></div>
+    <ol class="log">${d.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`;
 }
 function card(d) {
   const r = d.lastResult;
+  const unregistered = !!d.assignmentError && d.assignmentError.startsWith('Chưa đăng ký');
   return `<article class="card">
     <div class="row" style="justify-content:space-between"><h2>${esc(d.name)}</h2>
-      <span class="row">
+      <span class="row">${agriStatus(d)}
         <span class="badge ${d.signal ? 'ok' : 'warn'}">${d.signal ? 'có sóng' : 'mất sóng'}</span>
-        <span class="badge ${d.power === 'MAINS' ? 'ok' : d.power === 'OFF' ? 'bad' : 'warn'}">${d.power === 'MAINS' ? 'nguồn xe' : d.power === 'OFF' ? 'tắt' : 'pin ' + d.battery + '%'}</span>
+        ${d.kind === 'GPS_TRACKER' ? `<span class="badge ${d.power === 'MAINS' ? 'ok' : d.power === 'OFF' ? 'bad' : 'warn'}">${d.power === 'MAINS' ? 'nguồn xe' : d.power === 'OFF' ? 'tắt' : 'pin ' + d.battery + '%'}</span>` : ''}
       </span></div>
     <dl class="kv">
-      <dt>Mã thiết bị</dt><dd><code>${esc(d.deviceCode)}</code> <button onclick="copy('${d.deviceCode}')">Chép</button></dd>
-      <dt>Khóa công khai</dt><dd><code>${esc(d.publicKey)}</code> <button onclick="copy('${d.publicKey}')">Chép</button></dd>
-      <dt>Số thứ tự kế</dt><dd>${d.sequence}</dd>
-      <dt>Đang lưu tạm</dt><dd>${d.queue} bản ghi</dd>
-      <dt>Lần gửi cuối</dt><dd>${r ? `nhận ${r.accepted} · trùng ${r.duplicates} · bỏ qua ${r.ignored} · muộn ${r.late} · bất thường ${r.anomalies}` : '—'}</dd>
-      ${d.lastError ? `<dt>Lỗi</dt><dd style="color:var(--bad)">${esc(d.lastError)}</dd>` : ''}
+      <dt>Mã thiết bị</dt><dd><code>${esc(d.deviceCode)}</code> <button onclick="copy('${d.deviceCode}')">Chép</button>${unregistered ? ` <button onclick="copy('${d.publicKey}')">Chép khóa công khai</button>` : ''}</dd>
+      <dt>Gắn vào</dt><dd>${attached(d)}</dd>
+      <dt>Lần gửi cuối</dt><dd>${r ? `nhận ${r.accepted} · trùng ${r.duplicates} · bỏ qua ${r.ignored} · muộn ${r.late} · bất thường ${r.anomalies}` : '—'}${d.lastError ? ` <span class="badge bad">${esc(d.lastError)}</span>` : ''}</dd>
     </dl>
-    ${d.kind === 'GPS_TRACKER' ? gpsControls(d) : fieldControls(d)}
-    <h3>Sự cố</h3>
-    <div class="row">
-      ${d.manualSignal ? `<button onclick="act('${d.id}','signal_off')">Mất sóng</button>` : `<button onclick="act('${d.id}','signal_on')">Có sóng lại</button>`}
-      ${d.kind === 'GPS_TRACKER' ? (d.power === 'MAINS' ? `<button onclick="act('${d.id}','unplug')">Rút nguồn</button>` : `<button onclick="act('${d.id}','plug')">Cắm nguồn</button>`) : ''}
-      ${d.kind === 'GPS_TRACKER' ? `<button onclick="act('${d.id}','spoof')">GPS bị giả mạo</button>` : ''}
-      <button onclick="act('${d.id}','replay')">Gửi lại gói cũ</button>
-      <button onclick="act('${d.id}','forge')">Giả chữ ký</button>
-      <button onclick="confirm('Tạo khóa mới? Cần nhập khóa công khai mới trong AgriTrace.') && act('${d.id}','rotate_key')">Tạo khóa mới</button>
-      <button class="danger" onclick="del('${d.id}')">Xóa</button>
-    </div>
-    <ol class="log">${d.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
+    ${d.kind === 'GPS_TRACKER' ? tripBlock(d) : fieldBlock(d)}
+    <details data-key="inc-${d.id}" ${open.has('inc-' + d.id) ? 'open' : ''}><summary>Tạo sự cố để demo</summary>${incidents(d)}</details>
+    <details data-key="adv-${d.id}" ${open.has('adv-' + d.id) ? 'open' : ''}><summary>Nâng cao</summary>${advanced(d)}</details>
   </article>`;
 }
 async function refresh() {
   const s = await (await fetch('/api/state')).json();
-  routes = s.routes;
   provinces = s.provinces;
   $('#api').textContent = s.api;
   const focused = document.activeElement?.id;
-  if (focused && /^(t|r|k|fm|dm|fc|dc|fn|dn)-/.test(focused)) return;
-  // Keep what the user is choosing across the periodic re-render.
+  if (focused && /^(t|fm|dm)-/.test(focused)) return;
+  document.querySelectorAll('details[data-key]').forEach((el) => (el.open ? open.add(el.dataset.key) : open.delete(el.dataset.key)));
   const saved = {};
   document.querySelectorAll('#devices select[id], #devices input[id]').forEach((el) => (saved[el.id] = el.value));
-  $('#devices').innerHTML = s.devices.map(card).join('') || '<p class="card">Chưa có thiết bị ảo.</p>';
+  $('#devices').innerHTML = s.devices.map(card).join('') || '<p class="card">Chưa có thiết bị ảo. Tạo thiết bị ở trên.</p>';
   for (const [id, value] of Object.entries(saved)) {
     const el = document.getElementById(id);
     if (el) el.value = value;
   }
-  document.querySelectorAll('#devices select[id^="k-"]').forEach((el) => el.dispatchEvent(new Event('change')));
-  document.querySelectorAll('#devices select[id^="fm-"], #devices select[id^="dm-"]').forEach((el) => el.dispatchEvent(new Event('change')));
 }
 refresh();
 setInterval(refresh, 2000);

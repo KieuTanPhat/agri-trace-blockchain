@@ -137,7 +137,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     { key: "farm", header: tr("Vùng xuất xứ"), hideBelow: "md", cell: (p) => <span className="text-[12.5px]">{farms.find((f) => f.id === p.originFarmId)?.name ?? "—"}</span> },
     { key: "unit", header: tr("Đơn vị"), hideBelow: "lg", cell: (p) => <span className="text-[12.5px]">{p.defaultUnit}</span> },
     { key: "ev", header: tr("Ảnh"), cell: (p) => <span className="flex items-center gap-2"><EvidenceCover entityType="PRODUCT" entityId={p.id} prefer={["PRODUCT_IMAGE"]} />{!p.evidenceComplete && <Badge tone="warn">{tr("Hồ sơ thiếu")}</Badge>}</span> },
-    { key: "status", header: tr("Trạng thái"), cell: (p) => <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang bán") : tr("Ngừng")}</Badge> },
+    { key: "status", header: tr("Trạng thái"), cell: (p) => <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang sử dụng") : tr("Ngừng sử dụng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (p) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/products/${p.id}`)}>{tr("Chi tiết")}</Button> },
   ];
   const options = { farms: readyFarms, sites: (sites.data ?? []).filter((s) => s.status === "ACTIVE"), members: (members.data ?? []).filter((m) => m.accountStatus === "ACTIVE") };
@@ -159,7 +159,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
         {seller && <SellerProducts own={products ?? []} onOpen={(id) => router.push(`/enterprise/products/${id}`)} />}
         {can("catalog.manage") && producer && catalog.data && !readyFarms.length && <Callout tone="info">{tr("Chưa có vùng sản xuất đã hoàn tất hồ sơ — hoàn tất vùng trước khi tạo sản phẩm.")}</Callout>}
         {producer && <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-line bg-card">
-          <div className="flex flex-wrap gap-2 p-3"><Input aria-label={tr("Tìm sản phẩm")} placeholder={tr("Tìm tên, SKU, GTIN, vùng xuất xứ")} value={search} onChange={e=>setSearch(e.target.value)}/><FilterSelect label={tr("Lọc trạng thái")} value={status} onChange={setStatus} options={[{value:"ACTIVE",label:tr("Đang bán")},{value:"INACTIVE",label:tr("Ngừng")}]} /></div><DataTable rows={filtered} loading={catalog.isLoading} error={catalog.error} onRetry={() => catalog.refetch()} columns={columns} rowKey={(p) => p.id} empty={<EmptyState title={tr("Chưa có sản phẩm")} />} />
+          <div className="flex flex-wrap gap-2 p-3"><Input aria-label={tr("Tìm sản phẩm")} placeholder={tr("Tìm tên, SKU, GTIN, vùng xuất xứ")} value={search} onChange={e=>setSearch(e.target.value)}/><FilterSelect label={tr("Lọc trạng thái")} value={status} onChange={setStatus} options={[{value:"ACTIVE",label:tr("Đang sử dụng")},{value:"INACTIVE",label:tr("Ngừng sử dụng")}]} /></div><DataTable rows={filtered} loading={catalog.isLoading} error={catalog.error} onRetry={() => catalog.refetch()} columns={columns} rowKey={(p) => p.id} empty={<EmptyState title={tr("Chưa có sản phẩm")} />} />
         </div>}
       </PageBody>
       <ProductSheet initialEdit={view === "edit"} product={products?.find((p) => p.id === openId) ?? null} farms={farms} options={options} onClose={() => {setOpenId(null);if(productId)router.push("/enterprise/products");}} canManage={can("catalog.manage") && typeof products?.find(p=>p.id===openId)?.version === "number"} canEvidence={can("catalog.manage") && can("evidence.manage")} />
@@ -283,7 +283,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
             </SheetHeader>
             <div className="flex flex-col gap-5 px-4 pb-6">
               <div className="flex flex-wrap gap-1.5">
-                <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang bán") : tr("Ngừng")}</Badge>
+                <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang sử dụng") : tr("Ngừng sử dụng")}</Badge>
                 {p.evidenceComplete ? <Badge tone="ok">{tr("Hồ sơ ảnh đã hoàn tất")}</Badge> : <Badge tone="warn">{tr("Chưa hoàn tất hồ sơ ảnh")}</Badge>}
                 {p.approvalStatus && p.approvalStatus !== "NONE" && <Badge tone={p.approvalStatus === "APPROVED" ? "ok" : p.approvalStatus === "REJECTED" ? "danger" : "info"}>{{ PENDING: tr("Chờ duyệt thương hiệu"), APPROVED: tr("Trang thương hiệu đã duyệt"), REJECTED: tr("Thương hiệu bị từ chối") }[p.approvalStatus]}</Badge>}
               </div>
@@ -344,7 +344,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                 {(f) => (
                   <>
                     <ProductFields f={f as never} options={options} />
-                    <ChoiceField control={f.control} name="status" label={tr("Trạng thái")} options={[{ value: "ACTIVE", label: tr("Đang bán") }, { value: "INACTIVE", label: tr("Ngừng") }]} />
+                    <ChoiceField control={f.control} name="status" label={tr("Trạng thái")} options={[{ value: "ACTIVE", label: tr("Đang sử dụng") }, { value: "INACTIVE", label: tr("Ngừng sử dụng") }]} />
                     <TextAreaField control={f.control} name="reason" label={tr("Lý do thay đổi")} max={1000} />
                   </>
                 )}

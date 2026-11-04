@@ -2,6 +2,7 @@ import type {
   DistributionTransfer,
   Prisma,
 } from '../../generated/prisma/client.js';
+import { transferPlaces } from './transfer-places.js';
 import {
   decimalNumber,
   distanceMeters,
@@ -13,22 +14,13 @@ import {
 
 const MAX_POINTS = 2000;
 
-function sitePoint(site: { name: string; latitude: Prisma.Decimal | null; longitude: Prisma.Decimal | null } | null) {
-  if (!site) return null;
-  return {
-    name: site.name,
-    latitude: decimalNumber(site.latitude),
-    longitude: decimalNumber(site.longitude),
-  };
-}
-
 /**
  * Route view for transfer participants (ADR-006). Warnings are derived on read:
  * signal gaps, long stops away from the destination and arrival near the
  * receiver site. Positions keep their original recorded instants.
  */
 export async function transferRoute(db: Prisma.TransactionClient, t: DistributionTransfer) {
-  const [vehicle, tracker, rows, seal, sender, receiver] = await Promise.all([
+  const [vehicle, tracker, rows, seal, places] = await Promise.all([
     t.vehicleId
       ? db.enterpriseVehicle.findUnique({ where: { id: t.vehicleId }, select: { id: true, registration: true, kind: true } })
       : null,
@@ -44,12 +36,7 @@ export async function transferRoute(db: Prisma.TransactionClient, t: Distributio
       include: { device: { select: { simulated: true } } },
     }),
     db.distributionRouteSeal.findUnique({ where: { transferId: t.id } }),
-    t.senderSiteId
-      ? db.enterpriseSite.findUnique({ where: { id: t.senderSiteId }, select: { name: true, latitude: true, longitude: true } })
-      : null,
-    t.receiverSiteId
-      ? db.enterpriseSite.findUnique({ where: { id: t.receiverSiteId }, select: { name: true, latitude: true, longitude: true } })
-      : null,
+    transferPlaces(db, t),
   ]);
   const points: (RoutePoint & {
     speedKmh: number | null;
@@ -70,10 +57,10 @@ export async function transferRoute(db: Prisma.TransactionClient, t: Distributio
     validity: r.validity,
     anomalyCode: r.anomalyCode,
   }));
-  const origin = sitePoint(sender);
-  const destination = sitePoint(receiver);
+  const { origin, destination, planned } = places;
+  // Arrival is only judged against a site's own map point, not a province centre.
   const destinationPoint =
-    destination?.latitude != null && destination.longitude != null
+    destination.source === 'SITE' && destination.latitude != null && destination.longitude != null
       ? { latitude: destination.latitude, longitude: destination.longitude }
       : null;
   const end = t.deliveredAt ?? new Date();
@@ -107,6 +94,7 @@ export async function transferRoute(db: Prisma.TransactionClient, t: Distributio
     window: { inTransitAt: t.inTransitAt, deliveredAt: t.deliveredAt },
     origin,
     destination,
+    planned,
     arrived,
     lastPosition: last && {
       recordedAt: last.recordedAt,

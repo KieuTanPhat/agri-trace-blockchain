@@ -77,7 +77,7 @@ export function SellerProducts({ own, onOpen }: { own: Product[]; onOpen: (id: s
             {labels.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[13px]">
                 <span className="min-w-0 flex-1"><span className="font-medium">{p.productName}</span><span className="block text-[12px] text-ink-2">{tr("Nguồn: {p0}", { p0: (p.labelSourceIds ?? []).map((id) => selling.find((s) => s.productId === id)?.productName ?? id.slice(0, 8)).join(", ") })}</span></span>
-                <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang bán") : tr("Chờ ảnh và hoàn tất")}</Badge>
+                <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang sử dụng") : tr("Chờ ảnh và hoàn tất")}</Badge>
                 <Button size="xs" variant="outline" onClick={() => onOpen(p.id)}>{tr("Chi tiết")}</Button>
                 {p.status === "ACTIVE" && can("processing.write") && <Button size="xs" onClick={() => pack.open(p)}>{tr("Đóng gói nhãn riêng")}</Button>}
               </li>

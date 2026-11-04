@@ -7,7 +7,8 @@ import {
 
 const SENSOR_WINDOW = {
   include: {
-    readings: { include: { reading: true } },
+    // ADR-006: the device flag labels simulated sensor evidence everywhere.
+    readings: { include: { reading: { include: { device: { select: { simulated: true } } } } } },
     harvest: { select: { cycleId: true, harvestTime: true } },
   },
 } satisfies Prisma.HarvestSensorWindowDefaultArgs;

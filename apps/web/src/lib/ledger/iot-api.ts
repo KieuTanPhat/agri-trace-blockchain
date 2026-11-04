@@ -37,7 +37,8 @@ export type FieldRecord = { sequence: string | null; sensorType: string; value: 
 export type GpsRecord = { sequence: string; recordedAt: string; receivedAt: string; latitude: number; longitude: number; accuracyM: number | null; speedKmh: number | null; heading: number | null; satellites: number | null; battery: number | null; validity: "VALID" | "ANOMALY" | "LATE"; anomalyCode: string | null; transferId: string };
 export type DeviceOptions = {
   plots: { id: string; name: string; farm: { id: string; name: string } }[];
-  vehicles: { id: string; registration: string; kind: string }[];
+  /** inTransit: carrying a transfer now; trackerId: active GPS already on it. */
+  vehicles: { id: string; registration: string; kind: string; inTransit: boolean; trackerId: string | null; trackerName: string | null }[];
 };
 export type SensorSeries = {
   sensorType: string;
@@ -67,7 +68,8 @@ export type RoutePoint = {
   anomalyCode: string | null;
 };
 export type RouteWarning = { code: "SIGNAL_GAP" | "LONG_STOP" | "ANOMALY_POINTS"; from?: string; to?: string; seconds?: number };
-export type MapPlace = { name: string; latitude: number | null; longitude: number | null } | null;
+/** source SITE: the site's map point; PROVINCE: representative province point. */
+export type MapPlace = { name: string; latitude: number | null; longitude: number | null; source?: "SITE" | "PROVINCE" | null } | null;
 export type TransferRoute = {
   transferId: string;
   status: string;
@@ -79,6 +81,7 @@ export type TransferRoute = {
   window: { inTransitAt: string | null; deliveredAt: string | null };
   origin: MapPlace;
   destination: MapPlace;
+  planned: { distanceM: number; durationS: number; estimated: boolean } | null;
   arrived: boolean;
   lastPosition: { recordedAt: string; latitude: number; longitude: number; speedKmh: number | null; heading: number | null; battery: number | null } | null;
   summary: { pointCount: number; anomalyCount: number; distanceM: number; coveragePercent: number; maxGapSeconds: number } | null;

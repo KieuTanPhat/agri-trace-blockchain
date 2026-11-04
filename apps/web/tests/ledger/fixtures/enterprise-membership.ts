@@ -8,7 +8,7 @@ export const siteId = "33333333-3333-4333-8333-333333333333";
 export const chainId = "44444444-4444-4444-8444-444444444444";
 export const organizationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const owner = actorSession("org-owner")!.user.id;
-const allPermissions: S["EnterpriseRoleInput"]["permissions"] = ["profile.read", "profile.manage", "members.read", "members.manage", "roles.manage", "sites.read", "catalog.read", "evidence.read", "evidence.manage", "production.read", "distribution.read", "reports.read"];
+const allPermissions: S["EnterpriseRoleInput"]["permissions"] = ["profile.read", "profile.manage", "members.read", "members.manage", "roles.manage", "sites.read", "catalog.read", "evidence.read", "evidence.manage", "production.read", "distribution.read", "reports.read", "devices.read", "devices.manage", "vehicles.manage"];
 const role: S["EnterpriseRoleRecordDto"] = { id: roleId, name: "Nhân viên trong phạm vi", organizationId, permissions: ["profile.read", "production.read"], version: 2 };
 const member: S["EnterpriseMemberDto"] = { id: memberId, fullName: "Nguyễn Thành Viên", email: "member@example.invalid", accountStatus: "ACTIVE", contactAddress: "Địa chỉ liên hệ ban đầu", enterpriseRevision: 7, enterpriseRoles: [], enterpriseTier: 3, jobTitle: "Nhân viên", memberCode: "NV0017", memberNote: null, phone: "0901234567", responsibleFarmId: null, supervisorId: owner, workSiteId: siteId };
 const site: S["EnterpriseSiteRecordDto"] = { id: siteId, name: "Cơ sở trong phạm vi", organizationId, address: "Địa chỉ cơ sở", kind: "PRODUCTION", status: "ACTIVE", version: 1, areaM2: "100.00", capacityKg: null, coldAreaM2: null, latitude: null, longitude: null, email: null, evidenceComplete: true, expectedOutputTons: null, farmId: null, manager: null, otherInfo: null, phone: null, region: null, representative: null, staffUserId: null, ward: null };
@@ -21,6 +21,7 @@ for (const name of ["membership.baseline", "membership.identity"]) registerScena
   const isManager = state.actor === "org-manager";
   const permissions = state.actor === "org-staff" ? ["profile.read", "members.read"] : isManager ? allPermissions.filter(permission => permission !== "roles.manage") : allPermissions;
   if (request.method === "GET") {
+    if (path === "/enterprise-messages") return { data: { items: [], counts: { unread: 0 }, canSend: false } };
     if (path === "/enterprise-access") return { data: { stage: "ACTIVE", owner: !isManager && state.actor !== "org-staff", primary: state.actor === "org-owner", tier: state.actor === "org-staff" ? 3 : isManager ? 2 : 1, capabilities: ["FARM"], permissions } };
     if (path === "/enterprise-workspace") {
       if (name === "membership.identity" && isManager && !state.values.has("force-refresh")) { state.values.set("force-refresh", true); return { status: 401, error: { code: "UNAUTHORIZED", message: "Session must refresh" } }; }
@@ -33,7 +34,7 @@ for (const name of ["membership.baseline", "membership.identity"]) registerScena
     if (path === "/catalog") return { data: { products: [], farms: [], plots: [] } satisfies S["CatalogDto"] };
     if (path === "/supply-chains") return { data: [{ id: chainId, name: "Chuỗi trong phạm vi" }] };
     if (path === "/enterprise-workspace/member-invitations" || path === "/enterprise-workspace/ownership-transfers") return { data: { items: [] } };
-    if (path === "/enterprise-workspace/profile") return { data: { record: { organization: overview.organization, enrollment: { businessId: "1234567890", ownerId: owner, status: "ACTIVE" }, profile, amendments: state.values.has("amendment") ? [amendment] : [], history: [] } satisfies S["OwnProfileWorkspaceDto"] } };
+    if (path === "/enterprise-workspace/profile") return { delayMs: name === "membership.identity" && isManager ? 1500 : 0, data: { record: { organization: { ...overview.organization, name: isManager ? "DOANH_NGHIEP_B" : "DOANH_NGHIEP_A" }, enrollment: { businessId: "1234567890", ownerId: owner, status: "ACTIVE" }, profile: { ...profile, address: isManager ? "PRIVATE_ORG_B_ADDRESS" : profile.address }, amendments: state.values.has("amendment") ? [amendment] : [], history: [] } satisfies S["OwnProfileWorkspaceDto"] } };
     if (path === "/enterprise-workspace/evidence") return { data: { items: url.searchParams.get("entityType") === "PROFILE" ? [evidence] : [] } };
     if (path === `/enterprise-workspace/evidence/${evidence.id}/content`) return { status: 403, error: { code: "FORBIDDEN", message: "Không được tải nội dung chứng cứ này" } };
     if (path.startsWith("/enterprise-workspace/revisions/")) return { data: { items: [] } };
