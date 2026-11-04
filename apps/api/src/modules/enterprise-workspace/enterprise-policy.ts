@@ -317,8 +317,6 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   DIST_RECEIPT: 'distribution.sign',
   DIST_PHOTOS: 'distribution.sign',
   EW_DEVICE_KEY_REQUEST: 'distribution.sign',
-  EW_DEVICE_KEY_RESEND: 'distribution.sign',
-  EW_DEVICE_KEY_VERIFY: 'distribution.sign',
   DIST_C2_PREPARE: 'distribution.sign',
   DIST_C2_SUBMIT: 'distribution.sign',
   DIST_RENEW_CONSENT: 'distribution.write',

@@ -25,7 +25,6 @@ import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
 import { handoverPhotosDigest } from '../src/modules/distribution/handover-photos.js';
-import { decryptOtp } from '../src/modules/enterprise-onboarding/registration-otp.service.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { provisionChain } from './support/chain-scope.js';
 import { confirmSimulatedPermissions } from '../src/modules/ledger/simulated-ledger.js';
@@ -215,15 +214,13 @@ const prisma = new PrismaClient({
       return 'Bearer ' + jwt.sign({ sub: users[user], sid: sessionIds[user] });
     }
 
-    /** A personal device key, turned on with the code emailed to its owner. */
+    /** A personal device key; it signs as soon as it is registered. */
     async function deviceKey(user: string, organizationId: string, label: string) {
       const pair = generateKeyPairSync('ed25519');
       const keyRef = randomUUID();
       const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
       const popSignature = sign(null, Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`), pair.privateKey).toString('base64url');
       await post('/distribution/device-keys', { id: keyRef, label, publicKey, popSignature }, user).expect(201);
-      const mail = await prisma.enterpriseMail.findFirstOrThrow({ where: { userId: users[user], kind: 'SIGNING_KEY_OTP' }, orderBy: { createdAt: 'desc' } });
-      await post(`/distribution/device-keys/${keyRef}/verify`, { code: decryptOtp(mail.otpCiphertext!) }, user).expect(201);
       return { keyRef, privateKey: pair.privateKey };
     }
 
@@ -812,7 +809,6 @@ const prisma = new PrismaClient({
       ).toMatchObject({ status: 'INVITED' });
 
       const keys: Record<string, { keyRef: string; privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'] }> = {};
-      // The sender's key is already on; the receiver's waits for its emailed code below.
       keys.farm = await deviceKey('farm', farmOrgId, 'Isolated self delivery key');
       {
         const pair = generateKeyPairSync('ed25519');
@@ -854,17 +850,8 @@ const prisma = new PrismaClient({
       ).toBe(1);
       await confirmSimulatedPermissions(prisma, { guard: false });
 
-      // A personal key signs only after the emailed code; a wrong code is counted.
-      const receiverKeyRef = keys.selfReceiver.keyRef;
-      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: receiverKeyRef } })).status).toBe('PENDING');
-      expect((await signPhase('selfReceiver', receiver.id, 'CONSENT')).status).toBe(403);
-      const codeMail = await prisma.enterpriseMail.findFirstOrThrow({ where: { userId: users.selfReceiver, kind: 'SIGNING_KEY_OTP' }, orderBy: { createdAt: 'desc' } });
-      const code = decryptOtp(codeMail.otpCiphertext!);
-      await post(`/distribution/device-keys/${receiverKeyRef}/verify`, { code: code === '000000' ? '000001' : '000000' }, 'selfReceiver').expect(400);
-      expect((await prisma.signingKeyVerification.findFirstOrThrow({ where: { keyId: receiverKeyRef } })).attempts).toBe(1);
-      const verified = await post(`/distribution/device-keys/${receiverKeyRef}/verify`, { code }, 'selfReceiver');
-      expect(verified.status, JSON.stringify(verified.body)).toBe(201);
-      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: receiverKeyRef } })).status).toBe('ACTIVE');
+      // A personal key is active as soon as it is registered.
+      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: keys.selfReceiver.keyRef } })).status).toBe('ACTIVE');
       for (const [actor, organizationId] of [['selfReceiver', receiver.id], ['farm', farmOrgId]] as const) {
         const consent = await signPhase(actor, organizationId, 'CONSENT');
         expect(consent.status, JSON.stringify(consent.body)).toBe(201);

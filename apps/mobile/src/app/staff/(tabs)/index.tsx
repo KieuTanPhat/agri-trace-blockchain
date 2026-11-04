@@ -103,7 +103,7 @@ export default function StaffHome() {
         ))}
       </Card>
 
-      {/* The personal signing key is created on first sign-in; only its emailed code is asked here. */}
+      {/* The personal signing key is created on first sign-in. */}
       <View style={{ marginHorizontal: 16, marginTop: 12 }}>
         <DeviceKeyCard quiet />
       </View>

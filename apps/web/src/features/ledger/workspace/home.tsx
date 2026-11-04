@@ -42,7 +42,7 @@ export default function WorkspaceHome() {
         }
       />
       <PageBody>
-        {/* The personal signing key is created here on first sign-in; only its emailed code is asked. */}
+        {/* The personal signing key is created here on first sign-in. */}
         <DeviceKeyCard quiet />
         <RoleDesk />
         <StatRow>

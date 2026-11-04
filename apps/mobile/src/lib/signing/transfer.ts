@@ -58,7 +58,7 @@ export async function deviceSigningKey(call: Call, t: SignableTransfer, signer: 
     const key = local.find((k) => context.keys.some((a) => a.keyRef === k.id && a.status === 'ACTIVE'));
     return { mode: 'c2' as const, key, context };
   }
-  // The member's own device key, active once its emailed code was confirmed.
+  // The member's own device key, active once registered.
   const active = (await call<{ items: { id: string; status: string }[] }>('/distribution/keys')).items;
   const local = await listUserKeys(signer.organizationId, signer.id);
   return { mode: 'standard' as const, key: local.find((k) => active.some((a) => a.id === k.id && a.status === 'ACTIVE')), context: null };

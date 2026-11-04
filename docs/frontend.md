@@ -55,12 +55,11 @@ Fabric.
 App nhân viên ký bàn giao bằng khóa Ed25519 giữ trên điện thoại
 (`expo-secure-store`, chỉ máy này). Chuỗi STANDARD dùng khóa cá nhân: lần đầu
 đăng nhập trên máy, app tự sinh khóa và gửi khóa công khai cùng bằng chứng sở hữu
-tới `POST /distribution/device-keys`; khóa ở `PENDING` cho tới khi chủ tài khoản
-nhập mã 6 số gửi tới email tài khoản (`/verify`, sai 5 lần thì gửi lại mã). Khóa cá
+tới `POST /distribution/device-keys`; khóa `ACTIVE` ngay, không cần mã email. Khóa cá
 nhân chỉ ký cho chính chủ, bị thu hồi khi khóa tài khoản. Chuỗi DUAL_SIGNED vẫn cần
 khóa chuỗi do quản trị tạo ở `/staff/signing` và sổ cái kích hoạt. Web làm như app: trình
 duyệt tự sinh khóa không xuất được ở trang chủ doanh nghiệp và
-`/enterprise/signing`, chờ mã email rồi mới ký; tài khoản cấp 1 thu hồi khóa ở
+`/enterprise/signing`, đăng ký xong là ký được; tài khoản cấp 1 thu hồi khóa ở
 `/enterprise/signing`. API vẫn kiểm `distribution.sign`. Chi tiết chuỗi là trang
 riêng `/supply-chains/:id/(members|roles|plans|signing|ledger)`; tab Nhân viên chỉ
 đọc, giao chuỗi cho nhân viên làm ở nhóm quyền thành viên. Trước khi ký, app tự tính lại

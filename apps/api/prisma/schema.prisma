@@ -1127,7 +1127,7 @@ model DistributionKey {
   organizationId String @map("organization_id") @db.Uuid
   publicKey String @map("public_key") @db.VarChar(59)
   label String @db.VarChar(100)
-  /// PENDING (personal key awaiting its emailed code) | ACTIVE | REVOKED
+  /// ACTIVE | REVOKED
   status String @default("ACTIVE") @db.VarChar(20)
   /// Owner of a personal device key; null for an organization key.
   userId String? @map("user_id") @db.Uuid
@@ -1135,23 +1135,6 @@ model DistributionKey {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   @@unique([id, organizationId])
   @@map("distribution_key")
-}
-
-/// Emailed one-time code that activates a personal device key.
-model SigningKeyVerification {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  keyId String @map("key_id") @db.Uuid
-  userId String @map("user_id") @db.Uuid
-  mailId String @unique @map("mail_id") @db.Uuid
-  codeDigest String @map("code_digest") @db.VarChar(64)
-  attempts Int @default(0)
-  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
-  verifiedAt DateTime? @map("verified_at") @db.Timestamptz(6)
-  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  @@index([keyId, createdAt])
-  @@index([userId, createdAt])
-  @@map("signing_key_verification")
 }
 
 model TraceNotice {

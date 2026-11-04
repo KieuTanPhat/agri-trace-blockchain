@@ -19,7 +19,7 @@ const KEY_STATUS: Record<string, { label: string; t: 'green' | 'orange' | 'red' 
 
 /**
  * Signing keys on this phone. Each member's standard handover key is created
- * automatically and turned on with an emailed code; chains pinned to dual
+ * automatically and signs right away; chains pinned to dual
  * signing still need a chain key the enterprise administrator creates and the
  * ledger activates.
  */

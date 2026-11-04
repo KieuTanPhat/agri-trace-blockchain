@@ -259,9 +259,6 @@ export class TransferSignature extends TransferVersion {
   @Matches(/^[A-Za-z0-9_-]{86}$/)
   signature!: string;
 }
-export class DeviceKeyCodeInput {
-  @ApiProperty({ pattern: '^[0-9]{6}$', description: 'Code emailed to the account owner' }) @Matches(/^[0-9]{6}$/) code!: string;
-}
 export class TransferKeyInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() id!: string;
   @ApiProperty({ maxLength: 100 })

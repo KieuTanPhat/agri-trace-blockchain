@@ -4,8 +4,8 @@ import {chainView} from "./chain-types";
 import type {LedgerCommandContext} from "./command-context";
 type S=components["schemas"];
 /** Organization key (userId null) or a member's personal device key. */
-export type DistributionKey={id:string;label:string;publicKey:string;status:"PENDING"|"ACTIVE"|"REVOKED";userId:string|null;verifiedAt:string|null;createdAt:string};
-export type DeviceKeyIssued={record:{id:string;status:string;email:string;expiresAt:string;resendAfter:string}};
+export type DistributionKey={id:string;label:string;publicKey:string;status:"ACTIVE"|"REVOKED";userId:string|null;verifiedAt:string|null;createdAt:string};
+export type DeviceKeyIssued={record:{id:string;status:string}};
 const path=(id:string)=>"/supply-chains/"+encodeURIComponent(id),org=(id:string)=>"/organizations/"+encodeURIComponent(id),plans=(id:string)=>path(id)+"/shipment-plans";
 const post=<T=unknown,>(p:string,body:unknown,cmd:LedgerCommandContext)=>ledgerRequest<T>(p,{method:"POST",headers:{"Idempotency-Key":cmd.idempotencyKey},body:JSON.stringify(body)});
 export const chainApi={
@@ -26,6 +26,5 @@ export const chainApi={
  createPlan:(id:string,input:S["CreateShipmentPlanDto"],cmd:LedgerCommandContext)=>post(plans(id),input,cmd),revisePlan:(id:string,planId:string,input:S["ReviseShipmentPlanDto"],cmd:LedgerCommandContext)=>post(plans(id)+"/"+encodeURIComponent(planId)+"/revise",input,cmd),acceptPlan:(id:string,planId:string,input:S["AcceptShipmentPlanDto"],cmd:LedgerCommandContext)=>post(plans(id)+"/"+encodeURIComponent(planId)+"/accept",input,cmd),finishPlan:(id:string,planId:string,action:"cancel"|"finalize",input:S["ChainVersionDto"],cmd:LedgerCommandContext)=>post(plans(id)+"/"+encodeURIComponent(planId)+"/"+action,input,cmd),
  distributionKeys:async()=>(await ledgerRequest<{items:DistributionKey[]}>("/distribution/keys")).items,
  requestDeviceKey:(input:S["TransferKeyInput"],cmd:LedgerCommandContext)=>post<DeviceKeyIssued>("/distribution/device-keys",input,cmd),
- resendDeviceKey:(id:string,cmd:LedgerCommandContext)=>post<DeviceKeyIssued>("/distribution/device-keys/"+encodeURIComponent(id)+"/resend",{},cmd),
- verifyDeviceKey:(id:string,code:string,cmd:LedgerCommandContext)=>post("/distribution/device-keys/"+encodeURIComponent(id)+"/verify",{code},cmd),revokeDistributionKey:(id:string,cmd:LedgerCommandContext)=>post("/distribution/keys/"+encodeURIComponent(id)+"/revoke",{},cmd),
+ revokeDistributionKey:(id:string,cmd:LedgerCommandContext)=>post("/distribution/keys/"+encodeURIComponent(id)+"/revoke",{},cmd),
 };

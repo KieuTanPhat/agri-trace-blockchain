@@ -33,7 +33,7 @@ import { activeSite, siteBalance, requireSiteStock, addSiteStock, internalInTran
 import { recordHandoverReceipt } from '../processing/processing-receipts.js';
 import { prepareC2,consumeC2 } from './distribution-c2.js';
 import { handoverPhotosDigest, ownPhotos, phaseSigned } from './handover-photos.js';
-import { requestDeviceKey, resendDeviceKeyCode, verifyDeviceKey } from './device-keys.js';
+import { requestDeviceKey } from './device-keys.js';
 import { BUSINESS_CAPABILITIES, lockChainScope } from '../supply-chains/chain-policy.js';
 import { requestLedgerGrant } from '../ledger/ledger-permissions.js';
 import { assertPartnerSlot } from '../supply-chains/chain-membership-rules.js';
@@ -794,12 +794,6 @@ export class DistributionService {
   requestDeviceKey(actor: CommandActor, input: TransferKeyInput) {
     return commandTransaction(this.db, (tx) => requestDeviceKey(tx, actor, input));
   }
-  resendDeviceKey(actor: CommandActor, id: string) {
-    return commandTransaction(this.db, (tx) => resendDeviceKeyCode(tx, actor, id));
-  }
-  verifyDeviceKey(actor: CommandActor, id: string, code: string) {
-    return commandTransaction(this.db, (tx) => verifyDeviceKey(tx, actor, id, code));
-  }
   revokeKey(actor: CommandActor, id: string) {
     return commandTransaction(this.db, async (tx) => {
       const auth = await enterpriseAuthority(
@@ -811,10 +805,9 @@ export class DistributionService {
         true,
       );
       if (!auth.primary) throw new ForbiddenException();
-      // The primary account revokes any key of the organization, including a
-      // member's device key that is still waiting for its emailed code.
+      // The primary account revokes any key of the organization, including a member's device key.
       const changed = await tx.distributionKey.updateMany({
-        where: { id, organizationId: actor.organizationId!, status: { in: ['PENDING', 'ACTIVE'] } },
+        where: { id, organizationId: actor.organizationId!, status: 'ACTIVE' },
         data: { status: 'REVOKED' },
       });
       if (!changed.count)
