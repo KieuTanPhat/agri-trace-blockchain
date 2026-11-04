@@ -114,6 +114,14 @@
             },
             "type": "array"
           },
+          "photos": {
+            "description": "Up to 6 receiver TRANSFER_IMAGE evidence; required when a line is short, rejected or quarantined",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "reason": {
             "maxLength": 1000,
             "type": "string"
@@ -2717,6 +2725,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "supplierLotCode": {
+            "description": "Mã lô in trên chứng từ hoặc thùng hàng của nhà cung cấp; khớp lô AgriTrace đã xuất ngoài thì nối nguồn gốc",
+            "maxLength": 60,
+            "type": "string"
+          },
           "unit": {
             "maxLength": 30,
             "type": "string"
@@ -4003,6 +4016,19 @@
           "late",
           "anomalies",
           "rejected"
+        ],
+        "type": "object"
+      },
+      "DeviceKeyCodeInput": {
+        "properties": {
+          "code": {
+            "description": "Code emailed to the account owner",
+            "pattern": "^[0-9]{6}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
         ],
         "type": "object"
       },
@@ -6071,7 +6097,8 @@
               "PURCHASE_LIST",
               "WEIGHING_SLIP",
               "LAB_TEST",
-              "PRODUCT_DECLARATION"
+              "PRODUCT_DECLARATION",
+              "DAMAGE_IMAGE"
             ],
             "type": "string"
           },
@@ -6664,6 +6691,35 @@
         ],
         "type": "object"
       },
+      "HandoverPhotosInput": {
+        "properties": {
+          "phase": {
+            "enum": [
+              "PICKUP",
+              "DELIVERY"
+            ],
+            "type": "string"
+          },
+          "photos": {
+            "description": "1 to 6 TRANSFER_IMAGE evidence of the signing party, fixed before the phase is signed",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "version": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "version",
+          "phase",
+          "photos"
+        ],
+        "type": "object"
+      },
       "HarvestDetailDto": {
         "properties": {
           "createdAt": {
@@ -7190,6 +7246,14 @@
             "format": "uuid",
             "type": "string"
           },
+          "photos": {
+            "description": "Up to 6 LOT DAMAGE_IMAGE evidence; required for DAMAGE",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "quantity": {
             "description": "Decimal string, maximum 3 fractional digits",
             "type": "string"
@@ -7468,6 +7532,10 @@
               "EW_PICKUP_CANCEL",
               "DIST_JOIN_CHAIN",
               "DIST_RECEIPT",
+              "DIST_PHOTOS",
+              "EW_DEVICE_KEY_REQUEST",
+              "EW_DEVICE_KEY_RESEND",
+              "EW_DEVICE_KEY_VERIFY",
               "DIST_RETURN",
               "DIST_RETURN_SIGN",
               "DIST_RENEW_CONSENT",
@@ -7477,7 +7545,6 @@
               "EW_COMPLETE_FARM",
               "EW_COMPLETE_PRODUCT",
               "EW_CREATE_PLOT",
-              "EW_REGISTER_DISTRIBUTION_KEY",
               "EW_REVOKE_DISTRIBUTION_KEY",
               "DIST_CREATE",
               "DIST_SIGN",
@@ -9281,10 +9348,6 @@
             "maxLength": 255,
             "type": "string"
           },
-          "price": {
-            "minimum": 0,
-            "type": "number"
-          },
           "seedType": {
             "maxLength": 100,
             "type": "string"
@@ -10680,6 +10743,45 @@
         "required": [
           "email",
           "organizationName"
+        ],
+        "type": "object"
+      },
+      "PartnerInvitationRecord": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "EXPIRED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "organizationName",
+          "status",
+          "expiresAt",
+          "createdAt"
         ],
         "type": "object"
       },
@@ -12317,7 +12419,7 @@
           },
           "externalInputs": {
             "additionalProperties": true,
-            "description": "Nguyên liệu nhập ngoài AgriTrace, doanh nghiệp tự khai (selfDeclared = true)",
+            "description": "Hàng hoặc nguyên liệu nhập ngoài AgriTrace, bên nhận khai từ chứng từ (selfDeclared = true); trust: SUPPLIER_CONFIRMED | EVIDENCED; matchedOrigin: lô AgriTrace mà mã lô nhà cung cấp khớp, hoặc null",
             "items": {
               "type": "object"
             },
@@ -12479,6 +12581,10 @@
             "maxLength": 255,
             "type": "string"
           },
+          "externalGoods": {
+            "description": "Goods of a supplier outside AgriTrace, recorded by a retailer or distributor from its documents",
+            "type": "boolean"
+          },
           "gtin": {
             "description": "GTIN digits, syntax only; no registry verification",
             "type": "string"
@@ -12506,9 +12612,13 @@
             "format": "uuid",
             "type": "string"
           },
-          "price": {
-            "minimum": 0,
-            "type": "number"
+          "privateLabelSourceIds": {
+            "description": "Private label: source products of other businesses already received; no farm or site needed",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
           },
           "productName": {
             "maxLength": 255,
@@ -12611,10 +12721,6 @@
           "originFarmId": {
             "format": "uuid",
             "type": "string"
-          },
-          "price": {
-            "minimum": 0,
-            "type": "number"
           },
           "productName": {
             "maxLength": 255,
@@ -12951,10 +13057,6 @@
             "nullable": true,
             "type": "string"
           },
-          "price": {
-            "nullable": true,
-            "type": "string"
-          },
           "seedType": {
             "nullable": true,
             "type": "string"
@@ -12979,7 +13081,6 @@
         },
         "required": [
           "seedType",
-          "price",
           "origin",
           "manufacturer",
           "description",
@@ -13084,6 +13185,10 @@
             "nullable": true,
             "type": "string"
           },
+          "externalGoods": {
+            "description": "Goods of a supplier outside AgriTrace, recorded by the seller from documents",
+            "type": "boolean"
+          },
           "gtin": {
             "nullable": true,
             "type": "string"
@@ -13099,6 +13204,13 @@
           "ingredients": {
             "nullable": true,
             "type": "string"
+          },
+          "labelSourceIds": {
+            "description": "Source products a private label is packed from",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "managerUserId": {
             "format": "uuid",
@@ -13120,9 +13232,9 @@
             "nullable": true,
             "type": "string"
           },
-          "price": {
-            "nullable": true,
-            "type": "string"
+          "privateLabel": {
+            "description": "Branded by a retailer or distributor from source products of other businesses",
+            "type": "boolean"
           },
           "productName": {
             "type": "string"
@@ -13165,7 +13277,6 @@
         "required": [
           "category",
           "originFarmId",
-          "price",
           "storageConditions",
           "ingredients",
           "usageInstructions",
@@ -13930,6 +14041,15 @@
             "nullable": true,
             "type": "string"
           },
+          "enterprise": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicProductEnterpriseDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
           "gtin": {
             "nullable": true,
             "type": "string"
@@ -13944,11 +14064,6 @@
             "type": "string"
           },
           "ingredients": {
-            "nullable": true,
-            "type": "string"
-          },
-          "price": {
-            "description": "Published indicative price in VND per defaultUnit; not a checkout price.",
             "nullable": true,
             "type": "string"
           },
@@ -13986,9 +14101,9 @@
           }
         },
         "required": [
+          "enterprise",
           "saleStatus",
           "imageUrl",
-          "price",
           "category",
           "province",
           "gtin",
@@ -14605,6 +14720,15 @@
             "nullable": true,
             "type": "string"
           },
+          "enterprise": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicProductEnterpriseDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
           "enterprises": {
             "$ref": "#/components/schemas/PublicEnterprisesPageDto"
           },
@@ -14627,11 +14751,6 @@
           },
           "lots": {
             "$ref": "#/components/schemas/PublicTraceLinksPageDto"
-          },
-          "price": {
-            "description": "Published indicative price in VND per defaultUnit; not a checkout price.",
-            "nullable": true,
-            "type": "string"
           },
           "productName": {
             "maxLength": 255,
@@ -14671,9 +14790,9 @@
           }
         },
         "required": [
+          "enterprise",
           "saleStatus",
           "imageUrl",
-          "price",
           "category",
           "province",
           "gtin",
@@ -14690,6 +14809,28 @@
           "scanCount",
           "enterprises",
           "lots"
+        ],
+        "type": "object"
+      },
+      "PublicProductEnterpriseDto": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "logoUrl": {
+            "description": "Only an explicitly published logo.",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "logoUrl"
         ],
         "type": "object"
       },
@@ -15088,6 +15229,14 @@
           "note": {
             "maxLength": 1000,
             "type": "string"
+          },
+          "photos": {
+            "description": "Up to 6 LOT DAMAGE_IMAGE evidence of the goods put on hold",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
           },
           "quantity": {
             "description": "Decimal string, maximum 3 fractional digits",
@@ -27929,18 +28078,205 @@
         ]
       }
     },
-    "/api/distribution/keys": {
-      "get": {
-        "operationId": "DistributionController_keys",
-        "parameters": [],
+    "/api/distribution/device-keys": {
+      "post": {
+        "operationId": "DistributionController_deviceKey",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferKeyInput"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/WorkspaceListDto"
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Register a personal device key; it signs after the emailed code is confirmed",
+        "tags": [
+          "distribution"
+        ]
+      }
+    },
+    "/api/distribution/device-keys/{id}/resend": {
+      "post": {
+        "operationId": "DistributionController_resendDeviceKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
                     },
                     "requestId": {
                       "type": "string"
@@ -28077,10 +28413,20 @@
         "tags": [
           "distribution"
         ]
-      },
+      }
+    },
+    "/api/distribution/device-keys/{id}/verify": {
       "post": {
-        "operationId": "DistributionController_key",
+        "operationId": "DistributionController_verifyDeviceKey",
         "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "header",
             "name": "Idempotency-Key",
@@ -28094,7 +28440,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TransferKeyInput"
+                "$ref": "#/components/schemas/DeviceKeyCodeInput"
               }
             }
           },
@@ -28108,6 +28454,156 @@
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "distribution"
+        ]
+      }
+    },
+    "/api/distribution/keys": {
+      "get": {
+        "operationId": "DistributionController_keys",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceListDto"
                     },
                     "requestId": {
                       "type": "string"
@@ -32959,6 +33455,183 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TransferObservationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceRecordDto"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "distribution"
+        ]
+      }
+    },
+    "/api/distribution/transfers/{id}/photos": {
+      "post": {
+        "operationId": "DistributionController_photos",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoverPhotosInput"
               }
             }
           },
@@ -78806,6 +79479,166 @@
       }
     },
     "/api/supply-chains/{chainId}/invitations": {
+      "get": {
+        "operationId": "SupplyChainsController_invitations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chainId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/PartnerInvitationRecord"
+                      },
+                      "type": "array"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    },
+                    "timestamp": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "timestamp",
+                    "requestId"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "supply-chains"
+        ]
+      },
       "post": {
         "operationId": "SupplyChainsController_inviteByLink",
         "parameters": [

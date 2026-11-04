@@ -43,7 +43,24 @@ const PROCESSING_PROVENANCE = {
     },
     losses: true,
     externalInputs: {
-      include: { receipt: { select: { materialName: true, supplierName: true, documentNo: true, receivedAt: true } } },
+      include: {
+        receipt: {
+          select: {
+            materialName: true, supplierName: true, documentNo: true, receivedAt: true, supplierLotCode: true,
+            confirmations: { where: { status: 'CONFIRMED' }, select: { id: true } },
+            // A supplier lot code that matched a lot which left AgriTrace.
+            matchedLot: {
+              select: {
+                lotCode: true,
+                product: { select: { productName: true } },
+                organization: { select: { name: true } },
+                harvest: { select: { harvestTime: true, cycle: { select: { farm: { select: { privacy: true } } } } } },
+                traceQr: { select: { traceToken: true } },
+              },
+            },
+          },
+        },
+      },
     },
     logs: { orderBy: { occurredAt: 'asc' } },
   },

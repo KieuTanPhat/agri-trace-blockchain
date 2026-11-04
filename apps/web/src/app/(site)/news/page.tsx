@@ -1,5 +1,8 @@
-import { NewsListing } from "@/features/ledger/public/news";
+import type { Metadata } from "next";
+import { NewsPage } from "@/features/ledger/public/news";
 
-export default function NewsPage() {
-  return <NewsListing />;
+export const metadata: Metadata = { title: "Bảng tin" };
+
+export default function Page() {
+  return <NewsPage />;
 }

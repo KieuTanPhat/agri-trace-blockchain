@@ -18,13 +18,13 @@ export default function Products(){
   const provinces=[...new Set(all.map(p=>p.province).filter((s):s is string=>!!s))].sort();
   const categories=[...new Set(all.map(p=>p.category).filter((s):s is string=>!!s))].sort();
   const items=all.filter(p=>(!query||normalized(`${p.productName} ${p.variety??''}`).includes(normalized(query)))&&(!province||p.province===province)&&(!category||p.category===category));
-  items.sort((a,b)=>sort==='newest'?Date.parse(b.createdAt)-Date.parse(a.createdAt):sort==='name'?a.productName.localeCompare(b.productName,'vi'):sort==='price-asc'?(a.price==null?Infinity:Number(a.price))-(b.price==null?Infinity:Number(b.price)):sort==='price-desc'?(b.price==null?-Infinity:Number(b.price))-(a.price==null?-Infinity:Number(a.price)):a.productName.localeCompare(b.productName,'vi'));
+  items.sort((a,b)=>sort==='newest'?Date.parse(b.createdAt)-Date.parse(a.createdAt):sort==='name'?a.productName.localeCompare(b.productName,'vi'):a.productName.localeCompare(b.productName,'vi'));
   return <View style={{flex:1,backgroundColor:dc.bg}}>
     <DirectoryHeader title="Sản phẩm" query={query} onQuery={setQuery}/>
     <View style={{backgroundColor:'#fff',flexDirection:'row',borderBottomWidth:1,borderColor:dc.line}}>
-      {[{value:'default',label:'Tất cả'},{value:'newest',label:'Mới nhất'},{value:'name',label:'Tên A–Z'},{value:'price',label:'Theo giá'}].map(s=>{
-        const selected=s.value==='price'?sort.startsWith('price'):sort===s.value;
-        return <Pressable key={s.value} accessibilityRole="tab" accessibilityState={{selected}} accessibilityLabel={s.value==='price'?`Theo giá ${sort==='price-asc'?'tăng dần':'giảm dần'}`:s.label} onPress={()=>setSort(s.value==='price'?(sort==='price-asc'?'price-desc':'price-asc'):s.value)} style={{flex:1,height:44,alignItems:'center',justifyContent:'center',flexDirection:'row',gap:4,borderBottomWidth:2,borderColor:selected?dc.blue:'transparent'}}><T size={13} c={selected?dc.blue:'#69757e'} weight={selected?'bold':'regular'}>{s.label}</T>{s.value==='price'&&<T size={12} c={dc.blue}>{sort==='price-desc'?'↓':'↑'}</T>}</Pressable>;
+      {[{value:'default',label:'Tất cả'},{value:'newest',label:'Mới nhất'},{value:'name',label:'Tên A–Z'}].map(s=>{
+        const selected=sort===s.value;
+        return <Pressable key={s.value} accessibilityRole="tab" accessibilityState={{selected}} accessibilityLabel={s.label} onPress={()=>setSort(s.value)} style={{flex:1,height:44,alignItems:'center',justifyContent:'center',flexDirection:'row',gap:4,borderBottomWidth:2,borderColor:selected?dc.blue:'transparent'}}><T size={13} c={selected?dc.blue:'#69757e'} weight={selected?'bold':'regular'}>{s.label}</T></Pressable>;
       })}
     </View>
     <View style={{backgroundColor:'#fff',flexDirection:'row',borderBottomWidth:1,borderColor:dc.line}}>

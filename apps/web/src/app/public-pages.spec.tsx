@@ -50,6 +50,6 @@ describe("public shell",()=>{
   const register=[...header.querySelectorAll("a[href='/register']")];
   expect(register).toHaveLength(1);
   expect(register[0].closest(".group")?.querySelector("a[href='/solutions']")).not.toBeNull();
-  expect(hrefs()).not.toContain("/news");
+  expect(hrefs()).toEqual(expect.arrayContaining(["/products","/news"]));
  });
 });

@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
@@ -27,6 +27,31 @@ export class PartnerInvitationView {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ description: 'Registration link; shown once, only its hash is stored' }) link!: string;
   @ApiProperty({ type: String, format: 'date-time' }) expiresAt!: string;
+}
+
+export class PartnerInvitationRecord {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() email!: string;
+  @ApiProperty() organizationName!: string;
+  @ApiProperty({ enum: ['PENDING', 'ACCEPTED', 'EXPIRED'] }) status!: string;
+  @ApiProperty({ type: String, format: 'date-time' }) expiresAt!: string;
+  @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
+}
+
+/** Email invitations of a chain, for its owner; the token never leaves the server. */
+export async function listPartnerInvitations(db: Prisma.TransactionClient, actor: CommandActor, chainId: string) {
+  const chain = await db.supplyChain.findUnique({ where: { id: chainId }, select: { ownerOrganizationId: true } });
+  if (!chain || chain.ownerOrganizationId !== actor.organizationId) throw new NotFoundException('Không tìm thấy chuỗi');
+  const rows = await db.partnerInvitation.findMany({ where: { chainId }, orderBy: { createdAt: 'desc' }, take: 100 });
+  const now = new Date();
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    organizationName: r.organizationName,
+    status: r.status === 'PENDING' && r.expiresAt <= now ? 'EXPIRED' : r.status,
+    expiresAt: r.expiresAt.toISOString(),
+    createdAt: r.createdAt.toISOString(),
+  }));
 }
 
 export const invitationHash = (token: string) =>

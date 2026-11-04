@@ -7,7 +7,7 @@ import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
 import { cn } from "@/lib/ledger/utils";
 import { Button } from "@/components/ledger/ui/button";
-import { Container, CtaBand, PhotoHero, Reveal, SectionHeading } from "./blocks";
+import { Container, CtaBand, PageIntro, PhotoHero, Reveal, SectionHeading } from "./blocks";
 import { PHOTOS, PLANS, SOLUTIONS, TRACE_STEPS } from "./content";
 
 function TextCard({ title, children, index, delay }: { title: string; children: React.ReactNode; index?: number; delay?: number }) {
@@ -23,21 +23,20 @@ function TextCard({ title, children, index, delay }: { title: string; children: 
 export function AboutPage() {
   const values = [
     { title: "Minh bạch đúng phạm vi", copy: "Chỉ công khai thông tin doanh nghiệp cho phép; dữ liệu riêng và liên hệ của người phản ánh không hiển thị." },
-    { title: "Trung thực về trạng thái", copy: "Đang chờ, chưa khả dụng hay cảnh báo đều được ghi rõ, không làm tròn thành “đã xác minh”." },
-    { title: "Khóa ký thuộc về doanh nghiệp", copy: "Khóa ký số được tạo và giữ trên thiết bị của bên bàn giao, không gửi về máy chủ." },
+    { title: "Trung thực về trạng thái", copy: "Thông tin nào đang chờ hay có cảnh báo đều ghi rõ, không ghi chung là “đã xác minh”." },
+    { title: "Chữ ký do người bàn giao giữ", copy: "Mỗi người ký nhận trên điện thoại của mình; AgriTrace không ký hộ." },
   ];
   const stack = [
-    { title: "Cơ sở dữ liệu nghiệp vụ", copy: "PostgreSQL lưu vụ sản xuất, lô hàng và nhật ký lệnh trong cùng giao dịch với kiểm tra quyền." },
-    { title: "Sổ cái Hyperledger Fabric", copy: "Worker chuyên trách gửi dấu dữ liệu lên mạng Fabric nhiều tổ chức và lưu bằng chứng giao dịch." },
-    { title: "Trang truy xuất công khai", copy: "Người tiêu dùng đọc bản tóm tắt lô qua mã QR, kèm trạng thái đối chiếu với sổ cái." },
+    { title: "Ghi nhận hằng ngày", copy: "Doanh nghiệp ghi vụ trồng, thu hoạch, lô hàng và giao nhận trên web hoặc điện thoại." },
+    { title: "Lưu trữ không sửa được", copy: "Mỗi ghi nhận được lưu thêm một bản trên blockchain, nên về sau không ai sửa lén được." },
+    { title: "Trang truy xuất công khai", copy: "Người mua quét mã QR để xem tóm tắt lô hàng, không cần đăng nhập." },
   ];
   return (
     <>
-      <PhotoHero
-        image={PHOTOS.aboutRiceVillage}
+      <PageIntro
         eyebrow={pt("Giới thiệu")}
         title={pt("Về AgriTrace")}
-        description={pt("AgriTrace giúp nông trại, nhà chế biến, đơn vị vận chuyển và bán lẻ cùng ghi nhận hành trình nông sản, để người tiêu dùng có thể tự đối chiếu nguồn gốc.")}
+        description={pt("AgriTrace giúp nông trại, nhà chế biến, đơn vị vận chuyển và bán lẻ cùng ghi lại hành trình nông sản, để người mua tự kiểm tra được nguồn gốc.")}
       />
       <section className="py-20">
         <Container className="grid items-start gap-12 lg:grid-cols-2">
@@ -45,7 +44,7 @@ export function AboutPage() {
             align="left"
             eyebrow={pt("Sứ mệnh")}
             title={pt("Đưa niềm tin vào từng lô nông sản Việt")}
-            description={pt("Thay vì một con tem chỉ ghi tên sản phẩm, mỗi mã AgriTrace dẫn tới chuỗi sự kiện có người thực hiện, thời điểm và bằng chứng. Doanh nghiệp làm đúng có cách chứng minh; người mua có cách kiểm tra.")}
+            description={pt("Thay vì một con tem chỉ ghi tên sản phẩm, mỗi mã AgriTrace cho thấy ai đã làm gì, vào lúc nào, kèm ảnh và giấy tờ. Doanh nghiệp làm đúng có cách chứng minh; người mua có cách kiểm tra.")}
           />
           <ol className="flex flex-col gap-4">
             {TRACE_STEPS.map((s, i) => (
@@ -74,7 +73,7 @@ export function AboutPage() {
       </section>
       <section className="py-20">
         <Container className="flex flex-col gap-12">
-          <SectionHeading eyebrow={pt("Công nghệ")} title={pt("Kiến trúc lai: cơ sở dữ liệu và sổ cái")} description={pt("Lệnh nghiệp vụ được ghi vào cơ sở dữ liệu trước, sau đó dấu dữ liệu mới được đưa lên sổ cái. Hai lớp đối chiếu lẫn nhau.")} />
+          <SectionHeading eyebrow={pt("Cách hoạt động")} title={pt("Ghi hằng ngày, lưu không sửa được")} description={pt("Doanh nghiệp ghi dữ liệu hằng ngày, AgriTrace lưu thêm một bản trên blockchain để kiểm tra khi cần.")} />
           <div className="grid gap-6 md:grid-cols-3">
             {stack.map((v, i) => (
               <TextCard key={v.title} title={pt(v.title)} index={i + 1} delay={i * 90}>

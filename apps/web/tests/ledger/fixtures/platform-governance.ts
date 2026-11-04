@@ -825,7 +825,6 @@ const product: S["ProductRecordDto"] = {
   description: "Sản phẩm hồ sơ tổ chức",
   evidenceComplete: false,
   ingredients: null,
-  price: null,
   storageConditions: null,
   usageInstructions: null,
   variety: null,

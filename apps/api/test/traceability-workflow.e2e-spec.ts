@@ -24,6 +24,8 @@ import { TraceService } from '../src/modules/trace/trace.service.js';
 import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
+import { handoverPhotosDigest } from '../src/modules/distribution/handover-photos.js';
+import { decryptOtp } from '../src/modules/enterprise-onboarding/registration-otp.service.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { provisionChain } from './support/chain-scope.js';
 import { confirmSimulatedPermissions } from '../src/modules/ledger/simulated-ledger.js';
@@ -211,6 +213,18 @@ const prisma = new PrismaClient({
 
     function bearer(user: string) {
       return 'Bearer ' + jwt.sign({ sub: users[user], sid: sessionIds[user] });
+    }
+
+    /** A personal device key, turned on with the code emailed to its owner. */
+    async function deviceKey(user: string, organizationId: string, label: string) {
+      const pair = generateKeyPairSync('ed25519');
+      const keyRef = randomUUID();
+      const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
+      const popSignature = sign(null, Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`), pair.privateKey).toString('base64url');
+      await post('/distribution/device-keys', { id: keyRef, label, publicKey, popSignature }, user).expect(201);
+      const mail = await prisma.enterpriseMail.findFirstOrThrow({ where: { userId: users[user], kind: 'SIGNING_KEY_OTP' }, orderBy: { createdAt: 'desc' } });
+      await post(`/distribution/device-keys/${keyRef}/verify`, { code: decryptOtp(mail.otpCiphertext!) }, user).expect(201);
+      return { keyRef, privateKey: pair.privateKey };
     }
 
     function get(path: string, user = 'farm') {
@@ -562,28 +576,7 @@ const prisma = new PrismaClient({
           lines: [{ lotId: lot.id, quantity: '0.500', unit: 'kg' }],
         }).expect(201)
       ).body.data.record;
-      const pair = generateKeyPairSync('ed25519');
-      const keyRef = randomUUID();
-      const publicKey = pair.publicKey
-        .export({ type: 'spki', format: 'der' })
-        .toString('base64url');
-      const keyBody = { id: keyRef, organizationId: processor.id, publicKey };
-      await post(
-        '/distribution/keys',
-        {
-          id: keyRef,
-          label: 'Isolated processor regression key',
-          publicKey,
-          popSignature: sign(
-            null,
-            Buffer.from(
-              `agritrace:distribution-key:1\0${canonicalize(keyBody)}`,
-            ),
-            pair.privateKey,
-          ).toString('base64url'),
-        },
-        'processor',
-      ).expect(201);
+      const { keyRef, privateKey: processorKey } = await deviceKey('processor', processor.id, 'Isolated processor regression key');
       const challenge = (
         await get(
           `/distribution/transfers/${transfer.id}/challenge`,
@@ -604,7 +597,7 @@ const prisma = new PrismaClient({
       const signature = sign(
         null,
         Buffer.from(`${challenge.domain}\0${canonicalize(body)}`),
-        pair.privateKey,
+        processorKey,
       ).toString('base64url');
       const input = {
         version: transfer.version,
@@ -807,25 +800,15 @@ const prisma = new PrismaClient({
       ).toMatchObject({ status: 'INVITED' });
 
       const keys: Record<string, { keyRef: string; privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'] }> = {};
-      for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
+      // The sender's key is already on; the receiver's waits for its emailed code below.
+      keys.farm = await deviceKey('farm', farmOrgId, 'Isolated self delivery key');
+      {
         const pair = generateKeyPairSync('ed25519');
         const keyRef = randomUUID();
         const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
-        await post(
-          '/distribution/keys',
-          {
-            id: keyRef,
-            label: 'Isolated self delivery key',
-            publicKey,
-            popSignature: sign(
-              null,
-              Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`),
-              pair.privateKey,
-            ).toString('base64url'),
-          },
-          actor,
-        ).expect(201);
-        keys[actor] = { keyRef, privateKey: pair.privateKey };
+        const popSignature = sign(null, Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId: receiver.id, publicKey })}`), pair.privateKey).toString('base64url');
+        await post('/distribution/device-keys', { id: keyRef, label: 'Isolated self delivery key', publicKey, popSignature }, 'selfReceiver').expect(201);
+        keys.selfReceiver = { keyRef, privateKey: pair.privateKey };
       }
       const signPhase = async (actor: 'farm' | 'selfReceiver', organizationId: string, phase: string) => {
         const challengeResponse = await get(`/distribution/transfers/${transfer.id}/challenge`, actor);
@@ -859,6 +842,17 @@ const prisma = new PrismaClient({
       ).toBe(1);
       await confirmSimulatedPermissions(prisma, { guard: false });
 
+      // A personal key signs only after the emailed code; a wrong code is counted.
+      const receiverKeyRef = keys.selfReceiver.keyRef;
+      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: receiverKeyRef } })).status).toBe('PENDING');
+      expect((await signPhase('selfReceiver', receiver.id, 'CONSENT')).status).toBe(403);
+      const codeMail = await prisma.enterpriseMail.findFirstOrThrow({ where: { userId: users.selfReceiver, kind: 'SIGNING_KEY_OTP' }, orderBy: { createdAt: 'desc' } });
+      const code = decryptOtp(codeMail.otpCiphertext!);
+      await post(`/distribution/device-keys/${receiverKeyRef}/verify`, { code: code === '000000' ? '000001' : '000000' }, 'selfReceiver').expect(400);
+      expect((await prisma.signingKeyVerification.findFirstOrThrow({ where: { keyId: receiverKeyRef } })).attempts).toBe(1);
+      const verified = await post(`/distribution/device-keys/${receiverKeyRef}/verify`, { code }, 'selfReceiver');
+      expect(verified.status, JSON.stringify(verified.body)).toBe(201);
+      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: receiverKeyRef } })).status).toBe('ACTIVE');
       for (const [actor, organizationId] of [['selfReceiver', receiver.id], ['farm', farmOrgId]] as const) {
         const consent = await signPhase(actor, organizationId, 'CONSENT');
         expect(consent.status, JSON.stringify(consent.body)).toBe(201);
@@ -893,16 +887,51 @@ const prisma = new PrismaClient({
       expect(forged.status).toBe(401);
       const route = (await get(`/distribution/transfers/${transfer.id}/route`, 'selfReceiver').expect(200)).body.data.record;
       expect(route).toMatchObject({ trackable: true, source: 'SIMULATED', summary: { pointCount: 3, anomalyCount: 1 } });
+      // Handover photos: a short receipt needs the receiver's photo, a photo of
+      // another organization is refused, and delivery photos enter the snapshot
+      // every delivery signature covers.
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64');
+      const photo = async (actor: 'farm' | 'selfReceiver') =>
+        (await request(app.getHttpServer())
+          .post('/api/enterprise-workspace/evidence')
+          .set('Authorization', bearer(actor))
+          .set('Idempotency-Key', randomUUID())
+          .field('entityType', 'TRANSFER')
+          .field('entityId', transfer.id)
+          .field('kind', 'TRANSFER_IMAGE')
+          .field('description', 'Ảnh giao nhận trong kiểm thử')
+          .attach('file', png, { filename: 'handover.png', contentType: 'image/png' })
+          .expect(201)).body.data.record as { id: string; sha256: string };
+      await post(`/distribution/transfers/${transfer.id}/receipt`, {
+        version: transfer.version,
+        reason: 'Thiếu một phần hàng khi dỡ xuống kho',
+        lines: [{ lotId: lot.id, received: '0.500', rejected: '0', quarantined: '0' }],
+      }, 'selfReceiver').expect(422);
+      const carrierPhoto = await photo('farm');
+      await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [carrierPhoto.id] }, 'selfReceiver').expect(422);
+      const deliveryPhoto = await photo('selfReceiver');
+      transfer = { ...transfer, ...(await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [deliveryPhoto.id] }, 'selfReceiver').expect(201)).body.data.record };
       await post(`/distribution/transfers/${transfer.id}/receipt`, {
         version: transfer.version,
         reason: 'Đã kiểm đếm đủ lượng giao tại kho nhận',
         lines: [{ lotId: lot.id, received: '0.600', rejected: '0', quarantined: '0' }],
       }, 'selfReceiver').expect(201);
       transfer = (await get(`/distribution/transfers/${transfer.id}`, 'selfReceiver').expect(200)).body.data.record;
+      expect(transfer.photos).toEqual([expect.objectContaining({ phase: 'DELIVERY', evidenceId: deliveryPhoto.id, sha256: deliveryPhoto.sha256 })]);
+      expect(transfer.photosDigest).toBe(handoverPhotosDigest(transfer.id, [{ phase: 'DELIVERY', evidenceId: deliveryPhoto.id, sha256: deliveryPhoto.sha256 }]));
+      const challenge = (await get(`/distribution/transfers/${transfer.id}/challenge`, 'selfReceiver').expect(200)).body.data;
+      expect(challenge.snapshot.photosDigest).toBe(transfer.photosDigest);
       for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
         const delivery = await signPhase(actor, organizationId, 'DELIVERY');
         expect(delivery.status, JSON.stringify(delivery.body)).toBe(201);
         transfer = delivery.body.data.record;
+        if (actor === 'farm') {
+          // Once one party signed, the photos are fixed in the API and the database.
+          const late = await photo('selfReceiver');
+          await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [late.id] }, 'selfReceiver').expect(409);
+          await expect(prisma.distributionHandoverPhoto.create({ data: { transferId: transfer.id, phase: 'DELIVERY', evidenceId: late.id, sha256: late.sha256, organizationId: receiver.id, createdBy: users.selfReceiver } })).rejects.toThrow(/fixed once the phase is signed/);
+          await expect(prisma.distributionTransfer.update({ where: { id: transfer.id }, data: { photosDigest: 'f'.repeat(64), version: { increment: 1 } } })).rejects.toThrow(/photo digest/);
+        }
       }
       expect(transfer.status).toBe('DELIVERED');
       const seal = await prisma.distributionRouteSeal.findUniqueOrThrow({ where: { transferId: transfer.id } });
@@ -919,6 +948,52 @@ const prisma = new PrismaClient({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: receiver.id } },
       });
       expect(received.quantity.toFixed(3)).toBe('0.600');
+
+      // Private label: the receiver, a retailer, brands goods it received. The
+      // label names the received product as its source and is packed from that
+      // lot only; the branded lot keeps the source lot in its lineage.
+      await prisma.organizationCapability.create({ data: { organizationId: receiver.id, code: 'RETAILER' } });
+      // Products belong to the business that makes them (ADR-005).
+      await prisma.product.update({ where: { id: lot.productId }, data: { organizationId: farmOrgId } });
+      const label = (fields: object) => post('/catalog/products', {
+        productName: 'Xoài nhãn riêng', defaultUnit: 'kg', category: 'Trái cây', storageConditions: 'Mát', ingredients: 'Xoài', usageInstructions: 'Ăn tươi', ...fields,
+      }, 'selfReceiver');
+      await label({ privateLabelSourceIds: [randomUUID()] }).expect(422);
+      const brand = (await label({ privateLabelSourceIds: [lot.productId] }).expect(201)).body.data;
+      expect(brand).toMatchObject({ privateLabel: true, originFarmId: null, organizationId: receiver.id });
+      await prisma.product.update({ where: { id: brand.id }, data: { status: 'ACTIVE', evidenceComplete: true } });
+      const packing = { chainId: selfChainId, siteId: receiverSite.id, productId: brand.id, baseUnit: 'kg', inputs: [{ lotId: lot.id, quantity: '0.500' }], externalInputs: [] };
+      await post('/processing-runs', { ...packing, processType: 'DRYING' }, 'selfReceiver').expect(422);
+      const packRun = (await post('/processing-runs', { ...packing, processType: 'PACKING' }, 'selfReceiver').expect(201)).body.data.record;
+      await post(`/processing-runs/${packRun.id}/start`, { version: packRun.version }, 'selfReceiver').expect(201);
+      await post(`/processing-runs/${packRun.id}/complete`, { version: packRun.version + 1, output: { quantity: '0.500', unit: 'kg', packageCount: 1, packaging: 'Túi 500 g' }, byProducts: [], losses: [] }, 'selfReceiver').expect(201);
+      const packed = await prisma.lot.findFirstOrThrow({ where: { processingRunId: packRun.id } });
+      expect(packed).toMatchObject({ productId: brand.id, farmOrgId: receiver.id });
+      expect(await prisma.processingInput.findMany({ where: { runId: packRun.id }, select: { lotId: true } })).toEqual([{ lotId: lot.id }]);
+      // Outside goods: the farm sends part of its lot outside AgriTrace; the
+      // retailer records it back from the supplier's documents. The lot code on
+      // the documents links the new lot to the farm lot; no document, no use.
+      const farmLot = await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } });
+      await post('/distribution/quantities', { lotId: lot.id, siteId: senderSite.id, unit: 'kg', quantity: '0.100', version: farmLot.version, kind: 'EXTERNAL_DISPATCH', reason: 'Bán cho nhà phân phối ngoài hệ thống', recipientName: 'Nhà phân phối ngoài', documentNo: 'PX-001' }, 'farm').expect(201);
+      const supplier = await prisma.enterpriseExternalPartner.create({ data: { organizationId: receiver.id, businessId: 'NPP-' + randomUUID().slice(0, 8), name: 'Nhà phân phối ngoài', kind: 'DISTRIBUTOR', address: 'Ngoài hệ thống' } });
+      const outsideGoods = (await label({ productName: 'Xoài nhập ngoài', externalGoods: true }).expect(201)).body.data;
+      expect(outsideGoods).toMatchObject({ externalGoods: true, status: 'ACTIVE' });
+      const receipt = (await post('/processing-runs/receipts', { siteId: receiverSite.id, materialName: 'Xoài', supplierId: supplier.id, documentNo: 'HD-001', supplierLotCode: lot.lotCode.toLowerCase(), receivedAt: new Date().toISOString(), quantity: '0.100', unit: 'kg' }, 'selfReceiver').expect(201)).body.data.record;
+      expect((await prisma.materialReceipt.findUniqueOrThrow({ where: { id: receipt.id } })).matchedLotId).toBe(lot.id);
+      const intake = { chainId: selfChainId, siteId: receiverSite.id, productId: outsideGoods.id, processType: 'PACKING', baseUnit: 'kg', inputs: [], externalInputs: [{ receiptId: receipt.id, quantity: '0.100' }] };
+      await post('/processing-runs', intake, 'selfReceiver').expect(409);
+      await request(app.getHttpServer()).post('/api/enterprise-workspace/evidence').set('Authorization', bearer('selfReceiver')).set('Idempotency-Key', randomUUID())
+        .field('entityType', 'MATERIAL_RECEIPT').field('entityId', receipt.id).field('kind', 'INVOICE').field('description', 'Hóa đơn nhà phân phối')
+        .attach('file', png, { filename: 'invoice.png', contentType: 'image/png' }).expect(201);
+      await post('/processing-runs', { ...intake, inputs: [{ lotId: lot.id, quantity: '0.010' }] }, 'selfReceiver').expect(422);
+      const intakeRun = (await post('/processing-runs', intake, 'selfReceiver').expect(201)).body.data.record;
+      await post(`/processing-runs/${intakeRun.id}/start`, { version: intakeRun.version }, 'selfReceiver').expect(201);
+      await post(`/processing-runs/${intakeRun.id}/complete`, { version: intakeRun.version + 1, output: { quantity: '0.100', unit: 'kg' }, byProducts: [], losses: [] }, 'selfReceiver').expect(201);
+      const intakeLot = await prisma.lot.findFirstOrThrow({ where: { processingRunId: intakeRun.id }, include: { traceQr: true } });
+      const page = (await request(app.getHttpServer()).get(`/api/public/trace/${intakeLot.traceQr!.traceToken}`).expect(200)).body.data;
+      expect(page.processing.externalInputs[0]).toMatchObject({ supplierName: 'Nhà phân phối ngoài', trust: 'EVIDENCED', matchedOrigin: { lotCode: lot.lotCode } });
+      // The shared fixture product goes back to the shared catalog for later tests.
+      await prisma.product.update({ where: { id: lot.productId }, data: { organizationId: null } });
       expect(
         await prisma.distributionAttestation.count({ where: { transferId: transfer.id } }),
       ).toBe(5);

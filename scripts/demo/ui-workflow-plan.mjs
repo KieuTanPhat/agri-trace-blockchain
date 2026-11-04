@@ -17,7 +17,7 @@ export function workflowPlan() {
     const index=group*5+variant,processed=group>=14;
     return {key:`product${String(index+1).padStart(3,'0')}`,name:`[DEMO-100] ${name} ${String(variant+1).padStart(2,'0')}`,
       owner:(processed?processors[(index-70)%6]:farms[index%12]).key,processed,
-      sku:`DEMO100-${String(index+1).padStart(3,'0')}`,price:20000+group*5000,
+      sku:`DEMO100-${String(index+1).padStart(3,'0')}`,
       processType:group===16?'OTHER':group===17?'MILLING':group===18?'JUICE_EXTRACT':group===19?'FREEZING':'DRYING'};
   }));
   return {organizations,products};

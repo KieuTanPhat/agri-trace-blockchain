@@ -479,6 +479,10 @@ model MaterialReceipt {
   supplierId     String?   @map("supplier_id") @db.Uuid
   growingAreaCode String?  @map("growing_area_code") @db.VarChar(60)
   documentNo     String?   @map("document_no") @db.VarChar(100)
+  /// Lot code printed on the supplier's documents, and the AgriTrace lot it matched.
+  supplierLotCode String?  @map("supplier_lot_code") @db.VarChar(60)
+  matchedLotId   String?   @map("matched_lot_id") @db.Uuid
+  matchedLot     Lot?      @relation("ReceiptMatchedLot", fields: [matchedLotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   receivedAt     DateTime  @map("received_at") @db.Timestamptz(6)
   quantity       Decimal   @db.Decimal(14, 3)
   unit           String    @db.VarChar(30)
@@ -1036,6 +1040,8 @@ model DistributionTransfer {
   handoverMode HandoverMode @default(STANDARD) @map("handover_mode")
   attestationEpoch Int @default(0) @map("attestation_epoch")
   receiptDigest String? @map("receipt_digest") @db.VarChar(64)
+  /// Digest of the pickup/delivery photos; the snapshot carries it so signatures cover them.
+  photosDigest String? @map("photos_digest") @db.VarChar(64)
   senderSiteId String? @map("sender_site_id") @db.Uuid
   carrierSiteId String? @map("carrier_site_id") @db.Uuid
   receiverSiteId String? @map("receiver_site_id") @db.Uuid
@@ -1061,6 +1067,7 @@ model DistributionTransfer {
   attestations DistributionAttestation[]
   positions DistributionPosition[]
   routeSeal DistributionRouteSeal?
+  photos DistributionHandoverPhoto[]
   @@index([senderId, status])
   @@index([receiverId, status])
   @@index([carrierId, status])
@@ -1120,10 +1127,31 @@ model DistributionKey {
   organizationId String @map("organization_id") @db.Uuid
   publicKey String @map("public_key") @db.VarChar(59)
   label String @db.VarChar(100)
+  /// PENDING (personal key awaiting its emailed code) | ACTIVE | REVOKED
   status String @default("ACTIVE") @db.VarChar(20)
+  /// Owner of a personal device key; null for an organization key.
+  userId String? @map("user_id") @db.Uuid
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz(6)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   @@unique([id, organizationId])
   @@map("distribution_key")
+}
+
+/// Emailed one-time code that activates a personal device key.
+model SigningKeyVerification {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  keyId String @map("key_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  mailId String @unique @map("mail_id") @db.Uuid
+  codeDigest String @map("code_digest") @db.VarChar(64)
+  attempts Int @default(0)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  verifiedAt DateTime? @map("verified_at") @db.Timestamptz(6)
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([keyId, createdAt])
+  @@index([userId, createdAt])
+  @@map("signing_key_verification")
 }
 
 model TraceNotice {
@@ -1276,8 +1304,24 @@ model DistributionReceipt {
   lines Json
   reason String @db.VarChar(1000)
   digest String @db.VarChar(64)
+  /// Receiver's photos [{evidenceId, sha256}], part of the receipt digest.
+  photos Json @default("[]")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   @@map("distribution_receipt")
+}
+
+/// Append-only pickup/delivery photos; fixed once the phase is signed.
+model DistributionHandoverPhoto {
+  transferId String @map("transfer_id") @db.Uuid
+  phase String @db.VarChar(20)
+  evidenceId String @unique @map("evidence_id") @db.Uuid
+  sha256 String @db.VarChar(64)
+  organizationId String @map("organization_id") @db.Uuid
+  createdBy String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  transfer DistributionTransfer @relation(fields: [transferId], references: [id])
+  @@id([transferId, evidenceId])
+  @@map("distribution_handover_photo")
 }
 
 model DistributionRemainder {
@@ -1463,7 +1507,6 @@ model ProductionMaterial {
   batchCode String? @map("batch_code") @db.VarChar(100)
   activeIngredient String? @map("active_ingredient") @db.VarChar(255)
   seedType String? @map("seed_type") @db.VarChar(100)
-  price Decimal? @db.Decimal(14,2)
   origin String? @db.VarChar(255)
   manufacturer String? @db.VarChar(255)
   description String? @db.VarChar(2000)
@@ -1792,7 +1835,6 @@ model Product {
   category String? @db.VarChar(100)
   originFarmId String? @map("origin_farm_id") @db.Uuid
   originFarm Farm? @relation(fields: [originFarmId], references: [id], onDelete: Restrict)
-  price Decimal? @db.Decimal(14,2)
   storageConditions String? @map("storage_conditions") @db.VarChar(2000)
   ingredients String? @db.VarChar(2000)
   usageInstructions String? @map("usage_instructions") @db.VarChar(2000)
@@ -1803,6 +1845,10 @@ model Product {
   approvedBy String? @map("approved_by") @db.Uuid
   approvedAt DateTime? @map("approved_at") @db.Timestamptz(6)
   approvalNote String? @map("approval_note") @db.VarChar(1000)
+  /// Branded by a retailer or distributor from source products of other businesses.
+  privateLabel Boolean @default(false) @map("private_label")
+  /// Goods of a supplier outside AgriTrace, recorded by the seller from documents.
+  externalGoods Boolean @default(false) @map("external_goods")
   version Int @default(0)
   id          String             @id @default(dbgenerated("gen_random_uuid()")) @map("product_id") @db.Uuid
   productName String             @map("product_name") @db.VarChar(255)
@@ -2080,6 +2126,7 @@ model Lot {
   @@index([productId], map: "ix_lot_product")
   @@index([currentState], map: "ix_lot_state")
   @@map("lot")
+  matchedReceipts MaterialReceipt[] @relation("ReceiptMatchedLot")
 }
 
 model Shipment {
@@ -3378,4 +3425,15 @@ model LedgerProvisioningJob {
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
   @@index([status, nextAttemptAt])
   @@map("ledger_provisioning_job")
+}
+
+/// Source products a private-label product may be packed from; append-only.
+model ProductLabelSource {
+  productId String @map("product_id") @db.Uuid
+  sourceProductId String @map("source_product_id") @db.Uuid
+  createdBy String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@id([productId, sourceProductId])
+  @@index([sourceProductId])
+  @@map("product_label_source")
 }

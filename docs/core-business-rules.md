@@ -465,7 +465,11 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   nguyên snapshot. Phiếu đi theo chuỗi của lô (không chọn chuỗi). Bên nhận hoặc
   đơn vị vận chuyển chưa ở chuỗi nhận lời mời khi phiếu được lập; chủ quản chấp
   nhận vào chuỗi trên phiếu. Nếu bên giao là chủ chuỗi, người chấp nhận được cấp
-  vai trò theo năng lực doanh nghiệp; nếu không, chủ chuỗi cấp vai trò như thường.
+  vai trò theo năng lực doanh nghiệp; nếu không, quản trị doanh nghiệp giao chuỗi
+  cho nhân viên trong nhóm quyền thành viên. Doanh nghiệp không cấp hay thu hồi vai
+  trò nghiệp vụ theo chuỗi trực tiếp: vai trò đó sinh ra từ nhóm quyền gắn chuỗi khi
+  tạo hoặc sửa thành viên, và được dựng lại mỗi lần lưu. Nền tảng vẫn cấp trực tiếp
+  vai trò quản trị (quản trị tổ chức, tạo chuỗi, điều phối chuỗi, kiểm định).
   Chỉ ký được khi đã là thành viên hoạt động và quyền ledger đã đồng bộ. Bên nhận
   gửi được yêu cầu lấy hàng (không giữ chỗ hàng); bên giao lập phiếu
   `RECEIVER_PICKUP` từ yêu cầu hoặc từ chối.
@@ -483,6 +487,42 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   Lượng cách ly phát sinh từ biên bản nhận hàng không có phiếu vẫn xử lý được trong
   phần chưa có phiếu. Phiếu chuyển và phiếu cách ly bất biến, chỉ đổi trạng thái hợp
   lệ; ảnh/chứng từ gắn qua chứng cứ `SITE_TRANSFER`/`QUARANTINE`.
+- Khóa ký bàn giao STANDARD là khóa cá nhân do thiết bị (app hoặc trình duyệt) tự
+  sinh khi thành viên có `distribution.sign` đăng nhập; không còn tạo khóa doanh
+  nghiệp bằng tay. Tài khoản cấp 1 xem và thu hồi mọi khóa của doanh nghiệp. Khóa
+  cá nhân chỉ ký được sau khi chủ tài khoản nhập mã OTP gửi tới email tài khoản
+  (mã 10 phút, tối đa 5 lần sai, 60 giây giữa hai lần gửi, 5 mã mỗi giờ), chỉ ký cho
+  chính chủ (guard SQL trên chữ ký) và bị thu hồi khi tài khoản ngừng hoạt động.
+  Máy chủ chỉ nhận khóa công khai và bằng chứng sở hữu, không nhận khóa riêng.
+- Bán lẻ và phân phối không tự khai sản phẩm gốc. Trang sản phẩm của họ gồm "Hàng
+  đang bán" (tự lấy từ lô đã nhận, gom theo sản phẩm, không sửa nguồn gốc) và "Nhãn
+  riêng": sản phẩm mang thương hiệu bên bán, khai sản phẩm nguồn là hàng đã nhận của
+  doanh nghiệp khác, không gắn vùng hay nhà xưởng. Nhãn riêng chỉ đóng gói (lệnh
+  `PACKING`, không phụ phẩm, không nguyên liệu ngoài) từ lô của sản phẩm nguồn đang
+  giữ, tại cơ sở của bên bán; lô mới có QR riêng và lô nguồn trong phả hệ, nên trang
+  quét hiện thương hiệu bên bán (khi sản phẩm được duyệt) và nguồn gốc thật. Guard SQL
+  giữ danh sách nguồn chỉ thêm, nguồn phải của doanh nghiệp khác và cờ nhãn riêng cố
+  định. Lượng giữ chỗ của lô tính cả nguyên liệu của lệnh chế biến đang chạy.
+- Không bắt buộc mọi bên dùng AgriTrace. Mỗi mắt xích có mức tin cậy: bàn giao có
+  chữ ký hai bên; nhà cung cấp xác nhận qua link (tùy chọn); bên nhận khai báo kèm
+  chứng từ. Bán lẻ và phân phối nhập hàng của nhà cung cấp ngoài AgriTrace bằng phiếu
+  nhập hàng ngoài: chọn nhà cung cấp trong danh bạ, số chứng từ, mã lô in trên chứng
+  từ (tùy chọn), bắt buộc ảnh chứng từ trước khi dùng. Hàng nhập ngoài ghi vào **sổ ghi
+  cửa hàng** (chuỗi riêng miễn phí, tự tạo khi duyệt năng lực bán lẻ hoặc phân phối,
+  không giới hạn số lô), không phải chọn chuỗi. Phiếu được đóng gói thành lô
+  của sản phẩm "hàng nhập ngoài" (cờ cố định, không trang thương hiệu). Mã lô khớp một
+  lô AgriTrace đã "xuất cho đơn vị ngoài hệ thống" thì phiếu nối về lô đó và trang quét
+  hiện nguồn gốc nối lại; không khớp thì nguồn gốc dừng ở nhà cung cấp.
+- Ảnh xác nhận giao nhận là chứng cứ riêng của các bên trong chuyến, không công khai:
+  - Lấy hàng/giao hàng: ảnh `TRANSFER_IMAGE` của một bên ký bước đó, tùy chọn, tối đa
+    6 ảnh mỗi bước. Chỉ gắn khi bước đang mở và chưa bên nào ký; mã băm danh sách ảnh
+    (`photosDigest`) nằm trong snapshot nên mọi chữ ký của bước (STANDARD và c2) đều
+    phủ ảnh. Gắn ảnh tăng phiên bản chặng, intent đã chuẩn bị trước đó hết hiệu lực.
+  - Biên bản thực nhận: bắt buộc ít nhất một ảnh của bên nhận khi có thiếu, từ chối
+    hoặc cách ly; mã băm ảnh nằm trong `receiptDigest`.
+  - Ghi hư hỏng (`DAMAGE`) bắt buộc ảnh `DAMAGE_IMAGE` của lô; cách ly được kèm ảnh.
+    Mã băm ảnh ghi trong sự kiện truy xuất. Guard SQL kiểm ảnh đúng chuyến, đúng tổ
+    chức và chặn thêm ảnh sau khi bước đã ký.
 - Sản phẩm có thêm nguyên liệu, nhà xưởng sản xuất (cơ sở của doanh nghiệp), nhà xuất
   khẩu/nhập khẩu/phân phối/vận chuyển và người quản lí (thành viên đang hoạt động).
   Nhật ký chăm sóc ghi người thực hiện (tài khoản đang ghi hoặc người phụ trách vụ)
@@ -538,6 +578,9 @@ Quyết định đầy đủ ở [ADR-005](adr-005-chain-owner-service-model.md)
 - Phiếu nhập ngoài chọn nhà cung cấp trong danh bạ của tổ chức, có mức tin cậy
   `DECLARED`/`EVIDENCED`/`SUPPLIER_CONFIRMED`; lô AgriTrace là `SELF_RECORDED`.
 - Bên giữ hàng ghi `EXTERNAL_DISPATCH` khi giao cho đơn vị ngoài hệ thống.
+- AgriTrace không lưu giá (03/11/2026): sản phẩm không có giá khuyến nghị, vật tư không
+  có đơn giá. Giá bán do cửa hàng quyết định trên POS/ERP của mình, giá mua bán giữa
+  doanh nghiệp nằm trên hóa đơn; nhập hàng ngoài chỉ giữ số và ảnh chứng từ.
 
 ## Chế biến (biến đổi lô)
 
@@ -662,9 +705,10 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
 
 ## Chuỗi riêng, nhân viên của vụ và ràng buộc diện tích (26/10/2026)
 
-- **Sổ ghi nông trại** (chuỗi `personal = true`, ADR-005 mục 4). Tạo trong cùng lệnh
-  khi năng lực `FARM` của tổ chức có hiệu lực (kích hoạt hoặc duyệt năng lực sau kích
-  hoạt), tối đa một sổ mỗi tổ chức, cho cả thành viên lẫn chủ chuỗi. Sổ có hồ sơ
+- **Sổ ghi riêng** (chuỗi `personal = true`, ADR-005 mục 4): "Sổ ghi nông trại" cho
+  `FARM`, "Sổ ghi cửa hàng" cho `RETAILER`/`DISTRIBUTOR` không có `FARM`. Tạo trong
+  cùng lệnh khi một trong các năng lực đó có hiệu lực (kích hoạt hoặc duyệt năng lực
+  sau kích hoạt), tối đa một sổ mỗi tổ chức, cho cả thành viên lẫn chủ chuỗi. Sổ có hồ sơ
   nghiệp vụ `ACTIVE`, tổ chức là thành viên, `CHAIN_MANAGER` và vai trò theo năng lực.
   Sổ không tính vào hạn mức gói, chịu hạn mức năm `billing.farmLedgerLimits`. Binding
   được cấp tự động qua `ledger_provisioning_job`; trước khi binding `ACTIVE`, sổ chưa

@@ -49,16 +49,31 @@ export function Reveal({ children, className, delay = 0, as: Tag = "div" }: { ch
   );
 }
 
-/** Băng tiêu đề có ảnh nền xanh và lớp phủ tối để chữ dễ đọc. */
-export function PhotoHero({ image, title, description, eyebrow, children, tall }: { image: StaticImageData; title: string; description?: string; eyebrow?: string; children?: React.ReactNode; tall?: boolean }) {
+/** Băng tiêu đề có ảnh nền xanh và lớp phủ tối để chữ dễ đọc.
+ * `banner`: ảnh bìa ngang có minh họa bên phải, khung giữ đúng tỉ lệ ảnh trên màn hình lớn. */
+export function PhotoHero({ image, title, description, eyebrow, children, tall, banner }: { image: StaticImageData; title: string; description?: string; eyebrow?: string; children?: React.ReactNode; tall?: boolean; banner?: boolean }) {
   return (
-    <section className="relative isolate overflow-hidden bg-(--pub-deep) text-white">
-      <Image src={image} alt="" fill priority placeholder="blur" sizes="100vw" className="-z-20 object-cover" />
+    <section className={cn("relative isolate overflow-hidden bg-(--pub-deep) text-white", banner && "xl:flex xl:aspect-[1125/373] xl:items-center")}>
+      <Image src={image} alt="" fill priority placeholder="blur" sizes="100vw" className={cn("-z-20 object-cover", banner && "object-right xl:object-center")} />
       <div className="pub-photo-shade absolute inset-0 -z-10" aria-hidden />
-      <Container className={cn("flex flex-col gap-5", tall ? "py-20 sm:py-28 lg:py-32" : "py-14 sm:py-20")}>
+      <Container className={cn("flex flex-col gap-5", banner ? "py-16 sm:py-20 xl:py-8" : tall ? "py-20 sm:py-28 lg:py-32" : "py-14 sm:py-20")}>
         {eyebrow && <span className="text-[13px] font-semibold tracking-[0.16em] text-[#b9eccb] uppercase">{eyebrow}</span>}
-        <h1 className={cn("max-w-3xl leading-[1.12] font-semibold tracking-tight", tall ? "text-4xl sm:text-5xl lg:text-6xl" : "text-3xl sm:text-4xl")}>{title}</h1>
-        {description && <p className="max-w-2xl text-[16px] leading-relaxed text-white/85 sm:text-[17px]">{description}</p>}
+        <h1 className={cn("leading-[1.12] font-semibold tracking-tight", banner ? "max-w-xl text-4xl sm:text-5xl" : "max-w-3xl", !banner && (tall ? "text-4xl sm:text-5xl lg:text-6xl" : "text-3xl sm:text-4xl"))}>{title}</h1>
+        {description && <p className={cn("text-[16px] leading-relaxed text-white/85 sm:text-[17px]", banner ? "max-w-xl" : "max-w-2xl")}>{description}</p>}
+        {children}
+      </Container>
+    </section>
+  );
+}
+
+/** Tiêu đề trang nền sáng, dùng ở mọi trang trừ trang chủ, giải pháp và liên hệ. */
+export function PageIntro({ title, description, eyebrow, children }: { title: string; description?: string; eyebrow?: string; children?: React.ReactNode }) {
+  return (
+    <section className="border-b border-line bg-card">
+      <Container className="flex flex-col gap-3 py-8 sm:py-10">
+        {eyebrow && <span className="text-[12px] font-semibold tracking-[0.16em] text-(--pub-accent-ink) uppercase">{eyebrow}</span>}
+        <h1 className="max-w-3xl text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">{title}</h1>
+        {description && <p className="max-w-2xl text-[16px] leading-relaxed text-ink-2">{description}</p>}
         {children}
       </Container>
     </section>

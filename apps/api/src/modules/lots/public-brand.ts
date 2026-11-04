@@ -19,17 +19,20 @@ export async function publicBrandAndTrust(db: PrismaService, lot: PublicLot) {
       : null,
     db.product.findUnique({
       where: { id: lot.productId },
-      select: { productName: true, description: true, organizationId: true, approvalStatus: true },
+      select: { productName: true, description: true, organizationId: true, approvalStatus: true, privateLabel: true },
     }),
   ]);
   let brand = null;
+  // A private label carries its seller's brand in any chain it was packed in.
+  const brandOwner = product?.privateLabel ? product.organizationId : chain?.ownerOrganizationId;
   if (
     chain &&
     !chain.personal &&
+    brandOwner &&
     product?.approvalStatus === 'APPROVED' &&
-    product.organizationId === chain.ownerOrganizationId
+    product.organizationId === brandOwner
   ) {
-    const owner = await db.organization.findUnique({ where: { id: chain.ownerOrganizationId }, select: { name: true } });
+    const owner = await db.organization.findUnique({ where: { id: brandOwner }, select: { name: true } });
     if (owner) brand = { organizationName: owner.name, productName: product.productName, story: product.description ?? null };
   }
   let sourceTrust = null;

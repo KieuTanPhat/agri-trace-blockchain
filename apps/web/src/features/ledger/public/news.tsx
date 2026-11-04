@@ -1,180 +1,208 @@
 "use client";
-
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { FileText } from "lucide-react";
-import type { components } from "@/lib/generated/api";
-import { publicRequest } from "@/lib/public-api";
+import { CalendarDays, ChevronRight, Newspaper } from "lucide-react";
 import { customerHref } from "@/lib/site-origins";
+import { morePublicNews, useNewsCover, usePublicNews, usePublicNewsArticle, type PublicNews } from "@/lib/ledger/public-directory";
+import { fmtDate } from "@/lib/ledger/format";
 import { pt } from "@/lib/ledger/public-i18n";
+import { cn } from "@/lib/ledger/utils";
+import { ErrorState, LoadingRows } from "@/components/ledger/kit/page";
+import { Button } from "@/components/ledger/ui/button";
+import { Container, PageIntro, Reveal, SectionHeading } from "./blocks";
 
-type NewsItem = components["schemas"]["PublicNewsDto"];
-type NewsPage = components["schemas"]["PublicNewsPageDto"];
-type NewsArticleData = components["schemas"]["PublicNewsDetailDto"];
-type NewsImageDto = components["schemas"]["PublicNewsImageDto"];
+const href = (n: Pick<PublicNews, "id">) => customerHref(`/news/${n.id}`);
 
-function dateLabel(value: string) {
-  return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(value));
-}
-
-function NewsCover({ news, className = "" }: { news: Pick<NewsItem, "id" | "hasCover" | "coverUrl">; className?: string }) {
-  const [src, setSrc] = useState<string | null>(news.coverUrl);
-  useEffect(() => {
-    let active = true;
-    setSrc(news.coverUrl);
-    if (!news.coverUrl && news.hasCover) {
-      void publicRequest<NewsImageDto>(`/public/news/${encodeURIComponent(news.id)}/cover`)
-        .then((image) => { if (active) setSrc(`data:${image.mimeType};base64,${image.dataBase64}`); })
-        .catch(() => { if (active) setSrc(null); });
-    }
-    return () => { active = false; };
-  }, [news.id, news.coverUrl, news.hasCover]);
-
+function Cover({ article, sizes, className }: { article: PublicNews; sizes: string; className?: string }) {
+  const cover = useNewsCover(article);
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-brand-weak ${className}`}>
-      {src ? (
-        <Image unoptimized fill sizes="(max-width: 768px) 100vw, 50vw" src={src} alt="" className="object-cover" />
+    <div className={cn("relative overflow-hidden bg-brand-weak", className)}>
+      {cover.data ? (
+        <Image src={cover.data} alt="" fill unoptimized sizes={sizes} className="object-cover transition-transform duration-300 group-hover:scale-105" />
       ) : (
-        <div className="flex size-full items-center justify-center text-brand/50"><FileText aria-hidden className="size-9" /></div>
+        <Newspaper className="absolute top-1/2 left-1/2 size-9 -translate-x-1/2 -translate-y-1/2 text-brand/40" aria-hidden />
       )}
     </div>
   );
 }
 
-function NewsCard({ news, compact = false }: { news: NewsItem; compact?: boolean }) {
+function PublishedAt({ at }: { at: string | null }) {
+  if (!at) return null;
   return (
-    <Link href={customerHref(`/news/${news.id}`)} className={`group min-w-0 ${compact ? "grid grid-cols-[112px_minmax(0,1fr)] gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-[140px_minmax(0,1fr)]" : "flex flex-col gap-3"}`}>
-      <NewsCover news={news} className={compact ? "aspect-[4/3]" : "aspect-[16/9]"} />
-      <div className="min-w-0">
-        <p className="mb-1 text-xs text-ink-2">{dateLabel(news.publishedAt)}</p>
-        <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug group-hover:text-brand">{news.title}</h3>
-        <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-2">{news.summary}</p>
+    <span className="inline-flex items-center gap-1 text-[12px] text-ink-2">
+      <CalendarDays className="size-3.5" aria-hidden />
+      {fmtDate(at)}
+    </span>
+  );
+}
+
+function NewsCard({ article }: { article: PublicNews }) {
+  return (
+    <Link href={href(article)} className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card transition-shadow hover:shadow-lg">
+      <Cover article={article} sizes="(max-width: 640px) 100vw, 400px" className="aspect-[16/9]" />
+      <div className="flex flex-1 flex-col gap-2 p-5">
+        <PublishedAt at={article.publishedAt} />
+        <h3 className="line-clamp-2 text-[17px] font-semibold group-hover:text-brand">{article.title}</h3>
+        <p className="line-clamp-3 text-[14px] leading-relaxed text-ink-2">{article.summary}</p>
       </div>
     </Link>
   );
 }
 
-export function FeaturedNews() {
-  const [items, setItems] = useState<NewsItem[]>([]);
-  useEffect(() => {
-    let active = true;
-    void publicRequest<NewsPage>("/public/news?limit=5")
-      .then((page) => { if (active) setItems(page.items); })
-      .catch(() => { if (active) setItems([]); });
-    return () => { active = false; };
-  }, []);
-
-  if (!items.length) return null;
-  const [lead, ...related] = items;
+/** Bài nổi bật: một bài lớn bên trái và danh sách bài kế tiếp bên phải. */
+export function FeaturedNews({ items }: { items: PublicNews[] }) {
+  const [lead, ...rest] = items;
+  if (!lead) return null;
   return (
-    <section className="py-16 sm:py-20">
-      <div className="mx-auto max-w-[1280px] px-4 sm:px-7">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <h2 className="text-2xl font-semibold sm:text-[28px]">{pt("Bài viết nổi bật")}</h2>
-          <Link href={customerHref("/news")} className="shrink-0 text-sm font-semibold text-brand hover:underline">{pt("Xem bảng tin")} →</Link>
+    <Reveal className="grid gap-6 rounded-3xl border border-line bg-card p-5 sm:p-7 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <Link href={href(lead)} className="group flex flex-col gap-4">
+        <Cover article={lead} sizes="(max-width: 1024px) 100vw, 640px" className="aspect-[16/9] rounded-2xl" />
+        <div className="flex flex-col gap-2">
+          <PublishedAt at={lead.publishedAt} />
+          <h3 className="text-[22px] leading-snug font-semibold group-hover:text-brand">{lead.title}</h3>
+          <p className="line-clamp-3 text-[15px] leading-relaxed text-ink-2">{lead.summary}</p>
         </div>
-        <div className="grid gap-5 rounded-3xl border border-line bg-card p-4 sm:p-6 lg:grid-cols-[1.15fr_1fr]">
-          <div className="border-b border-line pb-5 lg:border-r lg:border-b-0 lg:pr-6 lg:pb-0">
-            <NewsCard news={lead} />
-          </div>
-          <div className="flex flex-col divide-y divide-line">
-            {related.map((news) => <NewsCard key={news.id} news={news} compact />)}
-          </div>
-        </div>
-      </div>
-    </section>
+      </Link>
+      {rest.length > 0 && (
+        <ul className="flex flex-col divide-y divide-line">
+          {rest.slice(0, 4).map((n) => (
+            <li key={n.id} className="py-3 first:pt-0 last:pb-0">
+              <Link href={href(n)} className="group grid grid-cols-[140px_minmax(0,1fr)] gap-4">
+                <Cover article={n} sizes="140px" className="aspect-[4/3] rounded-xl" />
+                <div className="flex min-w-0 flex-col gap-1">
+                  <h4 className="line-clamp-2 text-[15px] font-semibold group-hover:text-brand">{n.title}</h4>
+                  <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-2">{n.summary}</p>
+                  <PublishedAt at={n.publishedAt} />
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Reveal>
   );
 }
 
-export function NewsListing() {
-  const [items, setItems] = useState<NewsItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const load = useCallback(async (nextCursor?: string | null, append = false) => {
-    setLoading(true);
-    setError("");
+export function NewsPage() {
+  const first = usePublicNews(12);
+  const [extra, setExtra] = useState<{ items: PublicNews[]; cursor: string | null; loading: boolean }>({ items: [], cursor: null, loading: false });
+  const items = [...(first.data?.items ?? []), ...extra.items];
+  const cursor = extra.items.length ? extra.cursor : first.data?.hasMore ? first.data.nextCursor : null;
+  const loadMore = async () => {
+    if (!cursor) return;
+    setExtra((s) => ({ ...s, loading: true }));
     try {
-      const params = new URLSearchParams({ limit: "12" });
-      if (nextCursor) params.set("cursor", nextCursor);
-      const page = await publicRequest<NewsPage>(`/public/news?${params}`);
-      setItems((current) => append ? [...current, ...page.items] : page.items);
-      setCursor(page.nextCursor);
-      setHasMore(page.hasMore);
-    } catch (cause) {
-      setError(cause && typeof cause === "object" && "message" in cause ? String(cause.message) : "Không tải được bảng tin.");
-    } finally {
-      setLoading(false);
+      const page = await morePublicNews(cursor);
+      setExtra((s) => ({ items: [...s.items, ...page.items], cursor: page.hasMore ? page.nextCursor : null, loading: false }));
+    } catch {
+      setExtra((s) => ({ ...s, loading: false }));
     }
-  }, []);
-
-  useEffect(() => { void load(); }, [load]);
-
+  };
   return (
-    <main className="pub-site min-h-[70vh] bg-canvas py-10 sm:py-14">
-      <div className="mx-auto max-w-[1180px] px-4 sm:px-7">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold">{pt("Bảng tin nông nghiệp")}</h1>
-          <p className="mt-2 max-w-2xl text-ink-2">{pt("Tin tức và hướng dẫn về truy xuất, sản xuất, bảo quản và chuỗi cung ứng nông sản.")}</p>
-        </div>
-        {error && <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-card p-4 text-sm text-red-700">{error}</p>}
-        {items.length ? (
-          <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((news) => <NewsCard key={news.id} news={news} />)}
-          </div>
-        ) : !loading && !error ? (
-          <p className="rounded-xl border border-line bg-card p-8 text-center text-ink-2">{pt("Chưa có bài viết được đăng.")}</p>
-        ) : null}
-        <div className="mt-8 flex justify-center">
-          {loading ? <p role="status" className="text-sm text-ink-2">{pt("Đang tải…")}</p> : hasMore ? (
-            <button type="button" onClick={() => void load(cursor, true)} className="rounded-md border border-line bg-card px-5 py-2.5 text-sm font-semibold hover:bg-brand-weak">{pt("Tải thêm bài viết")}</button>
-          ) : null}
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function LinkedBody({ value }: { value: string }) {
-  return <div className="whitespace-pre-line text-[16px] leading-8 text-ink-2">{value.split(/(https?:\/\/[^\s]+)/g).map((part, index) => /^https?:\/\//.test(part) ? <a key={index} href={part} target="_blank" rel="noreferrer" className="break-all text-brand underline">{part}</a> : part)}</div>;
-}
-
-export function NewsArticle({ id }: { id: string }) {
-  const [article, setArticle] = useState<NewsArticleData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError("");
-    setArticle(null);
-    void publicRequest<NewsArticleData>(`/public/news/${encodeURIComponent(id)}`)
-      .then((data) => { if (active) setArticle(data); })
-      .catch((cause) => { if (active) setError(cause && typeof cause === "object" && "message" in cause ? String(cause.message) : "Không tải được bài viết."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [id]);
-
-  return (
-    <main className="pub-site min-h-[70vh] bg-canvas py-10 sm:py-14">
-      <article className="mx-auto max-w-[860px] px-4 sm:px-7">
-        <Link href={customerHref("/news")} className="text-sm font-semibold text-brand hover:underline">← {pt("Quay lại bảng tin")}</Link>
-        {loading ? <p role="status" className="py-12 text-center text-ink-2">{pt("Đang tải bài viết…")}</p> : error || !article ? (
-          <p role="alert" className="mt-6 rounded-xl border border-line bg-card p-6 text-sm text-ink-2">{error || pt("Không tìm thấy bài viết.")}</p>
+    <>
+      <PageIntro eyebrow={pt("Bảng tin")} title={pt("Tin tức và kiến thức nông sản")} description={pt("Mùa vụ, hướng dẫn chọn và bảo quản nông sản, cập nhật từ AgriTrace.")} />
+      <Container className="flex flex-col gap-10 py-12">
+        {first.isLoading ? (
+          <LoadingRows rows={6} />
+        ) : first.isError ? (
+          <ErrorState error={first.error} onRetry={() => void first.refetch()} />
+        ) : items.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line bg-card p-10 text-center text-[15px] text-ink-2">{pt("Chưa có bài viết nào được đăng.")}</div>
         ) : (
           <>
-            <p className="mt-7 text-sm text-ink-2">{dateLabel(article.publishedAt)}</p>
-            <h1 className="mt-2 text-3xl font-semibold leading-tight sm:text-4xl">{article.title}</h1>
-            <p className="mt-4 text-lg leading-relaxed text-ink-2">{article.summary}</p>
-            <NewsCover news={article} className="mt-7 aspect-[16/9]" />
-            <div className="mt-8"><LinkedBody value={article.body} /></div>
+            <FeaturedNews items={items.slice(0, 5)} />
+            {items.length > 5 && (
+              <section className="flex flex-col gap-6">
+                <h2 className="text-[24px] font-semibold">{pt("Bài viết khác")}</h2>
+                <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.slice(5).map((n) => (
+                    <li key={n.id}>
+                      <NewsCard article={n} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {cursor && (
+              <div className="flex justify-center">
+                <Button variant="outline" size="lg" onClick={() => void loadMore()} disabled={extra.loading}>
+                  {extra.loading ? pt("Đang tải…") : pt("Xem thêm bài viết")}
+                </Button>
+              </div>
+            )}
           </>
         )}
+      </Container>
+    </>
+  );
+}
+
+export function NewsDetail({ id }: { id: string }) {
+  const article = usePublicNewsArticle(id);
+  const others = usePublicNews(6);
+  const a = article.data;
+  if (article.isLoading)
+    return (
+      <Container className="py-12">
+        <LoadingRows rows={8} />
+      </Container>
+    );
+  if (article.isError || !a)
+    return (
+      <Container className="py-12">
+        <ErrorState error={article.error ?? new Error(pt("Không tìm thấy bài viết"))} onRetry={() => void article.refetch()} />
+      </Container>
+    );
+  const related = (others.data?.items ?? []).filter((n) => n.id !== a.id).slice(0, 3);
+  return (
+    <>
+      <div className="border-b border-line bg-card">
+        <Container>
+          <nav aria-label={pt("Đường dẫn")} className="flex flex-wrap items-center gap-1 py-3 text-[13px] text-ink-2">
+            <Link href={customerHref("/")} className="hover:text-brand">
+              {pt("Trang chủ")}
+            </Link>
+            <ChevronRight className="size-3.5" aria-hidden />
+            <Link href={customerHref("/news")} className="hover:text-brand">
+              {pt("Bảng tin")}
+            </Link>
+          </nav>
+        </Container>
+      </div>
+      <article className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-7">
+        <header className="flex flex-col gap-3">
+          <PublishedAt at={a.publishedAt} />
+          <h1 className="text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">{a.title}</h1>
+          <p className="text-[18px] leading-relaxed text-ink-2">{a.summary}</p>
+        </header>
+        {(a.hasCover || a.coverUrl) && <Cover article={a} sizes="(max-width: 768px) 100vw, 768px" className="aspect-[16/9] rounded-2xl" />}
+        <div className="flex flex-col gap-4 text-[16px] leading-[1.8]">
+          {a.body
+            .split(/\n{2,}/)
+            .map((para) => para.trim())
+            .filter(Boolean)
+            .map((para, i) => (
+              <p key={i} className="whitespace-pre-line">
+                {para}
+              </p>
+            ))}
+        </div>
       </article>
-    </main>
+      {related.length > 0 && (
+        <section className="bg-card py-14">
+          <Container className="flex flex-col gap-6">
+            <SectionHeading align="left" title={pt("Bài viết khác")} />
+            <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {related.map((n) => (
+                <li key={n.id}>
+                  <NewsCard article={n} />
+                </li>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      )}
+    </>
   );
 }

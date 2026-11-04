@@ -56,11 +56,6 @@ function ProductCard({ product }: { product: Product }) {
           <span className="truncate">{product.category ?? product.province ?? pt("Nông sản")}</span>
           <span className="shrink-0">{product.traceCount} {pt("lô truy xuất")}</span>
         </div>
-        {product.price && (
-          <p className="text-[13px] font-semibold text-brand">
-            {Number(product.price).toLocaleString("vi-VN")} ₫{product.defaultUnit ? ` / ${product.defaultUnit}` : ""}
-          </p>
-        )}
       </div>
     </article>
   );
@@ -163,8 +158,6 @@ export function ProductDirectory() {
     return rows.sort((a, b) => {
       if (sort === "name") return a.productName.localeCompare(b.productName, "vi");
       if (sort === "newest") return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-      if (sort === "price-asc") return (a.price == null ? Infinity : Number(a.price)) - (b.price == null ? Infinity : Number(b.price));
-      if (sort === "price-desc") return (b.price == null ? -Infinity : Number(b.price)) - (a.price == null ? -Infinity : Number(a.price));
       return b.traceCount - a.traceCount || a.productName.localeCompare(b.productName, "vi");
     });
   }, [products, query, category, province, sellingOnly, sort]);
@@ -216,8 +209,6 @@ export function ProductDirectory() {
                 <option value="traces">{pt("Nhiều lô truy xuất")}</option>
                 <option value="newest">{pt("Mới nhất")}</option>
                 <option value="name">{pt("Tên A–Z")}</option>
-                <option value="price-asc">{pt("Giá thấp đến cao")}</option>
-                <option value="price-desc">{pt("Giá cao đến thấp")}</option>
               </select>
             </div>
             {!loading && !error && <p className="text-sm text-ink-2">{pt("Hiển thị {from}–{to} trong {count} sản phẩm", { from: firstItem, to: lastItem, count: filtered.length })}</p>}

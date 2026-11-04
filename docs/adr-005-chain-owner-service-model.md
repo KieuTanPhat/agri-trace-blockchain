@@ -40,7 +40,9 @@ giữ mã lô của nguồn.
    năm `billing.farmLedgerLimits` (mặc định 10 vụ, 100 lô). Sổ không có quyền của
    chủ chuỗi (trang thương hiệu, mời đối tác, phát động thu hồi) và không tính vào
    hạn mức gói. Chủ chuỗi tạo chuỗi theo dòng sản phẩm bằng bước "Tạo chuỗi đầu
-   tiên".
+   tiên". Bổ sung 03/11/2026: bán lẻ và phân phối có cùng loại sổ ("Sổ ghi cửa
+   hàng") để ghi hàng nhập từ nhà cung cấp ngoài AgriTrace; sổ này không giới hạn số
+   lô vì hàng nhập ngoài đi qua lệnh đóng gói, không qua vụ hay thu hoạch.
 5. **Lô giữ chuỗi gốc.** Bàn giao thuần không chuyển lô; bên nhận vào chuỗi gốc khi
    chấp nhận (đã có). Quyền nghiệp vụ trong chuỗi gốc được cấp khi người gửi là
    thành viên `ACTIVE` của chuỗi đó. Lô chỉ sang chuỗi khác qua **lệnh chế biến hoặc

@@ -30,7 +30,7 @@ import type { ReviewEnterpriseDto, ActivateEnterpriseDto } from './dto.js';
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceStage } from './enterprise-service.service.js';
 import { invitationHash } from '../supply-chains/partner-invitations.js';
-import { activateEnrollmentTx, ensureFarmLedger } from './service-activation.js';
+import { activateEnrollmentTx, ensureOwnLedger, OWN_LEDGER_CAPABILITIES } from './service-activation.js';
 import { assertActivationReady, enterprisePaymentsEnabled } from './payment-policy.js';
 export { assertActivationReady } from './payment-policy.js';
 import { settingValue } from '../billing/billing-core.js';
@@ -770,8 +770,8 @@ export async function reviewCapabilityTx(
         where: key,
         data: { revokedAt: null, revision: { increment: 1 } },
       });
-    if (request.code === 'FARM')
-      await ensureFarmLedger(tx, {
+    if ((OWN_LEDGER_CAPABILITIES as readonly string[]).includes(request.code))
+      await ensureOwnLedger(tx, {
         organizationId: request.organizationId,
         ownerId: enrollment.ownerId,
       });

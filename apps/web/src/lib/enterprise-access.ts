@@ -62,6 +62,16 @@ export function canUseEnterpriseRoute(
   if (within("/enterprise/notifications")) return has("profile.read");
   if (within("/enterprise/settings")) return has("profile.read");
   if (within("/enterprise/help")) return has("profile.read");
+  // Role queues: receiving work for every downstream capability, selling for
+  // retailers only.
+  if (within("/enterprise/inbound"))
+    return (
+      ["PROCESSOR", "TRANSPORTER", "DISTRIBUTOR", "RETAILER"].some((c) =>
+        access.capabilities.includes(c),
+      ) && has("distribution.read")
+    );
+  if (within("/enterprise/sales"))
+    return access.capabilities.includes("RETAILER") && has("reports.read");
   // ADR-005: owners recall, every partner may propose a recall.
   if (within("/enterprise/notices")) return has("distribution.write");
   if (within("/enterprise/processing/conversions"))

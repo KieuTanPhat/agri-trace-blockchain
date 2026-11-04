@@ -25,13 +25,14 @@ import { isPastExpiry } from '../../common/expiry-date.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import {
   verifyEd25519,
-  parseEd25519PublicKey,
 } from '../trace/signed-commitment.js';
 import { TraceService } from '../trace/trace.service.js';
 import { randomUUID } from 'node:crypto';
 import { activeSite, siteBalance, requireSiteStock, addSiteStock, internalInTransit, unslippedQuarantine, consumeQuarantineCase, type ReceiptLine } from './distribution-inventory.js';
 import { recordHandoverReceipt } from '../processing/processing-receipts.js';
 import { prepareC2,consumeC2 } from './distribution-c2.js';
+import { handoverPhotosDigest, ownPhotos, phaseSigned } from './handover-photos.js';
+import { requestDeviceKey, resendDeviceKeyCode, verifyDeviceKey } from './device-keys.js';
 import { BUSINESS_CAPABILITIES, lockChainScope } from '../supply-chains/chain-policy.js';
 import { requestLedgerGrant } from '../ledger/ledger-permissions.js';
 import { assertPartnerSlot } from '../supply-chains/chain-membership-rules.js';
@@ -48,6 +49,7 @@ import type {
   SiteAllocationInput,
   QuarantineInput,
   ActualReceiptInput,
+  HandoverPhotosInput,
   ReturnInput,
   ReturnSignatureInput,
   DistributionC2Prepare, DistributionC2Submit,
@@ -59,7 +61,6 @@ import type {
 
 export const DISTRIBUTION_SIGNATURE_DOMAIN =
   'agritrace:distribution-attestation:1';
-export const DISTRIBUTION_KEY_DOMAIN = 'agritrace:distribution-key:1';
 export function distributionSnapshot(
   t: DistributionTransfer & { lines: DistributionLine[] },
 ) {
@@ -84,6 +85,7 @@ export function distributionSnapshot(
     ...(t.handoverMode === 'DUAL_SIGNED' ? {handoverMode:t.handoverMode} : {}),
     ...(t.attestationEpoch ? {attestationEpoch:t.attestationEpoch} : {}),
     ...(t.receiptDigest ? { receiptDigest: t.receiptDigest } : {}),
+    ...(t.photosDigest ? { photosDigest: t.photosDigest } : {}),
     ...(t.senderSiteId || t.carrierSiteId || t.receiverSiteId
       ? {
           senderSiteId: t.senderSiteId,
@@ -301,7 +303,12 @@ export class DistributionService {
     const roleGrants = await this.db.scopedRoleGrant.count({
       where: { chainId: t.chainId, organizationId: actor.organizationId!, revokedAt: null },
     });
+    // Photos of the open handover phase can be added until anyone signs it.
+    const photoPhase = t.status === 'READY' ? 'PICKUP' : t.status === 'IN_TRANSIT' ? 'DELIVERY' : null;
+    const canAttach = !!photoPhase && has('distribution.sign') && membership?.status === 'ACTIVE'
+      && phaseParties(t, photoPhase).includes(actor.organizationId!) && !(await phaseSigned(this.db, id, photoPhase));
     const allowedActions = [
+      ...(canAttach ? [`PHOTOS_${photoPhase}`] : []),
       ...(authority.primary && membership?.status === 'INVITED' && t.status === 'PROPOSED' && actor.organizationId !== t.senderId ? ['JOIN_CHAIN'] : []),
       ...(has('distribution.sign') && membership?.status === 'ACTIVE' ? phases.filter(p => !signed.has(p)) : []),
       ...(has('distribution.sign') && t.receiverId === actor.organizationId && t.status === 'IN_TRANSIT' && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
@@ -321,6 +328,7 @@ export class DistributionService {
           ownerIsSender: chain?.ownerOrganizationId === t.senderId,
         },
         receipt: await this.db.distributionReceipt.findUnique({ where: { transferId: id } }),
+        photos: await this.db.distributionHandoverPhoto.findMany({ where: { transferId: id }, select: { phase: true, evidenceId: true, sha256: true, organizationId: true, createdAt: true }, orderBy: { createdAt: 'asc' } }),
         remainders: await this.db.distributionRemainder.findMany({ where: { transferId: id } }),
         returns: await Promise.all((await this.db.distributionReturn.findMany({ where: { transferId: id }, orderBy: { createdAt: 'asc' } })).map(async r => {
           const signatures = await this.db.distributionReturnSignature.findMany({ where: { returnId: r.id }, select: { organizationId: true } });
@@ -773,60 +781,23 @@ export class DistributionService {
       });
   }
   async keys(actor: CommandActor) {
-    await enterpriseAuthority(this.db, actor, 'distribution.sign');
+    const auth = await enterpriseAuthority(this.db, actor, 'distribution.sign');
     return {
+      // Members see organization keys and their own device keys.
       items: await this.db.distributionKey.findMany({
-        where: { organizationId: actor.organizationId! },
+        where: { organizationId: actor.organizationId!, ...(auth.primary ? {} : { OR: [{ userId: null }, { userId: actor.sub! }] }) },
         orderBy: { createdAt: 'desc' },
       }),
     };
   }
-  registerKey(actor: CommandActor, input: TransferKeyInput) {
-    return commandTransaction(this.db, async (tx) => {
-      const auth = await enterpriseAuthority(
-        tx,
-        actor,
-        'roles.manage',
-        undefined,
-        undefined,
-        true,
-      );
-      if (!auth.primary)
-        throw new ForbiddenException(
-          'Chỉ tài khoản cấp 1 được đăng ký khóa doanh nghiệp',
-        );
-      try {
-        parseEd25519PublicKey(input.publicKey);
-      } catch {
-        throw new UnprocessableEntityException(
-          'Khóa công khai Ed25519 không hợp lệ',
-        );
-      }
-      if (
-        !verifyEd25519(
-          input.publicKey,
-          domainMessage(DISTRIBUTION_KEY_DOMAIN, {
-            id: input.id,
-            organizationId: actor.organizationId,
-            publicKey: input.publicKey,
-          }),
-          input.popSignature,
-        )
-      )
-        throw new UnprocessableEntityException(
-          'Bằng chứng sở hữu khóa không hợp lệ',
-        );
-      return {
-        record: await tx.distributionKey.create({
-          data: {
-            id: input.id,
-            organizationId: actor.organizationId!,
-            publicKey: input.publicKey,
-            label: input.label,
-          },
-        }),
-      };
-    });
+  requestDeviceKey(actor: CommandActor, input: TransferKeyInput) {
+    return commandTransaction(this.db, (tx) => requestDeviceKey(tx, actor, input));
+  }
+  resendDeviceKey(actor: CommandActor, id: string) {
+    return commandTransaction(this.db, (tx) => resendDeviceKeyCode(tx, actor, id));
+  }
+  verifyDeviceKey(actor: CommandActor, id: string, code: string) {
+    return commandTransaction(this.db, (tx) => verifyDeviceKey(tx, actor, id, code));
   }
   revokeKey(actor: CommandActor, id: string) {
     return commandTransaction(this.db, async (tx) => {
@@ -839,8 +810,10 @@ export class DistributionService {
         true,
       );
       if (!auth.primary) throw new ForbiddenException();
+      // The primary account revokes any key of the organization, including a
+      // member's device key that is still waiting for its emailed code.
       const changed = await tx.distributionKey.updateMany({
-        where: { id, organizationId: actor.organizationId!, status: 'ACTIVE' },
+        where: { id, organizationId: actor.organizationId!, status: { in: ['PENDING', 'ACTIVE'] } },
         data: { status: 'REVOKED' },
       });
       if (!changed.count)
@@ -940,11 +913,13 @@ export class DistributionService {
       await this.assets(tx, t);
       const consumed=c2?await consumeC2(tx,t,actor,auth.scope,c2,distributionSnapshot(t)):undefined;
       if(consumed?.length)input={...input,keyRef:consumed[0].intent.keyRef,expiresAt:consumed[0].intent.expiresAt.toISOString(),signature:consumed[0].intent.signature!};
+      // A personal device key signs only for its owner.
       const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({
         where: {
           id: input.keyRef,
           organizationId: actor.organizationId!,
           status: 'ACTIVE',
+          OR: [{ userId: null }, { userId: actor.sub! }],
         },
       });
       if (!key)
@@ -1307,6 +1282,9 @@ export class DistributionService {
       const qty = quantity(input.quantity);
       if (input.kind === 'EXTERNAL_DISPATCH' && (!input.recipientName?.trim() || !input.documentNo?.trim()))
         throw new UnprocessableEntityException('Ghi đơn vị nhận và số chứng từ khi xuất cho đơn vị ngoài hệ thống');
+      if (input.kind !== 'DAMAGE' && input.photos?.length) throw new UnprocessableEntityException('Chỉ báo hư hỏng mới kèm ảnh');
+      const photos = await ownPhotos(tx, actor.organizationId!, 'LOT', lot.id, 'DAMAGE_IMAGE', input.photos);
+      if (input.kind === 'DAMAGE' && !photos.length) throw new UnprocessableEntityException('Chụp ít nhất một ảnh hàng hư hỏng');
       if(input.fromQuarantine){
         if(input.kind!=='DAMAGE'||!input.siteId)throw new ConflictException('Chỉ ghi hư hỏng lượng cách ly tại cơ sở');
         await enterpriseAuthority(tx,actor,'quarantine.manage',lotChainId(lot),input.siteId);
@@ -1369,6 +1347,7 @@ export class DistributionService {
           organizationId: actor.organizationId!,
           siteId: input.siteId ?? null,
           fromQuarantine: input.fromQuarantine??false,
+          ...(photos.length ? { photos } : {}),
           ...(input.kind === 'EXTERNAL_DISPATCH'
             ? { recipientName: input.recipientName!.trim(), documentNo: input.documentNo!.trim() }
             : {}),
@@ -1451,6 +1430,8 @@ export class DistributionService {
       const stock = await siteBalance(tx, lot.id, actor.organizationId!, input.siteId);
       if (!stock || lot.version !== input.version || lot.unit !== input.unit) throw new ConflictException('Tồn cơ sở hoặc phiên bản không khớp');
       const scope = { lotId: lot.id, organizationId: actor.organizationId!, siteId: input.siteId };
+      if (input.action !== 'HOLD' && input.photos?.length) throw new UnprocessableEntityException('Chỉ khi cách ly mới kèm ảnh');
+      const photos = await ownPhotos(tx, actor.organizationId!, 'LOT', lot.id, 'DAMAGE_IMAGE', input.photos);
       let slip: { id: string; code: string } | null = null;
       if (input.action === 'HOLD') {
         if (!input.cause) throw new UnprocessableEntityException('Chọn nguyên nhân cách ly');
@@ -1465,7 +1446,7 @@ export class DistributionService {
       if (input.action === 'HOLD')
         slip = await tx.quarantineCase.create({ data: { code: `CL-${randomUUID().slice(0, 12).toUpperCase()}`, ...scope, quantity: qty, unit: lot.unit, cause: input.cause!, reason: input.reason.trim(), note: input.note?.trim() || null, createdBy: actor.sub! } });
       await tx.lot.update({ where: { id: lot.id }, data: { version: { increment: 1 } } });
-      await this.trace.createInTransaction(tx, { entityType: 'LOT', entityId: lot.id, lotId: lot.id, eventType: 'DISTRIBUTION_QUARANTINE_RECORDED', actor, businessData: { siteId: input.siteId, action: input.action, quantity: qty.toFixed(3), reason: input.reason, ...(input.cause && input.action === 'HOLD' ? { cause: input.cause } : {}), ...(slip ? { quarantineCaseId: slip.id, code: slip.code } : {}) } });
+      await this.trace.createInTransaction(tx, { entityType: 'LOT', entityId: lot.id, lotId: lot.id, eventType: 'DISTRIBUTION_QUARANTINE_RECORDED', actor, businessData: { siteId: input.siteId, action: input.action, quantity: qty.toFixed(3), reason: input.reason, ...(input.cause && input.action === 'HOLD' ? { cause: input.cause } : {}), ...(slip ? { quarantineCaseId: slip.id, code: slip.code } : {}), ...(photos.length ? { photos } : {}) } });
       return { record: { ...updated, lotVersion: lot.version + 1, quarantineCase: slip } };
     });
   }
@@ -1484,11 +1465,41 @@ export class DistributionService {
         if (received.add(rejected).gt(l.quantity) || quarantined.gt(received)) throw new ConflictException('Thực nhận + từ chối vượt lượng giao hoặc cách ly vượt thực nhận');
         return { lotId: l.lotId, received: received.toFixed(3), rejected: rejected.toFixed(3), quarantined: quarantined.toFixed(3), missing: l.quantity.sub(received).sub(rejected).toFixed(3) };
       }).sort((a,b) => a.lotId.localeCompare(b.lotId));
-      const digest = canonicalSha256({ transferId: id, lines, reason: input.reason });
-      const record = await tx.distributionReceipt.create({ data: { transferId: id, organizationId: actor.organizationId!, lines, reason: input.reason, digest } });
+      // A shortfall, rejection or quarantine is shown with the receiver's photos;
+      // their hashes enter the receipt digest the delivery signatures cover.
+      const photos = await ownPhotos(tx, actor.organizationId!, 'TRANSFER', id, 'TRANSFER_IMAGE', input.photos);
+      if (!photos.length && lines.some(l => Number(l.missing) > 0 || Number(l.rejected) > 0 || Number(l.quarantined) > 0))
+        throw new UnprocessableEntityException('Chụp ít nhất một ảnh khi nhận thiếu, từ chối hoặc cách ly hàng');
+      const digest = canonicalSha256({ transferId: id, lines, reason: input.reason, ...(photos.length ? { photos } : {}) });
+      const record = await tx.distributionReceipt.create({ data: { transferId: id, organizationId: actor.organizationId!, lines, reason: input.reason, digest, photos } });
       await tx.distributionTransfer.update({ where: { id }, data: { receiptDigest: digest, version: { increment: 1 } } });
-      await this.events(tx, t, actor, 'DISTRIBUTION_RECEIPT_RECORDED', { receiptId: record.id, receiptDigest: digest });
+      await this.events(tx, t, actor, 'DISTRIBUTION_RECEIPT_RECORDED', { receiptId: record.id, receiptDigest: digest, ...(photos.length ? { photos } : {}) });
       return { record };
+    });
+  }
+  /** Pickup or delivery photos of a signing party. They are fixed before the
+   * phase is signed: the snapshot carries their digest, so every signature of
+   * the phase covers them, and the version bump voids earlier prepared intents. */
+  attachHandoverPhotos(actor: CommandActor, id: string, input: HandoverPhotosInput) {
+    return commandTransaction(this.db, async tx => {
+      await tx.$queryRaw`SELECT id FROM distribution_transfer WHERE id=${id}::uuid FOR UPDATE`;
+      const t = await tx.distributionTransfer.findUnique({ where: { id }, include: { lines: true, photos: true } });
+      const org = actor.organizationId!;
+      if (!t || ![t.senderId, t.carrierId, t.receiverId].includes(org)) throw new NotFoundException();
+      if (!phaseParties(t, input.phase).includes(org)) throw new ForbiddenException('Chỉ bên ký bước này gắn ảnh bàn giao');
+      const siteId = t.senderId === org && input.phase === 'PICKUP' ? t.senderSiteId : t.carrierId === org ? t.carrierSiteId : t.receiverSiteId;
+      await enterpriseAuthority(tx, actor, 'distribution.sign', t.chainId, siteId ?? undefined, true);
+      const open = input.phase === 'PICKUP' ? t.status === 'READY' : t.status === 'IN_TRANSIT';
+      if (!open || t.version !== input.version || await phaseSigned(tx, id, input.phase))
+        throw new ConflictException('Chỉ gắn ảnh trước khi bước bàn giao được ký; tải lại giao nhận');
+      const photos = await ownPhotos(tx, org, 'TRANSFER', id, 'TRANSFER_IMAGE', input.photos);
+      if (photos.some(p => t.photos.some(x => x.evidenceId === p.evidenceId))) throw new ConflictException('Ảnh đã được gắn vào chuyến hàng');
+      if (t.photos.filter(p => p.phase === input.phase).length + photos.length > 6) throw new ConflictException('Mỗi bước bàn giao có tối đa 6 ảnh');
+      await tx.distributionHandoverPhoto.createMany({ data: photos.map(p => ({ transferId: id, phase: input.phase, evidenceId: p.evidenceId, sha256: p.sha256, organizationId: org, createdBy: actor.sub! })) });
+      const photosDigest = handoverPhotosDigest(id, [...t.photos, ...photos.map(p => ({ ...p, phase: input.phase }))]);
+      const updated = await tx.distributionTransfer.update({ where: { id }, data: { photosDigest, version: { increment: 1 } } });
+      await this.events(tx, { ...t, photosDigest }, actor, 'DISTRIBUTION_PHOTOS_ATTACHED', { phase: input.phase, photos, photosDigest });
+      return { record: { id, version: updated.version, photosDigest } };
     });
   }
   proposeReturn(actor: CommandActor, id: string, input: ReturnInput) {
@@ -1525,7 +1536,7 @@ export class DistributionService {
       if((t.handoverMode==='DUAL_SIGNED')!==!!c2)throw new ConflictException('Chặng trả phải giữ giao thức chữ ký của chặng gốc');
       const consumed=c2?await consumeC2(tx,t,actor,auth.scope,c2,distributionSnapshot(t),r):undefined;
       if(consumed?.length)input={...input,keyRef:consumed[0].intent.keyRef,expiresAt:consumed[0].intent.expiresAt.toISOString(),signature:consumed[0].intent.signature!};
-      const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({ where: { id: input.keyRef, organizationId: actor.organizationId!, status: 'ACTIVE' } });
+      const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({ where: { id: input.keyRef, organizationId: actor.organizationId!, status: 'ACTIVE', OR: [{ userId: null }, { userId: actor.sub! }] } });
       const body = { returnId, transferId: t.id, digest: r.digest, organizationId: actor.organizationId, userId: actor.sub, keyRef: input.keyRef, version: String(input.version), expiresAt: input.expiresAt };
       const expiry = Date.parse(input.expiresAt);
       if (!key || expiry <= Date.now() || expiry > Date.now()+20*60_000 || (!c2 && !verifyEd25519(key.publicKey, domainMessage('agritrace:distribution-return:1',body),input.signature))) throw new ConflictException('Chữ ký trả hàng không hợp lệ hoặc đã hết hạn');
@@ -1727,6 +1738,7 @@ export class DistributionService {
         },
         processingRun: { include: { chain: { select: { name: true } } } },
         traceQr: true,
+        organization: { select: { name: true } },
       },
       orderBy:{id:'asc'},
       ...(query.page?{skip:(query.page-1)*(query.pageSize??25),take:(query.pageSize??25)+1}:{}),
@@ -1767,6 +1779,10 @@ export class DistributionService {
           originType: l.originType,
           lotCode: l.lotCode,
           productName: l.product.productName,
+          productId: l.productId,
+          producerName: l.organization?.name ?? null,
+          privateLabel: l.product.privateLabel,
+          externalGoods: l.product.externalGoods,
           chainId: lotChainId(l),
           farmOrgId: l.farmOrgId,
           initialQuantity: l.initialQuantity.toFixed(3),

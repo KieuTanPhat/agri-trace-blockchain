@@ -7,7 +7,6 @@ export const directoryColor = { bg:'#f2f7fb', blue:'#4b8cc1', green:'#61b94d', r
 // long-lived preview. Evidence-specific `v` parameters come from the API.
 export const directoryAsset = (path?:string|null) => path ? `${API_BASE_URL}${path}${path.includes('?')?'&':'?'}render=2` : null;
 export const normalized = (text:string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase();
-export const money = (value?:string|null) => value!=null ? `${Number(value).toLocaleString('vi-VN')} đ` : 'Liên hệ';
 export async function loadDirectory<T extends {id:string}>(route:'products'|'enterprises') {
   const items:T[]=[], seen=new Set<string>();let cursor:string|null=null;
   do {

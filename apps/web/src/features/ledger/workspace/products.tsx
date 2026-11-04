@@ -14,7 +14,6 @@ import { ArrowDown, ArrowUp, FileUp, Loader2, Plus } from "lucide-react";
 type ApiError = Error;
 import { wapi } from "@/lib/ledger/product-api";
 import type { Farm, ImportPreview, Member, Product, ProductInput, Site } from "@/lib/ledger/product-types";
-import { fmtNumber } from "@/lib/ledger/format";
 import { t as tr } from "@/lib/ledger/i18n";
 import { useOverview, useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
@@ -28,6 +27,7 @@ import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { SellerProducts } from "./seller-products";
 import { PhotoPicker } from "@/components/ledger/workspace/photo-picker";
 import { newLedgerCommandKey } from "@/lib/ledger/command-context";
 import { Controller, type Control } from "react-hook-form";
@@ -45,7 +45,6 @@ const fields = {
   variety: opt(255),
   defaultUnit: req(1, 30),
   originFarmId: z.string().min(1, { error: () => tr("Chọn vùng sản xuất") }),
-  price: z.union([z.literal(""), z.coerce.number<number>().min(0, { error: () => tr("≥ 0") })]).optional(),
   storageConditions: req(2, 2000),
   ingredients: req(2, 2000),
   usageInstructions: req(2, 2000),
@@ -75,7 +74,6 @@ function toInput(v: Values): ProductInput {
     variety: blank(v.variety),
     defaultUnit: v.defaultUnit,
     originFarmId: v.originFarmId,
-    price: typeof v.price === "number" ? v.price : undefined,
     storageConditions: v.storageConditions,
     ingredients: v.ingredients,
     usageInstructions: v.usageInstructions,
@@ -97,7 +95,6 @@ const fromRow = (p: Product): Values => ({
   variety: p.variety ?? "",
   defaultUnit: p.defaultUnit ?? "",
   originFarmId: p.originFarmId ?? "",
-  price: p.price !== null && p.price !== undefined ? Number(p.price) : "",
   storageConditions: p.storageConditions ?? "",
   ingredients: p.ingredients ?? "",
   usageInstructions: p.usageInstructions ?? "",
@@ -115,7 +112,11 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
   const router=useRouter();
   const [search,setSearch]=useState("");
   const [status,setStatus]=useState("");
-  const { can } = useWorkspaceAccess();
+  const { can, access } = useWorkspaceAccess();
+  // Producers create products from a farm or plant; retailers and
+  // distributors sell what they received and may brand it as a private label.
+  const producer = !!access?.capabilities.some((c) => c === "FARM" || c === "PROCESSOR");
+  const seller = !!access?.capabilities.some((c) => c === "RETAILER" || c === "DISTRIBUTOR");
   const organizationId=useOverview().data?.organization.id;
   const [openId, setOpenId] = useState<string | null>(productId ?? null);
   const [importing, setImporting] = useState(view === "import");
@@ -135,7 +136,6 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     { key: "name", header: tr("Sản phẩm"), sort: (p) => p.productName, cell: (p) => <span className="flex flex-col"><span className="font-medium">{p.productName}</span><span className="font-mono text-[11px] text-ink-2">{p.sku}{p.gtin ? ` · GTIN ${p.gtin}` : ""}</span></span> },
     { key: "farm", header: tr("Vùng xuất xứ"), hideBelow: "md", cell: (p) => <span className="text-[12.5px]">{farms.find((f) => f.id === p.originFarmId)?.name ?? "—"}</span> },
     { key: "unit", header: tr("Đơn vị"), hideBelow: "lg", cell: (p) => <span className="text-[12.5px]">{p.defaultUnit}</span> },
-    { key: "price", header: tr("Giá"), hideBelow: "lg", cell: (p) => <span className="font-mono text-[12px]">{p.price ? fmtNumber(p.price) : "—"}</span> },
     { key: "ev", header: tr("Ảnh"), cell: (p) => (p.evidenceComplete ? <Badge tone="ok">{tr("Đủ")}</Badge> : <Badge tone="warn">{tr("Thiếu")}</Badge>) },
     { key: "status", header: tr("Trạng thái"), cell: (p) => <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang bán") : tr("Ngừng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (p) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/products/${p.id}`)}>{tr("Chi tiết")}</Button> },
@@ -145,9 +145,9 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     <>
       <PageHeader
         title={tr("Sản phẩm")}
-        description={tr("Danh mục sản phẩm gắn với vùng xuất xứ đã hoàn tất hồ sơ. Sản phẩm mới ở trạng thái ngừng; cần ít nhất một ảnh sản phẩm rồi hoàn tất để bán (tính vào hạn mức sản phẩm của gói).")}
+        description={producer ? tr("Danh mục sản phẩm gắn với vùng xuất xứ đã hoàn tất hồ sơ. Sản phẩm mới ở trạng thái ngừng; cần ít nhất một ảnh sản phẩm rồi hoàn tất để bán (tính vào hạn mức sản phẩm của gói).") : tr("Hàng doanh nghiệp đang bán, tự lấy từ lô đã nhận, và sản phẩm nhãn riêng mang thương hiệu của bạn.")}
         actions={
-          can("catalog.manage") && (
+          can("catalog.manage") && producer && (
             <>
               <Button size="sm" variant="outline" onClick={() => router.push("/enterprise/products/import")}><FileUp /> {tr("Nhập từ CSV")}</Button>
               <Button size="sm" onClick={() => router.push("/enterprise/products/new")} disabled={!readyFarms.length}><Plus /> {tr("Thêm sản phẩm")}</Button>
@@ -156,10 +156,11 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
         }
       />
       <PageBody className="min-w-0">
-        {can("catalog.manage") && catalog.data && !readyFarms.length && <Callout tone="info">{tr("Chưa có vùng sản xuất đã hoàn tất hồ sơ — hoàn tất vùng trước khi tạo sản phẩm.")}</Callout>}
-        <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-line bg-card">
+        {seller && <SellerProducts own={products ?? []} onOpen={(id) => router.push(`/enterprise/products/${id}`)} />}
+        {can("catalog.manage") && producer && catalog.data && !readyFarms.length && <Callout tone="info">{tr("Chưa có vùng sản xuất đã hoàn tất hồ sơ — hoàn tất vùng trước khi tạo sản phẩm.")}</Callout>}
+        {producer && <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-line bg-card">
           <div className="flex flex-wrap gap-2 p-3"><Input aria-label={tr("Tìm sản phẩm")} placeholder={tr("Tìm tên, SKU, GTIN, vùng xuất xứ")} value={search} onChange={e=>setSearch(e.target.value)}/><FilterSelect label={tr("Lọc trạng thái")} value={status} onChange={setStatus} options={[{value:"ACTIVE",label:tr("Đang bán")},{value:"INACTIVE",label:tr("Ngừng")}]} /></div><DataTable rows={filtered} loading={catalog.isLoading} error={catalog.error} onRetry={() => catalog.refetch()} columns={columns} rowKey={(p) => p.id} empty={<EmptyState title={tr("Chưa có sản phẩm")} />} />
-        </div>
+        </div>}
       </PageBody>
       <ProductSheet initialEdit={view === "edit"} product={products?.find((p) => p.id === openId) ?? null} farms={farms} options={options} onClose={() => {setOpenId(null);if(productId)router.push("/enterprise/products");}} canManage={can("catalog.manage") && typeof products?.find(p=>p.id===openId)?.version === "number"} canEvidence={can("catalog.manage") && can("evidence.manage")} />
       <CommandDialog
@@ -213,7 +214,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     </>
   );
 }
-const emptyValues = (): Values => ({ productName: "", sku: "", gtin: "", category: "", variety: "", defaultUnit: "kg", originFarmId: "", price: "", storageConditions: "", ingredients: "", usageInstructions: "", rawMaterials: "", manufacturingSiteId: "", managerUserId: "", exporter: "", importer: "", distributor: "", carrier: "", description: "" });
+const emptyValues = (): Values => ({ productName: "", sku: "", gtin: "", category: "", variety: "", defaultUnit: "kg", originFarmId: "", storageConditions: "", ingredients: "", usageInstructions: "", rawMaterials: "", manufacturingSiteId: "", managerUserId: "", exporter: "", importer: "", distributor: "", carrier: "", description: "" });
 
 function ProductPhotosField({ control }: { control: Control<z.infer<typeof createSchema>> }) {
   return (
@@ -239,7 +240,6 @@ function ProductFields({ f, options, creating }: { f: { control: never }; option
         <TextField control={c} name="gtin" label={tr("GTIN")} inputMode="numeric" />
         <ReferenceSelectField control={c} name="defaultUnit" label={tr("Đơn vị tính")} category="UNIT" />
         <SelectField control={c} name="originFarmId" label={tr("Vùng xuất xứ")} options={options.farms.map((x) => ({ value: x.id, label: x.name }))} />
-        <TextField control={c} name="price" label={tr("Giá (VND)")} type="number" />
         <SelectField control={c} name="manufacturingSiteId" label={tr("Nhà xưởng sản xuất")} options={options.sites.map((s) => ({ value: s.id, label: s.name }))} />
         <SelectField control={c} name="managerUserId" label={tr("Người quản lý sản phẩm")} options={options.members.map((m) => ({ value: m.id, label: m.fullName }))} />
       </div>
@@ -302,7 +302,6 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                   [tr("Giống/chủng loại"), p.variety],
                   ["GTIN", p.gtin],
                   [tr("Đơn vị tính"), p.defaultUnit],
-                  [tr("Giá"), p.price && `${fmtNumber(p.price)} VND`],
                   [tr("Điều kiện bảo quản"), p.storageConditions],
                   [tr("Thành phần"), p.ingredients],
                   [tr("Hướng dẫn sử dụng"), p.usageInstructions],
@@ -414,7 +413,7 @@ function PhotoOrder({ productId, open, onOpenChange }: { productId: string; open
   );
 }
 
-const CSV_COLUMNS = ["productName", "sku", "category", "originFarmId", "defaultUnit", "storageConditions", "ingredients", "usageInstructions", "gtin", "variety", "price", "description"] as const;
+const CSV_COLUMNS = ["productName", "sku", "category", "originFarmId", "defaultUnit", "storageConditions", "ingredients", "usageInstructions", "gtin", "variety", "description"] as const;
 function ImportDialog({ open, onOpenChange, farms }: { open: boolean; onOpenChange: (o: boolean) => void; farms: Farm[] }) {
   const [locked,setLocked]=useState(false);
   const [text, setText] = useState("");

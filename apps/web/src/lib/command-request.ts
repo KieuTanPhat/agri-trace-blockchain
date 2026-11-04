@@ -14,7 +14,7 @@ const creates: Record<string, Operation> = {
   '/enterprise-workspace/profile/amendments':'EW_PROFILE_SUBMIT',
   '/production-cycles/drafts':'EW_CREATE_CYCLE_DRAFT',
   "/distribution/transfers": "DIST_CREATE",
-  "/distribution/keys": "EW_REGISTER_DISTRIBUTION_KEY",
+  "/distribution/device-keys": "EW_DEVICE_KEY_REQUEST",
   "/distribution/notices": "EW_TRACE_NOTICE",
   "/distribution/quantities": "EW_DISPOSITION",
   '/distribution/allocations':'EW_ALLOCATE',

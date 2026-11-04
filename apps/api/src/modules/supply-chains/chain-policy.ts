@@ -134,22 +134,13 @@ export async function authorizeChainCommand(
       input.operation,
     )
   ) {
-    permission = await organizationGrant(db, actor, 'ORG_ADMIN');
-    if (payload.organizationId !== actor.organizationId)
-      throw new ForbiddenException('Ngoài phạm vi tổ chức');
-    if (input.operation === 'HYB_SET_CAPABILITY')
-      throw new ForbiddenException(
-        'Năng lực doanh nghiệp cần được nền tảng xét duyệt',
-      );
-    if (
-      input.operation === 'HYB_GRANT_ROLE' &&
-      !['FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'DISTRIBUTOR'].includes(
-        String(payload.role),
-      )
-    )
-      throw new ForbiddenException(
-        'Org admin chỉ cấp vai trò thực hiện nghiệp vụ',
-      );
+    // Enterprises give chain roles through member permission groups; direct
+    // grants, revocations and capabilities belong to the platform.
+    throw new ForbiddenException(
+      input.operation === 'HYB_SET_CAPABILITY'
+        ? 'Năng lực doanh nghiệp cần được nền tảng xét duyệt'
+        : 'Vai trò theo chuỗi được cấp qua nhóm quyền khi tạo hoặc sửa thành viên',
+    );
   } else {
     if (!chainId) throw new ForbiddenException('Thiếu phạm vi chuỗi');
     const access = await chainAccess(db, actor, chainId);

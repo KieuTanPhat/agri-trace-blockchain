@@ -42,6 +42,10 @@ const API_BASE_URL =
     : process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "true" || !!process.env.NEXT_PUBLIC_BUSINESS_ORIGIN
       ? "/api"
       : PUBLIC_API_BASE_URL;
+/** Absolute URL of a public API asset path such as `/public/products/{id}/image`. */
+export function publicApiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
 export const AUTH_STORAGE_KEY = "agritrace-auth"; // Legacy key, removed on startup.
 
 type ApiEnvelope<T> = { success: true; data: T };

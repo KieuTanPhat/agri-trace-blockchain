@@ -3,5 +3,7 @@ export const SITE_CONTACT = {
   email: "contact@agritrace.dev",
   zaloPhone: "+84 377 599 221",
   zaloUrl: "https://zalo.me/84377599221",
+  hotline: "0377 599 221",
+  hotlineUrl: "tel:+84377599221",
   emailUrl: "mailto:contact@agritrace.dev",
 } as const;

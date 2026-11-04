@@ -44,16 +44,16 @@ async function login(page, origin, user, password) {
   options.results?.push(result);
 }
 
-/** The chain route opens its detail sheet; its section link marks the current view. */
+/** The chain detail is its own page; the tab link marks the current view and
+ * the tab content is the region named after the chain. */
 async function selectChain(page, options, section) {
   await page.goto(`${options.origin}/supply-chains/${options.fixture.chainId}/${section}`, {
     waitUntil: "domcontentloaded",
   });
-  const sheet = page.getByRole("dialog", { name: options.fixture.chainName, exact: true });
-  await sheet
+  await page
     .locator(`a[href="/supply-chains/${options.fixture.chainId}/${section}"][aria-current="page"]`)
     .waitFor({ state: "visible", timeout });
-  return sheet;
+  return page.getByRole("region", { name: options.fixture.chainName, exact: true });
 }
 
 /** Reconcile one journaled command from the shell banner. Detail sheets are modal,
@@ -413,6 +413,8 @@ async function enrollKey(options, session, party, label, loseResponse = false) {
 
 async function ensureKeys(options, session) {
   if (session.keys.farm) return;
+  // The chain owner registers the first key on a standard chain; dual signing
+  // needs an ACTIVE key, and only then do the other members see their signing tab.
   session.keys.farm = await enrollKey(
     options,
     session,
@@ -420,6 +422,7 @@ async function ensureKeys(options, session) {
     `${options.variant} farm`,
     true,
   );
+  await options.setHandoverMode("DUAL_SIGNED");
   session.keys.transporter = await enrollKey(
     options,
     session,
@@ -432,7 +435,6 @@ async function ensureKeys(options, session) {
     "retailer",
     `${options.variant} retailer`,
   );
-  await options.setHandoverMode("DUAL_SIGNED");
   session.groups.push({
     name: "device-key-enrollment-lost-response-reload-real-registry",
     passed: true,

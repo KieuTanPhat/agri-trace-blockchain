@@ -314,6 +314,10 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_SITE_TRANSFER_RESOLVE: 'inventory.manage',
   EW_SITE_TRANSFER_CANCEL: 'inventory.manage',
   DIST_RECEIPT: 'distribution.sign',
+  DIST_PHOTOS: 'distribution.sign',
+  EW_DEVICE_KEY_REQUEST: 'distribution.sign',
+  EW_DEVICE_KEY_RESEND: 'distribution.sign',
+  EW_DEVICE_KEY_VERIFY: 'distribution.sign',
   DIST_C2_PREPARE: 'distribution.sign',
   DIST_C2_SUBMIT: 'distribution.sign',
   DIST_RENEW_CONSENT: 'distribution.write',
@@ -323,7 +327,6 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_PICKUP_REQUEST: 'distribution.write',
   EW_PICKUP_DECLINE: 'distribution.write',
   EW_PICKUP_CANCEL: 'distribution.write',
-  EW_REGISTER_DISTRIBUTION_KEY: 'roles.manage',
   EW_REVOKE_DISTRIBUTION_KEY: 'roles.manage',
   EW_PROCESSING_CREATE: 'processing.write',
   EW_PROCESSING_COMPLETE: 'processing.write',
@@ -339,6 +342,13 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_TICKET_CREATE: 'profile.read',
   EW_TICKET_REPLY: 'profile.read',
 };
+/** Handover and damage photos belong to the people who sign or adjust the
+ * goods; every other upload stays with evidence managers. */
+export function evidencePermission(entityType: unknown, kind: unknown): EnterprisePermission {
+  if (entityType === 'TRANSFER' && kind === 'TRANSFER_IMAGE') return 'distribution.sign';
+  if (entityType === 'LOT' && kind === 'DAMAGE_IMAGE') return 'quantity.adjust';
+  return 'evidence.manage';
+}
 export async function authorizeWorkspaceCommand(
   db: Prisma.TransactionClient,
   input: AuthorizedCommand,
@@ -352,8 +362,9 @@ export async function authorizeWorkspaceCommand(
   if (input.operation.startsWith('EW_PROFILE_')) return profileAuthority(db,input.actor!,lock);
   if (input.operation === 'EW_UPLOAD_EVIDENCE') {
     if(data.entityType==='PROFILE'&&data.entityId===input.actor!.organizationId)return profileAuthority(db,input.actor!,lock);
-    const context = await evidenceSubject(db,input.actor!,String(data.entityType),String(data.entityId),permission,typeof data.siteId==='string'?data.siteId:undefined);
-    return (await enterpriseAuthority(db,input.actor!,permission,data.entityType==='CHAIN'?undefined:context.chainId,context.siteId,lock)).scope;
+    const upload = evidencePermission(data.entityType, data.kind);
+    const context = await evidenceSubject(db,input.actor!,String(data.entityType),String(data.entityId),upload,typeof data.siteId==='string'?data.siteId:undefined);
+    return (await enterpriseAuthority(db,input.actor!,upload,data.entityType==='CHAIN'?undefined:context.chainId,context.siteId,lock)).scope;
   }
   if (lock && input.operation === 'EW_LINK_CYCLE_DRAFT') {
     await lockChainScope(db, `org:${input.actor!.organizationId}`);

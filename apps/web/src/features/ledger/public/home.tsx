@@ -1,28 +1,148 @@
 "use client";
+import { useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { enterpriseHref, enterprisesOf, usePublicEnterprises, usePublicNews, usePublicProducts } from "@/lib/ledger/public-directory";
+import { publicApiUrl } from "@/lib/api-client";
 import { customerHref } from "@/lib/site-origins";
+import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
 import { Button } from "@/components/ledger/ui/button";
-import { Container, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
+import { Container, CtaBand, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
 import { PHOTOS, PLATFORM_FEATURES, SOLUTIONS, TRACE_STEPS } from "./content";
-import { FeaturedNews } from "./news";
 import { TraceSearch } from "./trace-search";
+import { EnterpriseLogo, ORG_TYPE, PRODUCT_GRID, ProductCard } from "./catalog";
+
+const FEATURED_ENTERPRISES = 9;
+import { FeaturedNews } from "./news";
 
 function Hero() {
   return (
     <PhotoHero
-      tall
-      image={PHOTOS.heroBrand}
+      banner
+      image={PHOTOS.heroAgritrace}
       eyebrow={pt("Truy xuất nguồn gốc nông sản trên blockchain")}
-      title={pt("Hành trình nông sản, thông tin có thể đối chiếu.")}
-      description={pt("Từ sản xuất, thu hoạch đến chế biến và giao nhận. Quét mã để xem nguồn gốc, nhật ký và bằng chứng được công khai của từng lô.")}
+      title={pt("Hành trình nông sản, minh bạch từ vườn tới tay bạn.")}
+      description={pt("Từ trồng trọt, thu hoạch đến chế biến và giao hàng. Quét mã để xem nguồn gốc, nhật ký và giấy tờ của từng lô.")}
     >
       <TraceSearch className="mt-2 max-w-xl" onDark />
       <p className="text-[14px] text-white/80">
         {["Không cần đăng nhập", "Đọc mã ngay trên thiết bị", "Cảnh báo thu hồi hiển thị riêng"].map((x) => pt(x)).join(" · ")}
       </p>
     </PhotoHero>
+  );
+}
+
+function SeeAll({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={customerHref(href)} className="inline-flex shrink-0 items-center gap-1 text-[15px] font-semibold text-brand hover:underline">
+      {pt(label)}
+      <ArrowRight className="size-4" aria-hidden />
+    </Link>
+  );
+}
+
+function RowHeading({ title, description, href, label }: { title: string; description?: string; href: string; label: string }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-[26px] leading-tight font-semibold tracking-tight sm:text-[30px]">{pt(title)}</h2>
+        {description && <p className="text-[15px] text-ink-2">{pt(description)}</p>}
+      </div>
+      <SeeAll href={href} label={label} />
+    </div>
+  );
+}
+
+/** Doanh nghiệp và sản phẩm lấy trực tiếp từ danh bạ công khai; ẩn khi chưa có dữ liệu. */
+function Catalog() {
+  const products = usePublicProducts();
+  const all = useMemo(() => products.data ?? [], [products.data]);
+  const directory = usePublicEnterprises();
+  // Chủ sản phẩm trước (theo số sản phẩm), rồi doanh nghiệp khác trong danh bạ cho đủ một hàng.
+  const enterprises = useMemo(() => {
+    const owners = enterprisesOf(all).map((e) => ({ id: e.id, name: e.name, logo: e.logo, note: pt("{p0} sản phẩm", { p0: e.count }), href: enterpriseHref(e.id) }));
+    const others = (directory.data?.items ?? [])
+      .filter((e) => !owners.some((o) => o.id === e.id))
+      .map((e) => ({ id: e.id, name: e.name, logo: e.logoUrl ? publicApiUrl(e.logoUrl) : null, note: pt(ORG_TYPE[e.type] ?? e.type), href: null }));
+    return [...owners, ...others].slice(0, FEATURED_ENTERPRISES);
+  }, [all, directory.data]);
+  const top = useMemo(() => [...all].sort((a, b) => b.traceCount - a.traceCount).slice(0, 10), [all]);
+  const latest = useMemo(() => [...all].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 5), [all]);
+  if (!all.length) return null;
+  return (
+    <>
+      {enterprises.length > 0 && (
+        <section className="pt-16">
+          <Container className="flex flex-col gap-7">
+            <RowHeading title="Doanh nghiệp nổi bật" description="Doanh nghiệp có nhiều sản phẩm truy xuất trên AgriTrace." href="/products" label="Xem tất cả sản phẩm" />
+            <ul className="grid grid-cols-3 gap-x-4 gap-y-6 sm:grid-cols-5 lg:grid-cols-9">
+              {enterprises.map((e, i) => {
+                const body = (
+                  <>
+                    <EnterpriseLogo name={e.name} logo={e.logo} className="size-20 rounded-full bg-white p-2 text-[26px] shadow-sm transition-shadow group-hover:border-brand group-hover:shadow-md xl:size-24" />
+                    <span className="line-clamp-2 text-[13px] leading-snug font-medium group-hover:text-brand">{e.name}</span>
+                    <span className="text-[12px] text-ink-2">{e.note}</span>
+                  </>
+                );
+                return (
+                  <Reveal as="li" key={e.id} delay={i * 40}>
+                    {e.href ? (
+                      <Link href={customerHref(e.href)} className="group flex flex-col items-center gap-2.5 text-center">
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2.5 text-center">{body}</div>
+                    )}
+                  </Reveal>
+                );
+              })}
+            </ul>
+          </Container>
+        </section>
+      )}
+      <section className="pt-16">
+        <Container className="flex flex-col gap-7">
+          <RowHeading title="Truy xuất nhiều nhất" description="Sản phẩm có nhiều lô mang mã QR công khai." href="/products" label="Xem tất cả sản phẩm" />
+          <ul className={PRODUCT_GRID}>
+            {top.map((p, i) => (
+              <Reveal as="li" key={p.id} delay={(i % 6) * 50}>
+                <ProductCard product={p} />
+              </Reveal>
+            ))}
+          </ul>
+        </Container>
+      </section>
+      {all.length > 10 && (
+        <section className="pt-16">
+          <Container className="flex flex-col gap-7">
+            <RowHeading title="Mới cập nhật" description="Sản phẩm vừa được doanh nghiệp công bố." href="/products" label="Xem thêm" />
+            <ul className={PRODUCT_GRID}>
+              {latest.map((p, i) => (
+                <Reveal as="li" key={p.id} delay={i * 50}>
+                  <ProductCard product={p} />
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
+      )}
+    </>
+  );
+}
+
+function News() {
+  const news = usePublicNews(5);
+  const items = news.data?.items ?? [];
+  if (!items.length) return null;
+  return (
+    <section className="pt-16 pb-4">
+      <Container className="flex flex-col gap-7">
+        <RowHeading title="Bài viết nổi bật" href="/news" label="Xem bảng tin" />
+        <FeaturedNews items={items} />
+      </Container>
+    </section>
   );
 }
 
@@ -54,7 +174,7 @@ function Process() {
         <SectionHeading
           eyebrow={pt("Quy trình")}
           title={pt("Bốn bước tạo nên một mã truy xuất")}
-          description={pt("Vụ sản xuất → Thu hoạch → Lô hàng → Giao nhận. Mỗi bước đều có thời điểm, người thực hiện và trạng thái sổ cái.")}
+          description={pt("Vụ trồng → Thu hoạch → Lô hàng → Giao nhận. Mỗi bước ghi rõ thời gian, người làm và được lưu lại, không sửa được.")}
         />
         <ol className="grid gap-10 md:grid-cols-4 md:gap-6">
           {TRACE_STEPS.map((s, i) => (
@@ -82,7 +202,7 @@ function Features() {
             align="left"
             eyebrow={pt("Vì sao chọn AgriTrace")}
             title={pt("Minh bạch có kiểm chứng, không chỉ là một con tem")}
-            description={pt("Dữ liệu nghiệp vụ được ghi dấu trên mạng Hyperledger Fabric. Người mua thấy được điều gì đã xác nhận, điều gì đang chờ và cảnh báo nào cần chú ý.")}
+            description={pt("Mỗi ghi nhận được lưu trên blockchain nên không thể sửa lén. Người mua thấy rõ điều gì đã xác nhận, điều gì đang chờ và cảnh báo nào cần chú ý.")}
           />
           <dl className="grid gap-6 sm:grid-cols-2">
             {PLATFORM_FEATURES.map((f, i) => (
@@ -95,6 +215,23 @@ function Features() {
         </div>
       </Container>
     </section>
+  );
+}
+
+/** Video tra cứu trên điện thoại; video vuông nên phóng nhẹ để điện thoại chiếm gần hết khung dọc. */
+function LookupVideo() {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    // Autoplay may be refused (or missing in tests); the video simply stays on its first frame.
+    Promise.resolve()
+      .then(() => video.play())
+      .catch(() => {});
+  }, []);
+  return (
+    <video ref={ref} src="/media/tra-cuu-agritrace.mp4" muted loop playsInline preload="metadata" aria-label={pt("Tra cứu sản phẩm trên điện thoại")} className="absolute inset-0 size-full scale-[1.15] object-cover" />
   );
 }
 
@@ -124,8 +261,31 @@ function ConsumerGuide() {
             <Link href={customerHref("/scan")}>{pt("Quét mã truy xuất")}</Link>
           </Button>
         </div>
-        <Reveal className="relative aspect-[4/3] overflow-hidden rounded-3xl lg:aspect-[4/5]">
-          <Image src={PHOTOS.roleConsumer} alt="" fill placeholder="blur" sizes="(max-width: 1024px) 100vw, 45vw" className="object-cover" />
+        <Reveal className="relative mx-auto aspect-[3/4] w-full max-w-[440px] overflow-hidden rounded-3xl bg-brand-weak">
+          <LookupVideo />
+        </Reveal>
+      </Container>
+    </section>
+  );
+}
+
+function Contact() {
+  return (
+    <section className="pt-16">
+      <Container>
+        <Reveal className="flex flex-col gap-4 rounded-2xl border border-line bg-card p-7 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-[19px] font-semibold">{pt("Kết nối với AgriTrace")}</h2>
+            <p className="text-[15px] text-ink-2">{pt("Tư vấn triển khai truy xuất cho doanh nghiệp và chuỗi cung ứng.")}</p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-[15px]">
+            <a href={SITE_CONTACT.emailUrl} className="rounded-md border border-line px-4 py-2 font-medium text-brand hover:bg-brand-weak">
+              {SITE_CONTACT.email}
+            </a>
+            <a href={SITE_CONTACT.zaloUrl} className="rounded-md border border-line px-4 py-2 font-medium text-brand hover:bg-brand-weak">
+              Zalo {SITE_CONTACT.zaloPhone}
+            </a>
+          </div>
         </Reveal>
       </Container>
     </section>
@@ -136,11 +296,14 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <Catalog />
+      <News />
       <Audiences />
       <Process />
       <Features />
       <ConsumerGuide />
-      <FeaturedNews />
+      <Contact />
+      <CtaBand />
     </>
   );
 }

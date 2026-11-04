@@ -8,6 +8,7 @@ import { Plus, Trash2 } from "lucide-react";
 import {usePathname,useRouter} from "next/navigation";
 import DistributionSigningPage from "./chain-signing";
 import {DistributionSignature} from "./distribution-signing";
+import { PhotoInput, usePhotoUploads } from "./handover-photos";
 
 import { distApi } from "@/lib/ledger/dist-api";
 import type {Phase, PickupRequest, Transfer, TransferAction, TransferDetail, TransportMode } from "@/lib/ledger/dist-types";
@@ -38,6 +39,8 @@ const ACTION_LABEL: Record<string, string> = localized({
   PICKUP: "Ký lấy hàng",
   DELIVERY: "Ký giao hàng",
   ACTUAL_RECEIPT: "Lập biên bản thực nhận",
+  PHOTOS_PICKUP: "Chụp ảnh lấy hàng",
+  PHOTOS_DELIVERY: "Chụp ảnh giao hàng",
   CANCEL: "Hủy chặng",
   OBSERVE: "Ghi nhật ký vận chuyển",
   RETURN: "Đề nghị trả hàng",
@@ -505,6 +508,13 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                 </ul>
               </section>
               {["IN_TRANSIT", "DELIVERED"].includes(t.status) && <TransferRouteSection transferId={t.id} status={t.status} />}
+              {(t.photos?.length || t.receipt?.photos?.length) ? (
+                <section className="flex flex-col gap-1 text-[13px]">
+                  <h3 className="text-[13px] font-semibold">{tr("Ảnh xác nhận")}</h3>
+                  {(["PICKUP", "DELIVERY"] as const).map((p) => { const n = t.photos?.filter((x) => x.phase === p).length ?? 0; return n ? <p key={p}>{PHASE_LABEL[p]}: {tr("{p0} ảnh, nằm trong nội dung ký", { p0: n })}</p> : null; })}
+                  {t.receipt?.photos?.length ? <p>{tr("Biên bản thực nhận: {p0} ảnh", { p0: t.receipt.photos.length })}</p> : null}
+                </section>
+              ) : null}
               {t.observations.length > 0 && (
                 <section className="flex flex-col gap-2">
                   <h3 className="text-[13px] font-semibold">{tr("Nhật ký vận chuyển")}</h3>
@@ -536,6 +546,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
 
             {(act.target==="CONSENT"||act.target==="PICKUP"||act.target==="DELIVERY")&&<DistributionSignature transfer={t} phase={act.target} props={act.props}/>}
             {act.target === "ACTUAL_RECEIPT" && <ReceiptDialog t={t} props={act.props} invalidate={invalidate} />}
+            {(act.target === "PHOTOS_PICKUP" || act.target === "PHOTOS_DELIVERY") && <HandoverPhotosDialog t={t} phase={act.target === "PHOTOS_PICKUP" ? "PICKUP" : "DELIVERY"} props={act.props} invalidate={invalidate} />}
             {act.target === "JOIN_CHAIN" && (
               <CommandDialog {...act.props} title={tr("Chấp nhận vào chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" })} endpoint="POST /distribution/transfers/:id/join-chain" description={t.chainAccess?.ownerIsSender ? tr("Lô thuộc chuỗi của bên giao. Doanh nghiệp bạn trở thành thành viên và tài khoản của bạn được cấp vai trò ký theo năng lực; quyền ký dùng được sau khi đồng bộ sổ cái.") : tr("Doanh nghiệp bạn trở thành thành viên chuỗi của lô. Chủ chuỗi cần cấp vai trò ký cho tài khoản của bạn trước khi ký đồng thuận.")} schema={z.object({})} defaultValues={{}} version={t.version} submitLabel={tr("Chấp nhận")} invalidate={invalidate} run={(_, cmd) => distApi.joinChain(t.id, { version: t.version }, cmd)}>
                 {() => null}
@@ -593,6 +604,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
 }
 
 function ReceiptDialog({ t, props, invalidate }: { t: TransferDetail; props: { open: boolean; onOpenChange: (o: boolean) => void }; invalidate: unknown[][] }) {
+  const photos = usePhotoUploads({ entityType: "TRANSFER", entityId: t.id, kind: "TRANSFER_IMAGE", description: tr("Ảnh thực nhận") });
   const schema = z
     .object({ reason: reason10, lines: z.array(z.object({ lotId: z.string(), received: dec(), rejected: dec(), quarantined: dec() })) })
     .superRefine((v, ctx) =>
@@ -614,10 +626,15 @@ function ReceiptDialog({ t, props, invalidate }: { t: TransferDetail; props: { o
       wide
       submitLabel={tr("Lập biên bản")}
       invalidate={invalidate}
-      run={(v, cmd) => distApi.receipt(t.id, { version: t.version, reason: v.reason, lines: v.lines }, cmd)}
+      run={async (v, cmd) => {
+        const discrepancy = v.lines.some((l) => Number(l.rejected) > 0 || Number(l.quarantined) > 0 || Number(l.received) + Number(l.rejected) < Number(t.lines.find((x) => x.lotId === l.lotId)?.quantity ?? 0));
+        if (discrepancy && !photos.files.length) throw new Error(tr("Chụp ít nhất một ảnh khi nhận thiếu, từ chối hoặc cách ly hàng"));
+        return distApi.receipt(t.id, { version: t.version, reason: v.reason, lines: v.lines, photos: await photos.upload() }, cmd);
+      }}
     >
       {(f) => (
         <>
+          <PhotoInput label={tr("Ảnh hàng thực nhận (bắt buộc khi thiếu, từ chối hoặc cách ly)")} photos={photos} />
           {t.lines.map((l, i) => (
             <fieldset key={l.id} className="grid gap-2 rounded-md border border-line px-3 py-2 sm:grid-cols-3">
               <legend className="px-1 text-[12.5px] font-medium">{l.lotCode} · {tr("giao")} {fmtNumber(l.quantity)} {l.unit}</legend>
@@ -629,6 +646,31 @@ function ReceiptDialog({ t, props, invalidate }: { t: TransferDetail; props: { o
           <TextAreaField control={f.control} name="reason" label={tr("Ghi chú biên bản")} max={1000} />
         </>
       )}
+    </CommandDialog>
+  );
+}
+
+/** Pickup or delivery photos, added before anyone signs that phase so every
+ * signature covers their hashes. */
+function HandoverPhotosDialog({ t, phase, props, invalidate }: { t: TransferDetail; phase: "PICKUP" | "DELIVERY"; props: { open: boolean; onOpenChange: (o: boolean) => void }; invalidate: unknown[][] }) {
+  const photos = usePhotoUploads({ entityType: "TRANSFER", entityId: t.id, kind: "TRANSFER_IMAGE", description: phase === "PICKUP" ? tr("Ảnh lấy hàng") : tr("Ảnh giao hàng") });
+  return (
+    <CommandDialog
+      {...props}
+      title={phase === "PICKUP" ? tr("Ảnh lấy hàng") : tr("Ảnh giao hàng")}
+      endpoint="POST /distribution/transfers/:id/photos"
+      description={tr("Ảnh gắn trước khi ký; sau khi một bên đã ký bước này thì không thêm được nữa.")}
+      schema={z.object({})}
+      defaultValues={{}}
+      version={t.version}
+      submitLabel={tr("Gắn ảnh")}
+      invalidate={invalidate}
+      run={async (_v, cmd) => {
+        if (!photos.files.length) throw new Error(tr("Chọn ít nhất một ảnh"));
+        return distApi.photos(t.id, { version: t.version, phase, photos: await photos.upload() }, cmd);
+      }}
+    >
+      {() => <PhotoInput label={tr("Ảnh hàng hóa")} required photos={photos} />}
     </CommandDialog>
   );
 }

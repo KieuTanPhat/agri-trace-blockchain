@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { EnterpriseSiteInput, EnterpriseVehicleInput } from './dto.js';
 import { Transform, Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
 export class ResourceRevisionInput {
  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
  @ApiProperty({ maxLength: 1000 }) @IsString() @MinLength(10) @MaxLength(1000) reason!: string;
@@ -18,7 +18,6 @@ export class EvidenceCompletionInput {
 export class ProductInput {
  @ApiProperty({maxLength:100}) @IsString() @MinLength(2) @MaxLength(100) category!: string;
  @ApiProperty({format:'uuid'}) @IsUUID() originFarmId!: string;
- @ApiProperty({required:false,type:Number,minimum:0}) @IsOptional() @IsNumber({maxDecimalPlaces:2}) @Min(0) price?:number;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) storageConditions!:string;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) ingredients!:string;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) usageInstructions!:string;
@@ -57,7 +56,6 @@ export class MaterialInput {
  @ApiProperty({required:false,maxLength:100}) @IsOptional() @IsString() @MaxLength(100) batchCode?: string;
  @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) activeIngredient?: string;
  @ApiProperty({required:false,maxLength:100}) @ValidateIf((input:MaterialInput)=>input.kind==='SEED') @IsString() @MinLength(2) @MaxLength(100) seedType?: string;
- @ApiProperty({required:false,type:Number,minimum:0}) @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:2}) @Min(0) price?: number;
  @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) origin?: string;
  @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) manufacturer?: string;
  @ApiProperty({required:false,maxLength:2000}) @IsOptional() @IsString() @MaxLength(2000) description?: string;
@@ -75,7 +73,7 @@ export class ProductImportInput {
 export class EvidenceInput {
  @ApiProperty({required:false,format:'uuid'}) @IsOptional() @IsUUID() siteId?: string;
  @ApiProperty({enum:['PRODUCT','FARM','SITE','CYCLE','CYCLE_DRAFT','LOT','TRANSFER','MATERIAL','PROFILE','EXTERNAL_PARTNER','MEMBER','CHAIN','SITE_TRANSFER','QUARANTINE','MATERIAL_RECEIPT','PROCESSING_LOG']}) @IsIn(['PRODUCT','FARM','SITE','CYCLE','CYCLE_DRAFT','LOT','TRANSFER','MATERIAL','PROFILE','EXTERNAL_PARTNER','MEMBER','CHAIN','SITE_TRANSFER','QUARANTINE','MATERIAL_RECEIPT','PROCESSING_LOG']) entityType!: string;
- @ApiProperty({required:false,enum:['OTHER','PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE','SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','LOT_DOCUMENT','SITE_IMAGE','BUSINESS_LICENSE','TRANSFER_IMAGE','HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','PARTNERSHIP_EVIDENCE','MEMBER_AVATAR','MEMBER_DOCUMENT','CHAIN_IMAGE','QUARANTINE_IMAGE','RECEIPT_DOCUMENT','PROCESSING_IMAGE','INVOICE','PURCHASE_LIST','WEIGHING_SLIP','LAB_TEST','PRODUCT_DECLARATION']}) @IsOptional() @IsIn(['OTHER','PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE','SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','LOT_DOCUMENT','SITE_IMAGE','BUSINESS_LICENSE','TRANSFER_IMAGE','HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','PARTNERSHIP_EVIDENCE','MEMBER_AVATAR','MEMBER_DOCUMENT','CHAIN_IMAGE','QUARANTINE_IMAGE','RECEIPT_DOCUMENT','PROCESSING_IMAGE','INVOICE','PURCHASE_LIST','WEIGHING_SLIP','LAB_TEST','PRODUCT_DECLARATION']) kind?: string;
+ @ApiProperty({required:false,enum:['OTHER','PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE','SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','LOT_DOCUMENT','SITE_IMAGE','BUSINESS_LICENSE','TRANSFER_IMAGE','HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','PARTNERSHIP_EVIDENCE','MEMBER_AVATAR','MEMBER_DOCUMENT','CHAIN_IMAGE','QUARANTINE_IMAGE','RECEIPT_DOCUMENT','PROCESSING_IMAGE','INVOICE','PURCHASE_LIST','WEIGHING_SLIP','LAB_TEST','PRODUCT_DECLARATION','DAMAGE_IMAGE']}) @IsOptional() @IsIn(['OTHER','PRODUCT_IMAGE','INSPECTION_IMAGE','AREA_IMAGE','LAND_CERTIFICATE','PRODUCTION_CONTRACT','QUALITY_CERTIFICATE','CYCLE_IMAGE','MATERIAL_IMAGE','SEED_IMAGE','CERTIFICATE_IMAGE','LOT_IMAGE','LOT_DOCUMENT','SITE_IMAGE','BUSINESS_LICENSE','TRANSFER_IMAGE','HARVEST_IMAGE','CARE_IMAGE','PARTNER_LOGO','PARTNERSHIP_EVIDENCE','MEMBER_AVATAR','MEMBER_DOCUMENT','CHAIN_IMAGE','QUARANTINE_IMAGE','RECEIPT_DOCUMENT','PROCESSING_IMAGE','INVOICE','PURCHASE_LIST','WEIGHING_SLIP','LAB_TEST','PRODUCT_DECLARATION','DAMAGE_IMAGE']) kind?: string;
  @ApiProperty({format:'uuid'}) @IsUUID() entityId!: string;
  @ApiProperty({required:false,format:'uuid'}) @IsOptional() @IsUUID() supersedesId?: string;
  @ApiProperty({maxLength:1000}) @IsString() @MinLength(10) @MaxLength(1000) description!: string;

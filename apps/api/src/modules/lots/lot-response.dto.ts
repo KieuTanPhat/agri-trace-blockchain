@@ -179,7 +179,7 @@ export class ProcessingProvenanceDto {
     type: 'object',
     additionalProperties: true,
     isArray: true,
-    description: 'Nguyên liệu nhập ngoài AgriTrace, doanh nghiệp tự khai (selfDeclared = true)',
+    description: 'Hàng hoặc nguyên liệu nhập ngoài AgriTrace, bên nhận khai từ chứng từ (selfDeclared = true); trust: SUPPLIER_CONFIRMED | EVIDENCED; matchedOrigin: lô AgriTrace mà mã lô nhà cung cấp khớp, hoặc null',
   })
   externalInputs!: Record<string, unknown>[];
   @ApiProperty({

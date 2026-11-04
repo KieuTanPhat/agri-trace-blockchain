@@ -23,7 +23,7 @@ import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
 import { assertPartnerSlot, partnerHasWork } from './chain-membership-rules.js';
-import { createPartnerInvitation, type PartnerInvitationInput } from './partner-invitations.js';
+import { createPartnerInvitation, listPartnerInvitations, type PartnerInvitationInput } from './partner-invitations.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -32,6 +32,9 @@ import {
   requestLedgerGrant,
   requestLedgerRevoke,
 } from '../ledger/ledger-permissions.js';
+
+/** Chain roles the member permission groups own (enterprise-workspace assign). */
+const MEMBER_GROUP_ROLES: string[] = ['FARM_STAFF', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'];
 
 @Injectable()
 export class SupplyChainsService {
@@ -530,6 +533,9 @@ export class SupplyChainsService {
       return result;
     });
   }
+  invitations(actor: CommandActor, chainId: string) {
+    return listPartnerInvitations(this.prisma, actor, chainId);
+  }
   inviteByLink(actor: CommandActor, chainId: string, input: PartnerInvitationInput) {
     return this.transaction((tx) => createPartnerInvitation(tx, actor, chainId, input));
   }
@@ -701,6 +707,10 @@ export class SupplyChainsService {
         });
         if (member?.status !== 'ACTIVE')
           throw new ForbiddenException('Tổ chức chưa là thành viên hoạt động');
+        // Business roles follow the member's permission groups, which rebuild
+        // them on every save; a direct grant would be silently dropped.
+        if (MEMBER_GROUP_ROLES.includes(input.role))
+          throw new ForbiddenException('Vai trò nghiệp vụ được cấp qua nhóm quyền của thành viên');
         const capability =
           BUSINESS_CAPABILITIES[
             input.role as keyof typeof BUSINESS_CAPABILITIES
@@ -777,13 +787,6 @@ export class SupplyChainsService {
         grant.chainId !== (chainId ?? null)
       )
         throw new NotFoundException('Không tìm thấy quyền');
-      if (
-        actor.role !== 'SYSTEM_ADMIN' &&
-        !['FARM_STAFF', 'TRANSPORTER', 'RETAILER'].includes(grant.role)
-      )
-        throw new ForbiddenException(
-          'Org admin không thu hồi quyền nền tảng cấp',
-        );
       if (grant.revision !== version || grant.revokedAt)
         throw new ConflictException('Quyền đã thay đổi');
       const result = await tx.scopedRoleGrant.update({

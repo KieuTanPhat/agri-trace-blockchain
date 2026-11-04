@@ -141,6 +141,8 @@ export class HoldingDispositionInput extends TransferLineInput {
   @MinLength(1)
   @MaxLength(100)
   documentNo?: string;
+  @ApiProperty({ required: false, type: String, format: 'uuid', isArray: true, description: 'Up to 6 LOT DAMAGE_IMAGE evidence; required for DAMAGE' })
+  @IsOptional() @IsArray() @ArrayMaxSize(6) @IsUUID('4', { each: true }) photos?: string[];
 }
 export class SiteAllocationInput extends TransferLineInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() siteId!: string;
@@ -156,6 +158,8 @@ export class QuarantineInput extends SiteAllocationInput {
   @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) note?: string;
   @ApiProperty({ required: false, format: 'uuid', description: 'Quarantine slip being released' })
   @IsOptional() @IsUUID() quarantineCaseId?: string;
+  @ApiProperty({ required: false, type: String, format: 'uuid', isArray: true, description: 'Up to 6 LOT DAMAGE_IMAGE evidence of the goods put on hold' })
+  @IsOptional() @IsArray() @ArrayMaxSize(6) @IsUUID('4', { each: true }) photos?: string[];
 }
 export class SiteTransferInput extends TransferLineInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() fromSiteId!: string;
@@ -190,6 +194,13 @@ export class ActualReceiptLine {
 export class ActualReceiptInput extends TransferVersion {
   @ApiProperty({ type: ActualReceiptLine, isArray: true }) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => ActualReceiptLine) lines!: ActualReceiptLine[];
   @ApiProperty({ maxLength: 1000 }) @IsString() @MinLength(10) @MaxLength(1000) reason!: string;
+  @ApiProperty({ required: false, type: String, format: 'uuid', isArray: true, description: 'Up to 6 receiver TRANSFER_IMAGE evidence; required when a line is short, rejected or quarantined' })
+  @IsOptional() @IsArray() @ArrayMaxSize(6) @IsUUID('4', { each: true }) photos?: string[];
+}
+export class HandoverPhotosInput extends TransferVersion {
+  @ApiProperty({ enum: ['PICKUP', 'DELIVERY'] }) @IsIn(['PICKUP', 'DELIVERY']) phase!: 'PICKUP' | 'DELIVERY';
+  @ApiProperty({ type: String, format: 'uuid', isArray: true, description: '1 to 6 TRANSFER_IMAGE evidence of the signing party, fixed before the phase is signed' })
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(6) @IsUUID('4', { each: true }) photos!: string[];
 }
 export class ReturnInput extends TransferVersion {
   @ApiProperty({ type: TransferLineInput, isArray: true }) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => TransferLineInput) lines!: TransferLineInput[];
@@ -247,6 +258,9 @@ export class TransferSignature extends TransferVersion {
   @ApiProperty({ description: 'Ed25519 signature of the canonical challenge' })
   @Matches(/^[A-Za-z0-9_-]{86}$/)
   signature!: string;
+}
+export class DeviceKeyCodeInput {
+  @ApiProperty({ pattern: '^[0-9]{6}$', description: 'Code emailed to the account owner' }) @Matches(/^[0-9]{6}$/) code!: string;
 }
 export class TransferKeyInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() id!: string;

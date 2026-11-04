@@ -50,10 +50,33 @@ hiển thị số dòng hàng thay vì cộng kg, lít hoặc đơn vị khác t
 nơi giao/nhận và đơn vị tham gia. Danh sách/chi tiết tải lại khi quay về màn hình;
 lỗi đọc có thử lại. Chỉ chữ ký cùng `attestationEpoch` hiện hành được hiển thị,
 không suy ra đủ chữ ký từ trạng thái DELIVERED và không coi metadata API là proof
-Fabric. Ký thật vẫn thực hiện trên Web với khóa tổ chức; mobile không tạo chữ ký
-giả hoặc hạ cấp bàn giao. Test presentation và Web recovery:
-`npm test --workspace apps/web -- src/lib/mobile-transfers.spec.ts
-src/features/ledger/workspace/distribution-signing.spec.tsx`.
+Fabric.
+
+App nhân viên ký bàn giao bằng khóa Ed25519 giữ trên điện thoại
+(`expo-secure-store`, chỉ máy này). Chuỗi STANDARD dùng khóa cá nhân: lần đầu
+đăng nhập trên máy, app tự sinh khóa và gửi khóa công khai cùng bằng chứng sở hữu
+tới `POST /distribution/device-keys`; khóa ở `PENDING` cho tới khi chủ tài khoản
+nhập mã 6 số gửi tới email tài khoản (`/verify`, sai 5 lần thì gửi lại mã). Khóa cá
+nhân chỉ ký cho chính chủ, bị thu hồi khi khóa tài khoản. Chuỗi DUAL_SIGNED vẫn cần
+khóa chuỗi do quản trị tạo ở `/staff/signing` và sổ cái kích hoạt. Web làm như app: trình
+duyệt tự sinh khóa không xuất được ở trang chủ doanh nghiệp và
+`/enterprise/signing`, chờ mã email rồi mới ký; tài khoản cấp 1 thu hồi khóa ở
+`/enterprise/signing`. API vẫn kiểm `distribution.sign`. Chi tiết chuỗi là trang
+riêng `/supply-chains/:id/(members|roles|plans|signing|ledger)`; tab Nhân viên chỉ
+đọc, giao chuỗi cho nhân viên làm ở nhóm quyền thành viên. Trước khi ký, app tự tính lại
+snapshot, digest và intent như Web, từ chối khi khác lô, lượng, phiên bản hoặc
+bên ký đang hiển thị. Prepare/submit/receipt/photos đi qua hàng đợi lệnh và đối
+soát bằng đúng key cũ. Biên bản thực nhận trên app ghi thực nhận, từ chối, cách ly
+kèm ảnh; trả hàng làm trên Web. Ảnh lấy/giao hàng gắn trước khi ký, app kiểm lại
+`photosDigest` từ danh sách ảnh trước khi ký. Màn hình lô có báo hư hỏng (bắt buộc
+ảnh) và cách ly. Tài khoản phải đổi mật khẩu được chuyển tới `/staff/password`
+trước mọi màn hình khác. Test: `node --import tsx --test
+apps/mobile/test/signing.test.ts` kiểm chữ ký và mã băm ảnh mobile bằng mã của API.
+
+Tab nhân viên theo năng lực: Trang chủ, tối đa hai tab vai trò (Nhật ký cho sản
+xuất, Chờ nhận cho chế biến/vận chuyển/phân phối/bán lẻ, Bán hàng cho bán lẻ,
+Chuyến hàng), Thêm. Màn hình còn lại mở từ Thêm. Web có cùng hàng đợi ở
+`/enterprise/inbound` và `/enterprise/sales` (chỉ bán lẻ).
 
 ### ACheck: xác minh điện thoại trên bản development
 

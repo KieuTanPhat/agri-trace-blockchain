@@ -44,7 +44,7 @@ export const wapi = {
   withdrawAmendment: (id: string, input: S["ProfileVersionInput"], cmd: LedgerCommandContext) => post(root + "/profile/amendments/" + encodeURIComponent(id) + "/withdraw", input, cmd),
   evidence: (subject: { entityType: string; entityId: string; siteId?: string }) => items<V.Evidence>(root + "/evidence?" + new URLSearchParams(Object.entries(subject).filter(([, value]) => !!value))),
   evidenceContent: (id: string) => ledgerRequest<S["EvidenceContentDto"]>(root + "/evidence/" + encodeURIComponent(id) + "/content"),
-  uploadEvidence: (input: { file: File; entityType: string; entityId: string; kind: string; description: string; supersedesId?: string }, cmd: LedgerCommandContext) => {
+  uploadEvidence: (input: { file: File; entityType: string; entityId: string; kind: string; description: string; supersedesId?: string; siteId?: string }, cmd: LedgerCommandContext) => {
     const body = new FormData();
     body.set("file", input.file);
     for (const [key, value] of Object.entries(input)) if (key !== "file" && typeof value === "string" && value) body.set(key, value);

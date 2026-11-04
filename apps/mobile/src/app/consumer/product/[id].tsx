@@ -7,7 +7,7 @@ import {api,type Schemas} from '../../../api/client';
 import {DirectoryPhoto,DirectoryEnterpriseCard,DirectoryProductCard} from '../../../components/DirectoryCards';
 import {Icon} from '../../../components/Icon';
 import {Empty,GreenHeader,Loading,Notice,T} from '../../../components/ui';
-import {directoryColor as dc,money,loadDirectory,type DirectoryProduct} from '../../../lib/directory';
+import {directoryColor as dc,loadDirectory,type DirectoryProduct} from '../../../lib/directory';
 import {date} from '../../../lib/format';
 import {useLoad,useReloadOnFocus} from '../../../lib/useApi';
 import {LOT_STATE} from '../../../lib/labels';
@@ -39,7 +39,7 @@ function ProductDetail({id}:{id:string}){
       <T size={21} weight="bold" c={dc.ink}>{data.productName}</T>
       <T size={14} weight="bold" c={data.saleStatus==='SELLING'?'#38894c':'#8c969d'}>{data.saleStatus==='SELLING'?'Đang bán':'Chưa bán'}</T>
       {data.category&&<T size={14} c="#66717a">Danh mục: <T size={14} c={dc.blue}>{data.category}</T></T>}
-      <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'baseline',gap:10}}><T size={24} weight="bold" c={dc.red}>{money(data.price)}{data.price&&<T size={14} c="#8a959d"> / {data.defaultUnit??'đơn vị'}</T>}</T><T size={12.5} c="#7b858c">{data.traceCount} lô truy xuất</T></View>
+      <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'baseline',gap:10}}><T size={12.5} c="#7b858c">{data.traceCount} lô truy xuất</T></View>
       <T size={11.5} c="#8a959d">Giá tham khảo theo đơn vị sản phẩm</T>
       <View style={{flexDirection:'row',alignItems:'center',gap:6,paddingTop:7,borderTopWidth:1,borderColor:dc.line}}><Icon name="location" size={15} color={dc.blue}/><T size={13} c="#71808b">{data.province??'Nguồn gốc theo từng lô hàng'}</T></View>
     </View>

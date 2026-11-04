@@ -28,8 +28,12 @@ export async function signDistributionReturn(record: { transferId: unknown; line
   if (!key || key.organizationId !== body.organizationId) throw new Error('Thiết bị chưa có khóa ký của tổ chức');
   return toBase64Url(new Uint8Array(await crypto.subtle.sign('Ed25519',key.privateKey,message('agritrace:distribution-return:1',body))));
 }
-export async function generateDistributionKey(
+/** Key-store scope of a member's personal key on this browser. */
+export const deviceScope = (userId: string) => `device:${userId}`;
+/** The signed-in member's personal handover key, generated non-extractable here. */
+export async function generateDeviceKey(
   organizationId: string,
+  userId: string,
   label: string,
 ) {
   const pair = (await crypto.subtle.generateKey({ name: "Ed25519" }, false, [
@@ -56,7 +60,7 @@ export async function generateDistributionKey(
   await distributionKeyStore.put({
     id,
     organizationId,
-    chainId: "distribution",
+    chainId: deviceScope(userId),
     label,
     publicKey,
     privateKey: pair.privateKey,

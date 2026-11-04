@@ -72,10 +72,17 @@ export class PublicEnterprisesQueryDto extends PublicDirectoryQueryDto {
   type?: PublicEnterpiseType;
 }
 
+/** The owning organization; its name already appears on every public trace of its lots. */
+export class PublicProductEnterpriseDto {
+  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String }) name!: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Only an explicitly published logo.' }) logoUrl!: string | null;
+}
+
 export class PublicDirectoryProductDto {
+  @ApiProperty({ type: PublicProductEnterpriseDto, nullable: true }) enterprise!: PublicProductEnterpriseDto | null;
   @ApiProperty({enum:['SELLING','NOT_SELLING'],description:'SELLING when any active retailer holds saleable stock in an eligible lot.'}) saleStatus!:'SELLING'|'NOT_SELLING';
   @ApiProperty({type:String,nullable:true,description:'Only an explicitly published product image.'}) imageUrl!:string|null;
-  @ApiProperty({type:String,nullable:true,description:'Published indicative price in VND per defaultUnit; not a checkout price.'}) price!:string|null;
   @ApiProperty({type:String,nullable:true}) category!:string|null;
   @ApiProperty({type:String,nullable:true}) province!:string|null;
   @ApiProperty({type:String,nullable:true}) gtin!:string|null;

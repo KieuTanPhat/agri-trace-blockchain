@@ -1,7 +1,10 @@
 import {cleanup,render,screen} from "@testing-library/react";
 import {afterEach,expect,it,vi} from "vitest";
-import Home from "@/features/ledger/public/home";
+import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
+import HomePage from "@/features/ledger/public/home";
 import {SITE_CONTACT} from "@/lib/site-contact";
+// Directory sections stay hidden while the public API returns nothing.
+const Home=()=><QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false,enabled:false}}})}><HomePage/></QueryClientProvider>;
 vi.mock("next/navigation",()=>({useRouter:()=>({push:vi.fn()})}));
 vi.mock("next/image",()=>({default:({alt}:{alt:string})=><span role="img" aria-label={alt}/>}));
 afterEach(cleanup);
@@ -19,6 +22,6 @@ it("keeps the shared email and Zalo contact destinations",()=>{
  expect(hrefs).toContain(SITE_CONTACT.emailUrl);expect(hrefs).toContain(SITE_CONTACT.zaloUrl);
 });
 it("describes public trace and separates ledger evidence from warnings and certificates",()=>{
- const {container}=render(<Home/>);expect(container.textContent).toContain("Trạng thái sổ cái, cảnh báo và chứng nhận được trình bày riêng.");
+ const {container}=render(<Home/>);expect(container.textContent).toContain("Dữ liệu đã ghi không sửa được; cảnh báo và chứng nhận hiện riêng, rõ ràng.");
  expect(container.textContent).not.toMatch(/Dữ liệu nghiệp vụ được ký số|Chữ ký số của tổ chức/);
 });

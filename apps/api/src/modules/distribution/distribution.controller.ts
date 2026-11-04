@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -9,7 +10,10 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { WRONG_CODE } from './device-keys.js';
+import { createHash } from 'node:crypto';
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
@@ -30,7 +34,7 @@ import {
   TraceNoticeInput,
   HoldingDispositionInput,
   DistributionOptionsDto,
-  SiteAllocationInput, QuarantineInput, ActualReceiptInput, ReturnInput, ReturnSignatureInput,
+  SiteAllocationInput, QuarantineInput, ActualReceiptInput, HandoverPhotosInput, DeviceKeyCodeInput, ReturnInput, ReturnSignatureInput,
   DistributionC2Prepare,DistributionC2Submit,
   ConsentRenewInput,
   DistributionReportQuery,
@@ -98,6 +102,10 @@ export class DistributionController {
   @Post('quarantine') @ApiHeader({ name: 'Idempotency-Key', required: true }) @ApiDataResponse(WorkspaceRecordDto, 201)
   quarantine(@Req() req: AuthenticatedRequest, @Body() dto: QuarantineInput, @IdempotencyKey() key: string) {
     return this.run(req,key,'EW_QUARANTINE',dto,() => this.service.quarantine(req.user,dto));
+  }
+  @Post('transfers/:id/photos') @ApiHeader({ name: 'Idempotency-Key', required: true }) @ApiDataResponse(WorkspaceRecordDto, 201)
+  photos(@Req() req: AuthenticatedRequest, @Param('id',ParseUUIDPipe) id: string, @Body() dto: HandoverPhotosInput, @IdempotencyKey() key: string) {
+    return this.run(req,key,'DIST_PHOTOS',{id,...dto},() => this.service.attachHandoverPhotos(req.user,id,dto));
   }
   @Post('transfers/:id/receipt') @ApiHeader({ name: 'Idempotency-Key', required: true }) @ApiDataResponse(WorkspaceRecordDto, 201)
   receipt(@Req() req: AuthenticatedRequest, @Param('id',ParseUUIDPipe) id: string, @Body() dto: ActualReceiptInput, @IdempotencyKey() key: string) {
@@ -222,17 +230,28 @@ export class DistributionController {
       this.service.cancel(req.user, id, dto),
     );
   }
-  @Post('keys')
+  @Post('device-keys')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @ApiDataResponse(WorkspaceRecordDto, 201)
-  key(
-    @Req() req: AuthenticatedRequest,
-    @Body() dto: TransferKeyInput,
-    @IdempotencyKey() key: string,
-  ) {
-    return this.run(req, key, 'EW_REGISTER_DISTRIBUTION_KEY', dto, () =>
-      this.service.registerKey(req.user, dto),
-    );
+  @ApiOperation({ summary: 'Register a personal device key; it signs after the emailed code is confirmed' })
+  deviceKey(@Req() req: AuthenticatedRequest, @Body() dto: TransferKeyInput, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'EW_DEVICE_KEY_REQUEST', dto, () => this.service.requestDeviceKey(req.user, dto));
+  }
+  @Post('device-keys/:id/resend')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  resendDeviceKey(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'EW_DEVICE_KEY_RESEND', { id }, () => this.service.resendDeviceKey(req.user, id));
+  }
+  @Post('device-keys/:id/verify')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  async verifyDeviceKey(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: DeviceKeyCodeInput, @IdempotencyKey() key: string) {
+    // The journal keeps a hash of the code, never the code itself.
+    const result = (await this.run(req, key, 'EW_DEVICE_KEY_VERIFY', { id, code: createHash('sha256').update(dto.code).digest('hex') }, () => this.service.verifyDeviceKey(req.user, id, dto.code))) as { record: { verified: boolean } };
+    if (!result.record.verified) throw new BadRequestException(WRONG_CODE);
+    return result;
   }
   @Post('keys/:id/revoke')
   @ApiHeader({ name: 'Idempotency-Key', required: true })

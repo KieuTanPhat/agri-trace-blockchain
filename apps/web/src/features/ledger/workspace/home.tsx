@@ -14,6 +14,7 @@ import { cn } from "@/lib/ledger/utils";
 
 import { t as tr } from "@/lib/ledger/i18n";
 import { RoleDesk } from "./role-desk";
+import { DeviceKeyCard } from "./device-key";
 export default function WorkspaceHome() {
   const o = useOverview();
   const { can, primary, access } = useWorkspaceAccess();
@@ -41,6 +42,8 @@ export default function WorkspaceHome() {
         }
       />
       <PageBody>
+        {/* The personal signing key is created here on first sign-in; only its emailed code is asked. */}
+        <DeviceKeyCard quiet />
         <RoleDesk />
         <StatRow>
           <Stat label={tr("Thành viên bạn quản lý")} value={perms.has("members.read") ? d.counts.members : "—"} href={perms.has("members.read") ? "/enterprise/members" : undefined} />

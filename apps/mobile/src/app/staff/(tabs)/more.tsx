@@ -4,8 +4,9 @@ import { Pressable, ScrollView, View } from 'react-native';
 import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
 import { Icon, type IconName } from '../../../components/Icon';
-import { Card, GreenHeader, initialOf, Notice, T } from '../../../components/ui';
+import { Card, GreenHeader, initialOf, T } from '../../../components/ui';
 import { readQueue } from '../../../lib/queue';
+import { useAccess } from '../../../lib/access';
 import { color } from '../../../theme/tokens';
 
 function Item({ icon, tint, label, onPress, right, danger }: { icon: IconName; tint: string; label: string; onPress: () => void; right?: ReactNode; danger?: boolean }) {
@@ -23,6 +24,8 @@ function Item({ icon, tint, label, onPress, right, danger }: { icon: IconName; t
 export default function More() {
   const { user, signOut } = useSession<Schemas['AuthUserDto']>();
   const [pending, setPending] = useState(0);
+  const { has } = useAccess();
+  const downstream = ['PROCESSOR', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'].some(has);
   useFocusEffect(
     useCallback(() => {
       setPending(0);
@@ -50,14 +53,17 @@ export default function More() {
         </View>
       </View>
       <View style={{ padding: 16, gap: 12 }}>
-        {user?.mustChangePassword && <Notice kind="warn" title="Cần đổi mật khẩu" body="Đổi mật khẩu trên AgriTrace Web trước khi ghi nghiệp vụ." />}
         <Card style={{ paddingVertical: 6 }}>
           <T size={16.5} weight="heavy" style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
             Công việc
           </T>
-          <Item icon="leaf" tint={color.green} label="Mùa vụ được giao" onPress={() => router.push('/staff/journal')} />
+          {has('FARM') && <Item icon="leaf" tint={color.green} label="Mùa vụ được giao" onPress={() => router.push('/staff/journal')} />}
+          {downstream && <Item icon="box" tint={color.orangeDeep} label="Hàng chờ nhận" onPress={() => router.push('/staff/inbound')} />}
+          {has('RETAILER') && <Item icon="store" tint={color.green} label="Bán hàng" onPress={() => router.push('/staff/sales')} />}
           <Item icon="scan" tint={color.blue} label="Quét mã lô" onPress={() => router.push('/staff/scan')} />
           <Item icon="truck" tint={color.blue} label="Chuyến hàng" onPress={() => router.push('/staff/transfers')} />
+          <Item icon="lock" tint={color.inkSoft} label="Khóa ký trên điện thoại" onPress={() => router.push('/staff/signing')} />
+          <Item icon="lock" tint={color.orangeDeep} label="Đổi mật khẩu" onPress={() => router.push('/staff/password')} />
         </Card>
         <Card style={{ paddingVertical: 6 }}>
           <T size={16.5} weight="heavy" style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
