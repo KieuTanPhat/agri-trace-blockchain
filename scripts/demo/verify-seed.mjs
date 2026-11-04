@@ -101,8 +101,6 @@ try {
     "blockchainOutbox",
     "blockchainProof",
     "commandCommit",
-    "supportTicket",
-    "supportMessage",
     "platformCase",
     "platformPrivacyTicket",
     "invoice",
@@ -378,7 +376,6 @@ try {
     ["shipment", "status"],
     ["distributionTransfer", "status"],
     ["processingRun", "status"],
-    ["supportTicket", "status"],
     ["enterpriseEnrollment", "status"],
   ])
     states[model] = await db[model].groupBy({ by: [field], _count: true });

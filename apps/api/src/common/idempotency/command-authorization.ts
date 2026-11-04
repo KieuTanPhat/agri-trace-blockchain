@@ -286,9 +286,6 @@ export async function authorizeCommand(
     case 'PLATFORM_REFERENCE_UPSERT':
       requireRole(actor, ['SYSTEM_ADMIN']);
       break;
-    case 'PLATFORM_TICKET_ASSIGN':
-    case 'PLATFORM_TICKET_REPLY':
-    case 'PLATFORM_TICKET_CLOSE':
     case 'PLATFORM_REPORT_TRIAGE':
       requireRole(actor, ['SYSTEM_ADMIN']);
       break;

@@ -3,7 +3,6 @@ import {ledgerRequest} from "./request";
 import {wapi as workspace} from "./workspace-api";
 import type {LedgerCommandContext} from "./command-context";
 import type {Partner,ExternalPartner,PartnerSearchItem,Billing,MessageList,MessageThread} from "./coordination-types";
-import type {Ticket} from "./support-api";
 type S=components["schemas"];
 const items=async<T,>(p:string)=>(await ledgerRequest<{items:T[]}>(p)).items;
 const post=<T=unknown,>(path:string,body:unknown,cmd:LedgerCommandContext)=>ledgerRequest<T>(path,{method:"POST",headers:{"Idempotency-Key":cmd.idempotencyKey},body:JSON.stringify(body)});
@@ -17,8 +16,6 @@ export const wapi={...workspace,
  createExternalPartner:(input:S["EnterpriseExternalPartnerInput"],cmd:LedgerCommandContext)=>post("/enterprise-workspace/partners/external",input,cmd),
  billing:()=>ledgerRequest<Billing>("/enterprise-billing"),renew:(input:S["EnterpriseRenewalInput"],cmd:LedgerCommandContext)=>post("/enterprise-billing/renewals",input,cmd),
  paySimulated:(id:string,input:{version:number},cmd:LedgerCommandContext)=>post(`/enterprise-billing/invoices/${encodeURIComponent(id)}/payment-simulation`,input,cmd),
- tickets:()=>items<Ticket>("/enterprise-support/tickets"),createTicket:(input:S["TicketCreateInput"],cmd:LedgerCommandContext)=>post("/enterprise-support/tickets",input,cmd),
- replyTicket:(id:string,input:Pick<S["TicketReplyInput"],"body"|"version">,cmd:LedgerCommandContext)=>post(`/enterprise-support/tickets/${encodeURIComponent(id)}/reply`,input,cmd),
  messages:()=>ledgerRequest<MessageList>("/enterprise-messages"),message:async(id:string)=>(await ledgerRequest<{record:MessageThread}>("/enterprise-messages/"+encodeURIComponent(id))).record,
  sendMessage:async(input:S["MessageThreadInput"],cmd:LedgerCommandContext)=>(await post<{record:{recipients:number}}>("/enterprise-messages",input,cmd)).record,
  readMessage:(id:string,cmd:LedgerCommandContext)=>post(`/enterprise-messages/${encodeURIComponent(id)}/read`,{},cmd),replyMessage:(id:string,input:S["MessageReplyInput"],cmd:LedgerCommandContext)=>post(`/enterprise-messages/${encodeURIComponent(id)}/replies`,input,cmd),

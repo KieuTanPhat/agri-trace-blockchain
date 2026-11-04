@@ -93,7 +93,7 @@ try {
       ['O01Staff1',[['/production-cycles','staff-cycles']]],['O13',[['/production-cycles','auditor-cycles']]],
       ['O13Staff1',[['/production-cycles','reviewer-cycles'],['/compliance','reviewer-compliance']]],
       ['admin',[['/admin','platform-dashboard'],['/admin/enterprises','platform-enterprises'],['/admin/lots','platform-lots'],['/admin/ledger','platform-ledger'],['/admin/cases','platform-cases']]],
-      ['operator',[['/admin/operations','operator-health']]],['cases',[['/admin/support','case-support']]],['privacy',[['/admin/privacy','privacy-requests']]],
+      ['operator',[['/admin/operations','operator-health']]],['cases',[['/admin/cases','case-list']]],['privacy',[['/admin/privacy','privacy-requests']]],
       ['O17',[['/enterprise/profile','enrollment-pending']]],['O18',[['/enterprise/profile','enrollment-rejected']]],
     ]) {
       const state=await session(key);for(const [path,label]of pages)await inspect(state,path,label);await state.context.close();

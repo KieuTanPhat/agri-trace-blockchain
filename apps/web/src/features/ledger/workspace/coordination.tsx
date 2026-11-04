@@ -61,11 +61,10 @@ export function OnboardingPage() {
         <div className="flex flex-wrap gap-4 text-sm text-brand">
           <Link href="/enterprise/service">{tr("Dịch vụ")}</Link>
           <Link href="/supply-chains">{tr("Kết nối")}</Link>
-          <Link href="/enterprise/support">{tr("Liên hệ hỗ trợ")}</Link>
         </div>
       </PageBody>
       {r.status === "APPROVED" && <ProfilePage />}
     </>
   );
 }
-export function HelpPage(){return <><PageHeader title={tr("Trung tâm trợ giúp")} description={tr("Hướng dẫn vận hành doanh nghiệp và kênh hỗ trợ AgriTrace.")}/><PageBody><Section title={tr("Bắt đầu")} bodyClassName="flex flex-col gap-3 p-4 text-sm">{[["/enterprise/onboarding",tr("Hồ sơ đăng ký & điều chỉnh")],["/enterprise/members",tr("Thành viên & phân quyền")],["/enterprise/products",tr("Sản phẩm & chứng cứ")],["/supply-chains",tr("Kết nối chuỗi")],["/enterprise/support/new",tr("Gửi yêu cầu hỗ trợ")]].map(([href,label])=><Link key={href} href={href} className="text-brand underline">{label}</Link>)}</Section><Callout>{tr("Khi chưa rõ kết quả lệnh, dùng Đối soát và giữ nguyên yêu cầu đang chờ.")}</Callout></PageBody></>;}
+export function HelpPage(){return <><PageHeader title={tr("Trung tâm trợ giúp")} description={tr("Hướng dẫn vận hành doanh nghiệp trên AgriTrace.")}/><PageBody><Section title={tr("Bắt đầu")} bodyClassName="flex flex-col gap-3 p-4 text-sm">{[["/enterprise/onboarding",tr("Hồ sơ đăng ký & điều chỉnh")],["/enterprise/members",tr("Thành viên & phân quyền")],["/enterprise/products",tr("Sản phẩm & chứng cứ")],["/supply-chains",tr("Kết nối chuỗi")]].map(([href,label])=><Link key={href} href={href} className="text-brand underline">{label}</Link>)}</Section><Callout>{tr("Khi chưa rõ kết quả lệnh, dùng Đối soát và giữ nguyên yêu cầu đang chờ.")}</Callout></PageBody></>;}

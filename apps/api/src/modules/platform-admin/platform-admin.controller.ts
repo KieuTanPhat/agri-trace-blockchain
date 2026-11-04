@@ -42,11 +42,6 @@ import {
   ReportReceiptDto,
   ReportTriageInput,
   SettingChangeInput,
-  TicketAssignInput,
-  TicketCloseInput,
-  TicketCreateInput,
-  TicketQuery,
-  TicketReplyInput,
   TraceReportQuery,
   VersionReasonInput,
 } from './platform-admin.dto.js';
@@ -195,27 +190,6 @@ export class PlatformAdminController extends Commands {
     return this.command(req, key, 'PLATFORM_REFERENCE_UPSERT', input, () => this.support.upsertReference(req.user, input));
   }
 
-  @Roles('SYSTEM_ADMIN', 'AUDITOR') @Get('tickets') @ApiDataResponse(AdminListDto)
-  tickets(@Query() query: TicketQuery) { return this.support.tickets(query); }
-
-  @Roles('SYSTEM_ADMIN') @Get('support-staff') @ApiDataResponse(AdminListDto)
-  staff() { return this.support.staff(); }
-
-  @Roles('SYSTEM_ADMIN') @Post('tickets/:id/assign') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
-  assign(@Param('id', ParseUUIDPipe) id: string, @Body() input: TicketAssignInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
-    return this.command(req, key, 'PLATFORM_TICKET_ASSIGN', { ...input, id }, () => this.support.assignTicket(req.user, id, input));
-  }
-
-  @Roles('SYSTEM_ADMIN') @Post('tickets/:id/reply') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
-  reply(@Param('id', ParseUUIDPipe) id: string, @Body() input: TicketReplyInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
-    return this.command(req, key, 'PLATFORM_TICKET_REPLY', { ...input, id }, () => this.support.replyAsPlatform(req.user, id, input));
-  }
-
-  @Roles('SYSTEM_ADMIN') @Post('tickets/:id/close') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
-  close(@Param('id', ParseUUIDPipe) id: string, @Body() input: TicketCloseInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
-    return this.command(req, key, 'PLATFORM_TICKET_CLOSE', { ...input, id }, () => this.support.closeTicket(req.user, id, input));
-  }
-
   @Roles('SYSTEM_ADMIN', 'AUDITOR') @Get('consumer-reports') @ApiDataResponse(AdminListDto)
   reports(@Query() query: ReportQuery, @Req() req: AuthenticatedRequest) {
     return this.support.reports(query, req.user.role === 'SYSTEM_ADMIN');
@@ -224,28 +198,6 @@ export class PlatformAdminController extends Commands {
   @Roles('SYSTEM_ADMIN') @Post('consumer-reports/:id/triage') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
   triage(@Param('id', ParseUUIDPipe) id: string, @Body() input: ReportTriageInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
     return this.command(req, key, 'PLATFORM_REPORT_TRIAGE', { ...input, id }, () => this.support.triageReport(req.user, id, input));
-  }
-}
-
-@ApiTags('enterprise-support')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
-@Controller('enterprise-support')
-export class EnterpriseSupportController extends Commands {
-  constructor(private readonly support: SupportService, idem: IdempotencyService) {
-    super(idem);
-  }
-  @Get('tickets') @ApiDataResponse(AdminListDto)
-  mine(@Req() req: AuthenticatedRequest) { return this.support.myTickets(req.user); }
-
-  @Post('tickets') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
-  create(@Body() input: TicketCreateInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
-    return this.command(req, key, 'EW_TICKET_CREATE', input, () => this.support.createTicket(req.user, input));
-  }
-
-  @Post('tickets/:id/reply') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
-  reply(@Param('id', ParseUUIDPipe) id: string, @Body() input: TicketReplyInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
-    return this.command(req, key, 'EW_TICKET_REPLY', { ...input, id }, () => this.support.replyAsEnterprise(req.user, id, input));
   }
 }
 

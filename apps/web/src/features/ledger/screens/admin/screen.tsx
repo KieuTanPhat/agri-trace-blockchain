@@ -340,9 +340,6 @@ function Overview() {
                         <th className="px-3 text-right font-semibold">
                           {tr("Lượt quét")}
                         </th>
-                        <th className="px-3 text-right font-semibold">
-                          {tr("Hỗ trợ")}
-                        </th>
                         <th className="px-4 text-right font-semibold">
                           {tr("Doanh thu thật")}
                         </th>
@@ -363,7 +360,6 @@ function Overview() {
                           <td className="px-3 text-right">
                             {fmtNumber(m.scans)}
                           </td>
-                          <td className="px-3 text-right">{m.tickets}</td>
                           <td className="px-4 text-right">
                             {fmtMoney(m.revenue)}
                           </td>

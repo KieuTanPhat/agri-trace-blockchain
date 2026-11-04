@@ -22,10 +22,8 @@ const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
 export const NOTICE_AUDIENCES = ['ALL', 'PLATFORM', 'ENTERPRISE', 'FARM', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] as const;
-export const TICKET_CATEGORIES = ['ACCOUNT', 'BILLING', 'TECHNICAL', 'TRACEABILITY', 'BLOCKCHAIN', 'PROCESSING', 'OTHER'] as const;
-export const TICKET_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
 export const REPORT_CATEGORIES = ['COUNTERFEIT', 'WRONG_INFORMATION', 'QUALITY', 'SAFETY', 'EXPIRED', 'OTHER'] as const;
-export const REFERENCE_CATEGORIES = ['UNIT', 'PRODUCT_CATEGORY', 'CERTIFICATE_TYPE', 'LOSS_REASON', 'PROCESSING_TYPE', 'TICKET_CATEGORY', 'VEHICLE_TYPE'] as const;
+export const REFERENCE_CATEGORIES = ['UNIT', 'PRODUCT_CATEGORY', 'CERTIFICATE_TYPE', 'LOSS_REASON', 'PROCESSING_TYPE', 'VEHICLE_TYPE'] as const;
 
 export class ReasonInput {
   @ApiProperty({ minLength: 10, maxLength: 1000 })
@@ -126,33 +124,6 @@ export class NoticeInput {
   @ApiProperty({ format: 'date-time' }) @IsDateString() endsAt!: string;
 }
 
-export class TicketCreateInput {
-  @ApiProperty({ enum: TICKET_CATEGORIES }) @IsIn(TICKET_CATEGORIES) category!: string;
-  @ApiProperty({ enum: TICKET_PRIORITIES }) @IsIn(TICKET_PRIORITIES) priority!: string;
-  @ApiProperty({ maxLength: 200 }) @Transform(trim) @IsString() @MinLength(5) @MaxLength(200) subject!: string;
-  @ApiProperty({ maxLength: 4000 }) @Transform(trim) @IsString() @MinLength(10) @MaxLength(4000) body!: string;
-}
-export class TicketReplyInput {
-  @ApiProperty({ maxLength: 4000 }) @Transform(trim) @IsString() @MinLength(2) @MaxLength(4000) body!: string;
-  @ApiPropertyOptional({ description: 'Ghi chú nội bộ chỉ nhân sự nền tảng thấy' }) @IsOptional() @IsBoolean() internal?: boolean;
-  @ApiPropertyOptional({ enum: ['IN_PROGRESS', 'WAITING_CUSTOMER', 'RESOLVED'] })
-  @IsOptional()
-  @IsIn(['IN_PROGRESS', 'WAITING_CUSTOMER', 'RESOLVED'])
-  status?: string;
-  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
-}
-export class TicketAssignInput {
-  @ApiProperty({ format: 'uuid' }) @IsUUID() assigneeId!: string;
-  @ApiPropertyOptional({ enum: TICKET_PRIORITIES }) @IsOptional() @IsIn(TICKET_PRIORITIES) priority?: string;
-  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
-}
-export class TicketCloseInput extends VersionReasonInput {}
-export class TicketQuery {
-  @ApiPropertyOptional({ enum: ['OPEN', 'IN_PROGRESS', 'WAITING_CUSTOMER', 'RESOLVED', 'CLOSED'] })
-  @IsOptional()
-  @IsIn(['OPEN', 'IN_PROGRESS', 'WAITING_CUSTOMER', 'RESOLVED', 'CLOSED'])
-  status?: string;
-}
 
 export class ConsumerReportInput {
   @ApiProperty({ format: 'uuid', description: 'Mã yêu cầu do trình duyệt tạo để gửi lại an toàn' })

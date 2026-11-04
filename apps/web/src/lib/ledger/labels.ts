@@ -59,13 +59,6 @@ const table: Record<string, Record<string, Entry>> = {
     HIGH: ["Cao", "warn"],
     CRITICAL: ["Nghiêm trọng", "danger"],
   },
-  ticket: {
-    OPEN: ["Mới", "info"],
-    IN_PROGRESS: ["Đang xử lý", "brand"],
-    WAITING_CUSTOMER: ["Chờ doanh nghiệp", "warn"],
-    RESOLVED: ["Đã giải quyết", "ok"],
-    CLOSED: ["Đã đóng", "neutral"],
-  },
   priority: {
     LOW: ["Thấp", "neutral"],
     NORMAL: ["Bình thường", "info"],
@@ -194,7 +187,6 @@ export const INBOX_KIND_LABEL: Record<string, string> = localized({
   CAPABILITY: "Năng lực",
   AMENDMENT: "Điều chỉnh",
   CONNECTION: "Kết nối",
-  TICKET: "Hỗ trợ",
   CONSUMER_REPORT: "Báo cáo NTD",
   CASE: "Sự cố",
   INVOICE_OVERDUE: "Hóa đơn",
@@ -237,7 +229,6 @@ export const REF_CATEGORY_LABEL: Record<string, string> = localized({
   CERTIFICATE_TYPE: "Loại chứng nhận",
   LOSS_REASON: "Lý do hao hụt",
   PROCESSING_TYPE: "Loại hình chế biến",
-  TICKET_CATEGORY: "Chủ đề hỗ trợ",
   VEHICLE_TYPE: "Loại xe",
 });
 export const AUDIENCE_LABEL: Record<string, string> = localized({

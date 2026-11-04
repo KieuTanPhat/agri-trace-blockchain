@@ -95,7 +95,6 @@ try {
   for (const [path, label] of [
     ["/admin/enterprises", "admin-enterprises"],
     ["/admin/users", "admin-users"],
-    ["/admin/support", "admin-support"],
   ])
     await inspect(admin.page, path, label);
   await admin.context.close();

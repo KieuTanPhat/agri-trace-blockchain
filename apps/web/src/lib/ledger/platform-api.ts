@@ -47,7 +47,6 @@ export type InboxKind =
   | "CAPABILITY"
   | "AMENDMENT"
   | "CONNECTION"
-  | "TICKET"
   | "CONSUMER_REPORT"
   | "CASE"
   | "INVOICE_OVERDUE";
@@ -133,7 +132,6 @@ export type PlatformStatistics = {
     lots: number;
     processingRuns: number;
     scans: number;
-    tickets: number;
     revenue: number;
   }[];
   totals: {
@@ -264,7 +262,6 @@ export type PlatformOrganization = {
     severity: string;
     status: string;
   }[];
-  tickets: { id: string; code: string; subject: string; status: string }[];
   audit: {
     sequence: number;
     action: string;

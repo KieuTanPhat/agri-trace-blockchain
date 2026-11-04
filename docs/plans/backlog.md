@@ -36,7 +36,7 @@ hiện tại; không coi mô tả lỗi cũ là implementation hiện hành.
 | Consumer report | Tính nguyên tử của rate limit theo sourceHash; secret HMAC bắt buộc ở production; không dùng fallback yếu. | ADMIN |
 | Recall graph | Cờ truncated với đồ thị chế biến hình kim cương và giới hạn traversal. | ADMIN |
 | Catalog/quotation | catalogDigest của danh mục và báo giá có cùng scope khách hàng. | ADMIN |
-| SQL state guards | Guard chuyển trạng thái của trace_qr_block, platform_setting, subscription, consumer_report và support_ticket. | ADMIN |
+| SQL state guards | Guard chuyển trạng thái của trace_qr_block, platform_setting, subscription và consumer_report (support_ticket đã bỏ 04/11/2026). | ADMIN |
 | Processing assignment | completeProduct/materials/complete kiểm site assignment cấp 2/3 và capability bị revoke giữa chừng. | ADMIN |
 | Admin và dịch vụ | Khả năng bổ sung PROCESSOR sau đăng ký, tạm ngưng chuỗi phía admin, tính chênh lệch khi đổi gói đã trả và email nhắc gia hạn. Thu tiền vẫn hoãn mặc định; không dựng subscription giả để vượt kiểm. | ADMIN, SERVICE |
 | Hiệu năng | Đo lại danh sách vụ, query quyền theo tập, chi tiết danh bạ và processing trên dataset đại diện; kiểm output/scope/revoke tương đương và pool/concurrency. Số đo cũ trên DB nhỏ không là SLA hoặc lý do thêm index hàng loạt. | PROFILE |

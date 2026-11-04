@@ -7,7 +7,6 @@ export const GOVERNANCE_EN: Record<string, string> = {
   "Quản trị viên nền tảng": "Platform administrator",
   "Quản trị viên khác người đề xuất":
     "An administrator other than the proposer",
-  "Người phụ trách hỗ trợ": "Support agent",
   "Người phụ trách vụ việc": "Case manager",
   "Đối chiếu hồ sơ và tài liệu trước khi ghi quyết định. Phê duyệt hồ sơ và kích hoạt dịch vụ là hai bước riêng.":
     "Check the enrollment and documents before deciding. Enrollment approval and service activation are separate steps.",

@@ -91,7 +91,6 @@ export const inboxKindLabels: Record<string, string> = {
   AMENDMENT: "Điều chỉnh hồ sơ",
   CONNECTION: "Kết nối blockchain",
   APPROVAL: "Phê duyệt hai bước",
-  TICKET: "Yêu cầu hỗ trợ",
   CONSUMER_REPORT: "Báo cáo người tiêu dùng",
   CASE: "Sự cố",
   INVOICE_OVERDUE: "Hóa đơn quá hạn",
@@ -140,7 +139,6 @@ export const referenceCategoryLabels: Record<string, string> = {
   CERTIFICATE_TYPE: "Loại chứng nhận",
   LOSS_REASON: "Lý do hao hụt",
   PROCESSING_TYPE: "Loại chế biến",
-  TICKET_CATEGORY: "Loại yêu cầu hỗ trợ",
 };
 export const resourceLabels: Record<string, string> = {
   products: "Sản phẩm",

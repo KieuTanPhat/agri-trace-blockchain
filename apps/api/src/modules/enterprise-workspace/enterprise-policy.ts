@@ -337,8 +337,6 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_PRODUCT_APPROVAL_REQUEST: 'catalog.manage',
   EW_UNIT_CONVERSION_CREATE: 'catalog.manage',
   EW_UNIT_CONVERSION_REVOKE: 'catalog.manage',
-  EW_TICKET_CREATE: 'profile.read',
-  EW_TICKET_REPLY: 'profile.read',
 };
 /** Handover and damage photos belong to the people who sign or adjust the
  * goods; every other upload stays with evidence managers. */

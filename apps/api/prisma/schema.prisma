@@ -197,7 +197,6 @@ model Organization {
   capabilities            OrganizationCapability[]
   capabilityRequests      CapabilityRequest[]
   subscriptions           Subscription[]
-  supportTickets          SupportTicket[]
   invoices                Invoice[]
   ownedChains             SupplyChain[]
   chainMemberships        ChainMembership[]
@@ -631,44 +630,6 @@ model SystemNotice {
 
   @@index([status, startsAt, endsAt], map: "ix_system_notice_active")
   @@map("system_notice")
-}
-
-model SupportTicket {
-  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code           String           @unique @db.VarChar(30)
-  organizationId String           @map("organization_id") @db.Uuid
-  createdBy      String           @map("created_by") @db.Uuid
-  category       String           @db.VarChar(30)
-  priority       String           @default("NORMAL") @db.VarChar(20)
-  subject        String           @db.VarChar(200)
-  status         String           @default("OPEN") @db.VarChar(30)
-  assigneeId     String?          @map("assignee_id") @db.Uuid
-  dueAt          DateTime         @map("due_at") @db.Timestamptz(6)
-  resolution     String?          @db.VarChar(2000)
-  closedAt       DateTime?        @map("closed_at") @db.Timestamptz(6)
-  version        Int              @default(0)
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  messages       SupportMessage[]
-
-  @@index([status, dueAt], map: "ix_support_ticket_status")
-  @@index([organizationId, createdAt(sort: Desc)], map: "ix_support_ticket_org")
-  @@map("support_ticket")
-}
-
-model SupportMessage {
-  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ticketId   String        @map("ticket_id") @db.Uuid
-  authorId   String        @map("author_id") @db.Uuid
-  authorSide String        @map("author_side") @db.VarChar(20)
-  body       String        @db.VarChar(4000)
-  internal   Boolean       @default(false)
-  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-
-  @@index([ticketId, createdAt], map: "ix_support_message_ticket")
-  @@map("support_message")
 }
 
 model ConsumerReport {

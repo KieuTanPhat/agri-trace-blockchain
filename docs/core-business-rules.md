@@ -715,8 +715,10 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
   hợp đồng đã chấp nhận, và gói vẫn ở trạng thái chờ thanh toán. Khi kỳ đã trả còn
   hiệu lực, chỉ gia hạn được cùng gói; đổi sang gói khác chỉ làm được sau khi kỳ hiện
   tại kết thúc (trong thời gian ân hạn).
-- Yêu cầu hỗ trợ có hạn phản hồi theo `support.reviewSlaHours` và ưu tiên; ghi chú
-  nội bộ không hiện cho doanh nghiệp; yêu cầu đã đóng không nhận trả lời.
+- Kênh yêu cầu hỗ trợ (ticket) giữa doanh nghiệp và nền tảng đã bỏ từ 04/11/2026:
+  migration `20270101000006_remove_support_desk` xóa `support_ticket`,
+  `support_message` và danh mục `TICKET_CATEGORY`; dòng audit cũ giữ nguyên. Cài đặt
+  `support.reviewSlaHours` giữ tên cũ, chỉ còn tính hạn xử lý báo cáo người tiêu dùng.
 - Thông báo hệ thống chỉ là banner theo đối tượng và thời gian (tối đa 90 ngày),
   độc lập với chế độ khóa ghi của controller.
 

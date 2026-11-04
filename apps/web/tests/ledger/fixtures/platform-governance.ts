@@ -252,7 +252,6 @@ const inbox: LedgerInbox = {
     CAPABILITY: 0,
     AMENDMENT: 0,
     CONNECTION: 0,
-    TICKET: 0,
     CONSUMER_REPORT: 0,
     CASE: 0,
     INVOICE_OVERDUE: 0,
@@ -420,7 +419,6 @@ const organization: OrganizationDetail = {
   members: [],
   activity: { lots: 0, processingRuns: 0 },
   cases: [],
-  tickets: [],
   audit: [],
 };
 const directory: DirectoryItem = {

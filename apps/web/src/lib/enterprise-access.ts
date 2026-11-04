@@ -82,7 +82,6 @@ export function canUseEnterpriseRoute(
       has(path.endsWith("/new") ? "processing.write" : "processing.read")
     );
   if (within("/enterprise/billing")) return access.primary || access.owner;
-  if (within("/enterprise/support")) return has("profile.read");
   if (within("/enterprise/reports/adjust")) return has("quantity.adjust");
   if (within("/enterprise/reports")) return has("reports.read");
   if (within("/enterprise/signing")) return has("distribution.sign");

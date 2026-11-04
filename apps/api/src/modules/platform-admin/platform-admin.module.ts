@@ -4,7 +4,6 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { AdminInsightsService } from './admin-insights.service.js';
 import {
-  EnterpriseSupportController,
   PlatformAdminController,
   PublicReportsController,
   ReferenceItemsController,
@@ -16,7 +15,6 @@ import { SupportService } from './support.service.js';
   imports: [PrismaModule, AuthModule, IdempotencyModule],
   controllers: [
     PlatformAdminController,
-    EnterpriseSupportController,
     SystemNoticesController,
     ReferenceItemsController,
     PublicReportsController,

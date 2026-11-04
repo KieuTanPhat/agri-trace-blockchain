@@ -841,17 +841,6 @@ async function additionalModules({resources,production,shipments,distribution}) 
     if(lot.currentState==='RETAIL_RECEIVED')await command(shipment.retailer,`/lots/${lot.id}/mark-for-sale`,{version:lot.version,shipmentVersion:row.version},`mark-for-sale:${lot.id}`);
   }
 
-  for(const [i,key]of ['O01','O08','O16','O03','O06','O02','O07','O09','O10'].entries()) {
-    const ticket=unwrap(await command(key,'/enterprise-support/tickets',{category:['ACCOUNT','BILLING','TECHNICAL','TRACEABILITY','PROCESSING','BLOCKCHAIN','OTHER'][i%7],
-      priority:['LOW','NORMAL','HIGH','URGENT'][i%4],subject:['Hướng dẫn phạm vi phân quyền','Đối chiếu điều kiện dịch vụ','Hỗ trợ ghi nhật ký','Kiểm tra chặng giao nhận','Đối soát lượng chế biến','Đối chiếu bằng chứng chuỗi'][i%6],
-      body:'Đề nghị hướng dẫn thao tác và đối chiếu hồ sơ liên quan đến lô và cơ sở được phân công.'},`support-ticket:${key}`));
-    if(i===0)continue;
-    let row=await db.supportTicket.findUniqueOrThrow({where:{id:ticket.id}});
-    await command('admin',`/platform-admin/tickets/${ticket.id}/assign`,{version:row.version,assigneeId:actors.cases.id},`ticket-assign:${ticket.id}`);
-    row=await db.supportTicket.findUniqueOrThrow({where:{id:ticket.id}});
-    await command('cases',`/platform-admin/tickets/${ticket.id}/reply`,{version:row.version,body:'Đã kiểm tra phạm vi truy cập và hướng dẫn đối chiếu hồ sơ theo chức năng hiện hành.',
-      status:['IN_PROGRESS','WAITING_CUSTOMER','RESOLVED'][i%3]},`ticket-reply:${ticket.id}`);
-  }
   for(const [i,key]of ['O01','O08','O07'].entries())await command(key,'/privacy-requests',{
     requestType:['ACCESS','CORRECTION','RESTRICTION'][i],message:'Đề nghị đối chiếu thông tin hồ sơ và phạm vi chia sẻ dữ liệu tại các cơ sở được phân công.'},`privacy-request:${key}`);
   await command('privacy','/platform-privacy/breaches',{detectedAt:day(-0.1),message:'Diễn tập tiếp nhận và phân loại hồ sơ bảo vệ dữ liệu trong môi trường local.'},'privacy-exercise');

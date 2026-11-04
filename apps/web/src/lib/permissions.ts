@@ -79,7 +79,6 @@ export function canAccessManagementRoute(
         "/admin/ledger",
         "/admin/billing",
         "/admin/reports",
-        "/admin/support",
         "/admin/statistics",
         "/admin/monitoring",
         "/admin/security-alerts",

@@ -31,7 +31,6 @@ const TABS: (InboxKind | "ALL" | "OVERDUE")[] = [
   "AMENDMENT",
   "CONNECTION",
   "CASE",
-  "TICKET",
   "CONSUMER_REPORT",
   "INVOICE_OVERDUE",
 ];

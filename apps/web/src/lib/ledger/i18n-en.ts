@@ -5,7 +5,6 @@ import { GOVERNANCE_EN } from "./i18n-en-governance";
  */
 export const EN: Record<string, string> = {
   ...GOVERNANCE_EN,
-  "Không tìm thấy yêu cầu hỗ trợ": "Support ticket not found",
   "Tối thiểu 2 ký tự": "At least 2 characters",
   "Loại yêu cầu": "Request type",
   "Xem hồ sơ sự cố": "View incident case",
@@ -407,7 +406,6 @@ export const EN: Record<string, string> = {
   "CHỜ XÉT DUYỆT": "PENDING REVIEW",
   "Chủ chuỗi": "Chain owner",
   "Chủ đề": "Topic",
-  "Chủ đề hỗ trợ": "Support topics",
   "Chủ quản đứng tên hồ sơ đề xuất chuyển cho một thành viên đang hoạt động; người nhận phải chấp nhận trong 7 ngày. Lịch sử nghiệp vụ, khóa ký và chữ ký vẫn gắn với tài khoản đã tạo ra chúng.":
     "The owner holding the enrollment proposes a transfer to an active member; the recipient must accept within 7 days. Business history, signing keys and signatures stay with the accounts that created them.",
   chuỗi: "chains",
@@ -457,7 +455,6 @@ export const EN: Record<string, string> = {
   "Chưa có vùng sản xuất đã hoàn tất hồ sơ — hoàn tất vùng trước khi tạo sản phẩm.":
     "No production area has completed its records — complete an area before creating products.",
   "Chưa có yêu cầu chuyển chủ quản": "No ownership transfer requests",
-  "Chưa có yêu cầu hỗ trợ": "No support requests yet",
   "Chưa đánh giá": "Not assessed",
   "Chưa đọc": "Unread",
   "Chưa đủ điều kiện kích hoạt — API sẽ trả 409.":
@@ -888,7 +885,6 @@ export const EN: Record<string, string> = {
   "Gửi từ trang QR công khai, không cần đăng nhập, giới hạn theo nguồn mạng. Phân loại: chuyển thành hồ sơ sự cố, bác bỏ hoặc đánh dấu trùng.":
     "Sent from the public QR page without sign-in, rate-limited by network source. Triage: convert to a case, dismiss or mark as duplicate.",
   "Gửi yêu cầu": "Submit request",
-  "Gửi yêu cầu hỗ trợ": "Submit support request",
   "Gửi yêu cầu tới đội ngũ AgriTrace. Hạn phản hồi tính theo mức ưu tiên.":
     "Send a request to the AgriTrace team. Response time depends on priority.",
   Hạn: "Due",
@@ -903,8 +899,6 @@ export const EN: Record<string, string> = {
   "Hạn mức (chuỗi · thành viên · SP · tem)":
     "Quota (chains · members · products · labels)",
   "Hạn phản hồi": "Response due",
-  "Hạn phản hồi theo support.reviewSlaHours và mức ưu tiên. Ghi chú nội bộ không hiện cho doanh nghiệp; yêu cầu đã đóng không nhận trả lời.":
-    "Response time follows support.reviewSlaHours and priority. Internal notes are hidden from the enterprise; closed requests accept no replies.",
   "Hạn xử lý": "Due by",
   "Hàng đợi quyết định": "Decision queue",
   "Hàng đợi theo loại": "Queue by type",
@@ -977,8 +971,6 @@ export const EN: Record<string, string> = {
   "Hồ sơ tổ chức": "Organization profile",
   "Hồ sơ tổ chức đã thay đổi sau khi đề nghị được tạo. Phê duyệt sẽ bị từ chối (409); doanh nghiệp cần gửi đề nghị mới. Vẫn có thể từ chối kèm lý do.":
     "The organization profile changed after this request was created. Approval will be refused (409); the enterprise must submit a new request. You can still reject with a reason.",
-  "Hỗ trợ": "Support",
-  "Hỗ trợ từ nền tảng": "Platform support",
   "Hộ/cá nhân sản xuất cần năng lực sản xuất":
     "Producer households/individuals need the production capability",
   "Hộp thư trống": "Inbox is empty",
@@ -1085,7 +1077,6 @@ export const EN: Record<string, string> = {
   "Không có việc quá hạn": "Nothing overdue",
   "Không có việc tồn đọng": "No backlog",
   "Không có yêu cầu": "No requests",
-  "Không có yêu cầu hỗ trợ": "No support requests",
   "Không coi là còn hạn": "Not treated as valid",
   "Không còn tồn.": "No stock remaining.",
   "Không cộng các chặng thành tồn kho": "Legs are not summed into stock",
@@ -1620,12 +1611,9 @@ export const EN: Record<string, string> = {
     "Amount {p0}. Payment moves the plan to ACTIVE and may auto-activate the enterprise's service. Under ENFORCED an INVOICE_CONFIRM_PAYMENT proposal is required.",
   "Sơ chế, đóng gói": "Pre-processing, packing",
   "sở hữu": "owned",
-  "support.reviewSlaHours × hệ số ưu tiên":
-    "support.reviewSlaHours × priority factor",
   "Suy giảm": "Degraded",
   "Sự cố": "Cases",
-  "Sự cố & hỗ trợ": "Cases & support",
-  "Sự cố & hỗ trợ (": "Cases & support (",
+  "Sự cố (": "Cases (",
   "Sự cố #{p0}: {p1}": "Case #{p0}: {p1}",
   "Sự cố đang mở": "Open cases",
   "Sự cố được giao": "Assigned cases",
@@ -2014,7 +2002,6 @@ export const EN: Record<string, string> = {
   "Yêu cầu đang chờ": "Pending requests",
   "Yêu cầu để hoàn tất": "Required to complete",
   "Yêu cầu gửi doanh nghiệp": "Request to the enterprise",
-  "Yêu cầu hỗ trợ": "Support requests",
   "Yêu cầu năng lực": "Capability requests",
   "Yêu cầu quyền dữ liệu": "Data rights requests",
   // Tên riêng và nhãn song ngữ: giữ nguyên
