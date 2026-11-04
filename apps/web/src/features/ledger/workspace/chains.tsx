@@ -4,7 +4,6 @@ import { useState } from "react";
 import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
 import {useRouter} from "next/navigation";
 import Link from "next/link";
-import {ChainSigningKeys as SigningKeys} from "./chain-signing";
 import {ShipmentPlans as Plans} from "./shipment-plans";
 import {EvidencePanel} from "@/components/ledger/workspace/evidence-panel";
 
@@ -13,20 +12,19 @@ import { z } from "zod";
 import { Plus, Trash2 } from "lucide-react";
 
 import { chainApi } from "@/lib/ledger/chain-api";
-import { CHAIN_TYPES, SUPPLY_STAGES, type GrantRecord, type MemberRecord } from "@/lib/ledger/chain-types";
+import { CHAIN_TYPES, SUPPLY_STAGES, type MemberRecord } from "@/lib/ledger/chain-types";
 import { cn } from "@/lib/ledger/utils";
 
 
 import { wapi } from "@/lib/ledger/enterprise-coordination-api";
 import type {SupplyChain} from "@/lib/ledger/chain-types";
 import {useAuth as useSession} from "@/lib/auth-store";
-import { fmtDate, fmtDateTime } from "@/lib/ledger/format";
+import { fmtDate } from "@/lib/ledger/format";
 import { localized, t as tr } from "@/lib/ledger/i18n";
 import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
 
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
-import {FilterSelect} from "@/components/ledger/kit/filters";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader, Section } from "@/components/ledger/kit/page";
@@ -203,7 +201,8 @@ function ParticipantsField({ control, orgs }: { control: Control<CreateValues>; 
 
 // ---------------------------------------------------------------------------
 type MemberAct = { m: MemberRecord; status: "SUSPENDED" | "REVOKED" | "INVITED" };
-const TABS: [string, string][] = [["", "Tổng quan"], ["members", "Thành viên"], ["roles", "Nhân viên"], ["plans", "Kế hoạch"], ["signing", "Khóa ký"], ["ledger", "Sổ cái"]];
+// Staff, signing keys and ledger status are read-only views covered elsewhere (Members, Distribution → Keys).
+const TABS: [string, string][] = [["", "Tổng quan"], ["members", "Thành viên"], ["plans", "Kế hoạch"]];
 
 /** Chain detail as its own page; each tab holds one area of management. */
 function ChainDetail({ id, names, view }: { id: string; names: Names; view: string }) {
@@ -212,15 +211,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
   const chain = useQuery({ queryKey: ["chain", id], queryFn: () => chainApi.chain(id) });
   const members = useQuery({ queryKey: ["chain-members", id], queryFn: () => chainApi.members(id) });
   const profile = useQuery({ queryKey: ["chain-profile", id], queryFn: () => chainApi.profile(id) });
-  const ledger = useQuery({
-    queryKey: ["chain-ledger", id], queryFn: () => chainApi.ledger(id), enabled: view === "ledger",
-    refetchInterval: query => query.state.data && query.state.data.preparationStatus !== "READY" ? 3000 : false,
-  });
   const ctxQ = useQuery({ queryKey: ["chain-context"], queryFn: chainApi.context });
-  // Chain keys sign dual-signed handovers. The operator turns dual signing on only once a key is
-  // ACTIVE, so the owner registers the first one on a standard chain; other members see the tab
-  // once dual signing is on or while they hold a key.
-  const signing = useQuery({ queryKey: ["chain-handover-mode", id], queryFn: () => chainApi.signingContext(id), retry: false });
   const access=useWorkspaceAccess();
   const memberAct = useDialog<MemberAct>();
   const invite = useDialog();
@@ -229,8 +220,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
   const prof = useDialog<"ACTIVATE" | "SUSPEND">();
   const c = chain.data;
   const owner = c?.ownerOrganizationId === me;
-  const showSigning = signing.data?.handoverMode === "DUAL_SIGNED" || !!signing.data?.keys.some((k) => k.status !== "REVOKED") || (owner && !!signing.data?.bindingDigest);
-  const tab = view === "detail" || view === "business" || view === "signing" && !showSigning ? "" : view;
+  const tab = ["members", "plans"].includes(view) ? view : "";
   const orgAdmin=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="ORG_ADMIN" && !g.revokedAt);
   const canCreateChain=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="CREATE_CHAIN" && !g.revokedAt);
   const platformAdmin=user?.role.code==="SYSTEM_ADMIN";
@@ -259,7 +249,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
       />
       <PageBody className="min-w-0">
         <nav aria-label={tr("Mục quản lý chuỗi")} className="flex flex-wrap gap-1 border-b border-line">
-          {TABS.filter(([part]) => part !== "signing" || showSigning).map(([part, label]) => (
+          {TABS.map(([part, label]) => (
             <Link key={part} aria-current={tab === part ? "page" : undefined} href={`/supply-chains/${c.id}${part ? "/" + part : ""}`}
               className={cn("-mb-px border-b-2 px-3 py-2 text-[13px]", tab === part ? "border-brand font-semibold text-brand-ink" : "border-transparent text-ink-2 hover:text-ink")}>{tr(label)}</Link>
           ))}
@@ -357,43 +347,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
               </ul>
             </Section>
           )}
-          {tab === "roles" && (orgAdmin || platformAdmin) && <ChainStaff chainId={c.id} ownerOrganizationId={c.ownerOrganizationId} />}
-          {tab === "roles" && !orgAdmin && !platformAdmin && <Callout tone="info">{tr("Chỉ quản trị doanh nghiệp xem được nhân viên làm việc trong chuỗi.")}</Callout>}
           {tab === "plans" && (profile.data?.state === "ACTIVE" ? <Plans chainId={c.id} manager={manager} names={names} members={members.data ?? []} /> : <Callout tone="info">{tr("Kế hoạch vận chuyển mở khi hồ sơ nghiệp vụ của chuỗi đang vận hành.")}</Callout>)}
-          {tab === "signing" && me && <SigningKeys chainId={c.id} canManage={orgAdmin}/>}
-          {tab === "ledger" && (
-            <Section title={tr("Sổ cái của chuỗi")} bodyClassName="flex flex-col gap-2 p-4">
-              {ledger.data ? (
-                <dl className="grid grid-cols-[minmax(0,170px)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
-                  <dt className="text-ink-2">{tr("Hồ sơ / kênh")}</dt>
-                  <dd className="font-mono text-[12px]">{ledger.data.profile} · {ledger.data.channelId ?? tr("chưa gắn kênh")}</dd>
-                  <dt className="text-ink-2">{tr("Trạng thái gắn kết")}</dt>
-                  <dd>{ledger.data.bindingStatus ? <Badge tone={ledger.data.worker.healthy ? "ok" : "warn"}>{ledger.data.bindingStatus}</Badge> : "—"}</dd>
-                  <dt className="text-ink-2">{tr("Quyền trên sổ cái")}</dt>
-                  <dd className="font-mono text-[12px]">{tr("{p0} hiệu lực · {p1} chờ · {p2} đang thu hồi", { p0: ledger.data.permissions.active, p1: ledger.data.permissions.pending, p2: ledger.data.permissions.revoking })}</dd>
-                  <dt className="text-ink-2">{tr("Ghi sổ")}</dt>
-                  <dd className="font-mono text-[12px]">{tr("{p0} xong · {p1} chờ · {p2} lỗi", { p0: ledger.data.delivery.completed, p1: ledger.data.delivery.pending, p2: ledger.data.failedControlJobs })}</dd>
-                  <dt className="text-ink-2">{tr("Giữ lệnh đang mở")}</dt>
-                  <dd className="font-mono text-[12px]">{ledger.data.openHolds}</dd>
-                  {ledger.data.worker.lastCheckedAt && (
-                    <>
-                      <dt className="text-ink-2">{tr("Kiểm tra gần nhất")}</dt>
-                      <dd className="font-mono text-[12px]">{fmtDateTime(ledger.data.worker.lastCheckedAt)}</dd>
-                    </>
-                  )}
-                </dl>
-              ) : ledger.error ? (
-                <p className="text-[12.5px] text-ink-2">{ledger.error.message}</p>
-              ) : (
-                <LoadingRows rows={2} />
-              )}
-              {ledger.data && <dl className="grid grid-cols-[minmax(0,170px)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">{[[tr("Quyền đang giữ"),ledger.data.permissions.held],[tr("Lệnh điều khiển chờ"),ledger.data.pendingControlJobs],[tr("Đang thử ghi lại"),ledger.data.delivery.retry],[tr("Cần xử lý ghi sổ"),ledger.data.delivery.deadLetter],[tr("Tuổi yêu cầu chờ (giây)"),ledger.data.delivery.pendingAgeSeconds ?? "—"],[tr("Chờ lâu nhất từ"),ledger.data.delivery.oldestPendingAt?fmtDateTime(ledger.data.delivery.oldestPendingAt):"—"],[tr("Lỗi điều khiển gần nhất"),ledger.data.lastControlFailureAt?fmtDateTime(ledger.data.lastControlFailureAt):"—"],[tr("Hạn chứng thư"),ledger.data.worker.certificateExpiresAt?fmtDateTime(ledger.data.worker.certificateExpiresAt):"—"],[tr("Worker hoạt động lần cuối"),ledger.data.worker.lastHealthyAt?fmtDateTime(ledger.data.worker.lastHealthyAt):"—"]].map(([label,value])=><div key={label} className="contents"><dt className="text-ink-2">{label}</dt><dd className="min-w-0 break-words font-mono text-[12px]">{value}</dd></div>)}</dl>}
-              {ledger.data && <Callout tone={ledger.data.preparationStatus === "NEEDS_ATTENTION" ? "warn" : "info"}>{ledger.data.preparationStatus === "READY" ? tr("Sổ cái của chuỗi đã sẵn sàng. Quyền ghi còn phụ thuộc phân quyền nghiệp vụ.") : ledger.data.preparationStatus === "NEEDS_ATTENTION" ? tr("Chuỗi cần hỗ trợ chuẩn bị sổ cái; hệ thống đang đối soát.") : tr("AgriTrace đang tự động chuẩn bị sổ cái và đồng bộ quyền cho chuỗi.")}</Callout>}
-              {ledger.data && !ledger.data.worker.healthy && <Callout tone="warn">{tr("Chưa xác nhận Worker đang hoạt động bình thường")}</Callout>}
-              {ledger.data?.worker.certificateExpired && <Callout tone="danger">{tr("Chứng thư sổ cái đã hết hạn")}</Callout>}{ledger.data?.worker.heartbeatStale && <Callout tone="warn">{tr("Chưa nhận được heartbeat Worker mới")}</Callout>}{ledger.data?.worker.lastErrorCode && <Callout tone="warn">{ledger.data.worker.lastErrorCode}</Callout>}
-              <p className="text-[11.5px] text-ink-2">{tr("Chỉ đọc; gắn kết sổ cái do nền tảng quản lý.")}</p>
-            </Section>
-          )}
         </section>
         {sentLink && <Callout tone="info" title={tr("Link mời (đã gửi email, chỉ hiện một lần)")}><span className="break-all font-mono text-[12px]">{sentLink}</span></Callout>}
       </PageBody>
@@ -452,54 +406,3 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
  * member permission groups, so this list is read-only and links to the member.
  * The platform administrator still grants administrative roles here.
  */
-function ChainStaff({ chainId, ownerOrganizationId }: { chainId: string; ownerOrganizationId: string }) {
-  const { user } = useSession();
-  const platformAdmin = user?.role.code === "SYSTEM_ADMIN";
-  const [selectedOrg, setSelectedOrg] = useState(ownerOrganizationId);
-  const org = platformAdmin ? selectedOrg : user?.organizationId ?? "";
-  const organizations = useQuery({ queryKey: ["chain-organizations"], queryFn: chainApi.organizations, enabled: platformAdmin });
-  const grants = useQuery({ queryKey: ["scoped-grants", org], queryFn: () => chainApi.scopedGrants(org) });
-  const users = useQuery({ queryKey: ["scoped-users", org], queryFn: () => chainApi.scopedUsers(org) });
-  const add = useDialog();
-  const revoke = useDialog<GrantRecord>();
-  const name = (id: string) => users.data?.find((u) => u.id === id)?.fullName ?? id.slice(0, 8);
-  const rows = (grants.data ?? []).filter((g) => !g.revokedAt && (g.chainId === chainId || platformAdmin && !g.chainId));
-  const invalidate = [["scoped-grants", org], ["chain-context"]];
-  return (
-    <Section title={tr("Nhân viên làm việc trong chuỗi")} aside={platformAdmin ? <Button size="xs" variant="outline" onClick={() => add.open(true)}><Plus /> {tr("Cấp vai trò quản trị")}</Button> : <Link href="/enterprise/members" className="text-[12.5px] text-brand underline">{tr("Giao chuỗi cho nhân viên")}</Link>} bodyClassName="flex flex-col gap-3 p-4">
-      {platformAdmin && <FilterSelect label={tr("Tổ chức quản lý quyền")} value={selectedOrg} onChange={v=>setSelectedOrg(v||ownerOrganizationId)} options={(organizations.data??[]).map(o=>({value:o.id,label:o.name}))}/>}
-      <Callout tone="info">{tr("Nhân viên được làm việc trong chuỗi khi nhóm quyền của họ gắn chuỗi này, lúc tạo hoặc sửa thành viên. Sửa ở trang Thành viên để giao hoặc bỏ chuỗi.")}</Callout>
-      {grants.error ? (
-        <ErrorState error={grants.error} onRetry={() => grants.refetch()} />
-      ) : rows.length ? (
-        <ul className="divide-y divide-line/70 rounded-md border border-line">
-          {rows.map((g) => (
-            <li key={g.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[13px]">
-              <span className="min-w-0 flex-1">{platformAdmin ? name(g.userId) : <Link href={`/enterprise/members/${g.userId}`} className="text-brand underline">{name(g.userId)}</Link>}</span>
-              <Badge tone="brand" dot={false}>{GRANT_LABEL[g.role] ?? g.role}</Badge>
-              <span className="font-mono text-[11.5px] text-ink-2">{fmtDate(g.createdAt)}</span>
-              {platformAdmin && <Button size="xs" variant="outline" onClick={() => revoke.open(g)}>{tr("Thu hồi")}</Button>}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-[12.5px] text-ink-2">{tr("Chưa có nhân viên nào được giao chuỗi này.")}</p>
-      )}
-      {platformAdmin && add.target && (
-        <CommandDialog {...add.props} title={tr("Cấp vai trò quản trị")} endpoint="POST /organizations/:id/scoped-grants" schema={z.object({ userId: z.string().min(1, { error: () => tr("Chọn người") }), role: z.enum(PLATFORM_ROLES) })} defaultValues={{ userId: "", role: "CHAIN_MANAGER" }} submitLabel={tr("Cấp vai trò")} invalidate={invalidate} run={(v, cmd) => chainApi.grant(org, { ...v, chainId: ["ORG_ADMIN", "CREATE_CHAIN"].includes(v.role) ? undefined : chainId }, cmd)}>
-          {(f) => (
-            <>
-              <SelectField control={f.control} name="userId" label={tr("Người nhận")} options={(users.data ?? []).map((u) => ({ value: u.id, label: u.fullName }))} />
-              <SelectField control={f.control} name="role" label={tr("Vai trò")} options={PLATFORM_ROLES.map((r) => ({ value: r, label: GRANT_LABEL[r] ?? r }))} />
-            </>
-          )}
-        </CommandDialog>
-      )}
-      {platformAdmin && revoke.target && (
-        <CommandDialog {...revoke.props} title={tr("Thu hồi vai trò {p0} của {p1}", { p0: GRANT_LABEL[revoke.target.role] ?? revoke.target.role, p1: name(revoke.target.userId) })} endpoint="POST /organizations/:id/scoped-grants/:grantId/revoke" schema={z.object({})} defaultValues={{}} version={revoke.target.revision} tone="danger" submitLabel={tr("Thu hồi")} invalidate={invalidate} run={(_, cmd) => chainApi.revokeGrant(org, revoke.target!.id, { chainId: revoke.target!.chainId, version: revoke.target!.revision }, cmd)}>
-          {() => null}
-        </CommandDialog>
-      )}
-    </Section>
-  );
-}
