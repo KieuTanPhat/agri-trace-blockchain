@@ -130,9 +130,11 @@ export class ProductionCyclesService {
       },
     });
     if (!cycle) throw new NotFoundException('Không tìm thấy vụ sản xuất');
-    const { staff, ...record } = cycle;
+    const { staff, sensorReadings, ...record } = cycle;
     return {
       ...record,
+      // Signed device readings carry a bigint sequence, which JSON cannot hold.
+      sensorReadings: sensorReadings.map((r) => ({ ...r, deviceSequence: r.deviceSequence?.toString() ?? null })),
       staffUserIds: staffIds(cycle.responsibleUserId, staff),
       canWriteProduction: await this.canWriteCycle(actor, cycle),
       canReviewCompliance: Boolean(

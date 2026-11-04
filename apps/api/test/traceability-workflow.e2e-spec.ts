@@ -1107,6 +1107,9 @@ const prisma = new PrismaClient({
       expect(first.body.data).toMatchObject({ accepted: 3, rejected: 1 });
       const again = await send([{ sequence: 1, sensorType: 'TEMPERATURE', value: 27.4, unit: '°C', recordedAt: '2026-09-25T06:00:00.000Z' }]);
       expect(again.body.data).toMatchObject({ accepted: 0, duplicates: 1 });
+      // Signed readings carry a bigint sequence; the cycle detail must still serialize.
+      const detail = (await get(`/production-cycles/${cycle.id}`).expect(200)).body.data;
+      expect(detail.sensorReadings[0].deviceSequence).toEqual(expect.any(String));
       const view = (await get(`/iot/v2/cycles/${cycle.id}/readings`).expect(200)).body.data;
       expect(view).toMatchObject({ readingCount: 3, simulated: true });
       expect(view.series.map((x: { sensorType: string }) => x.sensorType).sort()).toEqual(['HUMIDITY', 'SOIL_MOISTURE', 'TEMPERATURE']);

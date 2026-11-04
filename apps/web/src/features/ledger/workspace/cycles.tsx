@@ -305,6 +305,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
   const invalidate = [["ws-cycle", id], ["ws-cycles"], ["ws-lots"]];
   const active = c && ["PLANTED", "GROWING"].includes(c.currentState);
   const evidenceAccess=useWorkspaceAccess(),canEvidence=evidenceAccess.can("evidence.manage");
+  const [openCare, setOpenCare] = useState<string | null>(null);
   const nowLocal = isoToLocal(new Date(now).toISOString());
   return (
     <Sheet open={!!id} onOpenChange={(o) => !o && onClose()}>
@@ -360,9 +361,11 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                 <h3 className="text-[13px] font-semibold">{tr("Nhật ký chăm sóc")} <span className="font-mono text-[11.5px] font-normal text-ink-2">{c.careRecords.length}</span></h3>
                 {c.careRecords.length ? (
                   <ol className="flex flex-col gap-2">
-                    {c.careRecords.map((r) => (
-                      <li key={r.id} className="rounded-md border border-line px-3 py-2 text-[13px]">
-                        <div className="flex flex-wrap items-center gap-2">
+                    {/* Newest first; each entry opens to show its photos. */}
+                    {[...c.careRecords].sort((a, b) => b.eventTime.localeCompare(a.eventTime)).map((r) => (
+                      <li key={r.id} className="rounded-md border border-line text-[13px]">
+                        <button type="button" aria-expanded={openCare === r.id} onClick={() => setOpenCare(openCare === r.id ? null : r.id)} className="flex w-full flex-col px-3 py-2 text-left hover:bg-row-alt">
+                        <div className="flex w-full flex-wrap items-center gap-2">
                           <span className="font-medium">{r.name}</span>
                           <Badge tone="neutral" dot={false}>{CARE_TYPE_LABEL[r.careType] ?? r.careType}</Badge>
                           <span className="ml-auto font-mono text-[11.5px] text-ink-2">{fmtDateTime(r.eventTime)}</span>
@@ -370,7 +373,17 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                         <p className="mt-1 text-[12.5px] text-ink-2">
                           {[r.materialName, r.quantity && `${fmtNumber(r.quantity)} ${r.unit ?? ""}`, r.applicationArea, r.withdrawalPeriod !== null && tr("cách ly {p0} ngày", { p0: r.withdrawalPeriod }), r.cropCondition].filter(Boolean).join(" · ")}
                         </p>
-                        <p className="font-mono text-[11px] text-ink-2">{r.journalCode} · {r.evidenceIds.length} {tr("ảnh")}</p>
+                        <p className="font-mono text-[11px] text-ink-2">{r.journalCode} · {r.evidenceIds.length} {tr("ảnh")} · <span className="font-sans text-brand-ink">{openCare === r.id ? tr("Ẩn ảnh") : tr("Xem ảnh")}</span></p>
+                        </button>
+                        {openCare === r.id && (
+                          <div className="border-t border-line px-3 py-2">
+                            {r.evidenceIds.length ? (
+                              <EvidencePanel entityType="CYCLE" entityId={c.id} onlyIds={r.evidenceIds} canManage={!!c.canWriteProduction && canEvidence && c.currentState !== "CANCELLED"} title={tr("Ảnh nhật ký")} />
+                            ) : (
+                              <p className="text-[12px] text-ink-2">{tr("Nhật ký này không có ảnh")}</p>
+                            )}
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ol>
