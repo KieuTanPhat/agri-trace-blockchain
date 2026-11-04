@@ -198,7 +198,7 @@ test("canonical new auditor organization and new account send baseline payloads"
   expect(body).toEqual({
     email: "new@example.invalid",
     fullName: "Tài khoản mới",
-    roleCode: "PLATFORM_OPERATOR",
+    roleCode: "SYSTEM_ADMIN",
   });
 });
 test("assignment creation uses real farm and active reviewer selectors", async ({

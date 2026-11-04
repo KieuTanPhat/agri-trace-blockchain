@@ -367,8 +367,7 @@ trạng sau cả vòng đời hồ sơ.
 
 ## Diễn tập thu hồi (P1-4)
 
-`GET /platform-recall/:lotId` dành cho SYSTEM_ADMIN, AUDITOR,
-PLATFORM_OPERATOR và PLATFORM_CASE_MANAGER. Snapshot `RepeatableRead` đọc lô
+`GET /platform-recall/:lotId` dành cho SYSTEM_ADMIN và AUDITOR. Snapshot `RepeatableRead` đọc lô
 nguồn, lô con, phân bổ hiện tại và các chặng giao nhận; không ghi domain, cảnh
 báo, trace/outbox hoặc gửi thông báo. Chặng phân phối đã hủy không thuộc báo cáo.
 Lượng luân chuyển qua nhiều chặng không được cộng thành tồn kho; lượng giữ chỗ
@@ -379,8 +378,8 @@ Không trả địa chỉ giao hàng, liên hệ, payload hoặc chữ ký.
 ## Quyền dữ liệu cá nhân và hồ sơ vi phạm (P1-5)
 
 `/privacy-requests` nhận yêu cầu của tài khoản đang đăng nhập, luôn gắn người gửi
-từ phiên; chỉ chủ thể đọc hồ sơ của mình. SYSTEM_ADMIN và
-PLATFORM_PRIVACY_OFFICER xử lý qua `/platform-privacy`; AUDITOR và các vai khác
+từ phiên; chỉ chủ thể đọc hồ sơ của mình. SYSTEM_ADMIN xử lý qua
+`/platform-privacy`; AUDITOR và các vai khác
 không đọc hộp thư. Yêu cầu được xem xét, không tự xóa lịch sử truy xuất hoặc sửa
 event hash. Nội dung và phản hồi lưu AES-256-GCM với AAD theo từng bản ghi;
 journal chỉ giữ kết quả metadata, audit không giữ nội dung riêng tư. Ghi chú
@@ -406,13 +405,15 @@ người phụ trách đánh giá điều kiện và phạm vi thông báo theo 
 được đối chiếu riêng về an toàn thực phẩm; không dùng chúng để suy ra hạn xử lý
 mọi yêu cầu dữ liệu hoặc cấp quyền thu hồi lô cho admin.
 
-## Các vai quản trị hẹp (P2)
+## Vai quản trị nền tảng (gộp 04/11/2026)
 
-SYSTEM_ADMIN giữ quyền quản trị đầy đủ. PLATFORM_OPERATOR chỉ đọc bảng vận hành
-và diễn tập; PLATFORM_CASE_MANAGER quản lý hồ sơ sự cố và đọc diễn tập;
-PLATFORM_PRIVACY_OFFICER chỉ xử lý hộp thư quyền dữ liệu/sự cố riêng tư. Cả ba
-có MFA tự phục vụ và khóa đăng nhập nền tảng, không có quyền user/org/grant/
-ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
+Nền tảng chỉ có một vai Admin (`SYSTEM_ADMIN`). Ba vai hẹp cũ (vận hành, điều
+phối sự cố, phụ trách dữ liệu cá nhân) đã gộp vào Admin; migration
+`20270101000000_platform_admin_consolidation` chuyển tài khoản cũ sang `SYSTEM_ADMIN` rồi
+xóa mã cũ khỏi `app_role`. Admin có MFA tự phục vụ, khóa đăng nhập nền tảng và
+không ghi nghiệp vụ (sản xuất, lô, vận chuyển, chế biến). Thao tác cần hai người
+phải dùng hai tài khoản Admin khác nhau; một tài khoản không tự duyệt đề xuất
+của chính mình.
 
 ## Hồ sơ nghiệp vụ theo biểu mẫu bổ sung (19/10/2026)
 
@@ -672,8 +673,7 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
   audit; secret, khóa ký, cấu hình Fabric/controller không nằm trong đó.
 - Báo cáo vi phạm từ trang QR công khai: không đăng nhập, `requestId` chống gửi
   trùng, giới hạn `consumerReports.maxPerHour` theo băm có khóa của nguồn mạng (không
-  lưu IP). Liên hệ chỉ lưu khi có đồng ý và chỉ nhân sự xử lý (`SYSTEM_ADMIN`,
-  `PLATFORM_CASE_MANAGER`) thấy; `AUDITOR` không thấy. Khi chuyển hồ sơ sự cố, chủ lô
+  lưu IP). Liên hệ chỉ lưu khi có đồng ý và chỉ Admin (`SYSTEM_ADMIN`) thấy; `AUDITOR` không thấy. Khi chuyển hồ sơ sự cố, chủ lô
   nhận hồ sơ mà không kèm thông tin liên hệ.
 - Hủy hóa đơn khởi tạo sẽ phát hành ngay hóa đơn thay thế theo phiên bản gói trong
   hợp đồng đã chấp nhận, và gói vẫn ở trạng thái chờ thanh toán. Khi kỳ đã trả còn

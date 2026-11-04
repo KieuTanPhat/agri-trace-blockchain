@@ -107,9 +107,6 @@ const routes = [
 ];
 const roles: Role[] = [
   "SYSTEM_ADMIN",
-  "PLATFORM_OPERATOR",
-  "PLATFORM_CASE_MANAGER",
-  "PLATFORM_PRIVACY_OFFICER",
   "AUDITOR",
   "COMPLIANCE_REVIEWER",
   "FARM_STAFF",

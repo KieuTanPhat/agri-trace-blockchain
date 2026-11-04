@@ -1,17 +1,7 @@
 import type { Role } from "./types";
 
-export const platformAdminLabels: Record<string, string> = {
-  SYSTEM_ADMIN: "Quản trị toàn nền tảng",
-  PLATFORM_OPERATOR: "Vận hành (chỉ đọc)",
-  PLATFORM_CASE_MANAGER: "Điều phối sự cố",
-  PLATFORM_PRIVACY_OFFICER: "Phụ trách dữ liệu cá nhân",
-};
 export function platformAdminHome(role?: Role): string | null {
-  if (role === "SYSTEM_ADMIN") return "/admin";
-  if (role === "PLATFORM_OPERATOR") return "/admin/operations";
-  if (role === "PLATFORM_CASE_MANAGER") return "/admin/cases";
-  if (role === "PLATFORM_PRIVACY_OFFICER") return "/admin/privacy";
-  return null;
+  return role === "SYSTEM_ADMIN" ? "/admin" : null;
 }
 
 export function canWriteFarm(role?: Role, productionAccess?: boolean): boolean {
@@ -30,28 +20,7 @@ export function canAccessManagementRoute(
   // Every signed-in account may change its own password.
   if (path === "/account/password" || path === "/account/privacy") return true;
   // Every platform account has a notifications page behind the header bell.
-  if (path === "/admin/notifications") return !!platformAdminHome(role);
-  if (role !== "SYSTEM_ADMIN" && platformAdminHome(role)) {
-    if (path === "/admin/security") return true;
-    if (role === "PLATFORM_OPERATOR")
-      return [
-        "/admin/operations",
-        "/admin/recall",
-        "/admin/ledger",
-        "/admin/monitoring",
-        "/admin/statistics",
-        "/admin/chains",
-        "/admin/lots",
-      ].includes(path);
-    if (role === "PLATFORM_CASE_MANAGER")
-      return (
-        within("/admin/cases") ||
-        within("/admin/support") ||
-        ["/admin/recall", "/admin/reports", "/admin/inbox", "/admin/lots"].includes(path)
-      );
-    if (role === "PLATFORM_PRIVACY_OFFICER") return path === "/admin/privacy";
-    return false;
-  }
+  if (path === "/admin/notifications") return role === "SYSTEM_ADMIN";
   // Auditors may read the platform audit log and nothing else under /admin.
   if (
     role === "AUDITOR" &&

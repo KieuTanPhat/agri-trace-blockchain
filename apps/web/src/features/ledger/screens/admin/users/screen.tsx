@@ -42,12 +42,6 @@ import {
 import { Badge, Code, Status } from "@/components/ledger/kit/status";
 
 import { t as tr } from "@/lib/ledger/i18n";
-const ADMIN_LIKE = [
-  "SYSTEM_ADMIN",
-  "PLATFORM_OPERATOR",
-  "PLATFORM_CASE_MANAGER",
-  "PLATFORM_PRIVACY_OFFICER",
-];
 
 const createSchema = z
   .object({
@@ -335,7 +329,7 @@ export function PlatformUsers({
         defaultValues={{
           email: "",
           fullName: "",
-          roleCode: "PLATFORM_OPERATOR",
+          roleCode: "SYSTEM_ADMIN",
         }}
         submitLabel={tr("Tạo tài khoản")}
         invalidate={invalidate}
@@ -387,7 +381,7 @@ export function PlatformUsers({
                   placeholder={tr("Chọn tổ chức AUDITOR")}
                 />
               )}
-              {ADMIN_LIKE.includes(rc) && (
+              {rc === "SYSTEM_ADMIN" && (
                 <Callout tone="info">
                   {tr(
                     "Tài khoản quản trị có thể cần phê duyệt hai bước. Khi được yêu cầu, bạn có thể gửi đề xuất tại đây.",

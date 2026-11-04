@@ -359,7 +359,7 @@ export class ProcessingService {
   async lineage(actor: CommandActor, lotId: string) {
     const lot = await this.db.lot.findUnique({ where: { id: lotId } });
     if (!lot) throw new NotFoundException('Không tìm thấy lô');
-    const admin = ['SYSTEM_ADMIN', 'AUDITOR', 'PLATFORM_OPERATOR', 'PLATFORM_CASE_MANAGER'].includes(actor.role);
+    const admin = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
     if (!admin) {
       await enterpriseAuthority(this.db, actor, 'trace.read');
       const holds = await this.db.lotHolding.findUnique({

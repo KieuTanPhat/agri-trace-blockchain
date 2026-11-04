@@ -154,9 +154,6 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
     !!user?.organizationId &&
     ![
       "SYSTEM_ADMIN",
-      "PLATFORM_OPERATOR",
-      "PLATFORM_CASE_MANAGER",
-      "PLATFORM_PRIVACY_OFFICER",
       "AUDITOR",
       "COMPLIANCE_REVIEWER",
       "IOT_DEVICE",

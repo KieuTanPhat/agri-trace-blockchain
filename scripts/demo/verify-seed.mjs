@@ -127,9 +127,6 @@ try {
       ).map((x) => x.code);
       for (const role of [
         "SYSTEM_ADMIN",
-        "PLATFORM_OPERATOR",
-        "PLATFORM_CASE_MANAGER",
-        "PLATFORM_PRIVACY_OFFICER",
         "FARM_STAFF",
         "TRANSPORTER",
         "DISTRIBUTOR",
@@ -251,9 +248,6 @@ try {
   );
   const expected = [
     "SYSTEM_ADMIN",
-    "PLATFORM_OPERATOR",
-    "PLATFORM_CASE_MANAGER",
-    "PLATFORM_PRIVACY_OFFICER",
     "FARM_STAFF",
     "TRANSPORTER",
     "DISTRIBUTOR",
@@ -369,7 +363,7 @@ try {
       assert.equal(audit.data.ok, true);
       assert.equal(audit.data.firstInvalid, null);
       assert.equal(
-        (await request("/platform-privacy", sessions.PLATFORM_PRIVACY_OFFICER))
+        (await request("/platform-privacy", sessions.SYSTEM_ADMIN))
           .status,
         200,
       );

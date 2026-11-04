@@ -55,7 +55,7 @@ const T0=new Date(progress.T0);
 const cycleSchedule=createCycleSchedule(T0,cycleAllocations);
 const day=(offset,from=T0)=>new Date(from.getTime()+offset*86400000).toISOString();
 const unwrap=x=>x?.record??x;
-const roles=['SYSTEM_ADMIN','PLATFORM_OPERATOR','PLATFORM_CASE_MANAGER','PLATFORM_PRIVACY_OFFICER',
+const roles=['SYSTEM_ADMIN',
   'FARM_STAFF','PROCESSOR','TRANSPORTER','DISTRIBUTOR','RETAILER','AUDITOR','COMPLIANCE_REVIEWER','CONSUMER'];
 const roleOf=type=>type==='FARM'?'FARM_STAFF':type;
 const locations=JSON.parse(await readFile(join(repository,'apps/api/src/common/locations/vietnam.json'),'utf8'));
@@ -182,7 +182,7 @@ async function initializeBusinessIdentities() {
         fullName:['Nguyễn Minh An','Trần Gia Hân','Lê Tuấn Khang','Phạm Ngọc Mai','Võ Khánh Linh','Đặng Hoài Nam','Bùi Thanh Phong','Nguyễn Hoàng Anh'][intent.accounts.users.length%8]};
       intent.users[key]=value;intent.accounts.users.push(value);return value;
     };
-    for(const [key,role] of [['admin','SYSTEM_ADMIN'],['operator','PLATFORM_OPERATOR'],['cases','PLATFORM_CASE_MANAGER'],['privacy','PLATFORM_PRIVACY_OFFICER']])add(key,role);
+    for(const [key,role] of [['admin','SYSTEM_ADMIN'],['operator','SYSTEM_ADMIN'],['cases','SYSTEM_ADMIN'],['privacy','SYSTEM_ADMIN']])add(key,role);
     for(const definition of organizationDefinitions) {
       intent.orgs[definition.key]={...definition,id:randomUUID(),location:location(definition.region,Number(definition.key.slice(1)))};
       add(definition.key,roleOf(definition.type),definition.key,1);

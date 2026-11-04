@@ -71,7 +71,7 @@ export default function LotsPage({route}:{route:import("@/lib/ledger/route-input
 function Lots({route}:{route:import("@/lib/ledger/route-input").LedgerRouteInput}) {
   const { can } = useWorkspaceAccess();
   const {user:actor}=useSession();
-  const readable=can("trace.read")||!!actor&&["SYSTEM_ADMIN","AUDITOR","PLATFORM_OPERATOR","PLATFORM_CASE_MANAGER"].includes(actor.role.code);
+  const readable=can("trace.read")||!!actor&&["SYSTEM_ADMIN","AUDITOR"].includes(actor.role.code);
   const params = useSearchParams();
   const router = useRouter();
 

@@ -97,8 +97,8 @@ local delivery; SMTP hoặc SMS thật cần nghiệm thu riêng theo cấu hìn
 
 Quản trị có audit nối hash append-only, MFA TOTP, kiểm soát tài khoản/tổ chức,
 vận hành chỉ đọc, hồ sơ sự cố, diễn tập thu hồi và hộp thư quyền dữ liệu mã hóa.
-Maker–checker đã gỡ; `platform_approval` chỉ giữ lịch sử. SYSTEM_ADMIN đầy đủ,
-PLATFORM_OPERATOR/CASE_MANAGER/PRIVACY_OFFICER là các vai hẹp, không ghi nghiệp vụ.
+Maker–checker đã gỡ; `platform_approval` chỉ giữ lịch sử. Nền tảng chỉ còn một
+vai Admin (`SYSTEM_ADMIN`, gộp các vai hẹp cũ từ 04/11/2026), không ghi nghiệp vụ.
 
 Banner thông báo độc lập với khóa ghi của controller. UI không có quyền mở ghi,
 phát lại outbox, đổi binding hay chạy restore. Hạn Ed25519/vân tay chứng thư chưa

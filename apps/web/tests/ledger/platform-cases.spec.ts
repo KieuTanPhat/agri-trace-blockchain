@@ -7,7 +7,7 @@ test("case manager reads Ledger cases and opens the canonical creation URL", asy
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.assigned");
   await page.goto("/admin/cases");
   await expect(page.getByTestId("ledger-case-list")).toBeVisible();
@@ -45,7 +45,7 @@ test("case filters and pagination use the baseline query and cursor", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.assigned");
   await page.goto("/admin/cases");
   await expect(page.getByTestId("ledger-case-list")).toBeVisible();
@@ -89,7 +89,7 @@ test("closing a case sends its version and command key then locks the closed rec
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.close");
   await page.goto("/admin/cases/11111111-1111-4111-8111-111111111111");
   await expect(page.getByTestId("ledger-case-detail")).toBeVisible();
@@ -116,7 +116,7 @@ test("new case keeps the canonical URL and posts a baseline DTO", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.create");
   await page.goto("/admin/cases/new");
   await expect(page.getByTestId("ledger-case-create")).toBeVisible();
@@ -157,7 +157,7 @@ for (const action of [
   test(
     "case command preserves baseline DTO: " + action.path,
     async ({ page, api }) => {
-      await api.useActor("case-manager");
+      await api.useActor("platform-admin");
       await api.scenario("cases.actions");
       await page.goto("/admin/cases/11111111-1111-4111-8111-111111111111");
       await expect(page.getByTestId("ledger-case-detail")).toBeVisible();
@@ -200,7 +200,7 @@ test("unknown private note freezes the form and retries its original body and ke
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.unknown-note");
   await page.goto("/admin/cases/11111111-1111-4111-8111-111111111111");
   const note = page.getByLabel("Nội dung", { exact: true });
@@ -230,7 +230,7 @@ test("Ledger case presentation fits desktop and mobile", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.detail");
   const out = path.resolve(
     __dirname,
@@ -267,7 +267,7 @@ test("privacy officer sees scoped privacy records in Ledger", async ({
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.scoped");
   await page.goto("/admin/privacy");
   await expect(page.getByTestId("ledger-privacy-workspace")).toBeVisible();
@@ -302,7 +302,7 @@ test("privacy review can submit without MFA when baseline policy does not requir
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.review");
   await page.goto("/admin/privacy");
   await page
@@ -317,7 +317,7 @@ test("pending privacy review keeps its record, private body and command identity
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.unknown-review");
   await page.goto("/admin/privacy");
   const note = page.getByLabel("Ghi chú", { exact: true });
@@ -369,7 +369,7 @@ test("privacy breach keeps its detected time and forwards optional MFA without e
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.breach");
   await page.goto("/admin/privacy");
   await page
@@ -401,7 +401,7 @@ test("privacy cursor loads the next authorized record", async ({
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.pagination");
   await page.goto("/admin/privacy");
   await expect(
@@ -441,7 +441,7 @@ test("Ledger privacy is readable on desktop and mobile with VI and EN controls",
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.scoped");
   await page.goto("/admin/privacy");
   await expect(
@@ -480,7 +480,7 @@ test("privacy displays the actual baseline OPEN status with its Ledger label", a
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.scoped");
   await page.goto("/admin/privacy");
   await expect(
@@ -493,7 +493,7 @@ test("support list links to the canonical deep detail route", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.open");
   await page.goto("/admin/support");
   await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
@@ -508,7 +508,7 @@ test("support deep link replies using baseline body, version and command key", a
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.open");
   await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
   await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
@@ -529,7 +529,7 @@ test("closed support record is loaded without reply or assignment controls", asy
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.closed");
   await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
   await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
@@ -546,7 +546,7 @@ test("pending support reply locks filters and keeps the original body and key", 
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.unknown");
   await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
   const field = page.getByLabel("Nội dung", { exact: true });
@@ -576,7 +576,7 @@ test("support assignment uses the active platform staff UUID and version", async
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.actions");
   await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
   await page
@@ -587,7 +587,7 @@ test("support assignment uses the active platform staff UUID and version", async
     .getByRole("combobox", { name: "Người phụ trách", exact: true })
     .click();
   await page
-    .getByRole("option", { name: /Người phụ trách · PLATFORM_CASE_MANAGER/ })
+    .getByRole("option", { name: /Người phụ trách · SYSTEM_ADMIN/ })
     .click();
   await d.getByRole("button", { name: "Gán", exact: true }).click();
   await expect(d).toHaveCount(0);
@@ -599,7 +599,7 @@ test("internal support note omits the selected external status", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.actions");
   await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
   await page
@@ -623,7 +623,7 @@ test("support closing sends its reason then removes write controls", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.actions");
   await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
   await page.getByRole("button", { name: "Đóng yêu cầu", exact: true }).click();
@@ -640,7 +640,7 @@ test("support status filter reaches the baseline query", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.actions");
   await page.goto("/admin/support");
   await expect(
@@ -666,7 +666,7 @@ test("missing support deep link does not fall back to another ticket", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("support.open");
   await page.goto("/admin/support/99999999-9999-4999-8999-999999999999");
   await expect(
@@ -682,7 +682,7 @@ test("consumer report triage uses the Ledger decision panel", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("reports.new");
   await page.goto("/admin/reports");
   await expect(page.getByTestId("ledger-reports-workspace")).toBeVisible();
@@ -700,7 +700,7 @@ test("recall Ledger snapshot remains read only and shows truncation limits", asy
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("recall.snapshot");
   await page.goto("/admin/recall?lotId=11111111-1111-4111-8111-111111111111");
   await expect(page.getByTestId("ledger-recall-workspace")).toBeVisible();
@@ -770,7 +770,7 @@ for (const [decision, label] of [
   test(
     "consumer report baseline triage: " + decision,
     async ({ page, api }) => {
-      await api.useActor("case-manager");
+      await api.useActor("platform-admin");
       await api.scenario("reports.actions");
       await page.goto("/admin/reports");
       await page.getByRole("radio", { name: new RegExp("^" + label) }).check();
@@ -808,7 +808,7 @@ test("pending consumer report triage locks the selected record and keeps the exa
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("reports.unknown");
   await page.goto("/admin/reports");
   await page
@@ -912,7 +912,7 @@ test("recall manual input fetches a snapshot only after the user submits", async
   page,
   api,
 }) => {
-  await api.useActor("platform-operator");
+  await api.useActor("platform-admin");
   await api.scenario("recall.snapshot");
   await page.goto("/admin/recall");
   await expect(
@@ -1014,28 +1014,28 @@ test("Task7 Ledger route gallery fits all required widths and preserves dark Eng
   );
   const rows = [
     [
-      "case-manager",
+      "platform-admin",
       "cases.assigned",
       "/admin/cases",
       "Hồ sơ cần xác minh nguồn hàng",
       "cases",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "cases.create",
       "/admin/cases/new",
       "Thông tin hồ sơ",
       "case-create",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "cases.detail",
       "/admin/cases/11111111-1111-4111-8111-111111111111",
       "Yêu cầu đối soát thông tin lô hàng từ doanh nghiệp.",
       "case-detail",
     ],
     [
-      "privacy-officer",
+      "platform-admin",
       "privacy.scoped",
       "/admin/privacy",
       "IN_SCOPE_PRIVACY_RECORD",
@@ -1049,28 +1049,28 @@ test("Task7 Ledger route gallery fits all required widths and preserves dark Eng
       "self-privacy",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "support.open",
       "/admin/support",
       "SUPPORT_IN_SCOPE_RECORD",
       "support",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "support.open",
       "/admin/support/11111111-1111-4111-8111-111111111111",
       "SUPPORT_IN_SCOPE_RECORD",
       "support-detail",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "reports.new",
       "/admin/reports",
       "CONSUMER_REPORT_IN_SCOPE",
       "reports",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "recall.snapshot",
       "/admin/recall?lotId=11111111-1111-4111-8111-111111111111",
       "LOT-RECALL-17",

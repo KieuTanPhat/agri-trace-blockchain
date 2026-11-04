@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { isPlatformAdminRole } from '../auth/role-codes.js';
 import {
   effectiveSubscriptionStatus,
   entitlementFor,
@@ -88,7 +87,7 @@ export class AdminInsightsService {
     const effective = subs.map((s) => ({ s, status: effectiveSubscriptionStatus(s, graceDays) }));
     const monthPaid = await this.db.invoice.findMany({ where: { status: 'PAID', paidAt: { gte: monthStart } }, select: { amount: true, simulated: true } });
     const outstanding = await this.db.invoice.aggregate({ where: { status: 'ISSUED' }, _sum: { amount: true } });
-    const admins = await this.db.user.findMany({ where: { accountStatus: 'ACTIVE', role: { code: { in: ['SYSTEM_ADMIN', 'PLATFORM_OPERATOR', 'PLATFORM_CASE_MANAGER', 'PLATFORM_PRIVACY_OFFICER'] } } }, include: { platformMfa: true } });
+    const admins = await this.db.user.findMany({ where: { accountStatus: 'ACTIVE', role: { code: 'SYSTEM_ADMIN' } }, include: { platformMfa: true } });
     const count = <T extends { _count: { _all: number } }>(rows: T[], key: keyof T) =>
       Object.fromEntries(rows.map((r) => [String(r[key]), r._count._all]));
     return {
@@ -646,7 +645,7 @@ export class AdminInsightsService {
     return {
       lockedAccounts: locked.map((u) => ({ ...u, lockedUntil: iso(u.lockedUntil) })),
       repeatedFailures: risky,
-      adminsWithoutMfa: admins.filter((u) => isPlatformAdminRole(u.role.code) && u.platformMfa?.status !== 'ENABLED').map((u) => ({ id: u.id, email: u.email, role: u.role.code })),
+      adminsWithoutMfa: admins.filter((u) => u.platformMfa?.status !== 'ENABLED').map((u) => ({ id: u.id, email: u.email, role: u.role.code })),
       deniedActions: denied.map(audit),
       sensitiveActions: sensitive.map(audit),
     };

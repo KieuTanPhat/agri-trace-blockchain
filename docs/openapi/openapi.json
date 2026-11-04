@@ -789,9 +789,6 @@
           "code": {
             "enum": [
               "SYSTEM_ADMIN",
-              "PLATFORM_OPERATOR",
-              "PLATFORM_CASE_MANAGER",
-              "PLATFORM_PRIVACY_OFFICER",
               "FARM_STAFF",
               "IOT_DEVICE",
               "TRANSPORTER",
@@ -8274,9 +8271,6 @@
           "role": {
             "enum": [
               "SYSTEM_ADMIN",
-              "PLATFORM_OPERATOR",
-              "PLATFORM_CASE_MANAGER",
-              "PLATFORM_PRIVACY_OFFICER",
               "FARM_STAFF",
               "IOT_DEVICE",
               "TRANSPORTER",

@@ -2923,9 +2923,6 @@ const prisma = new PrismaClient({
         roles.body.data.map((role: { code: string }) => role.code),
       ).toEqual([
         'COMPLIANCE_REVIEWER',
-        'PLATFORM_CASE_MANAGER',
-        'PLATFORM_OPERATOR',
-        'PLATFORM_PRIVACY_OFFICER',
         'SYSTEM_ADMIN',
       ]);
       const auditor = await post(

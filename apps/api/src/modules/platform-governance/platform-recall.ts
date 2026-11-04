@@ -257,7 +257,7 @@ export class PlatformRecallService {
 @ApiTags('platform-recall')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SYSTEM_ADMIN', 'AUDITOR', 'PLATFORM_OPERATOR', 'PLATFORM_CASE_MANAGER')
+@Roles('SYSTEM_ADMIN', 'AUDITOR')
 @Controller('platform-recall')
 export class PlatformRecallController {
   constructor(private readonly service: PlatformRecallService) {}

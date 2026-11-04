@@ -70,17 +70,17 @@ export function useLedgerSession() {
       if (!auth.user || auth.privateAccessStatus !== "ready") return false;
       const role = auth.user.role.code;
       if (permission === "privacy.write")
-        return role === "SYSTEM_ADMIN" || role === "PLATFORM_PRIVACY_OFFICER";
+        return role === "SYSTEM_ADMIN";
       if (permission === "reports.triage")
-        return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
+        return role === "SYSTEM_ADMIN";
       if (permission === "notices.write") return role === "SYSTEM_ADMIN";
       if (permission === "news.write") return role === "SYSTEM_ADMIN";
       if (permission === "reference.write" || permission === "qr.write")
         return role === "SYSTEM_ADMIN";
       if (permission === "tickets.write")
-        return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
+        return role === "SYSTEM_ADMIN";
       if (permission === "cases.write")
-        return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
+        return role === "SYSTEM_ADMIN";
       if (reads[permission])
         return canAccessManagementRoute(
           reads[permission],

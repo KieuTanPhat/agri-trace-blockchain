@@ -12,7 +12,6 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
-import { isPlatformAdminRole } from '../auth/role-codes.js';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { appendPlatformAudit, lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import { settingNumber } from '../billing/billing-core.js';
@@ -133,7 +132,7 @@ export class SupportService {
   }
   async staff() {
     const rows = await this.db.user.findMany({
-      where: { accountStatus: 'ACTIVE', role: { code: { in: ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER', 'PLATFORM_OPERATOR'] } } },
+      where: { accountStatus: 'ACTIVE', role: { code: 'SYSTEM_ADMIN' } },
       select: { id: true, fullName: true, email: true, role: { select: { code: true } } },
       orderBy: { fullName: 'asc' },
     });
@@ -143,7 +142,7 @@ export class SupportService {
     return commandTransaction(this.db, async (tx) => {
       await lockPlatformAudit(tx);
       const assignee = await tx.user.findUnique({ where: { id: input.assigneeId }, include: { role: true } });
-      if (!assignee || assignee.accountStatus !== 'ACTIVE' || !isPlatformAdminRole(assignee.role.code))
+      if (!assignee || assignee.accountStatus !== 'ACTIVE' || assignee.role.code !== 'SYSTEM_ADMIN')
         throw new UnprocessableEntityException('Người phụ trách phải là nhân sự nền tảng đang hoạt động');
       const changed = await tx.supportTicket.updateMany({
         where: { id, version: input.version, status: { not: 'CLOSED' } },
@@ -328,7 +327,7 @@ export class SupportService {
     const capabilities = actor.organizationId
       ? (await this.db.organizationCapability.findMany({ where: { organizationId: actor.organizationId, revokedAt: null }, select: { code: true } })).map((c) => c.code as string)
       : [];
-    const audiences = ['ALL', ...(isPlatformAdminRole(actor.role) || actor.role === 'AUDITOR' ? ['PLATFORM'] : actor.organizationId ? ['ENTERPRISE', ...capabilities] : [])];
+    const audiences = ['ALL', ...(actor.role === 'SYSTEM_ADMIN' || actor.role === 'AUDITOR' ? ['PLATFORM'] : actor.organizationId ? ['ENTERPRISE', ...capabilities] : [])];
     const rows = await this.db.systemNotice.findMany({
       where: { status: 'PUBLISHED', startsAt: { lte: now }, endsAt: { gt: now }, audience: { in: audiences } },
       orderBy: [{ severity: 'desc' }, { startsAt: 'desc' }],

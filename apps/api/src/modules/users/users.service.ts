@@ -11,7 +11,6 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import { lockSessionOwner } from '../auth/session-family.js';
-import { isPlatformAdminRole } from '../auth/role-codes.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -70,11 +69,11 @@ export async function createPlatformUserTx(
     throw new ForbiddenException(
       'Tài khoản doanh nghiệp do doanh nghiệp quản lý',
     );
-  if (isPlatformAdminRole(role.code) && input.organizationId)
+  if (role.code === 'SYSTEM_ADMIN' && input.organizationId)
     throw new UnprocessableEntityException(
       'Quản trị hệ thống không thuộc doanh nghiệp',
     );
-  if (!isPlatformAdminRole(role.code) && !input.organizationId) {
+  if (role.code !== 'SYSTEM_ADMIN' && !input.organizationId) {
     throw new UnprocessableEntityException(
       'Tài khoản nghiệp vụ phải thuộc một tổ chức',
     );

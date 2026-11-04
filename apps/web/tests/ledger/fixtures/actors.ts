@@ -3,9 +3,6 @@ export const ACTOR_KEYS = [
   "anonymous",
   "platform-admin",
   "auditor",
-  "platform-operator",
-  "case-manager",
-  "privacy-officer",
   "org-owner",
   "org-manager",
   "org-staff",
@@ -23,9 +20,6 @@ const roles: Record<
 > = {
   "platform-admin": "SYSTEM_ADMIN",
   auditor: "AUDITOR",
-  "platform-operator": "PLATFORM_OPERATOR",
-  "case-manager": "PLATFORM_CASE_MANAGER",
-  "privacy-officer": "PLATFORM_PRIVACY_OFFICER",
   "org-owner": "FARM_STAFF",
   "org-manager": "FARM_STAFF",
   "org-staff": "FARM_STAFF",
@@ -40,9 +34,7 @@ export function actorSession(key: ActorKey): Session | null {
   const id =
     String(ACTOR_KEYS.indexOf(key)).padStart(8, "0") +
     "-1111-4111-8111-111111111111";
-  const organizationId =
-    key.startsWith("platform-") ||
-    ["case-manager", "privacy-officer"].includes(key)
+  const organizationId = key.startsWith("platform-")
       ? null
       : "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   return {

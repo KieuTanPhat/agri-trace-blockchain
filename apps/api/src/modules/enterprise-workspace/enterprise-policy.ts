@@ -354,7 +354,7 @@ export async function authorizeWorkspaceCommand(
   input: AuthorizedCommand,
   lock: boolean,
 ) {
-  if (!input.actor?.organizationId || ['SYSTEM_ADMIN','PLATFORM_OPERATOR','PLATFORM_CASE_MANAGER','PLATFORM_PRIVACY_OFFICER','AUDITOR','COMPLIANCE_REVIEWER','IOT_DEVICE'].includes(input.actor.role)) throw new ForbiddenException('Chức năng ghi thuộc thành viên doanh nghiệp');
+  if (!input.actor?.organizationId || ['SYSTEM_ADMIN','AUDITOR','COMPLIANCE_REVIEWER','IOT_DEVICE'].includes(input.actor.role)) throw new ForbiddenException('Chức năng ghi thuộc thành viên doanh nghiệp');
   const permission = OPERATIONS[input.operation];
   if (!permission)
     throw new ForbiddenException('Command doanh nghiệp chưa có policy');

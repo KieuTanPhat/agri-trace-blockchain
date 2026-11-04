@@ -178,9 +178,6 @@ for (const asset of manifest.photos) {
 }
 const roles = [
   "SYSTEM_ADMIN",
-  "PLATFORM_OPERATOR",
-  "PLATFORM_CASE_MANAGER",
-  "PLATFORM_PRIVACY_OFFICER",
   "FARM_STAFF",
   "TRANSPORTER",
   "DISTRIBUTOR",
@@ -314,9 +311,9 @@ const bootstrap = await step("bootstrap", async () => {
       for (const [key, roleCode, name] of [
         ["admin", "SYSTEM_ADMIN", "Nguyễn Minh An"],
         ["checker", "SYSTEM_ADMIN", "Trần Gia Hân"],
-        ["operator", "PLATFORM_OPERATOR", "Lê Tuấn Khang"],
-        ["cases", "PLATFORM_CASE_MANAGER", "Phạm Ngọc Mai"],
-        ["privacy", "PLATFORM_PRIVACY_OFFICER", "Võ Khánh Linh"],
+        ["operator", "SYSTEM_ADMIN", "Lê Tuấn Khang"],
+        ["cases", "SYSTEM_ADMIN", "Phạm Ngọc Mai"],
+        ["privacy", "SYSTEM_ADMIN", "Võ Khánh Linh"],
       ])
         result.users[key] = await makeUser(
           tx,

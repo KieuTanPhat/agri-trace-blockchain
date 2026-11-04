@@ -19,7 +19,6 @@ import { lockSessionOwner, sessionFamilyWhere } from './session-family.js';
 import { registerEnterprise } from '../enterprise-onboarding/enterprise-onboarding.service.js';
 import type { ChangePasswordDto } from './dto/change-password.dto.js';
 import { PlatformMfaService } from '../platform-governance/platform-mfa.service.js';
-import { isPlatformAdminRole } from './role-codes.js';
 import { registrationEmailInUse } from '../enterprise-onboarding/registration-email.js';
 import {
   normalizeRegistrationBusinessId,
@@ -219,7 +218,7 @@ export class AuthService {
         }
         if (platform && current.lockedUntil && current.lockedUntil > new Date())
           throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
-        if (this.mfa && isPlatformAdminRole(current.role.code)) {
+        if (this.mfa && current.role.code === 'SYSTEM_ADMIN') {
           try {
             await this.mfa.assertLogin(
               tx,

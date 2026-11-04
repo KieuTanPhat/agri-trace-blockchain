@@ -2,39 +2,21 @@ import { describe, expect, it } from "vitest";
 import { canAccessManagementRoute, canWriteFarm } from "./permissions";
 
 describe("Web business permissions", () => {
-  it("keeps specialist platform roles inside their assigned functions", () => {
-    const allowed = {
-      PLATFORM_OPERATOR: ["/admin/operations", "/admin/recall"],
-      PLATFORM_CASE_MANAGER: [
-        "/admin/cases",
-        "/admin/cases/new",
-        "/admin/recall",
-      ],
-      PLATFORM_PRIVACY_OFFICER: ["/admin/privacy"],
-    } as const;
-    for (const role of Object.keys(allowed) as (keyof typeof allowed)[]) {
-      for (const path of allowed[role])
-        expect(canAccessManagementRoute(path, role)).toBe(true);
-      for (const path of [
-        "/admin/users",
-        "/admin/approvals",
-        "/admin/organizations",
-        "/production-cycles",
-        "/lots",
-        "/distribution",
-        "/enterprise",
-        "/iot-simulator",
-      ])
-        expect(canAccessManagementRoute(path, role)).toBe(false);
-      expect(canAccessManagementRoute("/admin/security", role)).toBe(true);
-      expect(canAccessManagementRoute("/account/privacy", role)).toBe(true);
-    }
-    expect(
-      canAccessManagementRoute("/admin/privacy", "PLATFORM_CASE_MANAGER"),
-    ).toBe(false);
-    expect(
-      canAccessManagementRoute("/admin/cases/new", "PLATFORM_OPERATOR"),
-    ).toBe(false);
+  it("gives the single Admin role every platform function but no business workspace", () => {
+    for (const path of [
+      "/admin/operations",
+      "/admin/recall",
+      "/admin/cases",
+      "/admin/cases/new",
+      "/admin/privacy",
+      "/admin/security",
+      "/admin/users",
+      "/admin/notifications",
+      "/account/privacy",
+    ])
+      expect(canAccessManagementRoute(path, "SYSTEM_ADMIN")).toBe(true);
+    for (const path of ["/enterprise", "/distribution"])
+      expect(canAccessManagementRoute(path, "SYSTEM_ADMIN")).toBe(false);
   });
   it.each(["AUDITOR", "TRANSPORTER", "RETAILER"] as const)(
     "keeps %s from farmer writes while IoT follows device-route permissions",

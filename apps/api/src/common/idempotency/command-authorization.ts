@@ -289,7 +289,7 @@ export async function authorizeCommand(
     case 'PLATFORM_TICKET_REPLY':
     case 'PLATFORM_TICKET_CLOSE':
     case 'PLATFORM_REPORT_TRIAGE':
-      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER']);
+      requireRole(actor, ['SYSTEM_ADMIN']);
       break;
     case 'PLATFORM_CASE_CREATE':
     case 'PLATFORM_CASE_CLASSIFY':
@@ -298,18 +298,15 @@ export async function authorizeCommand(
     case 'PLATFORM_CASE_NOTE':
     case 'PLATFORM_CASE_ESCALATE':
     case 'PLATFORM_CASE_CLOSE':
-      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER']);
+      requireRole(actor, ['SYSTEM_ADMIN']);
       break;
     case 'PLATFORM_PRIVACY_BREACH_CREATE':
     case 'PLATFORM_PRIVACY_UPDATE':
-      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_PRIVACY_OFFICER']);
+      requireRole(actor, ['SYSTEM_ADMIN']);
       break;
     case 'PRIVACY_REQUEST_CREATE':
       requireRole(actor, [
         'SYSTEM_ADMIN',
-        'PLATFORM_OPERATOR',
-        'PLATFORM_CASE_MANAGER',
-        'PLATFORM_PRIVACY_OFFICER',
         'COMPLIANCE_REVIEWER',
         'AUDITOR',
         'FARM_STAFF',

@@ -107,12 +107,7 @@ export class PlatformAuditController {
 @ApiTags('auth')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(
-  'SYSTEM_ADMIN',
-  'PLATFORM_OPERATOR',
-  'PLATFORM_CASE_MANAGER',
-  'PLATFORM_PRIVACY_OFFICER',
-)
+@Roles('SYSTEM_ADMIN')
 @Controller('auth/mfa')
 export class PlatformMfaController {
   constructor(private readonly service: PlatformMfaService) {}
@@ -168,7 +163,7 @@ export class PlatformMfaController {
 @ApiTags('platform-operations')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SYSTEM_ADMIN', 'AUDITOR', 'PLATFORM_OPERATOR')
+@Roles('SYSTEM_ADMIN', 'AUDITOR')
 @Controller('platform-operations')
 export class PlatformOperationsController {
   constructor(private readonly service: PlatformOperationsService) {}
@@ -257,28 +252,28 @@ export class PlatformCasesController {
     private readonly idem: IdempotencyService,
   ) {}
 
-  @Roles('SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN')
   @ApiDataResponse(CaseOrganizationOptionDto, 200, true)
   @Get('organization-options')
   organizationOptions() {
     return this.service.organizationOptions();
   }
 
-  @Roles('SYSTEM_ADMIN', 'AUDITOR', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN', 'AUDITOR')
   @ApiDataResponse(PlatformCasePageDto)
   @Get()
   list(@Query() query: CaseListQueryDto) {
     return this.service.list(query);
   }
 
-  @Roles('SYSTEM_ADMIN', 'AUDITOR', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN', 'AUDITOR')
   @ApiDataResponse(PlatformCaseDetailDto)
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.get(id);
   }
 
-  @Roles('SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN')
   @ApiDataResponse(PlatformCaseDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post()
@@ -297,7 +292,7 @@ export class PlatformCasesController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN')
   @ApiDataResponse(PlatformCaseDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/classify')
@@ -317,7 +312,7 @@ export class PlatformCasesController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN')
   @ApiDataResponse(PlatformCaseDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/assign')
@@ -337,7 +332,7 @@ export class PlatformCasesController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN')
   @ApiDataResponse(PlatformCaseDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/link-lot')
@@ -357,7 +352,7 @@ export class PlatformCasesController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN')
   @ApiDataResponse(PlatformCaseDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/notes')
@@ -377,7 +372,7 @@ export class PlatformCasesController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN')
   @ApiDataResponse(PlatformCaseDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/escalate')
@@ -397,7 +392,7 @@ export class PlatformCasesController {
     );
   }
 
-  @Roles('SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER')
+  @Roles('SYSTEM_ADMIN')
   @ApiDataResponse(PlatformCaseDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post(':id/close')

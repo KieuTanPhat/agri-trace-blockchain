@@ -374,7 +374,7 @@ export class PrivacyRequestsController {
 @ApiTags('platform-privacy')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SYSTEM_ADMIN', 'PLATFORM_PRIVACY_OFFICER')
+@Roles('SYSTEM_ADMIN')
 @Controller('platform-privacy')
 export class PlatformPrivacyController {
   constructor(

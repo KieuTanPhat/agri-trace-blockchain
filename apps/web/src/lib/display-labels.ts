@@ -63,10 +63,7 @@ const eventLabels: Record<string, string> = {
 const roleLabels: Record<Role, string> = {
   DISTRIBUTOR: "Nhà phân phối",
   PROCESSOR: "Nhà chế biến",
-  SYSTEM_ADMIN: "Quản trị hệ thống",
-  PLATFORM_OPERATOR: "Vận hành nền tảng",
-  PLATFORM_CASE_MANAGER: "Điều phối sự cố",
-  PLATFORM_PRIVACY_OFFICER: "Phụ trách dữ liệu cá nhân",
+  SYSTEM_ADMIN: "Quản trị nền tảng",
   FARM_STAFF: "Nhân viên trang trại",
   IOT_DEVICE: "Thiết bị cảm biến",
   TRANSPORTER: "Đơn vị vận chuyển",

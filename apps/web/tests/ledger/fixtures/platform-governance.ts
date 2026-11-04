@@ -71,8 +71,8 @@ function governance(
       data: [
         {
           id: enrollmentId,
-          code: "PLATFORM_OPERATOR",
-          name: "Vận hành nền tảng",
+          code: "SYSTEM_ADMIN",
+          name: "Quản trị nền tảng",
           description: null,
         } satisfies S["RoleRecordDto"],
       ],
@@ -156,9 +156,9 @@ function governance(
 }
 const governanceAccount: S["UserListDto"] = {
   id: "55555555-5555-4555-8555-555555555555",
-  email: "operator@example.invalid",
-  fullName: "Người vận hành kiểm thử",
-  role: { code: "PLATFORM_OPERATOR", name: "Vận hành nền tảng" },
+  email: "second-admin@example.invalid",
+  fullName: "Quản trị viên kiểm thử",
+  role: { code: "SYSTEM_ADMIN", name: "Quản trị nền tảng" },
   organization: null,
   accountStatus: "ACTIVE",
   mustChangePassword: false,

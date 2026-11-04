@@ -52,8 +52,7 @@ import {
 } from './platform-admin.dto.js';
 
 const KEY = { name: 'Idempotency-Key', required: true } as const;
-const READERS = ['SYSTEM_ADMIN', 'AUDITOR', 'PLATFORM_OPERATOR'] as const;
-const CASE_STAFF = ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER'] as const;
+const READERS = ['SYSTEM_ADMIN', 'AUDITOR'] as const;
 
 abstract class Commands {
   constructor(protected readonly idem: IdempotencyService) {}
@@ -85,7 +84,7 @@ export class PlatformAdminController extends Commands {
   @Roles(...READERS) @Get('dashboard') @ApiDataResponse(AdminRecordDto)
   async dashboard() { return { record: await this.insights.dashboard() }; }
 
-  @Roles(...READERS, 'PLATFORM_CASE_MANAGER') @Get('inbox') @ApiDataResponse(AdminRecordDto)
+  @Roles(...READERS) @Get('inbox') @ApiDataResponse(AdminRecordDto)
   async inbox() { return { record: await this.insights.inbox() }; }
 
   @Roles(...READERS) @Get('organizations') @ApiDataResponse(AdminListDto)
@@ -97,10 +96,10 @@ export class PlatformAdminController extends Commands {
   @Roles(...READERS) @Get('chains') @ApiDataResponse(AdminListDto)
   chains() { return this.insights.chains(); }
 
-  @Roles(...READERS, 'PLATFORM_CASE_MANAGER') @Get('lots') @ApiDataResponse(AdminListDto)
+  @Roles(...READERS) @Get('lots') @ApiDataResponse(AdminListDto)
   lots(@Query() query: LotSearchQuery) { return this.insights.searchLots(query); }
 
-  @Roles(...READERS, 'PLATFORM_CASE_MANAGER') @Get('lots/:id/lineage') @ApiDataResponse(AdminRecordDto)
+  @Roles(...READERS) @Get('lots/:id/lineage') @ApiDataResponse(AdminRecordDto)
   async lineage(@Param('id', ParseUUIDPipe) id: string) { return { record: await this.insights.lotLineage(id) }; }
 
   @Roles(...READERS) @Get('qr') @ApiDataResponse(AdminRecordDto)
@@ -196,33 +195,33 @@ export class PlatformAdminController extends Commands {
     return this.command(req, key, 'PLATFORM_REFERENCE_UPSERT', input, () => this.support.upsertReference(req.user, input));
   }
 
-  @Roles(...CASE_STAFF, 'AUDITOR') @Get('tickets') @ApiDataResponse(AdminListDto)
+  @Roles('SYSTEM_ADMIN', 'AUDITOR') @Get('tickets') @ApiDataResponse(AdminListDto)
   tickets(@Query() query: TicketQuery) { return this.support.tickets(query); }
 
-  @Roles(...CASE_STAFF) @Get('support-staff') @ApiDataResponse(AdminListDto)
+  @Roles('SYSTEM_ADMIN') @Get('support-staff') @ApiDataResponse(AdminListDto)
   staff() { return this.support.staff(); }
 
-  @Roles(...CASE_STAFF) @Post('tickets/:id/assign') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
+  @Roles('SYSTEM_ADMIN') @Post('tickets/:id/assign') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
   assign(@Param('id', ParseUUIDPipe) id: string, @Body() input: TicketAssignInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
     return this.command(req, key, 'PLATFORM_TICKET_ASSIGN', { ...input, id }, () => this.support.assignTicket(req.user, id, input));
   }
 
-  @Roles(...CASE_STAFF) @Post('tickets/:id/reply') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
+  @Roles('SYSTEM_ADMIN') @Post('tickets/:id/reply') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
   reply(@Param('id', ParseUUIDPipe) id: string, @Body() input: TicketReplyInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
     return this.command(req, key, 'PLATFORM_TICKET_REPLY', { ...input, id }, () => this.support.replyAsPlatform(req.user, id, input));
   }
 
-  @Roles(...CASE_STAFF) @Post('tickets/:id/close') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
+  @Roles('SYSTEM_ADMIN') @Post('tickets/:id/close') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
   close(@Param('id', ParseUUIDPipe) id: string, @Body() input: TicketCloseInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
     return this.command(req, key, 'PLATFORM_TICKET_CLOSE', { ...input, id }, () => this.support.closeTicket(req.user, id, input));
   }
 
-  @Roles(...CASE_STAFF, 'AUDITOR') @Get('consumer-reports') @ApiDataResponse(AdminListDto)
+  @Roles('SYSTEM_ADMIN', 'AUDITOR') @Get('consumer-reports') @ApiDataResponse(AdminListDto)
   reports(@Query() query: ReportQuery, @Req() req: AuthenticatedRequest) {
-    return this.support.reports(query, (CASE_STAFF as readonly string[]).includes(req.user.role));
+    return this.support.reports(query, req.user.role === 'SYSTEM_ADMIN');
   }
 
-  @Roles(...CASE_STAFF) @Post('consumer-reports/:id/triage') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
+  @Roles('SYSTEM_ADMIN') @Post('consumer-reports/:id/triage') @ApiHeader(KEY) @ApiDataResponse(AdminRecordDto, 201)
   triage(@Param('id', ParseUUIDPipe) id: string, @Body() input: ReportTriageInput, @IdempotencyKey() key: string, @Req() req: AuthenticatedRequest) {
     return this.command(req, key, 'PLATFORM_REPORT_TRIAGE', { ...input, id }, () => this.support.triageReport(req.user, id, input));
   }
