@@ -24,6 +24,17 @@ export type Device = {
   runningCycles: { id: string; cycleCode: string }[];
   activeTransfer: { id: string; origin: string; destination: string } | null;
 };
+export type DeviceDetail = Device & {
+  keyFingerprint: string | null;
+  recordsLast24h: number;
+  // FIELD_SENSOR
+  latest?: { sensorType: string; value: number; unit: string; recordedAt: string }[];
+  recent?: unknown[];
+  // GPS_TRACKER
+  latestPosition?: GpsRecord | null;
+};
+export type FieldRecord = { sequence: string | null; sensorType: string; value: number; unit: string; recordedAt: string; ingestTime: string; cycles: { id: string; cycleCode: string }[] };
+export type GpsRecord = { sequence: string; recordedAt: string; receivedAt: string; latitude: number; longitude: number; accuracyM: number | null; speedKmh: number | null; heading: number | null; satellites: number | null; battery: number | null; validity: "VALID" | "ANOMALY" | "LATE"; anomalyCode: string | null; transferId: string };
 export type DeviceOptions = {
   plots: { id: string; name: string; farm: { id: string; name: string } }[];
   vehicles: { id: string; registration: string; kind: string }[];
@@ -84,6 +95,7 @@ const post = (path: string, body: unknown, cmd: LedgerCommandContext) =>
 export const iotApi = {
   devices: async () => (await ledgerRequest<{ items: Device[] }>(root + "/devices")).items,
   options: async () => (await ledgerRequest<DeviceOptions>(root + "/device-options")),
+  device: (id: string) => ledgerRequest<DeviceDetail>(`${root}/devices/${enc(id)}`),
   register: (input: S["RegisterDeviceInput"], cmd: LedgerCommandContext) => post("/devices", input, cmd),
   bind: (id: string, input: S["BindDeviceInput"], cmd: LedgerCommandContext) => post(`/devices/${enc(id)}/binding`, input, cmd),
   rotateKey: (id: string, input: S["RotateDeviceKeyInput"], cmd: LedgerCommandContext) => post(`/devices/${enc(id)}/key`, input, cmd),

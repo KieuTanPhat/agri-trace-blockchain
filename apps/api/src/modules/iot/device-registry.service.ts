@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
@@ -79,6 +80,78 @@ export class DeviceRegistryService {
         activeTransfer: transfers.find((t) => t.vehicleId && t.vehicleId === d.vehicleId) ?? null,
       })),
     };
+  }
+
+  /** What one device is reporting now: latest values, recent records and context. */
+  async detail(actor: CommandActor, id: string) {
+    await enterpriseAuthority(this.prisma, actor, 'devices.read');
+    const device = await this.prisma.iotDevice.findFirst({
+      where: { id, organizationId: actor.organizationId!, type: { in: ['FIELD_SENSOR', 'GPS_TRACKER'] } },
+      select: DEVICE_SELECT,
+    });
+    if (!device) throw new NotFoundException('Không tìm thấy thiết bị');
+    const since = new Date(Date.now() - 24 * 3_600_000);
+    const base = {
+      ...device,
+      online: !!device.lastSeenAt && Date.now() - device.lastSeenAt.getTime() <= DEVICE_ONLINE_MS,
+      keyFingerprint: device.publicKey ? createHash('sha256').update(device.publicKey).digest('hex').slice(0, 16) : null,
+    };
+    if (device.type === 'FIELD_SENSOR') {
+      // A plot reading is stored once per running cycle; show each sequence once.
+      const rows = await this.prisma.sensorReading.findMany({
+        where: { deviceId: id },
+        orderBy: [{ recordedAt: 'desc' }, { deviceSequence: 'desc' }],
+        take: 120,
+        select: { deviceSequence: true, sensorType: true, value: true, unit: true, recordedAt: true, ingestTime: true, cycle: { select: { id: true, cycleCode: true } } },
+      });
+      const seen = new Map<string, { sequence: string | null; sensorType: string; value: number; unit: string; recordedAt: Date; ingestTime: Date; cycles: { id: string; cycleCode: string }[] }>();
+      for (const r of rows) {
+        const key = r.deviceSequence != null ? String(r.deviceSequence) : `${r.sensorType}:${r.recordedAt.toISOString()}`;
+        const entry = seen.get(key);
+        if (entry) entry.cycles.push(r.cycle);
+        else seen.set(key, { sequence: r.deviceSequence != null ? String(r.deviceSequence) : null, sensorType: r.sensorType, value: Number(r.value.toString()), unit: r.unit, recordedAt: r.recordedAt, ingestTime: r.ingestTime, cycles: [r.cycle] });
+      }
+      const recent = [...seen.values()];
+      const latest = ['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'].flatMap((t) => {
+        const r = recent.find((x) => x.sensorType === t);
+        return r ? [{ sensorType: t, value: r.value, unit: r.unit, recordedAt: r.recordedAt }] : [];
+      });
+      const [runningCycles, last24h] = await Promise.all([
+        device.plotId
+          ? this.prisma.productionCycle.findMany({ where: { plotId: device.plotId, farmOrgId: actor.organizationId!, currentState: { in: [...RUNNING_STATES] } }, select: { id: true, cycleCode: true, currentState: true } })
+          : [],
+        this.prisma.sensorReading.findMany({ where: { deviceId: id, recordedAt: { gte: since } }, distinct: ['deviceSequence'], select: { id: true } }),
+      ]);
+      return { ...base, runningCycles, latest, recordsLast24h: last24h.length, recent: recent.slice(0, 30) };
+    }
+    const [activeTransfer, positions, last24h] = await Promise.all([
+      device.vehicleId
+        ? this.prisma.distributionTransfer.findFirst({ where: { vehicleId: device.vehicleId, status: 'IN_TRANSIT' }, select: { id: true, origin: true, destination: true, inTransitAt: true } })
+        : null,
+      this.prisma.distributionPosition.findMany({
+        where: { deviceId: id },
+        orderBy: [{ recordedAt: 'desc' }, { deviceSequence: 'desc' }],
+        take: 30,
+        select: { deviceSequence: true, recordedAt: true, receivedAt: true, latitude: true, longitude: true, accuracyM: true, speedKmh: true, heading: true, satellites: true, battery: true, validity: true, anomalyCode: true, transferId: true },
+      }),
+      this.prisma.distributionPosition.count({ where: { deviceId: id, recordedAt: { gte: since } } }),
+    ]);
+    const recent = positions.map((p) => ({
+      sequence: String(p.deviceSequence),
+      recordedAt: p.recordedAt,
+      receivedAt: p.receivedAt,
+      latitude: Number(p.latitude.toString()),
+      longitude: Number(p.longitude.toString()),
+      accuracyM: p.accuracyM == null ? null : Number(p.accuracyM.toString()),
+      speedKmh: p.speedKmh == null ? null : Number(p.speedKmh.toString()),
+      heading: p.heading == null ? null : Number(p.heading.toString()),
+      satellites: p.satellites,
+      battery: p.battery == null ? null : Number(p.battery.toString()),
+      validity: p.validity,
+      anomalyCode: p.anomalyCode,
+      transferId: p.transferId,
+    }));
+    return { ...base, activeTransfer, latestPosition: recent.find((p) => p.validity === 'VALID') ?? null, recordsLast24h: last24h, recent };
   }
 
   /** Plots and vehicles this user may bind devices to. */

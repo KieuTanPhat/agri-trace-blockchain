@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { z } from "zod";
 import { Plus } from "lucide-react";
 import { useLedgerQuery as useQuery } from "@/lib/ledger/data";
@@ -13,6 +14,8 @@ import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { ChoiceField, SelectField, TextField } from "@/components/ledger/kit/form-fields";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ledger/ui/sheet";
+import { DeviceDetail } from "@/components/ledger/workspace/device-detail";
 
 const SPKI = /^[A-Za-z0-9_-]{59}$/;
 const CODE = /^[A-Za-z0-9._:-]{3,120}$/;
@@ -45,6 +48,8 @@ export default function DevicesPage() {
   const plots = (options.data?.plots ?? []).map((p) => ({ value: p.id, label: `${p.farm.name} · ${p.name}` }));
   const vehicles = (options.data?.vehicles ?? []).map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }));
   const manage = can("devices.manage");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const opened = devices.data?.find((d) => d.id === openId) ?? null;
 
   const cols: Column<Device>[] = [
     {
@@ -52,10 +57,10 @@ export default function DevicesPage() {
       header: tr("Thiết bị"),
       sort: (d) => d.name,
       cell: (d) => (
-        <span className="flex flex-col">
+        <button type="button" onClick={() => setOpenId(d.id)} className="flex flex-col text-left hover:underline">
           <span className="font-medium">{d.name}</span>
           <span className="font-mono text-[11.5px] text-ink-2">{d.deviceCode}</span>
-        </span>
+        </button>
       ),
     },
     { key: "kind", header: tr("Loại"), cell: (d) => <span className="text-[12px]">{tr(KIND_LABEL[d.type] ?? d.type)}</span> },
@@ -101,14 +106,16 @@ export default function DevicesPage() {
     {
       key: "act",
       header: <span className="sr-only">{tr("Thao tác")}</span>,
-      cell: (d) =>
-        manage ? (
+      cell: (d) => (
           <span className="flex flex-wrap gap-1">
+            <Button size="xs" variant="outline" onClick={() => setOpenId(d.id)}>{tr("Chi tiết")}</Button>
+            {manage && <>
             <Button size="xs" variant="outline" onClick={() => bind.open(d)}>{tr("Gắn")}</Button>
             <Button size="xs" variant="outline" onClick={() => rotate.open(d)}>{tr("Đổi khóa")}</Button>
             <Button size="xs" variant="outline" onClick={() => toggle.open(d)}>{d.status === "ACTIVE" ? tr("Ngừng") : tr("Kích hoạt")}</Button>
+            </>}
           </span>
-        ) : null,
+      ),
     },
   ];
 
@@ -126,6 +133,16 @@ export default function DevicesPage() {
           <DataTable rows={devices.data} loading={devices.isLoading} error={devices.error} onRetry={() => devices.refetch()} columns={cols} rowKey={(d) => d.id} empty={<EmptyState title={tr("Chưa có thiết bị")} />} minWidth={760} />
         </div>
       </PageBody>
+
+      <Sheet open={!!opened} onOpenChange={(o) => { if (!o) setOpenId(null); }}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>{opened?.name}</SheetTitle>
+            <SheetDescription>{opened ? tr(KIND_LABEL[opened.type] ?? opened.type) : ""}</SheetDescription>
+          </SheetHeader>
+          {opened && <DeviceDetail id={opened.id} />}
+        </SheetContent>
+      </Sheet>
 
       {manage && (
         <CommandDialog
@@ -163,9 +180,9 @@ export default function DevicesPage() {
                 </div>
                 <TextField control={f.control} name="publicKey" label={tr("Khóa công khai của thiết bị")} hint={tr("Ed25519 SPKI base64url, 59 ký tự")} />
                 {kind === "FIELD_SENSOR" ? (
-                  <SelectField control={f.control} name="plotId" label={tr("Thửa")} options={plots} />
+                  <SelectField control={f.control} name="plotId" label={tr("Thửa")} options={plots} hint={plots.length ? undefined : tr("Doanh nghiệp chưa có thửa đang hoạt động. Tạo thửa ở Quản lý vùng sản xuất.")} />
                 ) : (
-                  <SelectField control={f.control} name="vehicleId" label={tr("Xe")} options={vehicles} />
+                  <SelectField control={f.control} name="vehicleId" label={tr("Xe")} options={vehicles} hint={vehicles.length ? undefined : tr("Doanh nghiệp chưa khai xe nào đang hoạt động. Thêm xe ở Tài nguyên → Phương tiện.")} />
                 )}
                 <ChoiceField control={f.control} name="simulated" label={tr("Nguồn thiết bị")} options={[{ value: "yes", label: tr("Thiết bị ảo (mô phỏng)"), help: tr("Dữ liệu luôn hiện nhãn mô phỏng, kể cả trên QR") }, { value: "no", label: tr("Thiết bị thật") }]} />
               </>

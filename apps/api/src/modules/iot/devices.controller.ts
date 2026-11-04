@@ -67,6 +67,14 @@ export class DevicesController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
+  @Get('devices/:id')
+  @ApiDataResponse(WorkspaceRecordDto)
+  detail(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.registry.detail(req.user, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Get('device-options')
   @ApiDataResponse(WorkspaceRecordDto)
   options(@Req() req: AuthenticatedRequest) {

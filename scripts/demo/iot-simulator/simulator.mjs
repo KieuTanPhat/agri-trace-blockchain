@@ -80,7 +80,8 @@ async function upload(device, records, { forged = false, replay = null } = {}) {
     if (!res.ok) {
       device.lastError = `${res.status} ${json?.error?.message ?? json?.message ?? ''}`.trim();
       log(device, `Máy chủ từ chối: ${device.lastError}`);
-      return { ok: res.status < 500 && res.status !== 429, status: res.status };
+      if (res.status === 401 || res.status === 403) log(device, 'Giữ dữ liệu, thử lại sau 15 giây (thiết bị đã đăng ký và đang hoạt động trong AgriTrace chưa?)');
+      return { ok: false, status: res.status };
     }
     device.lastError = null;
     device.lastBody = body;
@@ -193,11 +194,17 @@ setInterval(async () => {
   busy = true;
   try {
     for (const d of state.devices) {
-      if (!d.queue.length || inSignalLoss(d) || d.power === 'OFF') continue;
+      if (!d.queue.length || inSignalLoss(d) || d.power === 'OFF' || now < (d.retryAt ?? 0)) continue;
       const batch = d.queue.slice(0, BATCH);
       const r = await upload(d, batch);
-      // 4xx other than throttling means the server decided; do not resend forever.
-      if (r.ok || (r.status >= 400 && r.status < 500 && r.status !== 429)) d.queue.splice(0, batch.length);
+      // Like real firmware: keep the backlog while the device is not (yet)
+      // accepted or the server is unreachable, and retry later. Other 4xx answers
+      // are the server's decision on these records, so they are not resent.
+      const retry = !r.ok && (r.status === 0 || r.status === 401 || r.status === 403 || r.status === 429 || r.status >= 500);
+      if (retry) {
+        d.retryAt = now + 15_000;
+        if (d.queue.length > 20_000) d.queue.splice(0, d.queue.length - 20_000);
+      } else d.queue.splice(0, batch.length);
     }
   } finally {
     busy = false;
