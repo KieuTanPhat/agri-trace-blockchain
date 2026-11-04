@@ -63,8 +63,8 @@ async function main() {
 
   const auditorRole = await prisma.role.upsert({
     where: { code: 'AUDITOR' },
-    update: { name: 'Thanh tra viên' },
-    create: { code: 'AUDITOR', name: 'Thanh tra viên' },
+    update: { name: 'Kiểm định' },
+    create: { code: 'AUDITOR', name: 'Kiểm định' },
   });
 
   const farmOrganization =

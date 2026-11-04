@@ -201,7 +201,6 @@ class CatalogController {
     'RETAILER',
     'PROCESSOR',
     'AUDITOR',
-    'COMPLIANCE_REVIEWER',
   )
   async list(@Req() req: AuthenticatedRequest) {
     const enterpriseUser = await this.db.user.findUnique({

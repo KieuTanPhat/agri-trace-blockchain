@@ -60,7 +60,7 @@ const createSchema = z
   })
   .refine(
     (v) =>
-      !["AUDITOR", "COMPLIANCE_REVIEWER"].includes(v.roleCode) ||
+      v.roleCode !== "AUDITOR" ||
       !!v.organizationId,
     {
       path: ["organizationId"],
@@ -370,7 +370,7 @@ export function PlatformUsers({
                 label="Vai"
                 options={roleOptions}
               />
-              {["AUDITOR", "COMPLIANCE_REVIEWER"].includes(rc) && (
+              {rc === "AUDITOR" && (
                 <SelectField
                   control={f.control}
                   name="organizationId"

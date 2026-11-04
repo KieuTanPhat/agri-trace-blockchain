@@ -18,7 +18,7 @@ export class ComplianceAssignmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
   list(actor: Actor) {
-    if (!['SYSTEM_ADMIN', 'COMPLIANCE_REVIEWER'].includes(actor.role))
+    if (!['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role))
       throw new ForbiddenException('Không có quyền xem phân công');
     return this.prisma.complianceAssignment.findMany({
       where:
@@ -56,7 +56,7 @@ export class ComplianceAssignmentsService {
       if (
         !reviewer ||
         reviewer.accountStatus !== 'ACTIVE' ||
-        reviewer.role.code !== 'COMPLIANCE_REVIEWER' ||
+        reviewer.role.code !== 'AUDITOR' ||
         reviewer.organization?.type !== 'AUDITOR' ||
         reviewer.organization.status !== 'ACTIVE' ||
         !farm ||

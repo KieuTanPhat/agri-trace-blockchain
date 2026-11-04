@@ -93,7 +93,7 @@ const prisma = new PrismaClient({
         ['retailer', 'RETAILER', retailer.id],
         ['admin', 'SYSTEM_ADMIN', null],
         ['auditor', 'AUDITOR', reviewerOrg.id],
-        ['reviewer', 'COMPLIANCE_REVIEWER', reviewerOrg.id],
+        ['reviewer', 'AUDITOR', reviewerOrg.id],
         ['unscoped', 'FARM_STAFF', null],
       ] as const) {
         const role = await prisma.role.upsert({
@@ -2922,7 +2922,7 @@ const prisma = new PrismaClient({
       expect(
         roles.body.data.map((role: { code: string }) => role.code),
       ).toEqual([
-        'COMPLIANCE_REVIEWER',
+        'AUDITOR',
         'SYSTEM_ADMIN',
       ]);
       const auditor = await post(
@@ -2938,7 +2938,7 @@ const prisma = new PrismaClient({
         {
           email: `independent-reviewer-${randomUUID()}@example.test`,
           fullName: 'Independent reviewer',
-          roleCode: 'COMPLIANCE_REVIEWER',
+          roleCode: 'AUDITOR',
           organizationId: auditor.body.data.id,
         },
         'admin',

@@ -7,6 +7,5 @@ export const ROLE_CODES = [
   'PROCESSOR',
   'RETAILER',
   'AUDITOR',
-  'COMPLIANCE_REVIEWER',
   'SYSTEM_ACTOR',
 ] as const;

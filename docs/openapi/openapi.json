@@ -796,7 +796,6 @@
               "PROCESSOR",
               "RETAILER",
               "AUDITOR",
-              "COMPLIANCE_REVIEWER",
               "SYSTEM_ACTOR"
             ],
             "type": "string"
@@ -8278,7 +8277,6 @@
               "PROCESSOR",
               "RETAILER",
               "AUDITOR",
-              "COMPLIANCE_REVIEWER",
               "SYSTEM_ACTOR"
             ],
             "type": "string"
@@ -48826,7 +48824,7 @@
                 }
               }
             },
-            "description": "Chỉ COMPLIANCE_REVIEWER có assignment active với Farm của Lot được ghi inspection."
+            "description": "Chỉ tài khoản Kiểm định (AUDITOR) có assignment active với Farm của Lot được ghi inspection."
           },
           "404": {
             "content": {

@@ -160,7 +160,7 @@ New products are organization-owned; legacy shared products remain readable.
 Platform administrators can read catalog records but cannot create products,
 farms or plots. Enterprise administrators and delegated staff use current
 `catalog.manage` scope for those writes. Platform-created users are limited to
-system administrators and independent compliance reviewers; enterprise staff
+Admin (`SYSTEM_ADMIN`) and inspector (`AUDITOR`) accounts; enterprise staff
 must be created inside the approved enterprise hierarchy. Direct platform
 organization creation is limited to independent auditor organizations.
 Registration requires the five-step legal/account/activity/service profile and is
@@ -249,7 +249,7 @@ ghi nghiệp vụ; phần này chỉ ràng buộc việc quản trị tài kho�
   hiện tại và lý do tối thiểu 10 ký tự. Khóa thu hồi mọi refresh session trong
   cùng transaction (cùng thứ tự khóa org → user như login/refresh). Không tự khóa
   chính mình; không vô hiệu hóa quản trị viên hoạt động cuối cùng. Admin chỉ đổi
-  trạng thái tài khoản nền tảng (SYSTEM_ADMIN, COMPLIANCE_REVIEWER).
+  trạng thái tài khoản nền tảng (SYSTEM_ADMIN, AUDITOR).
 - **Mật khẩu và phiên:** admin đặt mật khẩu tạm (không trả lại, không ghi nhật ký)
   buộc đổi ở lần đầu; token của tài khoản đó chỉ dùng được `/auth/me`,
   `/auth/change-password`, `/auth/logout(-all)`. Tự đổi mật khẩu thu hồi mọi phiên
@@ -411,9 +411,9 @@ Nền tảng chỉ có một vai Admin (`SYSTEM_ADMIN`). Ba vai hẹp cũ (vận
 phối sự cố, phụ trách dữ liệu cá nhân) đã gộp vào Admin; migration
 `20270101000000_platform_admin_consolidation` chuyển tài khoản cũ sang `SYSTEM_ADMIN` rồi
 xóa mã cũ khỏi `app_role`. Admin có MFA tự phục vụ, khóa đăng nhập nền tảng và
-không ghi nghiệp vụ (sản xuất, lô, vận chuyển, chế biến). Thao tác cần hai người
-phải dùng hai tài khoản Admin khác nhau; một tài khoản không tự duyệt đề xuất
-của chính mình.
+không ghi nghiệp vụ (sản xuất, lô, vận chuyển, chế biến). Không tự khóa chính
+mình và không vô hiệu hóa Admin hoạt động cuối cùng. Luồng maker–checker hiện đã
+gỡ; khi bật lại, người duyệt phải là một tài khoản Admin khác người đề xuất.
 
 ## Hồ sơ nghiệp vụ theo biểu mẫu bổ sung (19/10/2026)
 

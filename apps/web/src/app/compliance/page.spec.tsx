@@ -72,7 +72,7 @@ describe("Compliance forms use current server subject permissions", () => {
     ).not.toBeInTheDocument();
   });
   it("keeps a producer with an auditor capability from a scoped self-review form", async () => {
-    user = { ...user, role: { code: "COMPLIANCE_REVIEWER", name: "Reviewer" } };
+    user = { ...user, role: { code: "AUDITOR", name: "Kiểm định" } };
     api.getProductionCycles.mockResolvedValue([
       { ...cycle, canReviewCompliance: false },
     ]);

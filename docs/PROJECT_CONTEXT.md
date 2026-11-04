@@ -70,7 +70,9 @@ Quantity dùng decimal và movement/custody append-only. Recall/expiry/FAILED kh
 tự đưa hàng về chủ cũ. Mỗi thu hoạch chốt sensor window; dữ liệu đến muộn không
 được dùng để tính lại hash. Các mốc thời gian nghiệp vụ theo Asia/Ho_Chi_Minh.
 
-Reviewer thuộc tổ chức AUDITOR, được phân công Farm và không tự review submission.
+Vai Kiểm định (`AUDITOR`, gộp vai reviewer cũ từ 04/11/2026) thuộc tổ chức AUDITOR,
+chỉ ghi kiểm định trên Farm được phân công và không tự review submission. Grant
+`COMPLIANCE_REVIEWER` trên chuỗi (`ScopedRole`, Fabric) giữ nguyên mã cũ.
 QR công khai che dữ liệu riêng tư, hiện độc lập cảnh báo thu hồi, hết hạn, cảm
 biến và integrity. `VERIFIED` mô tả bằng chứng, không chứng nhận chất lượng.
 

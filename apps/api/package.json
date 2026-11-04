@@ -26,7 +26,6 @@
     "db:inspect": "node scripts/inspect-db.mjs",
     "db:seed": "prisma db seed",
     "db:seed:catalog": "tsx prisma/seed-catalog.ts",
-    "db:provision-compliance-role": "node scripts/provision-compliance-role.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

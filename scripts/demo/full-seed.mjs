@@ -184,7 +184,6 @@ const roles = [
   "RETAILER",
   "PROCESSOR",
   "AUDITOR",
-  "COMPLIANCE_REVIEWER",
 ];
 const orgDefs = [
   [
@@ -367,7 +366,7 @@ const bootstrap = await step("bootstrap", async () => {
             tx,
             "reviewer@example.test",
             "Nguyễn Thu Hà",
-            "COMPLIANCE_REVIEWER",
+            "AUDITOR",
             {
               organizationId: organization.id,
               jobTitle: "Chuyên viên xét duyệt độc lập",

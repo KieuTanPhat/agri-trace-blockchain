@@ -4,7 +4,6 @@ import { canAccessManagementRoute, platformAdminHome } from "../permissions";
 const nonEnterpriseRoles: Role[] = [
   "SYSTEM_ADMIN",
   "AUDITOR",
-  "COMPLIANCE_REVIEWER",
   "IOT_DEVICE",
   "SYSTEM_ACTOR",
 ];

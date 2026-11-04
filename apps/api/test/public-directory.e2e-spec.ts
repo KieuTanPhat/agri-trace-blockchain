@@ -172,9 +172,9 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
       create: { code: 'FARM_STAFF', name: 'Farm' },
     });
     const reviewRole = await db.role.upsert({
-      where: { code: 'COMPLIANCE_REVIEWER' },
+      where: { code: 'AUDITOR' },
       update: {},
-      create: { code: 'COMPLIANCE_REVIEWER', name: 'Reviewer' },
+      create: { code: 'AUDITOR', name: 'Kiểm định' },
     });
     const submitter = await db.user.create({
       data: {

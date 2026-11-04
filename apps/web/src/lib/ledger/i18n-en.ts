@@ -156,8 +156,6 @@ export const EN: Record<string, string> = {
   "ATTP đã hết hạn": "Food safety certificate expired",
   "ATTP hết hạn": "Food safety expired",
   "audit log chuỗi băm": "audit log hash chain",
-  "AUDITOR chỉ đọc nhật ký và phê duyệt; COMPLIANCE_REVIEWER xét chứng nhận và ghi kết quả kiểm tra trên vùng được phân công. Tạo hoặc khóa tài khoản ở":
-    "AUDITOR only reads logs and approvals; COMPLIANCE_REVIEWER reviews certificates and records inspection results on assigned production areas. Create or lock accounts in",
   "Ẩn bản chụp": "Hide snapshot",
   "Ân hạn": "Grace period",
   "Ẩn thông báo": "Hide notice",
@@ -456,8 +454,6 @@ export const EN: Record<string, string> = {
   "Chưa có phiên bản trước": "No previous revisions",
   "Chưa có phương tiện": "No vehicles yet",
   "Chưa có sản phẩm": "No products yet",
-  "Chưa có tài khoản COMPLIANCE_REVIEWER đang hoạt động. Tạo ở Tài khoản nền tảng, gắn với một tổ chức kiểm định.":
-    "No active COMPLIANCE_REVIEWER account. Create one in Platform accounts, linked to an inspection body.",
   "Chưa có tài khoản kiểm định": "No inspection accounts yet",
   "Chưa có thành viên trực thuộc": "No direct reports yet",
   "Chưa có thông báo": "No messages yet",
@@ -1141,7 +1137,6 @@ export const EN: Record<string, string> = {
   "Kiểm định độc lập": "Independent inspection",
   "Kiểm soát": "Control",
   "Kiểm toán": "Audit",
-  "Kiểm toán viên": "Auditor",
   "Kiểm tra": "Check",
   "Ký giao nhận": "Sign handover",
   "Kỳ hạn (tháng)": "Term (months)",
@@ -1421,8 +1416,6 @@ export const EN: Record<string, string> = {
   "Người tiêu dùng sẽ đọc nội dung này": "Consumers will read this content",
   "Người xét": "Reviewer",
   "Người xét chứng nhận": "Certificate reviewers",
-  "Người xét phải là COMPLIANCE_REVIEWER đang hoạt động thuộc tổ chức kiểm định đang hoạt động; vùng sản xuất và doanh nghiệp sở hữu cũng phải đang hoạt động. Mỗi cặp người xét – vùng chỉ có một phân công hiệu lực.":
-    "The reviewer must be an active COMPLIANCE_REVIEWER in an active inspection body; the production area and its owning enterprise must also be active. Each reviewer–area pair has at most one active assignment.",
   "Nhà cung cấp": "Provider",
   "Nhà nhập khẩu": "Importer",
   "Nhà phân phối": "Distributor",

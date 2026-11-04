@@ -87,7 +87,6 @@ export function canAccessManagementRoute(
     [
       "SYSTEM_ADMIN",
       "AUDITOR",
-      "COMPLIANCE_REVIEWER",
       "IOT_DEVICE",
       "SYSTEM_ACTOR",
     ].includes(role)
@@ -108,7 +107,6 @@ export function canAccessManagementRoute(
       "TRANSPORTER",
       "RETAILER",
       "AUDITOR",
-      "COMPLIANCE_REVIEWER",
     ].includes(role);
   if (within("/production-cycles")) {
     return [
@@ -117,7 +115,6 @@ export function canAccessManagementRoute(
       "TRANSPORTER",
       "RETAILER",
       "AUDITOR",
-      "COMPLIANCE_REVIEWER",
     ].includes(role);
   }
   return true;

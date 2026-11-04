@@ -23,6 +23,6 @@ export const loginMaxAttempts = () =>
 export const loginLockMinutes = () =>
   intFrom('PLATFORM_LOGIN_LOCK_MINUTES', 15, 1, 1440);
 
-export const PLATFORM_ROLES = ['SYSTEM_ADMIN', 'COMPLIANCE_REVIEWER'] as const;
+export const PLATFORM_ROLES = ['SYSTEM_ADMIN', 'AUDITOR'] as const;
 export const MIN_REASON_LENGTH = 10;
 

@@ -133,7 +133,6 @@ try {
         "RETAILER",
         "PROCESSOR",
         "AUDITOR",
-        "COMPLIANCE_REVIEWER",
       ])
         assert.ok(roleCodes.includes(role));
       assert.equal((await db.organization.groupBy({ by: ["type"] })).length, 6);
@@ -254,7 +253,6 @@ try {
     "RETAILER",
     "PROCESSOR",
     "AUDITOR",
-    "COMPLIANCE_REVIEWER",
   ];
   for (const role of expected)
     await check(`Real authentication: ${role}`, async () => {
@@ -280,7 +278,7 @@ try {
         cycleCode: "FORBIDDEN-SEED-CHECK",
         harvestUnit: "kg",
       };
-      for (const role of ["SYSTEM_ADMIN", "COMPLIANCE_REVIEWER"])
+      for (const role of ["SYSTEM_ADMIN", "AUDITOR"])
         assert.equal(
           (await request("/production-cycles", sessions[role], body)).status,
           403,

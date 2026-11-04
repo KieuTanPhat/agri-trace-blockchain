@@ -58,7 +58,6 @@ export class ComplianceController {
     'TRANSPORTER',
     'RETAILER',
     'AUDITOR',
-    'COMPLIANCE_REVIEWER',
   )
   @Get('inspections')
   inspections(
@@ -72,7 +71,7 @@ export class ComplianceController {
   @Roles(...COMPLIANCE_REVIEW_ROLES)
   @ApiForbiddenResponse({
     description:
-      'Chỉ COMPLIANCE_REVIEWER có assignment active với Farm của Lot được ghi inspection.',
+      'Chỉ tài khoản Kiểm định (AUDITOR) có assignment active với Farm của Lot được ghi inspection.',
   })
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Post('inspections')
@@ -102,7 +101,6 @@ export class ComplianceController {
     'TRANSPORTER',
     'RETAILER',
     'AUDITOR',
-    'COMPLIANCE_REVIEWER',
   )
   @Get('certificates')
   certificates(

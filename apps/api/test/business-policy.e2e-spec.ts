@@ -351,9 +351,9 @@ describe('Release A scoped command policy on PostgreSQL', () => {
       await grant(tx, retailer, 'RETAILER');
       await grant(tx, producer, 'CHAIN_MANAGER');
       const role = await tx.role.upsert({
-        where: { code: 'COMPLIANCE_REVIEWER' },
+        where: { code: 'AUDITOR' },
         update: {},
-        create: { code: 'COMPLIANCE_REVIEWER', name: 'Reviewer' },
+        create: { code: 'AUDITOR', name: 'Kiểm định' },
       });
       const org = await tx.organization.create({
         data: { name: `Policy reviewer ${randomUUID()}`, type: 'AUDITOR' },

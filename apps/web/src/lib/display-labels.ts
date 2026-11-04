@@ -68,8 +68,7 @@ const roleLabels: Record<Role, string> = {
   IOT_DEVICE: "Thiết bị cảm biến",
   TRANSPORTER: "Đơn vị vận chuyển",
   RETAILER: "Nhà bán lẻ",
-  AUDITOR: "Kiểm tra viên",
-  COMPLIANCE_REVIEWER: "Người duyệt tuân thủ",
+  AUDITOR: "Kiểm định",
   SYSTEM_ACTOR: "Tác vụ hệ thống",
 };
 

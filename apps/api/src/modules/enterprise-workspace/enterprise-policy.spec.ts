@@ -5,7 +5,7 @@ import type { AuthorizedCommand } from '../../common/idempotency/command-authori
 import { restrictEnterpriseBusiness } from './enterprise-policy.js';
 
 describe('Independent compliance and enterprise delegation',()=>{
-  const input={actor:{sub:'reviewer',organizationId:'inspection-org',role:'COMPLIANCE_REVIEWER'},operation:'REVIEW_CERTIFICATE',payload:{id:'certificate'}} as AuthorizedCommand;
+  const input={actor:{sub:'reviewer',organizationId:'inspection-org',role:'AUDITOR'},operation:'REVIEW_CERTIFICATE',payload:{id:'certificate'}} as AuthorizedCommand;
   it.each(['AUDITOR','COMPLIANCE_REVIEWER'])('does not reclassify an authorized %s command using business hierarchy',async role=>{
     const findUnique=vi.fn().mockResolvedValue({enterpriseTier:3});
     await expect(restrictEnterpriseBusiness({user:{findUnique}} as unknown as Prisma.TransactionClient,input,true,role)).resolves.toBeUndefined();

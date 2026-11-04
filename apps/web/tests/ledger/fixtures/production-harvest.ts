@@ -9,8 +9,8 @@ export const cycle:Cycle={id:cycleId,name:"Vụ Ledger",chainId,createdAt:"2026-
 const image=(id:string,kind:string):S["TraceEvidenceRecordDto"]=>({id,entityId:cycleId,entityType:"CYCLE",description:kind,fileName:kind+".jpg",kind,mediaType:"image/jpeg",public:false,sha256:"a".repeat(64),size:300,siteId:null,supersedesId:null,createdAt:"2026-10-20T00:00:00Z"});
 registerScenario("production.independent-read",{handle(r,state){const p=new URL("http://fixture"+r.path).pathname;
  if(p.startsWith("/enterprise-")||p==="/production-cycles/drafts")return {status:403,error:{code:"FORBIDDEN",message:"Vai trò kiểm định độc lập không có quyền doanh nghiệp"}};
- if(p==="/production-cycles"&&r.method==="GET")return {data:[{...cycle,canWriteProduction:false,canReviewCompliance:state.actor==="compliance-reviewer"}]};
- if(p===`/production-cycles/${cycleId}`&&r.method==="GET")return {data:{...cycle,canWriteProduction:false,canReviewCompliance:state.actor==="compliance-reviewer"}};
+ if(p==="/production-cycles"&&r.method==="GET")return {data:[{...cycle,canWriteProduction:false,canReviewCompliance:state.actor==="auditor"}]};
+ if(p===`/production-cycles/${cycleId}`&&r.method==="GET")return {data:{...cycle,canWriteProduction:false,canReviewCompliance:state.actor==="auditor"}};
  return readScenario("production.baseline").handle(r,state);
 }});
 for(const name of ["iot.unknown","iot.rejected","iot.accepted"])registerScenario(name,{handle(r,state){

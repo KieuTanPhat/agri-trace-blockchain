@@ -5788,7 +5788,7 @@ export interface components {
         };
         AuthRoleDto: {
             /** @enum {string} */
-            code: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "AUDITOR" | "COMPLIANCE_REVIEWER" | "SYSTEM_ACTOR";
+            code: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "AUDITOR" | "SYSTEM_ACTOR";
             /** Format: uuid */
             id: string;
             name: string;
@@ -7867,7 +7867,7 @@ export interface components {
             organizationId?: string;
             organizationName: string;
             /** @enum {string} */
-            role: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "AUDITOR" | "COMPLIANCE_REVIEWER" | "SYSTEM_ACTOR";
+            role: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "AUDITOR" | "SYSTEM_ACTOR";
             /** Format: uuid */
             userId?: string;
         };
@@ -32057,7 +32057,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
                 };
             };
-            /** @description Chỉ COMPLIANCE_REVIEWER có assignment active với Farm của Lot được ghi inspection. */
+            /** @description Chỉ tài khoản Kiểm định (AUDITOR) có assignment active với Farm của Lot được ghi inspection. */
             403: {
                 headers: {
                     [name: string]: unknown;

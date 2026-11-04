@@ -125,11 +125,6 @@ async function main() {
   evidence.migrations = Object.keys(expected).length;
   checkpoint(`${evidence.migrations} migrations apply from empty, replay as a no-op and match repository checksums`);
 
-  const provisionRole = () => dc(['run', '--rm', '--no-deps', '-T', 'api', 'npm', 'run', 'db:provision-compliance-role', '--workspace', 'apps/api']);
-  assert.match(provisionRole(), /^COMPLIANCE_REVIEWER provisioned; created=1$/m);
-  assert.match(provisionRole(), /^COMPLIANCE_REVIEWER provisioned; created=0$/m);
-  checkpoint('COMPLIANCE_REVIEWER provisioning creates once and replays without duplicates on the runtime image');
-
   const fixture = fixtureFor();
   const provisioning = { accounts: fixture.accounts, catalog: { chainId: fixture.chainId, farmId: fixture.farmId, plotId: fixture.plotId, productId: fixture.productId } };
   const provision = () => JSON.parse(inApi('deploy/ci/provision.mjs', { input: JSON.stringify(provisioning) }).trim().split('\n').at(-1));

@@ -84,7 +84,7 @@ export async function createPlatformUserTx(
   ) {
     throw new UnprocessableEntityException('Organization does not exist');
   }
-  if (role.code === 'COMPLIANCE_REVIEWER') {
+  if (role.code === 'AUDITOR') {
     const organization = await tx.organization.findUnique({
       where: { id: input.organizationId! },
     });
@@ -94,7 +94,7 @@ export async function createPlatformUserTx(
       organization.status !== 'ACTIVE'
     )
       throw new UnprocessableEntityException(
-        'Reviewer phải thuộc tổ chức AUDITOR đang hoạt động',
+        'Tài khoản Kiểm định phải thuộc tổ chức AUDITOR đang hoạt động',
       );
   }
   const user = await tx.user.create({

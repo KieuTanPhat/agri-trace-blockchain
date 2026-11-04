@@ -133,7 +133,7 @@ function cultivationLimit(options: Options, farmId: string, plotId: string) {
 export default function CyclesPage({cycleId,view="list"}:{cycleId?:string;view?:string}) {
  const router=useRouter();
   const {user}=useSession();
-  const independent=user?.role.code==="AUDITOR"||user?.role.code==="COMPLIANCE_REVIEWER";
+  const independent=user?.role.code==="AUDITOR";
   const { can } = useWorkspaceAccess();
   const [tab, setTab] = useState<"cycles" | "drafts">(view==="draft"?"drafts":"cycles");
   const [openId, setOpenId] = useState<string | null>(cycleId && view!=="draft"?cycleId:null);

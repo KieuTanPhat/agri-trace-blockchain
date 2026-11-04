@@ -162,7 +162,7 @@ Dialog/sheet/select/menu riêng tư dùng portal trong cùng vùng `hidden/inert
 trang đã được xác minh. Kiểm tra lại quyền cùng tài khoản giữ form trong bộ nhớ;
 chỉ cho tương tác lại sau khi xác minh. Lỗi kiểm tra quyền vẫn có nút thử lại, không
 tự hủy bản nháp. Quyền hiển thị lấy từ cache đúng scope để giữ cây giao diện ẩn;
-query và command vẫn dùng gate/transport/API hiện hành. Auditor và Compliance Reviewer
+query và command vẫn dùng gate/transport/API hiện hành. Tài khoản Kiểm định (AUDITOR)
 đọc vụ/nhật ký/thu hoạch theo projection của API sản xuất, không gọi enterprise-access
 để cấp quyền doanh nghiệp hoặc hiện lệnh ghi.
 

@@ -95,8 +95,8 @@ cách ly và image API/Web build từ commit:
    HTTPS chỉ kiểm ở mức cấu hình.
 2. Mô hình Compose còn quota CPU/RAM cho mọi service, chỉ proxy được publish và chỉ ở loopback.
 3. Migration chạy từ DB rỗng, chạy lại là no-op và checksum trong `_prisma_migrations` khớp repo.
-4. `db:provision-compliance-role` tạo một lần rồi replay; provisioning production (cùng
-   transaction với `bootstrap-production.mjs`) tạo năm tài khoản rồi replay không đổi gì.
+4. Provisioning production (cùng transaction với `bootstrap-production.mjs`) tạo năm
+   tài khoản rồi replay không đổi gì.
    Vì rehearsal không chạy Fabric, `simulated-ledger.js` (`LEDGER_SIMULATION=1`) gắn binding
    giả lập cho chuỗi vừa cấp rồi replay không tạo thêm; sự kiện đứng `PENDING`.
 5. Luồng nghiệp vụ và phiên qua proxy: đăng nhập, RBAC từ chối, replay idempotency, hai harvest,

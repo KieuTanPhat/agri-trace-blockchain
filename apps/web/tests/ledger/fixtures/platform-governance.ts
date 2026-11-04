@@ -344,7 +344,7 @@ const reviewer: S["UserListDto"] = {
   ...governanceAccount,
   id: "77777777-7777-4777-8777-777777777777",
   fullName: "Người kiểm định kiểm thử",
-  role: { code: "COMPLIANCE_REVIEWER", name: "Người kiểm định" },
+  role: { code: "AUDITOR", name: "Kiểm định" },
   organization: { id: auditorOrg.id, name: auditorOrg.name, type: "AUDITOR" },
 };
 const assignment: S["AssignmentListDto"] = {

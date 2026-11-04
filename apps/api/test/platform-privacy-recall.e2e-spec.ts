@@ -467,7 +467,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     const previousMax = process.env.PLATFORM_LOGIN_MAX_ATTEMPTS;
     process.env.PLATFORM_LOGIN_MAX_ATTEMPTS = '3';
     try {
-      const target = await actor('COMPLIANCE_REVIEWER');
+      const target = await actor('AUDITOR');
       const org = await prisma.organization.create({
         data: { type: 'AUDITOR', name: 'Concurrent reviewer fixture' },
       });

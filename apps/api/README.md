@@ -44,9 +44,8 @@ NestJS API sử dụng PostgreSQL và Prisma. API mặc định chạy tại
 Command journal, reviewer scope và harvest sensor window tuân theo
 [quy tắc nghiệp vụ](../../docs/core-business-rules.md). Cài mới Hybrid theo
 [runbook production](../../docs/production-runbook.md).
-Các migration mới cần review SQL/rehearsal có kiểm soát trước triển khai. Sau
-migrate, dùng `npm run db:provision-compliance-role --workspace apps/api` để thêm
-role reviewer còn thiếu; không dùng demo seed trên dữ liệu dùng chung.
+Các migration mới cần review SQL/rehearsal có kiểm soát trước triển khai. Không
+dùng demo seed trên dữ liệu dùng chung.
 
 ## Chạy local
 

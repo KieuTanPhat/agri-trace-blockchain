@@ -307,7 +307,6 @@ export async function authorizeCommand(
     case 'PRIVACY_REQUEST_CREATE':
       requireRole(actor, [
         'SYSTEM_ADMIN',
-        'COMPLIANCE_REVIEWER',
         'AUDITOR',
         'FARM_STAFF',
         'TRANSPORTER',

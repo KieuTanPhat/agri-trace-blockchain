@@ -10,7 +10,6 @@ export const ACTOR_KEYS = [
   "transporter",
   "distributor",
   "retailer",
-  "compliance-reviewer",
 ] as const;
 export type ActorKey = (typeof ACTOR_KEYS)[number];
 export type Session = components["schemas"]["AuthSessionDto"];
@@ -27,7 +26,6 @@ const roles: Record<
   transporter: "TRANSPORTER",
   distributor: "DISTRIBUTOR",
   retailer: "RETAILER",
-  "compliance-reviewer": "COMPLIANCE_REVIEWER",
 };
 export function actorSession(key: ActorKey): Session | null {
   if (key === "anonymous") return null;

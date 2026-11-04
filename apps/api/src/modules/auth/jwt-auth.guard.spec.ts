@@ -121,7 +121,7 @@ describe('Current account authorization', () => {
     expect(request.user).toBeUndefined();
   });
 
-  it.each(['AUDITOR', 'COMPLIANCE_REVIEWER'])('keeps %s independent from enterprise delegation metadata', async (code) => {
+  it.each(['AUDITOR'])('keeps %s independent from enterprise delegation metadata', async (code) => {
     findUnique.mockResolvedValue({id,email:'reviewer@example.test',role:{code},organizationId:'631e9648-174d-48a0-9494-353bda8775da',
       organization:{status:'ACTIVE'},accountStatus:'ACTIVE',enterpriseTier:3,enterpriseRoles:[],passwordChangedAt:new Date(),createdAt:new Date()});
     const {request,ctx}=context();

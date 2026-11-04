@@ -155,7 +155,6 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
     ![
       "SYSTEM_ADMIN",
       "AUDITOR",
-      "COMPLIANCE_REVIEWER",
       "IOT_DEVICE",
       "SYSTEM_ACTOR",
     ].includes(user?.role.code ?? "");

@@ -63,7 +63,7 @@ export function InspectorsView() {
           <DataTable
             rows={users.data?.filter(
               (u) =>
-                ["AUDITOR", "COMPLIANCE_REVIEWER"].includes(u.role.code) &&
+                u.role.code === "AUDITOR" &&
                 (!orgId || u.organization?.id === orgId) &&
                 `${u.fullName} ${u.email}`
                   .toLowerCase()

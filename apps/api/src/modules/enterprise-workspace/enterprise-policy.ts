@@ -99,7 +99,7 @@ export async function enterpriseAuthority(
   if (
     !actor.organizationId ||
     !actor.sub ||
-    ['SYSTEM_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'IOT_DEVICE'].includes(
+    ['SYSTEM_ADMIN', 'AUDITOR', 'IOT_DEVICE'].includes(
       actor.role,
     )
   )
@@ -245,7 +245,7 @@ export async function lockEnterprise(db: Prisma.TransactionClient, organizationI
 
 /** Enrollment owners can correct a rejected registration before business activation. */
 export async function profileAuthority(db:Prisma.TransactionClient,actor:CommandActor,lock=false) {
- if(!actor.organizationId||!actor.sub||['SYSTEM_ADMIN','AUDITOR','COMPLIANCE_REVIEWER','IOT_DEVICE'].includes(actor.role))throw new ForbiddenException();
+ if(!actor.organizationId||!actor.sub||['SYSTEM_ADMIN','AUDITOR','IOT_DEVICE'].includes(actor.role))throw new ForbiddenException();
  if(lock)await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`enterprise:${actor.organizationId}`},0))`;
  const user=await db.user.findUnique({where:{id:actor.sub},include:{organization:{include:{enterpriseEnrollment:true}}}});
  if(!user||user.accountStatus!=='ACTIVE'||user.organizationId!==actor.organizationId||user.organization?.status!=='ACTIVE')throw new ForbiddenException();
@@ -354,7 +354,7 @@ export async function authorizeWorkspaceCommand(
   input: AuthorizedCommand,
   lock: boolean,
 ) {
-  if (!input.actor?.organizationId || ['SYSTEM_ADMIN','AUDITOR','COMPLIANCE_REVIEWER','IOT_DEVICE'].includes(input.actor.role)) throw new ForbiddenException('Chức năng ghi thuộc thành viên doanh nghiệp');
+  if (!input.actor?.organizationId || ['SYSTEM_ADMIN','AUDITOR','IOT_DEVICE'].includes(input.actor.role)) throw new ForbiddenException('Chức năng ghi thuộc thành viên doanh nghiệp');
   const permission = OPERATIONS[input.operation];
   if (!permission)
     throw new ForbiddenException('Command doanh nghiệp chưa có policy');
