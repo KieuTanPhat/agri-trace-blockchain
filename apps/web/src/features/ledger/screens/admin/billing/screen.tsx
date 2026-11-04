@@ -75,6 +75,7 @@ function Plans() {
                   <table className="w-full min-w-[820px] text-[13px]">
                     <thead>
                       <tr className="border-b border-line bg-sunken text-left text-[12px] text-ink-2">
+                        <th className="h-9 w-12 pl-4 pr-1 text-right font-semibold">{tr("STT")}</th>
                         <th className="h-9 px-4 font-semibold">{tr("Phiên bản")}</th>
                         <th className="px-3 text-right font-semibold">{tr("Khởi tạo")}</th>
                         <th className="px-3 text-right font-semibold">{tr("Phí năm")}</th>
@@ -85,8 +86,9 @@ function Plans() {
                       </tr>
                     </thead>
                     <tbody>
-                      {p.versions.map((v) => (
+                      {p.versions.map((v, i) => (
                         <tr key={v.id} className="border-b border-line/70 last:border-0">
+                          <td className="w-12 pl-4 pr-1 text-right font-mono text-[12px] text-ink-2">{i + 1}</td>
                           <td className="h-11 px-4">
                             <span className="font-mono">v{v.version}</span> <span className="text-[12px] text-ink-2">· {v.termMonths} {tr("tháng")}</span>
                           </td>

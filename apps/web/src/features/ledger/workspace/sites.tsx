@@ -19,7 +19,7 @@ import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components
 import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
-import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { EvidencePanel, EvidenceCover } from "@/components/ledger/workspace/evidence-panel";
 import { RevisionHistory } from "@/components/ledger/workspace/revision-history";
 import { cn } from "@/lib/ledger/utils";
 
@@ -122,7 +122,7 @@ export default function SitesPage({view="list",resourceId,family="sites"}:{view?
     { key: "kind", header: tr("Loại"), cell: (s) => <span className="text-[12px]">{SITE_KIND_LABEL[s.kind] ?? s.kind}</span> },
     { key: "region", header: tr("Khu vực"), hideBelow: "md", cell: (s) => <span className="text-ink-2">{s.region}</span> },
     { key: "size", header: tr("Diện tích / sức chứa"), hideBelow: "lg", cell: (s) => <span className="font-mono text-[12px]">{fmtNumber(s.areaM2)} m²{s.capacityKg ? ` · ${fmtNumber(s.capacityKg)} kg` : ""}</span> },
-    { key: "ev", header: tr("Ảnh chứng cứ"), hideBelow: "md", cell: (s) => (s.evidenceComplete ? <Badge tone="ok">{tr("Đủ")}</Badge> : <Badge tone="warn">{tr("Thiếu")}</Badge>) },
+    { key: "ev", header: tr("Ảnh chứng cứ"), hideBelow: "md", cell: (s) => <span className="flex items-center gap-2"><EvidenceCover entityType="SITE" entityId={s.id} prefer={["SITE_IMAGE"]} />{!s.evidenceComplete && <Badge tone="warn">{tr("Hồ sơ thiếu")}</Badge>}</span> },
     { key: "status", header: tr("Trạng thái"), cell: (s) => <Badge tone={s.status === "ACTIVE" ? "ok" : "neutral"}>{s.status === "ACTIVE" ? tr("Hoạt động") : tr("Ngừng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (s) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/sites/${s.id}`)}>{tr("Chi tiết")}</Button> },
   ];

@@ -26,7 +26,7 @@ import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components
 import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
-import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { EvidencePanel, EvidenceCover } from "@/components/ledger/workspace/evidence-panel";
 import { SellerProducts } from "./seller-products";
 import { PhotoPicker } from "@/components/ledger/workspace/photo-picker";
 import { newLedgerCommandKey } from "@/lib/ledger/command-context";
@@ -136,7 +136,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     { key: "name", header: tr("Sản phẩm"), sort: (p) => p.productName, cell: (p) => <span className="flex flex-col"><span className="font-medium">{p.productName}</span><span className="font-mono text-[11px] text-ink-2">{p.sku}{p.gtin ? ` · GTIN ${p.gtin}` : ""}</span></span> },
     { key: "farm", header: tr("Vùng xuất xứ"), hideBelow: "md", cell: (p) => <span className="text-[12.5px]">{farms.find((f) => f.id === p.originFarmId)?.name ?? "—"}</span> },
     { key: "unit", header: tr("Đơn vị"), hideBelow: "lg", cell: (p) => <span className="text-[12.5px]">{p.defaultUnit}</span> },
-    { key: "ev", header: tr("Ảnh"), cell: (p) => (p.evidenceComplete ? <Badge tone="ok">{tr("Đủ")}</Badge> : <Badge tone="warn">{tr("Thiếu")}</Badge>) },
+    { key: "ev", header: tr("Ảnh"), cell: (p) => <span className="flex items-center gap-2"><EvidenceCover entityType="PRODUCT" entityId={p.id} prefer={["PRODUCT_IMAGE"]} />{!p.evidenceComplete && <Badge tone="warn">{tr("Hồ sơ thiếu")}</Badge>}</span> },
     { key: "status", header: tr("Trạng thái"), cell: (p) => <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang bán") : tr("Ngừng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (p) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/products/${p.id}`)}>{tr("Chi tiết")}</Button> },
   ];

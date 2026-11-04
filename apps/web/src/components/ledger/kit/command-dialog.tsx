@@ -70,8 +70,18 @@ export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
 export function CommandDialog<S extends z.ZodType<FieldValues>>(
   props: CommandDialogProps<S>,
 ) {
-  const { open, onOpenChange } = props;
+  const { onOpenChange } = props;
   const [locked, setLocked] = useState(false);
+  // A dialog that is open on its first render inside a sheet (e.g. the
+  // /products/:id/edit route) would register its dismissable layer before the
+  // parent sheet, which then stays on top and blocks every click. Open one
+  // frame after mount so the layers stack in visual order.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setArmed(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const open = props.open && armed;
   const change = (value: boolean) => {
     if (!locked) onOpenChange(value);
   };

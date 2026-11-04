@@ -19,7 +19,7 @@ import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components
 import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
-import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { EvidencePanel, EvidenceCover } from "@/components/ledger/workspace/evidence-panel";
 import { RevisionHistory } from "@/components/ledger/workspace/revision-history";
 
 export const MATERIAL_KIND_LABEL: Record<string, string> = localized({ SEED: "Giống", FERTILIZER: "Phân bón", PROTECTION: "Thuốc bảo vệ thực vật", OTHER: "Vật tư khác" });
@@ -98,7 +98,7 @@ export default function MaterialsPage({view="list",resourceId}:{view?:"list"|"ne
     { key: "name", header: tr("Tên"), sort: (m) => m.name, cell: (m) => <span className="flex flex-col"><span className="font-medium">{m.name}</span><span className="text-[11.5px] text-ink-2">{[m.seedType, m.supplier].filter(Boolean).join(" · ")}</span></span> },
     { key: "kind", header: tr("Loại"), cell: (m) => <span className="text-[12.5px]">{MATERIAL_KIND_LABEL[m.kind]}</span> },
     { key: "unit", header: tr("Đơn vị"), hideBelow: "md", cell: (m) => <span className="text-[12.5px]">{m.unit}</span> },
-    { key: "ev", header: tr("Ảnh"), hideBelow: "md", cell: (m) => (m.evidenceComplete ? <Badge tone="ok">{tr("Đủ")}</Badge> : <Badge tone="warn">{tr("Thiếu")}</Badge>) },
+    { key: "ev", header: tr("Ảnh"), hideBelow: "md", cell: (m) => <span className="flex items-center gap-2"><EvidenceCover entityType="MATERIAL" entityId={m.id} prefer={[]} />{!m.evidenceComplete && <Badge tone="warn">{tr("Hồ sơ thiếu")}</Badge>}</span> },
     { key: "status", header: tr("Trạng thái"), cell: (m) => <Badge tone={m.status === "ACTIVE" ? "ok" : "neutral"}>{m.status === "ACTIVE" ? tr("Đang dùng") : tr("Ngừng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (m) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/materials/${m.id}`)}>{tr("Chi tiết")}</Button> },
   ];

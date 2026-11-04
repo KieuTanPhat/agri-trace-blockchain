@@ -40,7 +40,8 @@ const emptySchema = z.object({});
 export default function DevicesPage() {
   const { can } = useWorkspaceAccess();
   const devices = useQuery({ queryKey: ["iot-devices"], queryFn: iotApi.devices, enabled: can("devices.read"), refetchInterval: 30_000 });
-  const options = useQuery({ queryKey: ["iot-device-options"], queryFn: iotApi.options, enabled: can("devices.read") });
+  // Vehicles or plots added on another page must appear without a reload.
+  const options = useQuery({ queryKey: ["iot-device-options"], queryFn: iotApi.options, enabled: can("devices.read"), staleTime: 0, refetchOnWindowFocus: true });
   const add = useDialog();
   const bind = useDialog<Device>();
   const rotate = useDialog<Device>();
@@ -110,7 +111,7 @@ export default function DevicesPage() {
           <span className="flex flex-wrap gap-1">
             <Button size="xs" variant="outline" onClick={() => setOpenId(d.id)}>{tr("Chi tiết")}</Button>
             {manage && <>
-            <Button size="xs" variant="outline" onClick={() => bind.open(d)}>{tr("Gắn")}</Button>
+            <Button size="xs" variant="outline" onClick={() => { void options.refetch(); bind.open(d); }}>{tr("Gắn")}</Button>
             <Button size="xs" variant="outline" onClick={() => rotate.open(d)}>{tr("Đổi khóa")}</Button>
             <Button size="xs" variant="outline" onClick={() => toggle.open(d)}>{d.status === "ACTIVE" ? tr("Ngừng") : tr("Kích hoạt")}</Button>
             </>}
@@ -125,7 +126,7 @@ export default function DevicesPage() {
       <PageHeader
         title={tr("Thiết bị IoT")}
         description={tr("Cảm biến gắn vào thửa tự ghi dữ liệu cho vụ đang trồng trên thửa đó. GPS gắn vào xe tự ghi vị trí cho phiếu giao nhận đang dùng xe, chỉ trong lúc đang vận chuyển. IoT không bắt buộc và không chặn nghiệp vụ.")}
-        actions={manage && <Button size="sm" onClick={() => add.open(true)}><Plus /> {tr("Đăng ký thiết bị")}</Button>}
+        actions={manage && <Button size="sm" onClick={() => { void options.refetch(); add.open(true); }}><Plus /> {tr("Đăng ký thiết bị")}</Button>}
       />
       <PageBody className="min-w-0">
         <Callout tone="info">{tr("Thiết bị tự giữ khóa riêng và ký từng gói dữ liệu. Khi đăng ký chỉ nhập mã thiết bị và khóa công khai hiển thị trên thiết bị (hoặc trên bảng điều khiển thiết bị ảo).")}</Callout>

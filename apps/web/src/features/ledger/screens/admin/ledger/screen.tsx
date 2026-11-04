@@ -73,6 +73,7 @@ function Ledger() {
                 <table className="w-full min-w-[880px] text-[13px]">
                   <thead>
                     <tr className="border-b border-line bg-sunken text-left text-[12px] text-ink-2">
+                      <th className="h-9 w-12 pl-4 pr-1 text-right font-semibold">{tr("STT")}</th>
                       <th className="h-9 px-4 font-semibold">{tr("Chuỗi")}</th>
                       <th className="px-3 font-semibold">Digest</th>
                       <th className="px-3 font-semibold">{tr("Kênh · chaincode")}</th>
@@ -83,8 +84,9 @@ function Ledger() {
                     </tr>
                   </thead>
                   <tbody>
-                    {d.bindings.map((b) => (
+                    {d.bindings.map((b, i) => (
                       <tr key={b.digest} className="border-b border-line/70 last:border-0">
+                        <td className="w-12 pl-4 pr-1 text-right font-mono text-[12px] text-ink-2">{i + 1}</td>
                         <td className="h-11 px-4">{b.chainName}</td>
                         <td className="px-3 font-mono text-[12px]">{b.digest}</td>
                         <td className="px-3 font-mono text-[12px]">{b.channelId} · {b.chaincodeName}</td>

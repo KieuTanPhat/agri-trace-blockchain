@@ -228,13 +228,27 @@ export function EvidencePanel({
   );
 }
 
+/**
+ * Ảnh đại diện nhỏ của một đối tượng trong danh sách (sản phẩm, cơ sở, vùng, vật tư):
+ * ảnh hiện hành đầu tiên, ưu tiên các loại trong `prefer`; không có ảnh thì báo thiếu.
+ */
+export function EvidenceCover({ entityType, entityId, prefer = [] }: { entityType: EvidenceEntity; entityId: string; prefer?: string[] }) {
+  const q = useQuery({ queryKey: ["ws-evidence", entityType, entityId], queryFn: () => wapi.evidence({ entityType, entityId }), staleTime: 60_000 });
+  if (q.isLoading) return <span className="inline-block size-10 animate-pulse rounded border border-line bg-sunken" aria-hidden />;
+  const superseded = new Set((q.data ?? []).map((e) => e.supersedesId).filter(Boolean));
+  const images = (q.data ?? []).filter((e) => !superseded.has(e.id) && e.mediaType.startsWith("image/"));
+  const cover = prefer.map((k) => images.find((e) => e.kind === k)).find(Boolean) ?? images[0];
+  if (!cover) return <Badge tone="warn">{tr("Chưa có ảnh")}</Badge>;
+  return <EvidenceThumb evidence={cover} size="sm" />;
+}
+
 /** Ảnh thu nhỏ đã kiểm sha256; PDF hiện biểu tượng. */
-export function EvidenceThumb({ evidence }: { evidence: Evidence }) {
+export function EvidenceThumb({ evidence, size = "md" }: { evidence: Evidence; size?: "sm" | "md" }) {
   const image = evidence.mediaType.startsWith("image/");
   const q = useQuery({ queryKey: ["ws-evidence-content", evidence.id], queryFn: () => wapi.evidenceContent(evidence.id), enabled: image, retry: false });
   const verified = useEvidenceObjectUrl(image && !q.error ? q.data : undefined);
   return (
-    <span className="relative inline-flex size-14 items-center justify-center overflow-hidden rounded border border-line bg-sunken text-ink-2">
+    <span className={cn("relative inline-flex items-center justify-center overflow-hidden rounded border border-line bg-sunken text-ink-2", size === "sm" ? "size-10" : "size-14")}>
       {verified.url ? <Image unoptimized fill src={verified.url} alt={evidence.description} className="object-cover" /> : image ? <ImageIcon className="size-4" aria-hidden /> : <FileText className="size-4" aria-hidden />}
     </span>
   );

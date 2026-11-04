@@ -52,6 +52,7 @@
 </main>
 <script>
 let routes = [];
+let provinces = [];
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 async function call(path, body, method = 'POST') {
@@ -69,18 +70,50 @@ function localNow(minutesAgo = 0) {
   const d = new Date(Date.now() - minutesAgo * 60000 - new Date().getTimezoneOffset() * 60000);
   return d.toISOString().slice(0, 16);
 }
+function placeOptions(selected) {
+  return provinces.map((p) => `<option value="${p.code}" ${p.code === selected ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+}
+function readPlace(id, which) {
+  const mode = document.getElementById(`${which}m-${id}`).value;
+  if (mode !== 'coord') return { code: mode };
+  const [latitude, longitude] = document.getElementById(`${which}c-${id}`).value.split(',').map((v) => Number(v.trim()));
+  return { latitude, longitude, name: document.getElementById(`${which}n-${id}`).value };
+}
+function toggleCoord(id, which) {
+  document.getElementById(`${which}x-${id}`).style.display = document.getElementById(`${which}m-${id}`).value === 'coord' ? 'flex' : 'none';
+}
+async function depart(id) {
+  const kind = document.getElementById(`k-${id}`).value;
+  const departAt = new Date(document.getElementById(`t-${id}`).value).toISOString();
+  const body = kind === 'custom'
+    ? { from: readPlace(id, 'f'), to: readPlace(id, 'd'), departAt }
+    : { routeId: document.getElementById(`r-${id}`).value, departAt };
+  document.getElementById(`go-${id}`).textContent = 'Đang tính tuyến…';
+  await act(id, 'trip', body);
+}
+function placePicker(id, which, label, selected) {
+  return `<div class="row"><label style="min-width:62px">${label}</label>
+    <select id="${which}m-${id}" onchange="toggleCoord('${id}','${which}')">${placeOptions(selected)}<option value="coord">Nhập tọa độ…</option></select></div>
+    <div class="row" id="${which}x-${id}" style="display:none;margin-left:70px">
+      <input id="${which}c-${id}" placeholder="vĩ độ, kinh độ (vd 10.86, 106.77)" size="26">
+      <input id="${which}n-${id}" placeholder="Tên điểm (tùy chọn)" size="18"></div>`;
+}
 function gpsControls(d) {
   if (!d.trip) {
-    return `<h3>Chuyến đi</h3><div class="row">
-      <select id="r-${d.id}">${routes.map((r) => `<option value="${r.id}">${esc(r.name)} (${r.km} km)</option>`).join('')}</select>
-      <label>Xuất phát <input type="datetime-local" id="t-${d.id}" value="${localNow()}"></label>
-      <button class="primary" onclick="act('${d.id}','trip',{routeId:document.getElementById('r-${d.id}').value,departAt:new Date(document.getElementById('t-${d.id}').value).toISOString()})">Xuất phát</button>
-    </div><p style="color:var(--ink2);font-size:12px">Ký lấy hàng trong AgriTrace trước. Giờ xuất phát trong quá khứ = thiết bị đã chạy và lưu tạm từ lúc đó; điểm trước lúc ký lấy hàng bị máy chủ bỏ qua.</p>`;
+    return `<h3>Chuyến đi</h3>
+      <div class="row"><select id="k-${d.id}" onchange="document.getElementById('pre-${d.id}').style.display=this.value==='custom'?'none':'flex';document.getElementById('cus-${d.id}').style.display=this.value==='custom'?'grid':'none'">
+        <option value="custom">Tự chọn điểm đi / điểm đến</option><option value="preset">Tuyến có sẵn</option></select></div>
+      <div id="cus-${d.id}" style="display:grid;gap:6px;margin-top:6px">${placePicker(d.id, 'f', 'Điểm đi', '68')}${placePicker(d.id, 'd', 'Điểm đến', '79')}</div>
+      <div class="row" id="pre-${d.id}" style="display:none;margin-top:6px"><select id="r-${d.id}">${routes.map((r) => `<option value="${r.id}">${esc(r.name)} (${r.km} km)</option>`).join('')}</select></div>
+      <div class="row" style="margin-top:6px">
+        <label>Xuất phát <input type="datetime-local" id="t-${d.id}" value="${localNow()}"></label>
+        <button class="primary" id="go-${d.id}" onclick="depart('${d.id}')">Xuất phát</button>
+      </div><p style="color:var(--ink2);font-size:12px">Tuyến đường thật lấy từ OSRM (OpenStreetMap); không có mạng thì dùng tuyến ước lượng. Ký lấy hàng trong AgriTrace trước. Giờ xuất phát trong quá khứ = thiết bị đã chạy và lưu tạm từ lúc đó; điểm trước lúc ký lấy hàng bị máy chủ bỏ qua.</p>`;
   }
   const t = d.trip;
   return `<h3>Chuyến: ${esc(t.routeName)}</h3>
     <div class="bar"><span style="width:${Math.min(100, (t.progressKm / t.totalKm) * 100)}%"></span></div>
-    <p style="font-size:12.5px;margin:4px 0">${t.progressKm}/${t.totalKm} km · ${t.speed} km/h ${t.stopped ? '<span class="badge warn">đang dừng</span>' : ''} ${t.arrivedAt ? '<span class="badge ok">đã tới nơi</span>' : ''}</p>
+    <p style="font-size:12.5px;margin:4px 0">${t.progressKm}/${t.totalKm} km · ${t.speed} km/h${t.remainingMin != null ? ` · còn khoảng ${t.remainingMin} phút` : ''} ${t.stopped ? '<span class="badge warn">đang dừng</span>' : ''} ${t.arrivedAt ? '<span class="badge ok">đã tới nơi</span>' : ''} ${t.estimated ? '<span class="badge warn">tuyến ước lượng</span>' : ''}</p>
     <div class="row">
       ${t.stopped ? `<button onclick="act('${d.id}','resume')">Chạy tiếp</button>` : `<button onclick="act('${d.id}','stop')">Dừng bất thường</button>`}
       <button onclick="act('${d.id}','finish')">Tua tới gần điểm nhận</button>
@@ -130,10 +163,20 @@ function card(d) {
 async function refresh() {
   const s = await (await fetch('/api/state')).json();
   routes = s.routes;
+  provinces = s.provinces;
   $('#api').textContent = s.api;
   const focused = document.activeElement?.id;
-  if (focused && (focused.startsWith('t-') || focused.startsWith('r-'))) return;
+  if (focused && /^(t|r|k|fm|dm|fc|dc|fn|dn)-/.test(focused)) return;
+  // Keep what the user is choosing across the periodic re-render.
+  const saved = {};
+  document.querySelectorAll('#devices select[id], #devices input[id]').forEach((el) => (saved[el.id] = el.value));
   $('#devices').innerHTML = s.devices.map(card).join('') || '<p class="card">Chưa có thiết bị ảo.</p>';
+  for (const [id, value] of Object.entries(saved)) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  }
+  document.querySelectorAll('#devices select[id^="k-"]').forEach((el) => el.dispatchEvent(new Event('change')));
+  document.querySelectorAll('#devices select[id^="fm-"], #devices select[id^="dm-"]').forEach((el) => el.dispatchEvent(new Event('change')));
 }
 refresh();
 setInterval(refresh, 2000);

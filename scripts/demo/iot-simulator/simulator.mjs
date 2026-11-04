@@ -18,6 +18,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canonicalize } from 'json-canonicalize';
 import { distanceMeters, drySoil, fieldClimate, gpsError, inBox, pointAt, prepareRoute, rng, targetSpeed } from './device-models.mjs';
+import { PROVINCES } from './places.mjs';
+import { planRoute } from './route-planner.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const API = (process.env.AGRITRACE_API_URL ?? 'http://localhost:8080/api').replace(/\/$/, '');
@@ -32,6 +34,36 @@ for (const f of await readdir(join(here, 'routes'))) {
   if (!f.endsWith('.json')) continue;
   const r = prepareRoute(JSON.parse(await readFile(join(here, 'routes', f), 'utf8')));
   routes.set(r.id, r);
+}
+// Routes planned from the panel (province to province or custom points).
+const PLANNED_DIR = join(STATE_DIR, 'routes');
+try {
+  for (const f of await readdir(PLANNED_DIR)) {
+    const r = prepareRoute(JSON.parse(await readFile(join(PLANNED_DIR, f), 'utf8')));
+    routes.set(r.id, r);
+  }
+} catch {
+  /* none yet */
+}
+function place(input, label) {
+  if (input?.code) {
+    const p = PROVINCES.find((x) => x.code === input.code);
+    if (!p) throw new Error(`Không có tỉnh/thành ${label}`);
+    return { name: p.name, latitude: p.latitude, longitude: p.longitude };
+  }
+  const lat = Number(input?.latitude);
+  const lng = Number(input?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)
+    throw new Error(`Tọa độ ${label} không hợp lệ`);
+  return { name: input.name?.trim() || `${lat.toFixed(4)}, ${lng.toFixed(4)}`, latitude: lat, longitude: lng };
+}
+async function planned(from, to) {
+  const route = await planRoute(join(STATE_DIR, 'route-cache'), place(from, 'điểm đi'), place(to, 'điểm đến'));
+  await mkdir(PLANNED_DIR, { recursive: true });
+  await writeFile(join(PLANNED_DIR, `${route.id}.json`), JSON.stringify(route));
+  const prepared = prepareRoute(route);
+  routes.set(prepared.id, prepared);
+  return prepared;
 }
 
 /** @type {{devices: any[]}} */
@@ -241,7 +273,8 @@ function createDevice({ kind, name }) {
   return device;
 }
 /** Starts a trip; a past departure is replayed as if the device had been buffering since then. */
-function startTrip(device, { routeId, departAt }) {
+async function startTrip(device, { routeId, departAt, from, to }) {
+  if (from && to) routeId = (await planned(from, to)).id;
   const route = routes.get(routeId);
   if (!route) throw new Error('Không có tuyến này');
   const start = departAt ? new Date(departAt).getTime() : Date.now();
@@ -259,7 +292,7 @@ function startTrip(device, { routeId, departAt }) {
       backfilled++;
     }
   }
-  log(device, `Xuất phát tuyến ${route.name}${backfilled ? `; ${backfilled} điểm từ lúc xuất phát được lưu tạm để gửi` : ''}`);
+  log(device, `Xuất phát tuyến ${route.name} (${(route.length / 1000).toFixed(1)} km${route.durationS ? `, OSRM ước ${Math.round(route.durationS / 60)} phút` : ''})${backfilled ? `; ${backfilled} điểm từ lúc xuất phát được lưu tạm để gửi` : ''}`);
 }
 function backfillField(device, days) {
   const end = Date.now();
@@ -288,7 +321,7 @@ async function action(device, a, body) {
     case 'irrigate': device.soil = Math.min(62, device.soil + 22); log(device, 'Tưới: độ ẩm đất tăng'); break;
     case 'interval': device.intervalSec = Math.max(30, Number(body.seconds) || 300); log(device, `Chu kỳ đo ${device.intervalSec}s`); break;
     case 'backfill': backfillField(device, Math.min(120, Math.max(1, Number(body.days) || 30))); break;
-    case 'trip': startTrip(device, body); break;
+    case 'trip': await startTrip(device, body); break;
     case 'replay':
       if (!device.lastBody) throw new Error('Chưa có gói nào để gửi lại');
       log(device, 'Gửi lại nguyên gói đã ký trước đó (replay)');
@@ -316,6 +349,8 @@ function view(d) {
     trip: d.trip && {
       routeId: d.trip.routeId, routeName: route.name, startedAt: d.trip.startedAt,
       progressKm: +(d.trip.progress / 1000).toFixed(1), totalKm: +(route.length / 1000).toFixed(1),
+      estimated: !!route.estimated, source: route.source ?? null,
+      remainingMin: d.trip.speed > 1 ? Math.round((route.length - d.trip.progress) / (d.trip.speed / 3.6) / 60) : null,
       speed: +d.trip.speed.toFixed(0), stopped: d.trip.manualStop || (d.trip.stopUntil && Date.now() < d.trip.stopUntil), arrivedAt: d.trip.arrivedAt ?? null,
     },
   };
@@ -329,7 +364,7 @@ createServer(async (req, res) => {
     const body = req.method === 'POST' ? JSON.parse((await new Promise((ok) => { let s = ''; req.on('data', (c) => (s += c)); req.on('end', () => ok(s)); })) || '{}') : {};
     if (req.method === 'GET' && url.pathname === '/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(panel); }
     if (req.method === 'GET' && url.pathname === '/api/state')
-      return send(200, { api: API, routes: [...routes.values()].map((r) => ({ id: r.id, name: r.name, km: +(r.length / 1000).toFixed(1), origin: r.origin, destination: r.destination })), devices: state.devices.map(view) });
+      return send(200, { api: API, provinces: PROVINCES, routes: [...routes.values()].filter((r) => !r.id.startsWith('dyn-')).map((r) => ({ id: r.id, name: r.name, km: +(r.length / 1000).toFixed(1), origin: r.origin, destination: r.destination })), devices: state.devices.map(view) });
     if (req.method === 'POST' && url.pathname === '/api/devices') {
       if (!['GPS_TRACKER', 'FIELD_SENSOR'].includes(body.kind)) return send(422, { error: 'kind' });
       return send(201, view(createDevice(body)));
