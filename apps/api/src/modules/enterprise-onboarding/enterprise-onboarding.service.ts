@@ -1,3 +1,4 @@
+import { businessRoleForOrganization } from '../auth/role-codes.js';
 import {
   BadRequestException,
   ConflictException,
@@ -272,10 +273,10 @@ export async function registerEnterprise(
             ? 'Đính kèm giấy chứng nhận cơ sở đủ điều kiện an toàn thực phẩm'
             : 'Đính kèm tài liệu cho chứng nhận đã khai báo',
         );
+      // The registrant owns the enterprise and acts as its business role.
       const roleCode =
-        input.organizationType === 'FARM'
-          ? 'FARM_STAFF'
-          : input.organizationType;
+        businessRoleForOrganization(input.organizationType) ??
+        input.organizationType;
       const role = await tx.role.findUniqueOrThrow({
         where: { code: roleCode },
       });

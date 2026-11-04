@@ -1,3 +1,4 @@
+import { effectiveRole } from '../auth/role-codes.js';
 import { assertEntitlement } from '../billing/billing-core.js';
 import { Body, ConflictException, Controller, ForbiddenException, Get, Injectable, NotFoundException, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -68,14 +69,16 @@ export class MemberInvitationsService {
     return {record:{activated:true}};
    }
    if(row.status!=='PENDING'||row.expiresAt.getTime()<=Date.now())throw new ConflictException('Lời mời hết hạn hoặc đã thu hồi');
-   const creator=await tx.user.findUniqueOrThrow({where:{id:row.creatorId},include:{role:true}});
-   const actor={sub:creator.id,organizationId:row.organizationId,role:creator.role.code};
+   const creator=await tx.user.findUniqueOrThrow({where:{id:row.creatorId},include:{role:true,organization:{select:{type:true}}}});
+   const actor={sub:creator.id,organizationId:row.organizationId,role:effectiveRole(creator)??''};
    const auth=await this.workspace.validateDelegation(tx,actor,row.roles as unknown as MemberRoleInput[]);
    await this.workspace.validateMemberProfileReferences(tx,actor,row);
    if(auth.scope!==row.authorityScope || await this.delegationDigest(tx,row.organizationId,row.roles as unknown as MemberRoleInput[])!==row.delegationDigest)throw new ForbiddenException('Quyền, nhóm hoặc phạm vi người mời đã đổi; cần lời mời mới');
    await assertEntitlement(tx,row.organizationId,'members');
    const memberCode=row.memberCode??await nextMemberCode(tx,row.organizationId);
-   const user=await tx.user.create({data:{memberCode,organizationId:row.organizationId,roleId:creator.roleId,fullName:row.fullName,email:row.email,passwordHash,enterpriseTier:row.tier,supervisorId:creator.id,jobTitle:row.jobTitle,phone:row.phone,workSiteId:row.workSiteId,responsibleFarmId:row.responsibleFarmId,contactAddress:row.contactAddress,memberNote:row.memberNote}});
+   // Every invited member is an enterprise employee; its business type follows the organization.
+   const staffRole=await tx.role.findUniqueOrThrow({where:{code:'ENTERPRISE_STAFF'}});
+   const user=await tx.user.create({data:{memberCode,organizationId:row.organizationId,roleId:staffRole.id,fullName:row.fullName,email:row.email,passwordHash,enterpriseTier:row.tier,supervisorId:creator.id,jobTitle:row.jobTitle,phone:row.phone,workSiteId:row.workSiteId,responsibleFarmId:row.responsibleFarmId,contactAddress:row.contactAddress,memberNote:row.memberNote}});
    await this.workspace.assign(tx,actor,user.id,row.roles as unknown as MemberRoleInput[]);
    await tx.enterpriseInvitation.update({where:{id:row.id},data:{status:'ACCEPTED',version:{increment:1},acceptedAt:new Date(),acceptedUserId:user.id,acceptanceRequestId:input.requestId,acceptanceDigest:receiptDigest}});
    return {record:{activated:true}};

@@ -11,6 +11,13 @@ export const ACTOR_KEYS = [
   "distributor",
   "retailer",
 ] as const;
+const BUSINESS_ROLES = [
+  "FARM_STAFF",
+  "TRANSPORTER",
+  "DISTRIBUTOR",
+  "PROCESSOR",
+  "RETAILER",
+] as const;
 export type ActorKey = (typeof ACTOR_KEYS)[number];
 export type Session = components["schemas"]["AuthSessionDto"];
 const roles: Record<
@@ -21,7 +28,7 @@ const roles: Record<
   auditor: "AUDITOR",
   "org-owner": "FARM_STAFF",
   "org-manager": "FARM_STAFF",
-  "org-staff": "FARM_STAFF",
+  "org-staff": "ENTERPRISE_STAFF",
   processor: "PROCESSOR",
   transporter: "TRANSPORTER",
   distributor: "DISTRIBUTOR",
@@ -54,6 +61,13 @@ export function actorSession(key: ActorKey): Session | null {
         code: roles[key],
         name: roles[key],
       },
+      // An employee of the fixture farm acts as its organization's business role.
+      businessRole:
+        roles[key] === "ENTERPRISE_STAFF"
+          ? "FARM_STAFF"
+          : (BUSINESS_ROLES as readonly string[]).includes(roles[key])
+            ? (roles[key] as (typeof BUSINESS_ROLES)[number])
+            : null,
     },
   };
 }

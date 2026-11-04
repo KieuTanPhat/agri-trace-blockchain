@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { canAccessManagementRoute, canWriteFarm } from "./permissions";
+import { actingRole, canAccessManagementRoute, canWriteFarm } from "./permissions";
 
 describe("Web business permissions", () => {
+  it("lets an enterprise employee act as its organization's business role", () => {
+    expect(
+      actingRole({
+        role: { code: "ENTERPRISE_STAFF", name: "Nhân viên doanh nghiệp" },
+        businessRole: "DISTRIBUTOR",
+      }),
+    ).toBe("DISTRIBUTOR");
+    expect(
+      actingRole({ role: { code: "AUDITOR", name: "Kiểm định" }, businessRole: null }),
+    ).toBe("AUDITOR");
+    expect(
+      canAccessManagementRoute("/production-cycles", actingRole({
+        role: { code: "ENTERPRISE_STAFF", name: "Nhân viên doanh nghiệp" },
+        businessRole: "FARM_STAFF",
+      })),
+    ).toBe(true);
+  });
   it("gives the single Admin role every platform function but no business workspace", () => {
     for (const path of [
       "/admin/operations",

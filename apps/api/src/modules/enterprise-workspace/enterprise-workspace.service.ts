@@ -378,8 +378,10 @@ export class EnterpriseWorkspaceService {
       const email = input.email.trim().toLowerCase();
       if (!auth.primary && input.tier !== 3)
         throw new ForbiddenException('Cấp 2 chỉ được tạo tài khoản cấp 3');
+      // Members are enterprise employees; the business type follows the
+      // organization, the detailed permissions follow the EnterpriseRole grants.
       const role = await tx.role.findUniqueOrThrow({
-        where: { code: auth.user.roleId ? actor.role : 'RETAILER' },
+        where: { code: 'ENTERPRISE_STAFF' },
       });
       await assertEntitlement(tx, actor.organizationId!, 'members');
       const existingEmail = await tx.user.findFirst({

@@ -5788,7 +5788,7 @@ export interface components {
         };
         AuthRoleDto: {
             /** @enum {string} */
-            code: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "AUDITOR" | "SYSTEM_ACTOR";
+            code: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "ENTERPRISE_STAFF" | "AUDITOR" | "SYSTEM_ACTOR";
             /** Format: uuid */
             id: string;
             name: string;
@@ -5814,6 +5814,11 @@ export interface components {
         };
         AuthUserDto: {
             accountStatus: string;
+            /**
+             * @description Vai nghiệp vụ tài khoản hành động; nhân viên doanh nghiệp lấy theo loại tổ chức
+             * @enum {string|null}
+             */
+            businessRole: "FARM_STAFF" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: email */
@@ -7867,7 +7872,7 @@ export interface components {
             organizationId?: string;
             organizationName: string;
             /** @enum {string} */
-            role: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "AUDITOR" | "SYSTEM_ACTOR";
+            role: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "ENTERPRISE_STAFF" | "AUDITOR" | "SYSTEM_ACTOR";
             /** Format: uuid */
             userId?: string;
         };

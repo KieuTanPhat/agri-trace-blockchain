@@ -405,6 +405,26 @@ người phụ trách đánh giá điều kiện và phạm vi thông báo theo 
 được đối chiếu riêng về an toàn thực phẩm; không dùng chúng để suy ra hạn xử lý
 mọi yêu cầu dữ liệu hoặc cấp quyền thu hồi lô cho admin.
 
+## Bộ vai tài khoản (chốt 04/11/2026)
+
+- Admin (`SYSTEM_ADMIN`): quản trị nền tảng, không ghi nghiệp vụ.
+- Năm vai doanh nghiệp `FARM_STAFF`, `TRANSPORTER`, `DISTRIBUTOR`, `PROCESSOR`,
+  `RETAILER` ứng với loại tổ chức; chủ doanh nghiệp (cấp 1 hoặc chưa phân cấp)
+  mang vai này.
+- Nhân viên doanh nghiệp (`ENTERPRISE_STAFF`): thành viên cấp 2/3 của tổ chức
+  nghiệp vụ. API suy vai nghiệp vụ từ `organization.type` (FARM → `FARM_STAFF`,
+  các loại khác cùng tên) mỗi request và khi kiểm tra lại actor trong transaction
+  của command; quyền chi tiết vẫn lấy từ `EnterpriseRole` qua `enterpriseAuthority`.
+  Nhân viên không thuộc tổ chức nghiệp vụ hoặc không ở cấp 2/3 bị từ chối.
+  `AuthUserDto.businessRole` trả vai nghiệp vụ đã suy để client hiển thị lệnh.
+  Migration `20270101000002_enterprise_staff_role` chuyển thành viên cấp 2/3 hiện có.
+- Kiểm định (`AUDITOR`): tổ chức kiểm định; ghi kiểm định chỉ trên nông trại được
+  phân công (migration `20270101000001_inspector_role_consolidation`).
+- `IOT_DEVICE`, `SYSTEM_ACTOR`: danh tính máy, không hiện trên giao diện.
+
+`ScopedRole` trên chuỗi (kể cả `COMPLIANCE_REVIEWER`), lịch sử sự kiện, event hash
+và proof Fabric giữ nguyên mã cũ.
+
 ## Vai quản trị nền tảng (gộp 04/11/2026)
 
 Nền tảng chỉ có một vai Admin (`SYSTEM_ADMIN`). Ba vai hẹp cũ (vận hành, điều

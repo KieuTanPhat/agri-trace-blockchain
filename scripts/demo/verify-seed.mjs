@@ -252,6 +252,7 @@ try {
     "DISTRIBUTOR",
     "RETAILER",
     "PROCESSOR",
+    "ENTERPRISE_STAFF",
     "AUDITOR",
   ];
   for (const role of expected)

@@ -8,7 +8,7 @@ import { Bell, LogOut, Menu, Moon, Search, ShieldCheck, Sun } from "lucide-react
 import { useAuth } from "@/lib/auth-store";
 import { request } from "@/lib/api-client";
 import type { components } from "@/lib/generated/api";
-import { canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
+import { actingRole, canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
 import {
   canUseEnterpriseRoute,
   enterpriseLanding,
@@ -223,7 +223,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
       <ErrorState error={access.error} onRetry={() => void access.refetch()} />
     );
   const allowed = (path: string) =>
-    canAccessManagementRoute(path, user.role.code, user.productionAccess) &&
+    canAccessManagementRoute(path, actingRole(user), user.productionAccess) &&
     (!enterprise ||
       (!!access.data && canUseEnterpriseRoute(path, access.data)));
   const groups = (enterprise ? WORKSPACE_NAV : PLATFORM_NAV)

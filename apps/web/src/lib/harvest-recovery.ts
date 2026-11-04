@@ -5,6 +5,7 @@ import {
 } from "./api-client";
 import { getAuthorizationScope } from "./auth-scope";
 import { currentBusinessAccessRevision } from "./permission-sync";
+import { actingRole } from "./permissions";
 import type { components } from "./generated/api";
 
 type HarvestInput = Omit<components["schemas"]["RecordHarvestDto"], "harvestTime">;
@@ -34,7 +35,7 @@ function assertActor(scope: string) {
   // revision; compare like with like so a permission change is still detected.
   if (
     !user ||
-    user.role.code !== "FARM_STAFF" ||
+    actingRole(user) !== "FARM_STAFF" ||
     user.accountStatus !== "ACTIVE" ||
     getAuthorizationScope({
       ...user,

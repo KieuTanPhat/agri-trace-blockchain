@@ -183,6 +183,7 @@ const roles = [
   "DISTRIBUTOR",
   "RETAILER",
   "PROCESSOR",
+  "ENTERPRISE_STAFF",
   "AUDITOR",
 ];
 const orgDefs = [
@@ -458,12 +459,15 @@ const bootstrap = await step("bootstrap", async () => {
               role,
             },
           });
+        // Members below the owner are enterprise employees; inspection bodies keep AUDITOR.
+        const staffRoleCode =
+          roleCode === "AUDITOR" ? "AUDITOR" : "ENTERPRISE_STAFF";
         const [manager, staff] = await (async () => {
           const manager = await makeUser(
             tx,
             `${key}.manager@example.test`,
             ["Trần Quang Minh","Nguyễn Thị Hạnh","Phạm Minh Đức","Lê Quốc Bảo","Võ Thanh Hà","Trần Ngọc Yến","Nguyễn Văn Khải"][i],
-            roleCode,
+            staffRoleCode,
             {
               organizationId: organization.id,
               enterpriseTier: 2,
@@ -476,7 +480,7 @@ const bootstrap = await step("bootstrap", async () => {
             tx,
             `${key}.staff@example.test`,
             ["Lê Thảo Vy","Phạm Ngọc Hân","Nguyễn Thành Đạt","Trần Văn Dũng","Lê Thị Mỹ","Võ Minh Châu","Đặng Thùy Linh"][i],
-            roleCode,
+            staffRoleCode,
             {
               organizationId: organization.id,
               enterpriseTier: 3,
@@ -553,7 +557,7 @@ const bootstrap = await step("bootstrap", async () => {
           tx,
           `${key}@example.test`,
           `Tài khoản ${key}`,
-          "FARM_STAFF",
+          "ENTERPRISE_STAFF",
           {
             organizationId: result.orgs.farm.id,
             enterpriseTier: 3,

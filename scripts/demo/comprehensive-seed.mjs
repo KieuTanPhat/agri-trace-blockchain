@@ -56,8 +56,10 @@ const cycleSchedule=createCycleSchedule(T0,cycleAllocations);
 const day=(offset,from=T0)=>new Date(from.getTime()+offset*86400000).toISOString();
 const unwrap=x=>x?.record??x;
 const roles=['SYSTEM_ADMIN',
-  'FARM_STAFF','PROCESSOR','TRANSPORTER','DISTRIBUTOR','RETAILER','AUDITOR','CONSUMER'];
+  'FARM_STAFF','PROCESSOR','TRANSPORTER','DISTRIBUTOR','RETAILER','ENTERPRISE_STAFF','AUDITOR','CONSUMER'];
 const roleOf=type=>type==='FARM'?'FARM_STAFF':type;
+// Members below the owner are enterprise employees; inspection bodies keep AUDITOR.
+const staffRoleOf=type=>type==='AUDITOR'?'AUDITOR':'ENTERPRISE_STAFF';
 const locations=JSON.parse(await readFile(join(repository,'apps/api/src/common/locations/vietnam.json'),'utf8'));
 const regionProvinces={BAC:['Hà Nội','Lào Cai','Phú Thọ','Ninh Bình'],TRUNG:['Lâm Đồng','Đắk Lắk','Đà Nẵng','Gia Lai'],NAM:['Đồng Tháp','Cần Thơ','Tây Ninh','An Giang']};
 function location(region,index=0) {
@@ -187,8 +189,8 @@ async function initializeBusinessIdentities() {
       intent.orgs[definition.key]={...definition,id:randomUUID(),location:location(definition.region,Number(definition.key.slice(1)))};
       add(definition.key,roleOf(definition.type),definition.key,1);
       if(definition.status==='APPROVED') {
-        add(`${definition.key}Manager`,roleOf(definition.type),definition.key,2);
-        for(let i=1;i<=2;i++)add(`${definition.key}Staff${i}`,roleOf(definition.type),definition.key,3);
+        add(`${definition.key}Manager`,staffRoleOf(definition.type),definition.key,2);
+        for(let i=1;i<=2;i++)add(`${definition.key}Staff${i}`,staffRoleOf(definition.type),definition.key,3);
       }
     }
     for(let i=1;i<=16;i++)add(`consumer${i}`,'CONSUMER');

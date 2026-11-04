@@ -16,6 +16,8 @@ export type AuthUser = Pick<
   "id" | "email" | "fullName" | "organizationId" | "accountStatus"
 > & {
   role: Pick<Schemas["AuthRoleDto"], "code" | "name">;
+  /** Business role the account acts as; an employee's follows its organization type. */
+  businessRole?: Schemas["AuthUserDto"]["businessRole"];
   /** True while the account only has a temporary password. */
   mustChangePassword?: boolean;
   accessRevision?: string;

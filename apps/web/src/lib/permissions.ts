@@ -1,4 +1,11 @@
-import type { Role } from "./types";
+import type { AuthUser, Role } from "./types";
+
+/** Role used for business decisions: an enterprise employee (ENTERPRISE_STAFF)
+ * acts as its organization type's business role; detailed permissions still
+ * come from the enterprise access projection. */
+export function actingRole(user: Pick<AuthUser, "role" | "businessRole">): Role {
+  return user.businessRole ?? user.role.code;
+}
 
 export function platformAdminHome(role?: Role): string | null {
   return role === "SYSTEM_ADMIN" ? "/admin" : null;

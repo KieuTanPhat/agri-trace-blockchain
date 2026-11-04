@@ -13,6 +13,7 @@ import type { AuthenticatedRequest, JwtPayload } from './auth.types.js';
 import { sessionFamilyWhere } from './session-family.js';
 import { enterpriseAuthority, isEnterpriseBusinessRole } from '../enterprise-workspace/enterprise-policy.js';
 import { enforcePasswordAge } from './password-age.js';
+import { effectiveRole } from './role-codes.js';
 
 const PASSWORD_CHANGE_ALLOWED = new Set([
   '/auth/me',
@@ -67,7 +68,7 @@ export class JwtAuthGuard implements CanActivate {
         email: true,
         role: { select: { code: true } },
         organizationId: true,
-        organization: { select: { status: true } },
+        organization: { select: { status: true, type: true } },
         accountStatus: true,
         mustChangePassword: true,
         passwordChangedAt: true,
@@ -129,12 +130,18 @@ export class JwtAuthGuard implements CanActivate {
     // Inspection roles use compliance assignments and chain grants, even when
     // their organization keeps a personnel hierarchy. That metadata must not
     // turn them into delegated enterprise business actors.
-    const delegatedEnterprise = !!user.enterpriseTier && user.enterpriseTier > 1 && isEnterpriseBusinessRole(user.role.code);
+    // An enterprise employee acts as its organization type's business role.
+    const role = effectiveRole(user);
+    if (!role)
+      throw new ForbiddenException(
+        'Tài khoản nhân viên không thuộc doanh nghiệp nghiệp vụ hợp lệ',
+      );
+    const delegatedEnterprise = !!user.enterpriseTier && user.enterpriseTier > 1 && isEnterpriseBusinessRole(role);
     request.user = {
       sub: user.id,
       sid: payload.sid,
       email: user.email,
-      role: user.role.code,
+      role,
       organizationId: user.organizationId,
       accountStatus: user.accountStatus,
       ...(delegatedEnterprise

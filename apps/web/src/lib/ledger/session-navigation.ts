@@ -1,5 +1,5 @@
 import type { AuthUser, Role } from "../types";
-import { canAccessManagementRoute, platformAdminHome } from "../permissions";
+import { actingRole, canAccessManagementRoute, platformAdminHome } from "../permissions";
 // Extracted baseline account/role policy only; no old navigation groups or renderer.
 const nonEnterpriseRoles: Role[] = [
   "SYSTEM_ADMIN",
@@ -37,10 +37,10 @@ export function ledgerLoginDestination(user: AuthUser, next?: string): string {
   if (
     (url.pathname === "/dashboard" &&
       (platformAdminHome(user.role.code) ||
-        user.role.code === "DISTRIBUTOR")) ||
+        actingRole(user) === "DISTRIBUTOR")) ||
     !canAccessManagementRoute(
       url.pathname,
-      user.role.code,
+      actingRole(user),
       user.productionAccess,
     )
   )

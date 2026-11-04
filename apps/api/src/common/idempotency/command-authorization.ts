@@ -7,6 +7,7 @@ import { isUUID } from 'class-validator';
 import { canonicalSha256 } from '../crypto/rfc8785.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { sessionFamilyWhere } from '../../modules/auth/session-family.js';
+import { effectiveRole } from '../../modules/auth/role-codes.js';
 import { authorizeChainCommand } from '../../modules/supply-chains/chain-policy.js';
 import {
   SHIPMENT_PLAN_OPERATIONS,
@@ -214,7 +215,7 @@ export async function authorizeCommand(
     !user ||
     user.accountStatus !== 'ACTIVE' ||
     (user.organizationId && user.organization?.status !== 'ACTIVE') ||
-    user.role.code !== actor.role ||
+    effectiveRole(user) !== actor.role ||
     user.organizationId !== actor.organizationId
   )
     throw new UnauthorizedException('Quyền tài khoản đã thay đổi');

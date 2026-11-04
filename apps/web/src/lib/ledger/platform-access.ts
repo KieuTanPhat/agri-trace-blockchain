@@ -1,7 +1,7 @@
 "use client";
 import { useCallback } from "react";
 import { useAuth } from "../auth-store";
-import { canAccessManagementRoute } from "../permissions";
+import { actingRole, canAccessManagementRoute } from "../permissions";
 const reads: Record<string, string> = {
   "dashboard.read": "/admin",
   "inbox.read": "/admin/inbox",
@@ -59,7 +59,7 @@ export function useLedgerSession() {
         return false;
       return canAccessManagementRoute(
         href.split(/[?#]/)[0],
-        auth.user.role.code,
+        actingRole(auth.user),
         auth.user.productionAccess,
       );
     },
@@ -68,7 +68,7 @@ export function useLedgerSession() {
   const can = useCallback(
     (permission: string) => {
       if (!auth.user || auth.privateAccessStatus !== "ready") return false;
-      const role = auth.user.role.code;
+      const role = actingRole(auth.user);
       if (permission === "privacy.write")
         return role === "SYSTEM_ADMIN";
       if (permission === "reports.triage")

@@ -8,9 +8,10 @@ import type {
 import type { Prisma } from '../../generated/prisma/client.js';
 import { evidenceSubject } from './evidence-policy.js';
 import { lockChainScope } from '../supply-chains/chain-policy.js';
+import { BUSINESS_ROLES } from '../auth/role-codes.js';
 
 export function isEnterpriseBusinessRole(role: string) {
-  return ['FARM_STAFF', 'PROCESSOR', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'].includes(role);
+  return (BUSINESS_ROLES as readonly string[]).includes(role);
 }
 
 export const ENTERPRISE_PERMISSIONS = [

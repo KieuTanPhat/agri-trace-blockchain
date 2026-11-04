@@ -132,10 +132,23 @@ describe('Current account authorization', () => {
   });
 
   it('still rejects a delegated business member without an enterprise permission',async()=>{
-    findUnique.mockResolvedValue({id,email:'member@example.test',role:{code:'FARM_STAFF'},organizationId:'631e9648-174d-48a0-9494-353bda8775da',
-      organization:{status:'ACTIVE'},accountStatus:'ACTIVE',enterpriseTier:3,enterpriseRoles:[]});
+    findUnique.mockResolvedValue({id,email:'member@example.test',role:{code:'ENTERPRISE_STAFF'},organizationId:'631e9648-174d-48a0-9494-353bda8775da',
+      organization:{status:'ACTIVE',type:'FARM'},accountStatus:'ACTIVE',enterpriseTier:3,enterpriseRoles:[]});
     prisma.scopedRoleGrant.findFirst.mockResolvedValue(null);
     await expect(guard.canActivate(context().ctx)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it.each([
+    ['an inspection body', { status: 'ACTIVE', type: 'AUDITOR' }, 3],
+    ['no organization', null, 3],
+    ['the owner tier', { status: 'ACTIVE', type: 'FARM' }, 1],
+  ])('refuses an enterprise employee in %s', async (_case, organization, enterpriseTier) => {
+    findUnique.mockResolvedValue({id,email:'member@example.test',role:{code:'ENTERPRISE_STAFF'},
+      organizationId: organization ? '631e9648-174d-48a0-9494-353bda8775da' : null,
+      organization,accountStatus:'ACTIVE',enterpriseTier,enterpriseRoles:[],passwordChangedAt:new Date(),createdAt:new Date()});
+    const {request,ctx}=context();
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(request.user).toBeUndefined();
   });
 
 });

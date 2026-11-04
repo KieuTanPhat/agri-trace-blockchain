@@ -43,6 +43,8 @@ import { Badge, Code, Status } from "@/components/ledger/kit/status";
 
 import { t as tr } from "@/lib/ledger/i18n";
 
+const MACHINE_ROLES: string[] = ["IOT_DEVICE", "SYSTEM_ACTOR"];
+
 const createSchema = z
   .object({
     email: z
@@ -111,6 +113,8 @@ export function PlatformUsers({
     () =>
       q.data?.filter(
         (u) =>
+          // Machine identities are internal and never listed as people.
+          !MACHINE_ROLES.includes(u.role.code) &&
           (!accountId || u.id === accountId) &&
           (!role || u.role.code === role) &&
           (!status || u.accountStatus === status) &&

@@ -795,6 +795,7 @@
               "DISTRIBUTOR",
               "PROCESSOR",
               "RETAILER",
+              "ENTERPRISE_STAFF",
               "AUDITOR",
               "SYSTEM_ACTOR"
             ],
@@ -875,6 +876,18 @@
           "accountStatus": {
             "type": "string"
           },
+          "businessRole": {
+            "description": "Vai nghiệp vụ tài khoản hành động; nhân viên doanh nghiệp lấy theo loại tổ chức",
+            "enum": [
+              "FARM_STAFF",
+              "TRANSPORTER",
+              "DISTRIBUTOR",
+              "PROCESSOR",
+              "RETAILER"
+            ],
+            "nullable": true,
+            "type": "string"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -923,6 +936,7 @@
           "organizationId",
           "organization",
           "role",
+          "businessRole",
           "accountStatus",
           "mustChangePassword",
           "createdAt",
@@ -8276,6 +8290,7 @@
               "DISTRIBUTOR",
               "PROCESSOR",
               "RETAILER",
+              "ENTERPRISE_STAFF",
               "AUDITOR",
               "SYSTEM_ACTOR"
             ],

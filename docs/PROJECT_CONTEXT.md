@@ -89,7 +89,10 @@ chỉ ghi `PAID_SIMULATED` và xếp hàng email; activation vẫn là bước r
 NAPAS/QR thu tiền và chữ ký hợp đồng có chứng thư chưa được tích hợp.
 
 Thành viên cấp 1/2/3, nhóm quyền riêng, đối tác, danh mục và cơ sở không thay
-chain membership/capability/assignment. Giao nhận có bốn transport mode; thời
+chain membership/capability/assignment. Chủ doanh nghiệp giữ vai nghiệp vụ theo
+loại tổ chức; thành viên cấp 2/3 mang vai Nhân viên doanh nghiệp
+(`ENTERPRISE_STAFF`), hành động theo vai nghiệp vụ suy từ `organization.type`, với
+quyền chi tiết lấy từ nhóm quyền doanh nghiệp. Giao nhận có bốn transport mode; thời
 điểm ký/chuyển custody phụ thuộc mode. Đối chiếu business rules trước khi sửa.
 Đường distribution mới chưa mở trên DUAL_SIGNED nếu chưa có integration c2 và
 nghiệm thu Fabric riêng; không suy ra từ Shipment đã ký hiện hành.

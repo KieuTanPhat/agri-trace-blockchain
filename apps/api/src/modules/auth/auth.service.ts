@@ -25,6 +25,7 @@ import {
   registrationBusinessIdInUse,
 } from '../enterprise-onboarding/registration-business-id.js';
 import { enforcePasswordAge } from './password-age.js';
+import { businessRoleOf } from './role-codes.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -43,6 +44,33 @@ const timingHash = () => (dummyHash ??= hash('agritrace-timing-equalizer', 12));
 const isPlatformRole = (code: string) =>
   (PLATFORM_ROLES as readonly string[]).includes(code);
 const MACHINE_ROLES = ['IOT_DEVICE', 'SYSTEM_ACTOR'];
+
+/** Adds the business role a client acts as (an employee's comes from its
+ * organization type) without exposing the organization type itself. */
+function presentUser<
+  T extends {
+    role: { code: string };
+    organization?: { status: string; type?: string } | null;
+    enterpriseTier?: number | null;
+  },
+>(user: T) {
+  const businessRole = businessRoleOf({
+    role: user.role,
+    organization: user.organization?.type
+      ? { type: user.organization.type }
+      : null,
+    enterpriseTier: user.enterpriseTier,
+  });
+  const organization =
+    user.organization === undefined
+      ? {}
+      : {
+          organization: user.organization
+            ? { status: user.organization.status }
+            : null,
+        };
+  return { ...user, ...organization, businessRole };
+}
 
 /**
  * The client a session family belongs to. Web uses HttpOnly cookies and takes
@@ -194,7 +222,10 @@ export class AuthService {
         await lockSessionOwner(tx, user.id, user.organizationId, 'read');
         const current = await tx.user.findUnique({
           where: { id: user.id },
-          include: { role: true, organization: { select: { status: true } } },
+          include: {
+            role: true,
+            organization: { select: { status: true, type: true } },
+          },
         });
         if (
           !current ||
@@ -549,7 +580,7 @@ export class AuthService {
       throw new UnauthorizedException('Người dùng không còn tồn tại');
     }
 
-    return user;
+    return presentUser(user);
   }
 
   async createAuthResponse(
@@ -560,6 +591,8 @@ export class AuthService {
       role: {
         code: string;
       };
+      organization?: { status: string; type?: string } | null;
+      enterpriseTier?: number | null;
       [key: string]: unknown;
     },
   ) {
@@ -583,6 +616,8 @@ export class AuthService {
       id: string;
       email: string;
       role: { code: string };
+      organization?: { status: string; type?: string } | null;
+      enterpriseTier?: number | null;
       [key: string]: unknown;
     },
     familyId: string,
@@ -600,7 +635,7 @@ export class AuthService {
       tokenType: 'Bearer',
       refreshToken,
       refreshExpiresAt,
-      user,
+      user: presentUser(user),
     };
   }
 
@@ -618,7 +653,8 @@ export class AuthService {
     email: true,
     fullName: true,
     organizationId: true,
-    organization: { select: { status: true } },
+    organization: { select: { status: true, type: true } },
+    enterpriseTier: true,
     role: {
       select: {
         id: true,

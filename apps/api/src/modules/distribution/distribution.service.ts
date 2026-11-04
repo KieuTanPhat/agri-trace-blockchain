@@ -1,3 +1,4 @@
+import { effectiveRole } from '../auth/role-codes.js';
 import { LOT_ORIGIN_INCLUDE, lotChainId, lotSiteId } from '../lots/lot-origin.js';
 import {
   ConflictException,
@@ -956,7 +957,7 @@ export class DistributionService {
       for (const a of t.attestations.filter(a=>a.epoch===t.attestationEpoch)) {
         const old = await tx.user.findUnique({
           where: { id: a.userId },
-          include: { role: true },
+          include: { role: true, organization: { select: { type: true } } },
         });
         if (!old || old.accountStatus !== 'ACTIVE')
           throw new ForbiddenException(
@@ -973,7 +974,7 @@ export class DistributionService {
           {
             sub: old.id,
             organizationId: old.organizationId,
-            role: old.role.code,
+            role: effectiveRole(old) ?? '',
           },
           'distribution.sign',
           t.chainId,
@@ -1546,8 +1547,8 @@ export class DistributionService {
       const previous = await tx.distributionReturnSignature.findMany({ where: { returnId } });
       if (previous.some((p) => p.organizationId === actor.organizationId)) throw new ConflictException('Doanh nghiệp đã ký chặng trả này');
       for (const signature of previous) {
-        const user = await tx.user.findUniqueOrThrow({ where: { id: signature.userId }, include: { role: true } });
-        const authority = await enterpriseAuthority(tx, { sub: user.id, organizationId: user.organizationId, role: user.role.code }, 'distribution.sign', t.chainId, (user.organizationId === t.senderId ? t.senderSiteId : t.carrierSiteId) ?? undefined);
+        const user = await tx.user.findUniqueOrThrow({ where: { id: signature.userId }, include: { role: true, organization: { select: { type: true } } } });
+        const authority = await enterpriseAuthority(tx, { sub: user.id, organizationId: user.organizationId, role: effectiveRole(user) ?? '' }, 'distribution.sign', t.chainId, (user.organizationId === t.senderId ? t.senderSiteId : t.carrierSiteId) ?? undefined);
         const oldKey = t.handoverMode==='DUAL_SIGNED'?await tx.signingKey.findUnique({where:{keyRef:signature.keyRef}}):await tx.distributionKey.findUnique({ where: { id: signature.keyRef } });
         if (authority.scope !== (signature.authority as Prisma.JsonObject).scope || oldKey?.status !== 'ACTIVE') throw new ForbiddenException('Quyền hoặc khóa bên ký trả trước đã bị thay đổi');
       }
