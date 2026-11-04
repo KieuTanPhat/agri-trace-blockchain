@@ -53,7 +53,7 @@ const PUBLIC_USER = {
 
 /** User creation body shared by the direct command and an approved
  * SYSTEM_ADMIN_CREATE proposal. Runs on the caller's command transaction. */
-export async function createPlatformUserTx(
+async function createPlatformUserTx(
   tx: Prisma.TransactionClient,
   actor: PlatformCommandActor,
   input: NewPlatformUser,

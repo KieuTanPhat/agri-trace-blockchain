@@ -74,7 +74,7 @@ type RunRow = Prisma.ProcessingRunGetPayload<{ include: typeof RUN_INCLUDE }>;
 const num = (d: Prisma.Decimal | null) => (d === null ? null : d.toFixed(3));
 /** `held` is what the run's own organization still holds of each input at the
  * run site; other holders' stock is never shown to the processor. */
-export const runView = (r: RunRow, held?: Map<string, string>) => ({
+const runView = (r: RunRow, held?: Map<string, string>) => ({
   id: r.id,
   code: r.code,
   chainId: r.chainId,
@@ -142,7 +142,7 @@ export const runView = (r: RunRow, held?: Map<string, string>) => ({
 });
 
 type LogRow = { id: string; step: string; occurredAt: Date; note: string; correctsId: string | null; recordedBy: string; createdAt: Date };
-export const logView = (l: LogRow) => ({
+const logView = (l: LogRow) => ({
   id: l.id,
   step: l.step,
   occurredAt: l.occurredAt.toISOString(),
@@ -154,7 +154,7 @@ export const logView = (l: LogRow) => ({
 
 type ReceiptRow = Prisma.MaterialReceiptGetPayload<object>;
 /** External stock left on a receipt (AgriTrace receipts hold none of their own). */
-export const receiptAvailable = (r: Pick<ReceiptRow, 'source' | 'quantity' | 'reserved' | 'consumed'>) =>
+const receiptAvailable = (r: Pick<ReceiptRow, 'source' | 'quantity' | 'reserved' | 'consumed'>) =>
   r.source === 'EXTERNAL' ? r.quantity.sub(r.reserved).sub(r.consumed) : new Prisma.Decimal(0);
 const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolean, confirmed: boolean) => ({
   id: r.id,
@@ -196,7 +196,7 @@ const sameUnit = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 /** Base quantity of an output: the quantity itself in the base unit, otherwise
  * the quantity times the product's declared factor. The DB recomputes the same
  * value on insert, so a client cannot claim an arbitrary weight. */
-export function outputBaseQuantity(
+function outputBaseQuantity(
   output: { productId: string; quantity: Prisma.Decimal; unit: string },
   baseUnit: string,
   conversions: Conversion[],
@@ -231,7 +231,7 @@ const conversionView = (c: {
 
 /** Inputs must equal outputs (in base unit) plus losses within the configured
  * tolerance. Returns the totals recorded on the run. */
-export async function massBalance(
+async function massBalance(
   db: Tx,
   inputs: Prisma.Decimal[],
   outputs: Prisma.Decimal[],

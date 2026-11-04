@@ -4,7 +4,7 @@ import { ledgerRequest } from "./request";
 import { wapi } from "./enterprise-coordination-api";
 import { api } from "./platform-api";
 
-export type SystemNotice = {
+type SystemNotice = {
   id: string;
   title: string;
   body: string;

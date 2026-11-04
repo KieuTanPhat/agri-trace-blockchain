@@ -58,9 +58,9 @@ import type {
   DistributionReportQuery,
 } from './dto.js';
 
-export const DISTRIBUTION_SIGNATURE_DOMAIN =
+const DISTRIBUTION_SIGNATURE_DOMAIN =
   'agritrace:distribution-attestation:1';
-export function distributionSnapshot(
+function distributionSnapshot(
   t: DistributionTransfer & { lines: DistributionLine[] },
 ) {
   return {
@@ -104,7 +104,7 @@ export function distributionSnapshot(
 }
 /** Distinct organizations that must sign one phase. When the sender or the
  * receiver also carries the goods, that organization signs once. */
-export function phaseParties(
+function phaseParties(
   t: Pick<DistributionTransfer, 'senderId' | 'carrierId' | 'receiverId'>,
   phase: string,
 ) {
@@ -133,7 +133,7 @@ export function driverMaySign(
     actor.sub === t.driverUserId
   );
 }
-export const domainMessage = (domain: string, body: unknown) =>
+const domainMessage = (domain: string, body: unknown) =>
   Buffer.from(`${domain}\0${canonicalize(body)}`, 'utf8');
 const participantWhere = (organizationId: string) => ({
   OR: [

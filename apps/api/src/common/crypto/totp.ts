@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 /** RFC 6238 TOTP (HMAC-SHA1, 6 digits, 30 s) on node:crypto. */
-export const TOTP_PERIOD_SECONDS = 30;
+const TOTP_PERIOD_SECONDS = 30;
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 export function base32Encode(bytes: Uint8Array): string {

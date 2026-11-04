@@ -3,11 +3,11 @@ import { provinceCenter } from '../../common/locations/province-centers.js';
 import { distanceMeters } from './route-seal.js';
 
 /** Road length is longer than the straight line between two points. */
-export const ROAD_FACTOR = 1.3;
+const ROAD_FACTOR = 1.3;
 /** Average truck speed used for the planned duration (km/h). */
-export const PLANNED_KMH = 45;
+const PLANNED_KMH = 45;
 
-export type TransferPlace = {
+type TransferPlace = {
   name: string;
   latitude: number | null;
   longitude: number | null;

@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export const PUBLIC_ENTERPRISE_TYPES = [
+const PUBLIC_ENTERPRISE_TYPES = [
   'FARM',
   'TRANSPORTER',
   'RETAILER',
@@ -20,10 +20,8 @@ export const PUBLIC_ENTERPRISE_TYPES = [
   'DISTRIBUTOR',
 ] as const;
 
-export type PublicEnterpiseType = (typeof PUBLIC_ENTERPRISE_TYPES)[number];
-export type PublicEnterpriseType = PublicEnterpiseType;
-
-export class PublicDirectoryQueryDto {
+type PublicEnterpiseType = (typeof PUBLIC_ENTERPRISE_TYPES)[number];
+class PublicDirectoryQueryDto {
   @ApiPropertyOptional({
     type: String,
     maxLength: 100,
@@ -189,7 +187,7 @@ export class PublicEnterprisesPageDto {
   hasMore!: boolean;
 }
 
-export class PublicPageSizeDto {
+class PublicPageSizeDto {
   @ApiPropertyOptional({ type: Number, default: 20, minimum: 1, maximum: 50 })
   @Type(() => Number)
   @IsInt()

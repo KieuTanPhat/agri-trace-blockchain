@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   Equals,
   IsBoolean,
@@ -21,11 +21,11 @@ import {
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-export const NOTICE_AUDIENCES = ['ALL', 'PLATFORM', 'ENTERPRISE', 'FARM', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] as const;
-export const REPORT_CATEGORIES = ['COUNTERFEIT', 'WRONG_INFORMATION', 'QUALITY', 'SAFETY', 'EXPIRED', 'OTHER'] as const;
-export const REFERENCE_CATEGORIES = ['UNIT', 'PRODUCT_CATEGORY', 'CERTIFICATE_TYPE', 'LOSS_REASON', 'PROCESSING_TYPE', 'VEHICLE_TYPE'] as const;
+const NOTICE_AUDIENCES = ['ALL', 'PLATFORM', 'ENTERPRISE', 'FARM', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] as const;
+const REPORT_CATEGORIES = ['COUNTERFEIT', 'WRONG_INFORMATION', 'QUALITY', 'SAFETY', 'EXPIRED', 'OTHER'] as const;
+const REFERENCE_CATEGORIES = ['UNIT', 'PRODUCT_CATEGORY', 'CERTIFICATE_TYPE', 'LOSS_REASON', 'PROCESSING_TYPE', 'VEHICLE_TYPE'] as const;
 
-export class ReasonInput {
+class ReasonInput {
   @ApiProperty({ minLength: 10, maxLength: 1000 })
   @Transform(trim)
   @IsString()
@@ -160,11 +160,6 @@ export class AdminRecordDto {
 }
 export class AdminListDto {
   @ApiProperty({ type: 'object', additionalProperties: true, isArray: true }) items!: Record<string, unknown>[];
-}
-export class AdminObjectDto {
-  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
-  @Type(() => Object)
-  data?: Record<string, unknown>;
 }
 export class ReportReceiptDto {
   @ApiProperty({ format: 'uuid' }) requestId!: string;

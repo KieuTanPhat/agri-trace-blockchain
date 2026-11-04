@@ -74,7 +74,7 @@ const SORTS = [
 type Sort = (typeof SORTS)[number]["value"];
 const PRODUCTS_PER_PAGE = 12;
 
-export function sortProducts(items: PublicProduct[], sort: Sort) {
+function sortProducts(items: PublicProduct[], sort: Sort) {
   return [...items].sort((a, b) =>
     sort === "newest" ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : sort === "name" ? a.productName.localeCompare(b.productName, "vi") : b.traceCount - a.traceCount || a.productName.localeCompare(b.productName, "vi"),
   );

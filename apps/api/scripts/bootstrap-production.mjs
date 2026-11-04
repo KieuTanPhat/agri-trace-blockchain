@@ -46,14 +46,14 @@ export function validateBootstrap(input, environment = process.env) {
   return input;
 }
 
-export function workerBindingNode(worker, bindingDigest) {
+function workerBindingNode(worker, bindingDigest) {
   assert.ok(worker && typeof worker === 'object' && !Array.isArray(worker), 'Worker connection is missing');
   assert.match(bindingDigest, /^[a-f0-9]{64}$/);
   return { ...worker, bindingDigest };
 }
 
 /** Shared Worker template must already match the reviewed bootstrap connection. */
-export function inventoryHasBinding(document, node) {
+function inventoryHasBinding(document, node) {
   assert.ok(document?.version === 1 && Array.isArray(document.bindings) && document.bindings.length === 0 && document.platform,
     'Production requires an empty binding list and a reviewed shared platform template');
   const { bindingDigest: _digest, ...connection } = node;
@@ -134,7 +134,7 @@ async function bindDatasetChains(db, input, { operator, approvers, relayer, gove
   return { result: 'passed', chains: bound };
 }
 
-export async function bootstrapProduction(input) {
+async function bootstrapProduction(input) {
   validateBootstrap(input);
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: input.databaseUrl }) });
   const connections = [];

@@ -1,35 +1,20 @@
 "use client";
-import {useEffect,useRef} from "react";
 import {z} from "zod";
 import {usePendingCommands} from "@/lib/use-pending-commands";
 import {useAuth} from "@/lib/auth-store";
 import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
 import {chainApi} from "@/lib/ledger/chain-api";
-import {createSigningKey,ed25519Supported,type NewSigningKey} from "@/lib/signing/signer";
-import {IndexedDbKeyStore} from "@/lib/signing/key-store";
 import {deviceScope,distributionKeyStore} from "@/lib/distribution-signer";
 import {wapi} from "@/lib/ledger/workspace-api";
 import {fmtDateTime} from "@/lib/ledger/format";
 import {DeviceKeyCard} from "./device-key";
-import {getLedgerError} from "@/lib/ledger/errors";
 import {useWorkspaceAccess} from "@/lib/ledger/workspace-context";
 import {t as tr} from "@/lib/ledger/i18n";
-import {CommandForm,CommandDialog,useDialog} from "@/components/ledger/kit/command-dialog";
-import {TextField,TextAreaField} from "@/components/ledger/kit/form-fields";
+import {CommandDialog,useDialog} from "@/components/ledger/kit/command-dialog";
 import {PageHeader,PageBody,Section,Callout,ErrorState,LoadingRows} from "@/components/ledger/kit/page";
 import {Badge} from "@/components/ledger/kit/status";
 import {Button} from "@/components/ledger/ui/button";
-import type {SigningKey} from "@/lib/ledger/chain-types";
-const chainOperations=["HYB_REGISTER_SIGNING_KEY","HYB_REVOKE_SIGNING_KEY"] as const,distributionOperations=["EW_REVOKE_DISTRIBUTION_KEY"] as const;
-const store=new IndexedDbKeyStore(),labelSchema=z.object({label:z.string().trim().min(2).max(100)}),reasonSchema=z.object({reason:z.string().trim().min(10).max(1000)});
-export function ChainSigningKeys({chainId,canManage}:{chainId:string;canManage:boolean}){
- const pending=usePendingCommands(chainOperations);
- const {user}=useAuth(),org=user?.organizationId??"",alive=useRef(true),created=useRef<NewSigningKey|null>(null);
- useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
- const q=useQuery({queryKey:["chain-signing",chainId],queryFn:async()=>{const data=await chainApi.signingContext(chainId);if(data.chainId!==chainId||data.organizationId!==org)throw new Error(tr("Khóa ký không thuộc chuỗi hoặc tổ chức đang xem."));return data;}}),local=useQuery({queryKey:["local-chain-keys",chainId,org],queryFn:()=>store.list(chainId,org)}),support=useQuery({queryKey:["ed25519-supported"],queryFn:ed25519Supported}),revoke=useDialog<SigningKey>();
- const keys=new Set(local.data?.map(k=>k.id));
- return <section className="flex flex-col gap-3"><h3 className="text-[13px] font-semibold">{tr("Khóa ký kép theo chuỗi")}</h3><p className="text-[12.5px] text-ink-2">{tr("Chuỗi bàn giao hai bên cùng ký: quản trị doanh nghiệp tạo khóa cho chuỗi và sổ cái nạp khóa trước khi ký.")}</p>{q.error?<ErrorState error={q.error} onRetry={()=>q.refetch()}/>:!q.data?<LoadingRows/>:<><p className="text-[12.5px] text-ink-2">{q.data.handoverMode==="DUAL_SIGNED"?tr("Bàn giao hai bên cùng ký"):tr("Bàn giao tiêu chuẩn")}</p>{q.data.keys.map(k=><div key={k.keyRef} className="flex flex-wrap items-center gap-2 rounded-md border border-line p-3 text-sm"><span className="min-w-0 flex-1 break-words">{k.label}</span><Badge tone={k.status==="ACTIVE"?"ok":k.status==="PENDING_LEDGER"?"info":"neutral"}>{k.status==="ACTIVE"?tr("Hoạt động"):k.status==="PENDING_LEDGER"?tr("Chờ sổ cái nạp"):tr("Đã thu hồi")}</Badge>{keys.has(k.keyRef)&&<Badge tone="neutral" dot={false}>{tr("Trên thiết bị này")}</Badge>}{canManage&&k.status!=="REVOKED"&&<Button size="xs" variant="outline" onClick={()=>revoke.open(k)}>{tr("Thu hồi")}</Button>}</div>)}{support.data===false&&<Callout tone="warn">{tr("Thiết bị chưa hỗ trợ Ed25519; cần trình duyệt hỗ trợ để ký.")}</Callout>}{!q.data.bindingDigest&&<Callout>{tr("Chuỗi chưa có binding sổ cái hoạt động nên chưa đăng ký được khóa.")}</Callout>}{pending && !created.current && <Callout tone="warn">{tr("Đối soát yêu cầu khóa đang chờ trước khi tạo khóa khác.")}</Callout>}{canManage&&support.data&&q.data.bindingDigest&&<fieldset className="min-w-0" disabled={pending && !created.current}><CommandForm title={tr("Tạo khóa ký sổ cái")} endpoint={`POST /supply-chains/${chainId}/signing-keys`} schema={labelSchema} defaultValues={{label:""}} submitLabel={tr("Tạo khóa ký sổ cái")} invalidate={[["chain-signing",chainId],["local-chain-keys",chainId,org]]} run={async(v,cmd)=>{const binding=q.data?.bindingDigest;if(!binding)throw new Error(tr("Chưa có binding hiện hành"));created.current??=await createSigningKey(store,{chainId,organizationId:org,bindingDigest:binding,label:v.label});if(!alive.current){await store.remove(created.current.keyRef);throw new Error(tr("Trang ký đã đóng"));}try{return await chainApi.registerSigningKey(chainId,created.current,cmd);}catch(cause){if(getLedgerError(cause)?.code==="REQUEST_REJECTED"){await store.remove(created.current.keyRef);created.current=null;}throw cause;}}} onDone={()=>{created.current=null;}}>{f=><TextField control={f.control} name="label" label={tr("Nhãn khóa ký sổ cái")} max={100}/>}</CommandForm></fieldset>}</>}{revoke.target&&<CommandDialog {...revoke.props} title={tr("Thu hồi khóa ký")} endpoint={`POST /supply-chains/${chainId}/signing-keys/${revoke.target.keyRef}/revoke`} schema={reasonSchema} defaultValues={{reason:""}} tone="danger" submitLabel={tr("Thu hồi")} invalidate={[["chain-signing",chainId]]} run={(v,cmd)=>chainApi.revokeSigningKey(chainId,revoke.target!.keyRef,v,cmd)}>{f=><TextAreaField control={f.control} name="reason" label={tr("Lý do")} max={1000}/>}</CommandDialog>}</section>;
-}
+const distributionOperations=["EW_REVOKE_DISTRIBUTION_KEY"] as const;
 /**
  * Standard handover keys. Each member's key is created in the browser or app
  * on first sign-in and signs right away; the primary account

@@ -20,7 +20,7 @@ import {
 } from 'class-validator';
 
 export const DEVICE_KINDS = ['FIELD_SENSOR', 'GPS_TRACKER'] as const;
-export const FIELD_SENSOR_TYPES = ['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'] as const;
+const FIELD_SENSOR_TYPES = ['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'] as const;
 const SPKI = /^[A-Za-z0-9_-]{59}$/;
 const CODE = /^[A-Za-z0-9._:-]{3,120}$/;
 

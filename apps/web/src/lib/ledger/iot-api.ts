@@ -4,7 +4,7 @@ import type { LedgerCommandContext } from "./command-context";
 
 type S = components["schemas"];
 /** ADR-006 device registry and read models. The server remains the authority. */
-export type DeviceKind = "FIELD_SENSOR" | "GPS_TRACKER";
+type DeviceKind = "FIELD_SENSOR" | "GPS_TRACKER";
 export type Device = {
   id: string;
   deviceCode: string;
@@ -24,7 +24,7 @@ export type Device = {
   runningCycles: { id: string; cycleCode: string }[];
   activeTransfer: { id: string; origin: string; destination: string } | null;
 };
-export type DeviceDetail = Device & {
+type DeviceDetail = Device & {
   keyFingerprint: string | null;
   recordsLast24h: number;
   // FIELD_SENSOR
@@ -35,7 +35,7 @@ export type DeviceDetail = Device & {
 };
 export type FieldRecord = { sequence: string | null; sensorType: string; value: number; unit: string; recordedAt: string; ingestTime: string; cycles: { id: string; cycleCode: string }[] };
 export type GpsRecord = { sequence: string; recordedAt: string; receivedAt: string; latitude: number; longitude: number; accuracyM: number | null; speedKmh: number | null; heading: number | null; satellites: number | null; battery: number | null; validity: "VALID" | "ANOMALY" | "LATE"; anomalyCode: string | null; transferId: string };
-export type DeviceOptions = {
+type DeviceOptions = {
   plots: { id: string; name: string; farm: { id: string; name: string } }[];
   /** inTransit: carrying a transfer now; trackerId: active GPS already on it. */
   vehicles: { id: string; registration: string; kind: string; inTransit: boolean; trackerId: string | null; trackerName: string | null }[];
@@ -46,7 +46,7 @@ export type SensorSeries = {
   latest: { value: number; recordedAt: string } | null;
   points: { t: string; avg: number; min: number; max: number }[];
 };
-export type CycleReadings = {
+type CycleReadings = {
   cycleId: string;
   simulated: boolean;
   readingCount: number;
@@ -70,7 +70,7 @@ export type RoutePoint = {
 export type RouteWarning = { code: "SIGNAL_GAP" | "LONG_STOP" | "ANOMALY_POINTS"; from?: string; to?: string; seconds?: number };
 /** source SITE: the site's map point; PROVINCE: representative province point. */
 export type MapPlace = { name: string; latitude: number | null; longitude: number | null; source?: "SITE" | "PROVINCE" | null } | null;
-export type TransferRoute = {
+type TransferRoute = {
   transferId: string;
   status: string;
   transportMode: string;

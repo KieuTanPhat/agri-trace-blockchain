@@ -32,8 +32,8 @@ export class TransferLineInput {
   @MaxLength(30)
   unit!: string;
 }
-export const TRANSPORT_MODES = ['PLATFORM_CARRIER', 'EXTERNAL_CARRIER', 'SELF_DELIVERY'] as const;
-export type TransportMode = (typeof TRANSPORT_MODES)[number];
+const TRANSPORT_MODES = ['PLATFORM_CARRIER', 'EXTERNAL_CARRIER', 'SELF_DELIVERY'] as const;
+type TransportMode = (typeof TRANSPORT_MODES)[number];
 export class TransportDetailsInput {
   @ApiProperty({ required: false, maxLength: 255, description: 'Bắt buộc khi thuê đơn vị vận chuyển ngoài AgriTrace' })
   @IsOptional() @IsString() @MinLength(2) @MaxLength(255) carrierName?: string;

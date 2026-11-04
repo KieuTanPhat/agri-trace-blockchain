@@ -4,7 +4,7 @@ import type { LedgerCommandContext } from "./command-context";
 import type * as V from "./operations-types";
 import { api as platform } from "./platform-api";
 type S=components["schemas"];
-export function queryString(filters:object={}) { const query=new URLSearchParams();for(const [key,value]of Object.entries(filters))if(value!==undefined&&value!==null&&value!=="")query.set(key,String(value));return query.size?"?"+query.toString():""; }
+function queryString(filters:object={}) { const query=new URLSearchParams();for(const [key,value]of Object.entries(filters))if(value!==undefined&&value!==null&&value!=="")query.set(key,String(value));return query.size?"?"+query.toString():""; }
 const record=async<T>(url:string)=>(await ledgerRequest<{record:T}>(url)).record;
 const items=async<T>(url:string)=>(await ledgerRequest<{items:T[]}>(url)).items;
 const post=(url:string,body:unknown,cmd:LedgerCommandContext)=>ledgerRequest<S["AdminRecordDto"]>(url,{method:"POST",headers:{"Idempotency-Key":cmd.idempotencyKey},body:JSON.stringify(body)});

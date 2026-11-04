@@ -45,8 +45,8 @@ import {
   UpdatePrivacyTicketDto,
 } from './privacy.dto.js';
 
-export const privacyAad = (id: string) => `platform-privacy:${id}`;
-export const privacyEventAad = (id: string) => `platform-privacy-event:${id}`;
+const privacyAad = (id: string) => `platform-privacy:${id}`;
+const privacyEventAad = (id: string) => `platform-privacy-event:${id}`;
 function encryptionKey() {
   try {
     return platformSecretKey();

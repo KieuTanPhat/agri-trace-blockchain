@@ -33,7 +33,7 @@ import { serviceStage } from './enterprise-service.service.js';
 import { invitationHash } from '../supply-chains/partner-invitations.js';
 import { activateEnrollmentTx, ensureOwnLedger, OWN_LEDGER_CAPABILITIES } from './service-activation.js';
 import { assertActivationReady, enterprisePaymentsEnabled } from './payment-policy.js';
-export { assertActivationReady } from './payment-policy.js';
+export {} from './payment-policy.js';
 import { settingValue } from '../billing/billing-core.js';
 import {
   consumeRegistrationProofs,
@@ -513,7 +513,7 @@ export const capabilityRequestView = (row: CapabilityRequest) => ({
   version: row.version,
   createdAt: row.createdAt.toISOString(),
 });
-export const enrollmentView = (
+const enrollmentView = (
   row: EnterpriseEnrollment & {
     organization: {
       name: string;
@@ -701,7 +701,7 @@ export class EnterpriseOnboardingService {
 /** Reviews one registered capability. Approval after activation creates the
  * capability in the same audited transaction; before activation it is
  * recorded and the activation step grants it. */
-export async function reviewCapabilityTx(
+async function reviewCapabilityTx(
   tx: Prisma.TransactionClient,
   actor: CommandActor,
   requestId: string,

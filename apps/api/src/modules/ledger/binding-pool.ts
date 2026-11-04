@@ -15,7 +15,7 @@ import {
   type IdentityRef,
 } from './binding-config.js';
 
-export type BindingRole = 'relayer' | 'controller' | 'admin';
+type BindingRole = 'relayer' | 'controller' | 'admin';
 
 /** The authoritative, immutable parts of a binding (from the database). */
 export interface BindingTarget {

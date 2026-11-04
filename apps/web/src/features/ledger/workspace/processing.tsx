@@ -28,11 +28,11 @@ import { LineagePanel } from "@/components/ledger/workspace/lineage-panel";
 import { cn } from "@/lib/ledger/utils";
 import { checkQuantityLimits, maxQuantityHint } from "@/lib/ledger/quantity-limit";
 
-export const PROCESS_TYPE_LABEL: Record<string, string> = localized({ PRELIMINARY: "Sơ chế", PACKING: "Đóng gói", DRYING: "Sấy", FREEZING: "Cấp đông", MILLING: "Xay xát", JUICE_EXTRACT: "Ép nước", FERMENTING: "Lên men", OTHER: "Khác" });
+const PROCESS_TYPE_LABEL: Record<string, string> = localized({ PRELIMINARY: "Sơ chế", PACKING: "Đóng gói", DRYING: "Sấy", FREEZING: "Cấp đông", MILLING: "Xay xát", JUICE_EXTRACT: "Ép nước", FERMENTING: "Lên men", OTHER: "Khác" });
 const LOSS_LABEL: Record<string, string> = localized({ TRIMMING: "Gọt, tỉa", MOISTURE: "Mất ẩm", SPILLAGE: "Rơi vãi", QUALITY_REJECT: "Loại do chất lượng", SAMPLING: "Lấy mẫu", OTHER: "Khác" });
 const RUN_LABEL: Record<string, string> = localized({ DRAFT: "Kế hoạch", IN_PROGRESS: "Đang chế biến", COMPLETED: "Đã ra lò", CANCELLED: "Đã hủy" });
 const RUN_TONE: Record<string, "info" | "ok" | "neutral" | "warn"> = { DRAFT: "info", IN_PROGRESS: "warn", COMPLETED: "ok", CANCELLED: "neutral" };
-export const STEP_LABEL: Record<string, string> = localized({ RECEIVING: "Tiếp nhận nguyên liệu", SORTING: "Phân loại", WASHING: "Rửa", PRELIMINARY: "Sơ chế", DRYING: "Sấy", ROASTING: "Rang", MILLING: "Xay / nghiền", FERMENTING: "Lên men", COOKING: "Nấu / chần", FREEZING: "Cấp đông", PACKING: "Đóng gói", QUALITY_CHECK: "Kiểm tra chất lượng", CORRECTION: "Đính chính", OTHER: "Khác" });
+const STEP_LABEL: Record<string, string> = localized({ RECEIVING: "Tiếp nhận nguyên liệu", SORTING: "Phân loại", WASHING: "Rửa", PRELIMINARY: "Sơ chế", DRYING: "Sấy", ROASTING: "Rang", MILLING: "Xay / nghiền", FERMENTING: "Lên men", COOKING: "Nấu / chần", FREEZING: "Cấp đông", PACKING: "Đóng gói", QUALITY_CHECK: "Kiểm tra chất lượng", CORRECTION: "Đính chính", OTHER: "Khác" });
 const QTY = /^(?:0|[1-9]\d{0,10})(?:\.\d{1,3})?$/;
 const qty = z.string().regex(QTY, { error: () => tr("Số không âm, tối đa 3 chữ số thập phân") });
 const r3 = (n: number) => Math.round(n * 1000) / 1000;

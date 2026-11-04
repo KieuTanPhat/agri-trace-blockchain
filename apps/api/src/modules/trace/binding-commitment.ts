@@ -4,10 +4,10 @@ import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import { calculateTraceEventHash, type TraceHashInput } from './trace-hash.js';
 
 /** Release B commitments (hybrid design B0). */
-export const BINDING_PROTOCOL = 'agritrace-fabric-binding/1';
+const BINDING_PROTOCOL = 'agritrace-fabric-binding/1';
 export const B_ENVELOPE_VERSION = '4.0.0';
 export const B_SCHEMA_VERSION = '3.0.0';
-export const BINDING_EVENT_DOMAIN = 'agritrace:binding-event:b1';
+const BINDING_EVENT_DOMAIN = 'agritrace:binding-event:b1';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const HASH = /^[0-9a-f]{64}$/;

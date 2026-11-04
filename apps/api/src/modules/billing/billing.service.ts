@@ -326,7 +326,7 @@ async function payerAuthority(tx: Prisma.TransactionClient, actor: CommandActor)
 
 /** One open renewal invoice per subscription; the plan must match the
  * organization's audience. Settlement extends the current term. */
-export async function renewalInvoiceTx(
+async function renewalInvoiceTx(
   tx: Prisma.TransactionClient,
   organizationId: string,
   planCode: string,

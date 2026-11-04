@@ -3,7 +3,7 @@ import { fmtNumber } from "./format";
 import { t as tr } from "./i18n";
 
 type Max = string | number | null | undefined;
-export type QuantityLimit = {
+type QuantityLimit = {
   path: (string | number)[];
   value: unknown;
   max: Max;

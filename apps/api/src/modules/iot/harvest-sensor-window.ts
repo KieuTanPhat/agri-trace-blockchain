@@ -109,7 +109,7 @@ export async function prepareHarvestSensorWindow(
   };
 }
 
-export function readingSnapshot(readings: SensorReading[]) {
+function readingSnapshot(readings: SensorReading[]) {
   return readings.map((reading) => ({
     id: reading.id,
     deviceId: reading.deviceId,

@@ -1,5 +1,5 @@
 import {t as tr} from './i18n';
-export type LedgerNavItem={href:string;label:string;readOnly?:boolean;keywords?:string;count?:string[];badge?:string};
+type LedgerNavItem={href:string;label:string;readOnly?:boolean;keywords?:string;count?:string[];badge?:string};
 export type LedgerNavGroup={label:string;items:LedgerNavItem[]};
 export const PLATFORM_NAV: LedgerNavGroup[] = [
     {

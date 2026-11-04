@@ -5,7 +5,7 @@ import {
 } from './binding-config.js';
 
 /** Operator-owned connection template. No enterprise request can select a ledger. */
-export interface PlatformLedgerConfig {
+interface PlatformLedgerConfig {
   network: string;
   channelId: 'agritrace';
   chaincodeName: string;

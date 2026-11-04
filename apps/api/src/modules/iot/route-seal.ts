@@ -59,7 +59,7 @@ export function classifyPosition(
   return kmh > ROUTE_RULES.maxPlausibleKmh && meters > 500 ? 'JUMP' : null;
 }
 
-export type RouteSummary = {
+type RouteSummary = {
   pointCount: number;
   anomalyCount: number;
   distanceM: number;
@@ -166,7 +166,7 @@ export function decimalNumber(value: Prisma.Decimal | null | undefined) {
   return value == null ? null : Number(value.toString());
 }
 
-export type SealSource = 'DEVICE' | 'SIMULATED' | 'NONE';
+type SealSource = 'DEVICE' | 'SIMULATED' | 'NONE';
 
 /**
  * Seals the transit route inside the DELIVERY transaction. Returns the business

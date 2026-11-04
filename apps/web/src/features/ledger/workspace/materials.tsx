@@ -22,7 +22,7 @@ import { Badge } from "@/components/ledger/kit/status";
 import { EvidencePanel, EvidenceCover } from "@/components/ledger/workspace/evidence-panel";
 import { RevisionHistory } from "@/components/ledger/workspace/revision-history";
 
-export const MATERIAL_KIND_LABEL: Record<string, string> = localized({ SEED: "Giống", FERTILIZER: "Phân bón", PROTECTION: "Thuốc bảo vệ thực vật", OTHER: "Vật tư khác" });
+const MATERIAL_KIND_LABEL: Record<string, string> = localized({ SEED: "Giống", FERTILIZER: "Phân bón", PROTECTION: "Thuốc bảo vệ thực vật", OTHER: "Vật tư khác" });
 const opt = (max: number) => z.string().trim().max(max).optional();
 // MaterialInput (enterprise-workspace/resources.dto.ts)
 const fields = {

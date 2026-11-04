@@ -77,8 +77,8 @@ function presentUser<
  * request body and are limited to their own app: consumer accounts on ACheck,
  * enterprise members (no platform or machine role) on the staff app.
  */
-export type SessionAudience = 'web' | 'consumer' | 'staff';
-export function audienceAllows(
+type SessionAudience = 'web' | 'consumer' | 'staff';
+function audienceAllows(
   audience: SessionAudience,
   user: { role: { code: string }; organizationId: string | null },
 ) {

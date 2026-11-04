@@ -3,8 +3,6 @@ import type {Invoice,Subscription,PlanVersion} from "./platform-api";
 type S=components["schemas"];
 export type Partner=S["EnterprisePartnerDto"];
 export type PartnerSearchItem=S["PartnerSearchItemDto"];
-export type PartnerDirectoryItem=S["PartnerDirectoryItemDto"];
-export type PartnerDirectoryPage=S["PartnerDirectoryPageDto"];
 // Baseline Swagger incorrectly represents nullable string properties as object/null.
 export type ExternalPartner=Omit<S["ExternalPartnerRecordDto"],"email"|"note"|"phone"|"representative"|"taxCode"> & {email:string|null;note:string|null;phone:string|null;representative:string|null;taxCode:string|null};
 export type Billing={applies:boolean;paying:boolean;status:S["EnterpriseBillingDto"]["status"];limits:Record<string,number>|null;usage:Record<string,number>;subscription:Subscription|null;invoices:Invoice[];plans:{code:string;name:string;version:PlanVersion}[];simulationEnabled:boolean};

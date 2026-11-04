@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { EnterpriseSiteInput, EnterpriseVehicleInput } from './dto.js';
 import { Transform, Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
-export class ResourceRevisionInput {
+class ResourceRevisionInput {
  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
  @ApiProperty({ maxLength: 1000 }) @IsString() @MinLength(10) @MaxLength(1000) reason!: string;
 }

@@ -17,7 +17,7 @@ import {
 } from '../trace/signed-commitment.js';
 import type { RegisterSigningKeyDto } from './dto.js';
 
-export function keyView(key: SigningKey) {
+function keyView(key: SigningKey) {
   return {
     keyRef: key.keyRef,
     chainId: key.chainId,

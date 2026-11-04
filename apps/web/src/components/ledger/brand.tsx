@@ -12,6 +12,3 @@ export function AgritraceLogo({ height = 28, className, priority }: { height?: n
   );
 }
 
-export function AgritraceMark({ size = 28, className }: { size?: number; className?: string }) {
-  return <Image src="/brand/agritrace-mark.png" alt="Agritrace" width={Math.round((size * 256) / 211)} height={size} className={cn("shrink-0", className)} />;
-}

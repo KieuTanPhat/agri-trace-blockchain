@@ -24,7 +24,7 @@ import type {
   RegistrationOtpVerify,
 } from './registration-otp.dto.js';
 const purpose = 'agritrace:registration-email:v1';
-export const otpSecret = () => {
+const otpSecret = () => {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('Mail verification secret is not configured');
   return secret;

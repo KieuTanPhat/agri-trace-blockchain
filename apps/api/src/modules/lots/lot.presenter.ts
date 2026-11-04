@@ -15,7 +15,7 @@ import { resolveLotCustodian } from './lot-custody.js';
 
 type ProvenanceRun = NonNullable<InternalLot['processingRun']>;
 /** Inputs consumed to make a processed lot. Private farms stay anonymous. */
-export function processingProvenance(
+function processingProvenance(
   run: ProvenanceRun | null,
   processorName: string,
   publicView: boolean,

@@ -17,7 +17,7 @@ type Intent = {
   harvestTime: string;
   fingerprint: string;
 };
-export type HarvestState = {
+type HarvestState = {
   version: 1;
   scope: string;
   revision: string;

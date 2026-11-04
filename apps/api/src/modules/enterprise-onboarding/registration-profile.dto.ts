@@ -32,14 +32,13 @@ export const BUSINESS_ACTIVITIES = [
 ] as const;
 /** MEMBER takes part free; CHAIN_OWNER buys a plan and may own chains. */
 export const PARTICIPATION_STATUSES = ['MEMBER', 'CHAIN_OWNER'] as const;
-export type ParticipationStatus = (typeof PARTICIPATION_STATUSES)[number];
 /** Capabilities under which an organization owns the goods it handles. */
-export const GOODS_OWNING = ['FARM', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] as const;
+const GOODS_OWNING = ['FARM', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] as const;
 export const mayOwnChains = (activities: readonly string[]) =>
   activities.some((a) => (GOODS_OWNING as readonly string[]).includes(a));
 export const chainOwner = (status: string | null | undefined) =>
   status === 'CHAIN_OWNER';
-export const SERVICE_PLAN_CODES = [
+const SERVICE_PLAN_CODES = [
   'OWNER_START',
   'OWNER_GROWTH',
   'OWNER_SCALE',

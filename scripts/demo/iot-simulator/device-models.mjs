@@ -8,7 +8,7 @@ export function distanceMeters(a, b) {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.sin(dLon / 2) ** 2;
   return 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
-export function bearing(a, b) {
+function bearing(a, b) {
   const y = Math.sin((b[1] - a[1]) * RAD) * Math.cos(b[0] * RAD);
   const x = Math.cos(a[0] * RAD) * Math.sin(b[0] * RAD) - Math.sin(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.cos((b[1] - a[1]) * RAD);
   return ((Math.atan2(y, x) / RAD) + 360) % 360;

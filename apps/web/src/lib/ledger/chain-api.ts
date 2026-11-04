@@ -4,8 +4,8 @@ import {chainView} from "./chain-types";
 import type {LedgerCommandContext} from "./command-context";
 type S=components["schemas"];
 /** Organization key (userId null) or a member's personal device key. */
-export type DistributionKey={id:string;label:string;publicKey:string;status:"ACTIVE"|"REVOKED";userId:string|null;verifiedAt:string|null;createdAt:string};
-export type DeviceKeyIssued={record:{id:string;status:string}};
+type DistributionKey={id:string;label:string;publicKey:string;status:"ACTIVE"|"REVOKED";userId:string|null;verifiedAt:string|null;createdAt:string};
+type DeviceKeyIssued={record:{id:string;status:string}};
 const path=(id:string)=>"/supply-chains/"+encodeURIComponent(id),org=(id:string)=>"/organizations/"+encodeURIComponent(id),plans=(id:string)=>path(id)+"/shipment-plans";
 const post=<T=unknown,>(p:string,body:unknown,cmd:LedgerCommandContext)=>ledgerRequest<T>(p,{method:"POST",headers:{"Idempotency-Key":cmd.idempotencyKey},body:JSON.stringify(body)});
 export const chainApi={

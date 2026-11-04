@@ -22,7 +22,7 @@ import { checkQuantityLimits, maxQuantityHint } from "@/lib/ledger/quantity-limi
  * already exists, never new records. */
 type Task = Awaited<ReturnType<typeof distApi.tasks>>["transfers"][number];
 
-export const TASK_ACTION: Record<string, string> = localized({
+const TASK_ACTION: Record<string, string> = localized({
   CONSENT: "Đồng thuận bàn giao",
   PICKUP: "Ký lấy hàng",
   DELIVERY: "Ký giao nhận hàng",

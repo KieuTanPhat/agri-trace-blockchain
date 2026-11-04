@@ -32,7 +32,7 @@ import { TransferRouteSection } from "@/components/ledger/workspace/transfer-rou
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
-export const TRANSFER_STATUS_LABEL: Record<string, string> = localized({ PROPOSED: "Chờ đồng thuận", READY: "Sẵn sàng lấy hàng", IN_TRANSIT: "Đang vận chuyển", DELIVERED: "Đã giao", CANCELLED: "Đã hủy" });
+const TRANSFER_STATUS_LABEL: Record<string, string> = localized({ PROPOSED: "Chờ đồng thuận", READY: "Sẵn sàng lấy hàng", IN_TRANSIT: "Đang vận chuyển", DELIVERED: "Đã giao", CANCELLED: "Đã hủy" });
 const TRANSFER_TONE: Record<string, "info" | "brand" | "ok" | "neutral" | "warn"> = { PROPOSED: "info", READY: "warn", IN_TRANSIT: "brand", DELIVERED: "ok", CANCELLED: "neutral" };
 const ACTION_LABEL: Record<string, string> = localized({
   CONSENT: "Ký đồng thuận",
@@ -52,7 +52,7 @@ const ACTION_LABEL: Record<string, string> = localized({
 const ROLE_LABEL: Record<string, string> = localized({ SENDER: "Bên giao", CARRIER: "Bên vận chuyển", RECEIVER: "Bên nhận" });
 const PHASE_STEP: Record<Phase, string> = localized({ CONSENT: "Đồng thuận", PICKUP: "Lấy hàng", DELIVERY: "Giao hàng" });
 const PHASE_LABEL: Record<Phase, string> = localized({ CONSENT: "Đồng thuận các bên", PICKUP: "Lấy hàng (giao + người chở)", DELIVERY: "Giao hàng (người chở + nhận)" });
-export const TRANSPORT_MODE_LABEL: Record<TransportMode, string> = localized({ PLATFORM_CARRIER: "Đơn vị vận chuyển trên AgriTrace", EXTERNAL_CARRIER: "Thuê đơn vị vận chuyển ngoài", SELF_DELIVERY: "Bên giao tự chở" });
+const TRANSPORT_MODE_LABEL: Record<TransportMode, string> = localized({ PLATFORM_CARRIER: "Đơn vị vận chuyển trên AgriTrace", EXTERNAL_CARRIER: "Thuê đơn vị vận chuyển ngoài", SELF_DELIVERY: "Bên giao tự chở" });
 const TRANSPORT_MODE_HINT: Record<TransportMode, string> = localized({
   PLATFORM_CARRIER: "Ba bên ký: giao + vận chuyển ký lấy hàng, vận chuyển + nhận ký giao hàng. Xe đã khai có GPS thì vị trí được ghi tự động từ lúc ký lấy hàng đến lúc ký nhận.",
   EXTERNAL_CARRIER: "Bên thuê xe giữ trách nhiệm hàng trên đường. Bên giao thuê: bên giao + nhận ký khi giao. Bên nhận thuê: hai bên ký lúc xe lấy hàng.",

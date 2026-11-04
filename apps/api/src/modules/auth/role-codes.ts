@@ -19,7 +19,7 @@ export const BUSINESS_ROLES = [
   'PROCESSOR',
   'RETAILER',
 ] as const;
-export type BusinessRole = (typeof BUSINESS_ROLES)[number];
+type BusinessRole = (typeof BUSINESS_ROLES)[number];
 
 const BUSINESS_ROLE_BY_ORGANIZATION_TYPE: Record<string, BusinessRole> = {
   FARM: 'FARM_STAFF',

@@ -15,7 +15,7 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
-export class ComplianceCorrectionDto {
+class ComplianceCorrectionDto {
   @ApiProperty({ required: false, format: 'uuid' })
   @IsOptional()
   @IsUUID()

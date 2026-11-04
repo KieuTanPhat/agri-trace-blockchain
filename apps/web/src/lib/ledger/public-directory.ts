@@ -8,9 +8,9 @@ import { publicApiUrl, request } from "@/lib/api-client";
 
 type S = components["schemas"];
 export type PublicProduct = S["PublicDirectoryProductDto"];
-export type PublicProductDetail = S["PublicProductDetailDto"];
+type PublicProductDetail = S["PublicProductDetailDto"];
 export type PublicNews = S["PublicNewsDto"];
-export type PublicNewsDetail = S["PublicNewsDetailDto"];
+type PublicNewsDetail = S["PublicNewsDetailDto"];
 type Page<T> = { items: T[]; hasMore: boolean; nextCursor: string | null };
 
 const get = <T>(path: string) => request<T>(path, undefined, false);
@@ -38,7 +38,7 @@ export const usePublicProducts = () => useQuery({ queryKey: ["public", "products
 export const usePublicProduct = (id: string) =>
   useQuery({ queryKey: ["public", "product", id], queryFn: () => get<PublicProductDetail>(`/public/products/${encodeURIComponent(id)}?limit=12`), enabled: !!id });
 
-export type PublicEnterprise = S["PublicDirectoryEnterpriseDto"];
+type PublicEnterprise = S["PublicDirectoryEnterpriseDto"];
 
 export const usePublicEnterprises = () =>
   useQuery({ queryKey: ["public", "enterprises"], queryFn: () => get<Page<PublicEnterprise>>("/public/enterprises?limit=50"), staleTime: 60_000 });
@@ -83,7 +83,7 @@ export function categoriesOf(products: PublicProduct[]): Category[] {
   return [...map.values()].sort((a, b) => b.traces - a.traces || b.count - a.count || a.name.localeCompare(b.name, "vi"));
 }
 
-export type Enterprise = { id: string; name: string; logo: string | null; count: number };
+type Enterprise = { id: string; name: string; logo: string | null; count: number };
 
 /** Doanh nghiệp đứng tên sản phẩm, xếp theo số sản phẩm. */
 export function enterprisesOf(products: PublicProduct[]): Enterprise[] {

@@ -6,7 +6,7 @@ import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
 import { prepareSigningIntent, resolveSigningKey, consumeSigningIntent } from '../signing/signing-intents.js';
 import type { DistributionC2Submit } from './dto.js';
 type Transfer = DistributionTransfer & {lines:DistributionLine[]};
-export function c2Payload(t:Transfer,actor:CommandActor,scope:string,phase:string,snapshot:unknown,line:{lotId:string;quantity:{toFixed:(n:number)=>string}|string;unit:string},r?:DistributionReturn) {
+function c2Payload(t:Transfer,actor:CommandActor,scope:string,phase:string,snapshot:unknown,line:{lotId:string;quantity:{toFixed:(n:number)=>string}|string;unit:string},r?:DistributionReturn) {
  const document = r ? {returnId:r.id,transferId:t.id,lines:r.lines,reason:r.reason,digest:r.digest,transferSnapshot:snapshot} : snapshot;
  return {transferRef:t.id,documentId:r?.id??t.id,phase,snapshot:canonicalize(document),snapshotDigest:canonicalSha256(document),lotId:line.lotId,quantity:typeof line.quantity==='string'?line.quantity:line.quantity.toFixed(3),unit:line.unit,signerOrganizationId:actor.organizationId!,signerUserId:actor.sub!,authorityScope:scope,documentVersion:String(r?.version??t.version),epoch:String(t.attestationEpoch)};
 }

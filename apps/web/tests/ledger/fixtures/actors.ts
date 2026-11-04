@@ -1,5 +1,5 @@
 import type { components } from "../../../src/lib/generated/api";
-export const ACTOR_KEYS = [
+const ACTOR_KEYS = [
   "anonymous",
   "platform-admin",
   "auditor",

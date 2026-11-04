@@ -24,7 +24,7 @@ import {
 
 /** Default and maximum time a prepared intent can wait for its signature. */
 export const DEFAULT_SIGNING_WINDOW_MINUTES = 15;
-export const MAX_SIGNING_WINDOW_MINUTES = 24 * 60;
+const MAX_SIGNING_WINDOW_MINUTES = 24 * 60;
 
 export type PreparedIntentView = {
   intentId: string;

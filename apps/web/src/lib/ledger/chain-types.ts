@@ -4,7 +4,6 @@ type S=components["schemas"];
 export const CHAIN_TYPES=["CROP","LIVESTOCK","AQUACULTURE","PROCESSED_FOOD"] as const;
 export const SUPPLY_STAGES=["FARM","PROCESSOR","TRANSPORTER","DISTRIBUTOR","RETAILER"] as const;
 
-export type GrantRecord=S["GrantRecordDto"];
 export type MemberRecord=S["MemberRecordDto"];
 export type SigningKey=S["SigningKeyDto"];
 export type PlanParty=S["AcceptShipmentPlanDto"]["party"];

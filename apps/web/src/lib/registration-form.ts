@@ -23,12 +23,12 @@ export const ACTIVITY_OPTIONS = [
   ["RETAILER", "Bán lẻ"],
 ] as const;
 /** What the organization is on AgriTrace: free member or paying chain owner. */
-export const PARTICIPATION_STATUS_OPTIONS = [
+const PARTICIPATION_STATUS_OPTIONS = [
   ["MEMBER", "Thành viên (miễn phí)", "Ghi nghiệp vụ theo năng lực trong chuỗi được mời hoặc khi nhận lô. Nông trại có sổ ghi miễn phí. Nâng cấp lên chủ chuỗi bất cứ lúc nào."],
   ["CHAIN_OWNER", "Chủ chuỗi (dùng dịch vụ)", "Đứng tên sản phẩm, tạo chuỗi, mời đối tác, trang thương hiệu và phát động thu hồi. Chọn gói và thanh toán; quyền tạo chuỗi có hiệu lực khi thanh toán xong."],
 ] as const;
 /** A chain owner owns the goods it sells, so it needs a goods-owning capability. */
-export const GOODS_OWNING_ACTIVITIES = ["FARM", "PROCESSOR", "DISTRIBUTOR", "RETAILER"];
+const GOODS_OWNING_ACTIVITIES = ["FARM", "PROCESSOR", "DISTRIBUTOR", "RETAILER"];
 export const mayOwnChains = (activities: string[]) =>
   activities.some((a) => GOODS_OWNING_ACTIVITIES.includes(a));
 export const PROCESSING_TYPE_OPTIONS = [
@@ -46,9 +46,6 @@ export const PROCESSING_CERT_OPTIONS = [
   ["ISO22000", "ISO 22000"],
   ["FSSC22000", "FSSC 22000"],
   ["OTHER", "Khác"],
-] as const;
-export const INTEREST_OPTIONS = [
-  ["TRACEABILITY", "Truy xuất nguồn gốc"],
 ] as const;
 export const CERTIFICATION_OPTIONS = [
   ["VIETGAP", "VietGAP"],
@@ -112,7 +109,7 @@ export type DocumentKind =
 export type RegistrationFiles = Partial<
   Record<DocumentKind, { id: string; file: File }>
 >;
-export type RegistrationField =
+type RegistrationField =
   keyof RegistrationDraft | DocumentKind | "emailVerification";
 export type RegistrationErrors = Partial<Record<RegistrationField, string>>;
 const goodText = (s: string, min: number, max: number) =>

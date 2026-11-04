@@ -248,10 +248,6 @@ export async function enterpriseAuthority(
   };
 }
 
-export async function lockEnterprise(db: Prisma.TransactionClient, organizationId: string) {
-  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`enterprise:${organizationId}`},0))`;
-}
-
 /** Enrollment owners can correct a rejected registration before business activation. */
 export async function profileAuthority(db:Prisma.TransactionClient,actor:CommandActor,lock=false) {
  if(!actor.organizationId||!actor.sub||['SYSTEM_ADMIN','AUDITOR','IOT_DEVICE'].includes(actor.role))throw new ForbiddenException();

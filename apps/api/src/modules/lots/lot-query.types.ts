@@ -13,7 +13,7 @@ const SENSOR_WINDOW = {
   },
 } satisfies Prisma.HarvestSensorWindowDefaultArgs;
 
-export const LOT_TRACE_INCLUDE = {
+const LOT_TRACE_INCLUDE = {
   ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
   bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
   blockchainProof: true,

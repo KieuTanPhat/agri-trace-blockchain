@@ -1,7 +1,7 @@
 import type { components } from "../../../src/lib/generated/api";
 import { registerScenario, readScenario } from "./scenarios";
 type S = components["schemas"];
-export const caseId = "11111111-1111-4111-8111-111111111111";
+const caseId = "11111111-1111-4111-8111-111111111111";
 export const assignedCase: S["PlatformCaseDto"] = {
   id: caseId,
   caseNumber: 17,
@@ -212,7 +212,7 @@ for (const scenario of ["cases.actions", "cases.unknown-note"])
     },
   });
 
-export const privacyRecord: S["PrivacyDetailDto"] = {
+const privacyRecord: S["PrivacyDetailDto"] = {
   id: caseId,
   kind: "REQUEST",
   requestType: "ACCESS",
@@ -433,7 +433,7 @@ function privacyTicket(record: S["PrivacyDetailDto"]): S["PrivacyTicketDto"] {
   return ticket;
 }
 
-export const consumerReport = {
+const consumerReport = {
   id: caseId,
   lotId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
   lotCode: "LOT-17",
@@ -492,7 +492,7 @@ registerScenario("recall.snapshot", {
       return { data: recallSnapshot };
   },
 });
-export const systemNotice = {
+const systemNotice = {
   id: caseId,
   title: "NOTICE_IN_SCOPE",
   body: "Thông báo theo đối tượng",

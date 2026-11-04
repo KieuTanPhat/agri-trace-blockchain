@@ -22,7 +22,7 @@ import type {
 } from './device-dto.js';
 
 /** A device that reported within this window is shown as online. */
-export const DEVICE_ONLINE_MS = 10 * 60_000;
+const DEVICE_ONLINE_MS = 10 * 60_000;
 const RUNNING_STATES = ['PLANTED', 'GROWING'] as const;
 
 const DEVICE_SELECT = {

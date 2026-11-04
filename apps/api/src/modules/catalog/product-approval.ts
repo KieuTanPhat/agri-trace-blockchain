@@ -24,7 +24,7 @@ export class ProductApprovalReviewInput {
   note!: string;
 }
 
-export const productApprovalView = (p: {
+const productApprovalView = (p: {
   id: string;
   productName: string;
   organizationId: string | null;

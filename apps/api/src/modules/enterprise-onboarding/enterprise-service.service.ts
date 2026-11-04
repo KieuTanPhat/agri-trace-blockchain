@@ -35,7 +35,7 @@ import {
   ENTERPRISE_PERMISSIONS,
 } from '../enterprise-workspace/enterprise-policy.js';
 
-export const orderView = (r: EnterpriseServiceOrder) => ({
+const orderView = (r: EnterpriseServiceOrder) => ({
   id: r.id,
   planCode: r.planCode,
   billingEmail: r.billingEmail,
@@ -61,9 +61,9 @@ export const serviceStage = (r: {
       ? 'ACTIVE'
       : 'AWAITING_ACTIVATION';
 /** Only chain owners buy a plan (ADR-005). */
-export const payingEnrollment = (participationStatus: string) =>
+const payingEnrollment = (participationStatus: string) =>
   chainOwner(participationStatus);
-export async function enrollmentOwner(
+async function enrollmentOwner(
   db: Prisma.TransactionClient,
   actor: CommandActor,
   lock = false,
@@ -87,7 +87,7 @@ export async function enrollmentOwner(
 }
 /** Prices come from the published plan version; the quotation records that
  * version id. */
-export async function previewService(
+async function previewService(
   db: Prisma.TransactionClient,
   org: { name: string; businessId: string | null },
   input: ServiceQuoteInput,

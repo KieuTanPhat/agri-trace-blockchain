@@ -30,7 +30,7 @@ export interface CommandRequestInspection {
   result?: Prisma.JsonValue | null;
 }
 
-export interface StartIdempotencyInput {
+interface StartIdempotencyInput {
   idempotencyKey: string;
   requesterId: string;
   operation: string;
@@ -42,7 +42,7 @@ export interface StartIdempotencyInput {
   actor?: CommandActor | null;
 }
 
-export type IdempotencyStartResult =
+type IdempotencyStartResult =
   | {
       type: 'NEW';
       recordId: string;

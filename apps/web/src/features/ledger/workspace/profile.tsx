@@ -22,7 +22,7 @@ import { Badge } from "@/components/ledger/kit/status";
 import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
 import { RevisionHistory } from "@/components/ledger/workspace/revision-history";
 
-export const LEGAL_FORM_LABEL: Record<string, string> = localized({
+const LEGAL_FORM_LABEL: Record<string, string> = localized({
   ENTERPRISE: "Doanh nghiệp",
   COOPERATIVE: "Hợp tác xã",
 });

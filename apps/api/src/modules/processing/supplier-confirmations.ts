@@ -21,7 +21,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 type Tx = Prisma.TransactionClient;
 const DAYS = 30;
 const TOKEN = /^[A-Za-z0-9_-]{40,60}$/;
-export const confirmationHash = (token: string) =>
+const confirmationHash = (token: string) =>
   createHash('sha256').update(token).digest('hex');
 
 /** Documents accepted as evidence of an external receipt (ADR-005). */
@@ -33,7 +33,7 @@ export const RECEIPT_EVIDENCE_KINDS = [
   'RECEIPT_DOCUMENT',
 ] as const;
 
-export type TrustLevel = 'DECLARED' | 'EVIDENCED' | 'SUPPLIER_CONFIRMED' | 'SELF_RECORDED';
+type TrustLevel = 'DECLARED' | 'EVIDENCED' | 'SUPPLIER_CONFIRMED' | 'SELF_RECORDED';
 /** Derived, never stored: a lot recorded in AgriTrace is SELF_RECORDED; an
  * external receipt rises with documents and a supplier confirmation. */
 export const trustLevel = (r: { source: string; hasEvidence: boolean; confirmed: boolean }): TrustLevel =>
@@ -80,7 +80,7 @@ export class SupplierConfirmationDecision {
   @MaxLength(120)
   responderName!: string;
 }
-export class PublicSupplierConfirmationView {
+class PublicSupplierConfirmationView {
   @ApiProperty() buyerName!: string;
   @ApiProperty() materialName!: string;
   @ApiProperty() supplierName!: string;

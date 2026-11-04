@@ -16,8 +16,8 @@ import {
   type FixtureState,
 } from "./scenarios";
 type S = components["schemas"];
-export const enrollmentId = "11111111-1111-4111-8111-111111111111";
-export const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
+const enrollmentId = "11111111-1111-4111-8111-111111111111";
+const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
   paymentsEnabled: true,
   id: enrollmentId,
   organizationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",

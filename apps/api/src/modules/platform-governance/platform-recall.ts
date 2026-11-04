@@ -48,7 +48,7 @@ export class RecallMovementDto {
   @ApiProperty() unit!: string;
   @ApiProperty() status!: string;
 }
-export class RecallPreviewDto {
+class RecallPreviewDto {
   @ApiProperty({ enum: [true] }) readOnly!: boolean;
   @ApiProperty({ format: 'date-time' }) generatedAt!: string;
   @ApiProperty() rootLotId!: string;

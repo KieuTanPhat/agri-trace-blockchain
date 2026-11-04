@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuditQueryDto } from './dto.js';
 import { verifyPlatformAuditChain } from './platform-audit.js';
 
-export const EXPORT_ROW_LIMIT = 5000;
+const EXPORT_ROW_LIMIT = 5000;
 
 const WHO = { select: { id: true, fullName: true, email: true } } as const;
 

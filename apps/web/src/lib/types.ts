@@ -5,7 +5,6 @@ export type AllowedCommand =
   Schemas["InternalLotDto"]["allowedCommands"][number];
 export type ProofStatus = Schemas["InternalLotDto"]["proofStatus"];
 export type Organization = Schemas["OrganizationSummaryDto"];
-export type TraceEvent = Schemas["InternalTimelineDto"];
 export type LotTrace = Schemas["InternalLotDto"];
 export type PublicLotTrace = Schemas["PublicLotDto"];
 export type Dashboard = Schemas["DashboardDto"];
@@ -39,7 +38,7 @@ export type CommandInput = {
   damagedQuantity?: number;
   note?: string;
 };
-export type ApiError = {
+type ApiError = {
   status: number;
   code: string;
   message: string;

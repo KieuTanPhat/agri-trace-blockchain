@@ -11,7 +11,7 @@ import {
 } from '../trace/ledger-route.js';
 import { ledgerEntityTypes, requestLedgerGrant } from './ledger-permissions.js';
 
-export interface RegisterBindingInput {
+interface RegisterBindingInput {
   chainId: string;
   network: string;
   channelId: string;

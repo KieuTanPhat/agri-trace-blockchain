@@ -22,7 +22,7 @@ const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 const QUANTITY = /^(?:0|[1-9]\d{0,10})(?:\.\d{1,3})?$/;
 const FACTOR = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,6})?$/;
-export const LOSS_REASONS = [
+const LOSS_REASONS = [
   'TRIMMING',
   'MOISTURE',
   'SPILLAGE',
@@ -152,7 +152,7 @@ export class AddProcessingInputsInput extends ProcessingMaterialLines {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
 }
 
-export const PROCESSING_STEPS = [
+const PROCESSING_STEPS = [
   'RECEIVING', 'SORTING', 'WASHING', 'PRELIMINARY', 'DRYING', 'ROASTING', 'MILLING',
   'FERMENTING', 'COOKING', 'FREEZING', 'PACKING', 'QUALITY_CHECK', 'CORRECTION', 'OTHER',
 ] as const;

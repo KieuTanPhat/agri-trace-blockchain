@@ -17,15 +17,7 @@ import roleConsumer from "../../../../public/images/site/role-consumer-market.jp
 
 export const PHOTOS = { heroAgritrace, aboutGrowerPartner, teaHills, teaLeaves };
 
-export const PHOTO_CREDITS = [
-  ["tea-hills", "Colin Roe", "https://unsplash.com/photos/H1RWuPMIgBY"],
-  ["tea-leaves", "Rashid", "https://unsplash.com/photos/New8EgKnSds"],
-  ["role-farm", "feifei liang", "https://unsplash.com/photos/K7DllgDsGNo"],
-  ["role-transport", "Zoshua Colah", "https://unsplash.com/photos/qpFY19VSGQU"],
-  ["role-retail", "Thomas Le", "https://unsplash.com/photos/pRJhn4MbsMM"],
-] as const;
-
-export type Solution = { slug: string; image: StaticImageData; title: string; summary: string; points: string[] };
+type Solution = { slug: string; image: StaticImageData; title: string; summary: string; points: string[] };
 
 export const SOLUTIONS: Solution[] = [
   {
@@ -86,7 +78,7 @@ export const PLATFORM_FEATURES: { title: string; copy: string }[] = [
   { title: "Cảm biến và định vị", copy: "Cảm biến ghi nhiệt độ, độ ẩm tại vùng trồng; GPS ghi hành trình xe khi vận chuyển." },
 ];
 
-export type Plan = { name: string; audience: string; features: string[]; highlight?: boolean };
+type Plan = { name: string; audience: string; features: string[]; highlight?: boolean };
 
 export const PLANS: Plan[] = [
   {

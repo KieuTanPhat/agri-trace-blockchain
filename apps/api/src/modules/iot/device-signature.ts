@@ -2,9 +2,9 @@ import { canonicalize } from 'json-canonicalize';
 import { verifyEd25519 } from '../trace/signed-commitment.js';
 
 /** Domain-separated message a device signs: domain || 0x00 || RFC 8785(body). */
-export const DEVICE_INGEST_DOMAIN = 'agritrace:iot-device:1';
+const DEVICE_INGEST_DOMAIN = 'agritrace:iot-device:1';
 /** sentAt outside this window is refused so a captured envelope cannot be replayed later. */
-export const DEVICE_CLOCK_SKEW_MS = 5 * 60_000;
+const DEVICE_CLOCK_SKEW_MS = 5 * 60_000;
 
 export function deviceMessage(body: unknown): Buffer {
   const serialized = canonicalize(JSON.parse(JSON.stringify(body)));

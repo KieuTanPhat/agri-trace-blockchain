@@ -12,13 +12,13 @@ import {
 } from '@agri-trace/fabric-gateway';
 
 /** Linux and optional Windows/WSL pilot; never assumes a user's home/UNC path. */
-export const PILOT_ROOT =
+const PILOT_ROOT =
   process.env.FABRIC_ROOT ?? path.join(homedir(), 'agritrace-fabric');
 export const CHAINCODE = 'agritrace';
 export const CONTRACT = 'AgriTraceContract';
 export const WRITER_AUTHORITY = 'agritrace-relayer-b';
 
-export type Org = 'org1';
+type Org = 'org1';
 const offset = Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? '0');
 if (!Number.isInteger(offset) || offset < 0 || offset > 50000)
   throw new Error('Invalid Fabric test port offset');
@@ -34,9 +34,9 @@ const orgDir = (org: Org) =>
     'peerOrganizations',
     `${org}.example.com`,
   );
-export const userMsp = (org: Org, user: string) =>
+const userMsp = (org: Org, user: string) =>
   path.join(orgDir(org), 'users', `${user}@${org}.example.com`, 'msp');
-export const peerCa = (org: Org) =>
+const peerCa = (org: Org) =>
   path.join(orgDir(org), 'peers', `peer0.${org}.example.com`, 'tls', 'ca.crt');
 
 const open: GatewayConnection[] = [];

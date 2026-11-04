@@ -155,7 +155,7 @@ export class ServicePlanVersionView {
   @ApiProperty() termMonths!: number;
   @ApiProperty({ type: ServicePlanLimitsView }) limits!: ServicePlanLimitsView;
 }
-export class ServicePlanView {
+class ServicePlanView {
   @ApiProperty() code!: string;
   @ApiProperty() name!: string;
   @ApiProperty({ type: ServicePlanVersionView })

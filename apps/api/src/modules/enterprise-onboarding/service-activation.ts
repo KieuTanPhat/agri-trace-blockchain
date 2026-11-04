@@ -68,7 +68,7 @@ export async function ensureOwnLedger(
  * capabilities an administrator approved one by one; enrollments created before
  * per-capability review keep their registered activities. Activation gives
  * ORG_ADMIN; chain creation follows the participation status. */
-export async function grantEnterpriseBusiness(
+async function grantEnterpriseBusiness(
   tx: Prisma.TransactionClient,
   row: { organizationId: string; ownerId: string },
 ) {

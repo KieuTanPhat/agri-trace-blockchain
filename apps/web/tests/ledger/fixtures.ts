@@ -6,8 +6,8 @@ import {
   type CapturedRequest,
   type FixtureState,
 } from "./fixtures/scenarios";
-export type { ActorKey, CapturedRequest };
-export interface LedgerApiFixture {
+export type {};
+interface LedgerApiFixture {
   useActor(actor: ActorKey): Promise<void>;
   scenario(id: string): Promise<void>;
   requests(): readonly CapturedRequest[];

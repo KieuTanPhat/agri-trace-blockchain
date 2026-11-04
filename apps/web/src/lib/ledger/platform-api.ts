@@ -4,7 +4,6 @@ import type { LedgerCommandContext } from "./command-context";
 type S = components["schemas"];
 export type PlatformUser = S["UserListDto"];
 export type Amendment = S["ProfileAmendmentListItemDto"];
-export type AmendmentDetail = S["ProfileAmendmentDetailDto"];
 export type AuditEntry = S["PlatformAuditEntryDto"];
 export type AuditVerify = S["PlatformAuditVerificationDto"];
 export type DirectoryItem = {
@@ -154,7 +153,7 @@ export type PlanVersion = {
   publishedAt: string | null;
   createdAt: string;
 };
-export type ServicePlan = {
+type ServicePlan = {
   code: string;
   name: string;
   audience: string;
@@ -204,7 +203,7 @@ export type Invoice = {
 export type Enrollment = S["EnterpriseEnrollmentViewDto"];
 export type CapabilityRequest = S["CapabilityRequestViewDto"];
 /** Aggregate fields supplied by AdminInsightsService.organization at the pinned baseline. */
-export type PlatformOrganization = {
+type PlatformOrganization = {
   id: string;
   name: string;
   type: string;

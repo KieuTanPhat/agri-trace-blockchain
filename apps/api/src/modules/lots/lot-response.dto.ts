@@ -15,7 +15,7 @@ import {
   HarvestSensorWindowRecordDto,
 } from '../../common/api/record.dto.js';
 
-export const PROOF_STATUSES = [
+const PROOF_STATUSES = [
   'VERIFIED',
   'PENDING',
   'INTEGRITY_WARNING',
@@ -39,14 +39,14 @@ export class OrganizationSummaryDto {
   @ApiProperty() name!: string;
   @ApiProperty({ enum: OrganizationType }) type!: string;
 }
-export class CycleSummaryDto {
+class CycleSummaryDto {
   @ApiProperty({ format: 'uuid' }) cycleId!: string;
   @ApiProperty() cycleCode!: string;
   @ApiProperty({ enum: ProductionCycleState }) currentState!: string;
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   startDate!: string | null;
 }
-export class SensorEvidenceDto {
+class SensorEvidenceDto {
   @ApiProperty({
     enum: ['FINALIZED', 'NO_DATA', 'INTEGRITY_WARNING', 'NOT_APPLICABLE'],
     description: 'NOT_APPLICABLE for lots created by processing',
@@ -64,7 +64,7 @@ export class SensorEvidenceDto {
   @ApiProperty({ description: 'Readings come from a virtual (simulated) device (ADR-006)' })
   simulated!: boolean;
 }
-export class LotProofDto {
+class LotProofDto {
   @ApiProperty() network!: string;
   @ApiProperty({ type: String, nullable: true }) txId!: string | null;
   @ApiProperty() dataHash!: string;
@@ -164,7 +164,7 @@ export class ProcessingInputSummaryDto {
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   harvestTime!: string | null;
 }
-export class ProcessingProvenanceDto {
+class ProcessingProvenanceDto {
   @ApiProperty({ type: String, format: 'uuid', required: false }) runId?: string;
   @ApiProperty() code!: string;
   @ApiProperty() processType!: string;

@@ -6,8 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-export const LEDGER_REQUIRED_EXIT = 75;
-export const PRODUCTION_ORIGIN = 'https://agritrace.dev';
+const PRODUCTION_ORIGIN = 'https://agritrace.dev';
 
 export function seedTarget(environment = process.env) {
   const url = new URL(environment.DATABASE_URL);

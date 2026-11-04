@@ -44,9 +44,9 @@ export function isAuditedCommand(operation: string, actorRole?: string) {
   );
 }
 
-export type PlatformAuditOutcome = 'SUCCESS' | 'DENIED' | 'FAILED';
+type PlatformAuditOutcome = 'SUCCESS' | 'DENIED' | 'FAILED';
 
-export interface PlatformAuditInput {
+interface PlatformAuditInput {
   /** null records a system-originated event (for example automatic lockout). */
   actor: { sub: string | null; role: string } | null;
   action: string;

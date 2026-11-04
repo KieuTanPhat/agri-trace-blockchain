@@ -17,7 +17,7 @@ import {
   lockPlatformAudit,
 } from '../../modules/platform-governance/platform-audit.js';
 
-export interface CommandContext {
+interface CommandContext {
   recordId: string;
   authorizationScope: string;
   input: AuthorizedCommand;
@@ -76,7 +76,7 @@ function resourceIds(value: unknown, path = ''): Record<string, string> {
  * callback means COMMIT was never sent, so the domain writes and journal were
  * rolled back. Such constraint errors are terminal business rejections; any
  * other failure (including one at COMMIT) keeps its unknown-outcome path. */
-export function rolledBackCommandError(error: unknown): unknown {
+function rolledBackCommandError(error: unknown): unknown {
   if (
     !(error instanceof Prisma.PrismaClientKnownRequestError) ||
     error instanceof HttpException

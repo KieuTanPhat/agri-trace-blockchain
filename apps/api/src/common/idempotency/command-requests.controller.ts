@@ -133,7 +133,7 @@ export class InspectCommandRequestDto {
   @IsObject()
   payload!: Record<string, unknown>;
 }
-export class CommandRequestStatusDto {
+class CommandRequestStatusDto {
   @ApiProperty({
     enum: [
       'NOT_FOUND',

@@ -63,7 +63,7 @@ const recoveryDigest = (userId: string, code: string) =>
     deploymentKey(),
   );
 
-export interface PlatformActor {
+interface PlatformActor {
   sub: string;
   role: string;
 }

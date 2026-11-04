@@ -48,7 +48,7 @@ export const EVIDENCE_KIND_LABEL: Record<string, string> = localized({
   PROCESSING_IMAGE: "Ảnh bước chế biến",
 });
 /** Loại chứng cứ cho phép theo đối tượng — evidenceKinds trong enterprise-resources.service.ts. */
-export const EVIDENCE_KINDS: Partial<Record<EvidenceEntity, string[]>> = {
+const EVIDENCE_KINDS: Partial<Record<EvidenceEntity, string[]>> = {
   CHAIN: ["CHAIN_IMAGE", "OTHER"],
   MATERIAL_RECEIPT: ["RECEIPT_DOCUMENT", "INSPECTION_IMAGE", "CERTIFICATE_IMAGE", "OTHER"],
   PROCESSING_LOG: ["PROCESSING_IMAGE", "OTHER"],

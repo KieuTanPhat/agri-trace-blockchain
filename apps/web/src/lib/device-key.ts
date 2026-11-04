@@ -2,7 +2,7 @@ import { chainApi } from "./ledger/chain-api";
 import { newLedgerCommandKey } from "./ledger/command-context";
 import { deviceScope, distributionKeyStore, generateDeviceKey } from "./distribution-signer";
 
-export type DeviceKeyState = { state: "active"; keyId: string };
+type DeviceKeyState = { state: "active"; keyId: string };
 type Member = { id: string; organizationId: string };
 
 /** Single flight per member: two components asking at once never create two keys. */

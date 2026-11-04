@@ -38,7 +38,7 @@ import { Callout } from "./page";
 import { FormSchemaContext } from "./form-fields";
 
 import { t as tr } from "@/lib/ledger/i18n";
-export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
+interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;

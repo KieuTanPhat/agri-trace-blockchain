@@ -6,7 +6,7 @@ import { ledgerRequest } from "@/lib/ledger/request";
 import { t as tr } from "@/lib/ledger/i18n";
 import { SelectField } from "./form-fields";
 
-export type ReferenceCategory = "UNIT" | "PRODUCT_CATEGORY" | "CERTIFICATE_TYPE" | "VEHICLE_TYPE";
+type ReferenceCategory = "UNIT" | "PRODUCT_CATEGORY" | "CERTIFICATE_TYPE" | "VEHICLE_TYPE";
 type Item = { code: string; label: string };
 
 /** Units are stored by symbol ("kg"), as quantities and earlier records show them. */
@@ -16,7 +16,7 @@ const UNIT_SYMBOL: Record<string, string> = {
 };
 
 /** Active items of a platform reference list (managed by platform admins). */
-export function useReferenceOptions(category: ReferenceCategory) {
+function useReferenceOptions(category: ReferenceCategory) {
   const q = useQuery({
     queryKey: ["reference-items", category],
     queryFn: () => ledgerRequest<{ items: Item[] }>(`/reference-data/items?category=${category}`),

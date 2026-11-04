@@ -41,7 +41,7 @@ export const EVENT_BINDING_CONTEXT_INCLUDE = {
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 
-export function routePayload(route: RouteDefinition): RouteDefinition {
+function routePayload(route: RouteDefinition): RouteDefinition {
   return {
     chainRef: route.chainRef ?? null,
     bindingDigest: route.bindingDigest ?? null,

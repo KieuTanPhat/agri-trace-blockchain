@@ -5,15 +5,15 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { OperationsQueryDto } from './dto.js';
 
 /** A binding is "stale" when the Worker has not checked it recently. */
-export const BINDING_STALE_MS = 10 * 60_000;
+const BINDING_STALE_MS = 10 * 60_000;
 /** A due outbox/mail row is "overdue" when it waited this long past its slot. */
-export const OVERDUE_MS = 5 * 60_000;
+const OVERDUE_MS = 5 * 60_000;
 const UNFINISHED_OUTBOX = ['PENDING', 'PROCESSING', 'RETRY'] as const;
 const MAX_ERROR_LENGTH = 300;
 const DAY_MS = 86_400_000;
 
 /** Warning bands for certificate expiry: expired, then 7/14/30 days ahead. */
-export function certificateBucket(msLeft: number) {
+function certificateBucket(msLeft: number) {
   if (msLeft <= 0) return 'EXPIRED';
   if (msLeft <= 7 * DAY_MS) return '7_DAYS';
   if (msLeft <= 14 * DAY_MS) return '14_DAYS';

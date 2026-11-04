@@ -20,17 +20,17 @@ type Db = Prisma.TransactionClient;
 // Chain-owner plans count finished products, chains, partner organizations
 // (distinct ACTIVE organizations in the owner's chains) and staff (ADR-005).
 export const RESOURCES = ['products', 'chains', 'partners', 'members'] as const;
-export type Resource = (typeof RESOURCES)[number];
-export type Limits = Record<Resource, number>;
+type Resource = (typeof RESOURCES)[number];
+type Limits = Record<Resource, number>;
 export const RESOURCE_LABELS: Record<Resource, string> = {
   products: 'sản phẩm',
   chains: 'chuỗi truy xuất',
   partners: 'đối tác trong chuỗi',
   members: 'nhân viên',
 };
-export type FarmLedgerLimits = { cycles: number; lots: number };
-export const PAYMENT_PROVIDERS = ['SIMULATION', 'MANUAL', 'SEPAY'] as const;
-export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
+type FarmLedgerLimits = { cycles: number; lots: number };
+const PAYMENT_PROVIDERS = ['SIMULATION', 'MANUAL', 'SEPAY'] as const;
+type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
 const DAY = 86_400_000;
 export const addMonths = (date: Date, months: number) => {
@@ -251,7 +251,7 @@ export async function usageFor(
 const yearStart = () => new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
 /** Free farm ledger limits per calendar year (ADR-005). */
-export async function assertFarmLedgerLimit(
+async function assertFarmLedgerLimit(
   tx: Db,
   chainId: string,
   resource: keyof FarmLedgerLimits,
@@ -324,7 +324,7 @@ export async function assertEntitlement(
     );
 }
 
-export async function nextInvoiceNumber(tx: Db) {
+async function nextInvoiceNumber(tx: Db) {
   const [row] = await tx.$queryRaw<Array<{ n: bigint }>>`SELECT nextval('invoice_number_seq') AS n`;
   return `AGT-${new Date().getUTCFullYear()}-${String(row.n).padStart(6, '0')}`;
 }

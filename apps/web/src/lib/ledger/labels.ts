@@ -204,19 +204,6 @@ export const CASE_SOURCE_LABEL: Record<string, string> = localized({
   AUDITOR: "Kiểm toán",
   INTERNAL: "Nội bộ",
 });
-export const OPERATION_LABEL: Record<string, string> = localized({
-  CAPABILITY_GRANT: "Cấp năng lực tổ chức",
-  CREATE_CHAIN_GRANT: "Cấp quyền tạo chuỗi",
-  SYSTEM_ADMIN_CREATE: "Tạo tài khoản quản trị",
-  CONNECTION_APPROVE: "Chấp nhận kết nối peer",
-  ADMIN_PASSWORD_RESET: "Đặt lại mật khẩu quản trị",
-  CAPABILITY_REQUEST_APPROVE: "Duyệt yêu cầu năng lực",
-  PLAN_VERSION_PUBLISH: "Công bố bảng giá",
-  INVOICE_CONFIRM_PAYMENT: "Xác nhận thanh toán",
-  SETTING_CHANGE: "Đổi tham số nền tảng",
-  QR_BLOCK: "Khóa QR lô",
-  ENROLLMENT_APPROVE: "Phê duyệt hồ sơ doanh nghiệp",
-});
 export const DOC_KIND_LABEL: Record<string, string> = localized({
   LEGAL_REGISTRATION: "Giấy đăng ký",
   AUTHORIZATION: "Giấy ủy quyền",

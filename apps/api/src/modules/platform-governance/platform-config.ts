@@ -1,6 +1,6 @@
 /** Feature flags and limits for platform governance. Read per call so an
  * operator change (and tests) take effect without module re-initialization. */
-export type MfaMode = 'OFF' | 'OPTIONAL' | 'REQUIRED';
+type MfaMode = 'OFF' | 'OPTIONAL' | 'REQUIRED';
 
 function intFrom(name: string, fallback: number, min: number, max: number) {
   const parsed = Number(process.env[name]);
