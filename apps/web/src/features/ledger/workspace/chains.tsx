@@ -35,9 +35,6 @@ const STAGE_LABEL: Record<string, string> = localized({ FARM: "Sản xuất", PR
 const MEMBER_LABEL: Record<string, string> = localized({ INVITED: "Đang mời", ACTIVE: "Hoạt động", SUSPENDED: "Tạm ngừng", REVOKED: "Đã thu hồi" });
 const MEMBER_TONE: Record<string, "info" | "ok" | "warn" | "neutral"> = { INVITED: "info", ACTIVE: "ok", SUSPENDED: "warn", REVOKED: "neutral" };
 const PROFILE_LABEL: Record<string, string> = localized({ PREPARING: "Đang chuẩn bị", ACTIVE: "Đang vận hành", SUSPENDED: "Đã ngừng" });
-const GRANT_LABEL: Record<string, string> = localized({ ORG_ADMIN: "Quản trị tổ chức", CREATE_CHAIN: "Tạo chuỗi", CHAIN_MANAGER: "Điều phối chuỗi", FARM_STAFF: "Sản xuất", TRANSPORTER: "Vận chuyển", RETAILER: "Bán lẻ", DISTRIBUTOR: "Phân phối" });
-/** Roles only the platform grants directly; business roles follow member permission groups. */
-const PLATFORM_ROLES = ["ORG_ADMIN", "CREATE_CHAIN", "CHAIN_MANAGER", "AUDITOR", "COMPLIANCE_REVIEWER"] as const;
 const reason10 = z.string().trim().min(10, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 10 }) }).max(1000);
 
 /** Tên tổ chức: doanh nghiệp mình và đối tác đã liên kết; tổ chức khác chỉ hiện mã rút gọn. */
@@ -223,7 +220,6 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
   const tab = ["members", "plans"].includes(view) ? view : "";
   const orgAdmin=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="ORG_ADMIN" && !g.revokedAt);
   const canCreateChain=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="CREATE_CHAIN" && !g.revokedAt);
-  const platformAdmin=user?.role.code==="SYSTEM_ADMIN";
   const manager = owner && !!ctxQ.data?.grants.some((g) => g.chainId === id && g.role === "CHAIN_MANAGER" && !g.revokedAt);
   const invalidate = [["chain", id], ["chain-members", id], ["chain-profile", id], ["ws-chains"], ["chain-context"]];
   const memberIds = new Set((members.data ?? []).map((m) => m.organizationId));
