@@ -4,9 +4,6 @@ name: Mobile APK
 # never a store submission.
 on:
   workflow_dispatch:
-  push:
-    branches: [ci/mobile-apk]
-    paths: ['apps/mobile/**', '.github/workflows/mobile-apk.yml']
 permissions: {contents: read}
 concurrency:
   group: mobile-apk-${{ github.ref }}
@@ -31,8 +28,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with: {node-version-file: .node-version}
       - run: npm install --global npm@12.1.0
-      - run: npm ci --no-audit --no-fund
-      - run: npm ci --prefix apps/mobile --workspaces=false --no-audit --no-fund
+      - run: npm ci --include=dev --no-audit --no-fund
+      - run: npm ci --prefix apps/mobile --workspaces=false --include=dev --no-audit --no-fund
       - name: Generate the Android project
         working-directory: apps/mobile
         run: node node_modules/expo/bin/cli prebuild --platform android --no-install --clean

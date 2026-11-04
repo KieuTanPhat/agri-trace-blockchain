@@ -77,6 +77,19 @@ xuất, Chờ nhận cho chế biến/vận chuyển/phân phối/bán lẻ, Bá
 Chuyến hàng), Thêm. Màn hình còn lại mở từ Thêm. Web có cùng hàng đợi ở
 `/enterprise/inbound` và `/enterprise/sales` (chỉ bán lẻ).
 
+### APK Android để cài thử
+
+Workflow `Mobile APK` chạy thủ công trên ref được chọn và tạo hai artifact
+`apk-consumer`, `apk-staff`, lần lượt cho ACheck và AgriTrace Nhân viên. Bản build
+dùng API HTTPS `https://agritrace.dev/api` và ghi SHA vào tên file/checksum.
+Workflow cài cả dependency phát triển vì Expo prebuild/Gradle cần công cụ build,
+kể cả khi bundle dùng `NODE_ENV=production`.
+
+APK ký bằng khóa debug của React Native, chỉ để cài thử trực tiếp; không phải bản
+phát hành lên cửa hàng. Kiểm tra lint/typecheck không thay thế build Gradle và
+nghiệm thu trên thiết bị. Cấu hình IP Wi-Fi/HTTP của từng máy không đưa vào workflow
+chung.
+
 ### ACheck: xác minh điện thoại trên bản development
 
 UI đăng ký/quên mật khẩu dùng Firebase native để nhận token xác minh và gửi
