@@ -45,8 +45,13 @@ export function fieldClimate(seed, at, state) {
   const day = at.getTime() / 86_400_000;
   const diurnal = Math.sin(((hour - 8) / 24) * 2 * Math.PI);
   const dayShift = noise(`${seed}:day`, day / 2) * 2.5;
-  const temperature = 25 + dayShift + 5.5 * diurnal + noise(`${seed}:t`, at.getTime() / 900_000) * 0.6;
-  const humidity = Math.min(98, Math.max(38, 82 - 2.4 * (temperature - 25) + noise(`${seed}:h`, at.getTime() / 1_200_000) * 3));
+  const temperature = Math.min(60, Math.max(-10,
+    25 + dayShift + 5.5 * diurnal + noise(`${seed}:t`, at.getTime() / 900_000) * 0.6 + (state.temperatureAdjustment ?? 0),
+  ));
+  const baseHumidity = Math.min(98, Math.max(38,
+    82 - 2.4 * (temperature - 25) + noise(`${seed}:h`, at.getTime() / 1_200_000) * 3,
+  ));
+  const humidity = Math.min(100, Math.max(0, baseHumidity + (state.humidityAdjustment ?? 0)));
   return {
     TEMPERATURE: { value: +temperature.toFixed(2), unit: '°C' },
     HUMIDITY: { value: +humidity.toFixed(2), unit: '%' },

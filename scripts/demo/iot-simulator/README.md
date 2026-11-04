@@ -25,8 +25,9 @@ Mặc định API là `http://localhost:8080/api`, bảng điều khiển ở
 1. Bảng điều khiển → Tạo thiết bị (GPS trên xe hoặc cảm biến vùng trồng).
 2. AgriTrace → Thiết bị IoT → Đăng ký thiết bị: dán mã thiết bị và khóa công khai,
    gắn vào thửa (cần `production.write`) hoặc xe (cần `vehicles.manage`).
-3. Cảm biến: bấm "Nạp lịch sử" để có dữ liệu cả vụ, rồi để thiết bị đo trực tiếp.
-   Máy chủ bỏ phần trước lúc trồng và chỉ ghi vào vụ đang trồng/đang lớn trên thửa.
+3. Cảm biến: dùng nút ± nhiệt độ/độ ẩm trên thẻ để tạo bộ đo mô phỏng mới và gửi
+   qua API; bấm "Nạp lịch sử" nếu cần dữ liệu cả vụ. Máy chủ bỏ phần trước lúc
+   trồng và chỉ ghi vào vụ đang trồng/đang lớn trên thửa.
 4. GPS: lập phiếu giao nhận chọn xe đó rồi ký lấy hàng. Thiết bị tự nhận điểm
    đi/đến từ phiếu (hỏi mỗi 15 giây), lấy tuyến OSRM và chạy; không cần bấm xuất
    phát. Cơ sở thiếu tọa độ dùng điểm đại diện tỉnh/thành trong catalog của repo.

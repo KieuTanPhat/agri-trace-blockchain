@@ -135,6 +135,13 @@
   .metric { min-width: 0; padding: 10px; border: 1px solid #edf0e9; border-radius: 11px; background: #fbfcf9; }
   .metric span { display: block; color: #77857b; font-size: 9px; }
   .metric b { display: block; margin-top: 3px; color: #284535; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 17px; font-weight: 720; letter-spacing: -.04em; }
+  .sensor-adjustments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
+  .sensor-adjustment { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 9px; border: 1px solid #edf0e9; border-radius: 10px; background: #fbfcf9; }
+  .sensor-adjustment-label { min-width: 0; color: #586a5e; font-size: 10px; font-weight: 690; }
+  .sensor-adjustment-actions { display: flex; flex: 0 0 auto; gap: 4px; }
+  .sensor-adjust-button { display: inline-flex; min-width: 38px; height: 28px; align-items: center; justify-content: center; padding: 0 7px; border: 1px solid #dfe7d8; border-radius: 8px; background: #fff; color: var(--forest); font-size: 10px; font-weight: 760; }
+  .sensor-adjust-button:hover { border-color: #b9cba9; background: #f1f5e9; }
+  .sensor-note { margin: 7px 1px 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
   .device-foot { padding: 0 19px 14px; }
   details { margin-top: 7px; border-top: 1px solid #edf0e9; }
   summary { display: flex; min-height: 38px; align-items: center; gap: 8px; cursor: pointer; color: #5e7064; font-size: 10px; font-weight: 700; list-style: none; }
@@ -213,6 +220,8 @@
     .metric { padding: 8px 7px; }
     .metric span { font-size: 8px; }
     .metric b { font-size: 15px; }
+    .sensor-adjustments { grid-template-columns: 1fr; gap: 6px; }
+    .sensor-adjustment { padding: 7px 8px; }
     .device-foot { padding: 0 13px 10px; }
     .page-footer { font-size: 9px; }
   }
@@ -342,6 +351,17 @@ function tripBlock(d) {
 function fieldBlock(d) {
   const r = d.lastReadings ?? {};
   return `<div class="metrics">${['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'].map((k) => `<div class="metric"><span>${LABEL[k]}</span><b>${r[k] ?? '—'}</b></div>`).join('')}</div>
+    <div class="sensor-adjustments" aria-label="Điều chỉnh số đo mô phỏng">
+      <div class="sensor-adjustment"><span class="sensor-adjustment-label">Nhiệt độ</span><div class="sensor-adjustment-actions">
+        <button type="button" class="sensor-adjust-button" aria-label="Giảm nhiệt độ 1 độ C" onclick="act('${d.id}','sensor_adjust',{metric:'TEMPERATURE',delta:-1})">−1°</button>
+        <button type="button" class="sensor-adjust-button" aria-label="Tăng nhiệt độ 1 độ C" onclick="act('${d.id}','sensor_adjust',{metric:'TEMPERATURE',delta:1})">+1°</button>
+      </div></div>
+      <div class="sensor-adjustment"><span class="sensor-adjustment-label">Độ ẩm không khí</span><div class="sensor-adjustment-actions">
+        <button type="button" class="sensor-adjust-button" aria-label="Giảm độ ẩm không khí 5 phần trăm" onclick="act('${d.id}','sensor_adjust',{metric:'HUMIDITY',delta:-1})">−5%</button>
+        <button type="button" class="sensor-adjust-button" aria-label="Tăng độ ẩm không khí 5 phần trăm" onclick="act('${d.id}','sensor_adjust',{metric:'HUMIDITY',delta:1})">+5%</button>
+      </div></div>
+    </div>
+    <p class="sensor-note">Mỗi lần bấm tạo một bản đo mô phỏng mới; thiết bị đã gắn vào thửa có thể đồng bộ dữ liệu này lên AgriTrace.</p>
     <p class="muted" style="margin:8px 2px 0">Đo mỗi ${d.intervalSec} giây${d.drought ? ' · <span class="badge warn">Đang khô hạn</span>' : ''}</p>`;
 }
 function incidents(d) {

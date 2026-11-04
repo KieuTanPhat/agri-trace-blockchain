@@ -27,6 +27,20 @@ test('field climate follows the day and humidity runs opposite to heat', () => {
   const noon = fieldClimate('plot', new Date('2026-11-04T07:00:00Z'), { soil: 40 }); // 14:00 local
   assert.ok(noon.TEMPERATURE.value > night.TEMPERATURE.value + 5);
   assert.ok(noon.HUMIDITY.value < night.HUMIDITY.value);
+
+  const at = new Date('2026-11-04T07:00:00Z');
+  const baseline = fieldClimate('plot', at, { soil: 40 });
+  const warmer = fieldClimate('plot', at, { soil: 40, temperatureAdjustment: 1 });
+  const moreHumid = fieldClimate('plot', at, { soil: 40, humidityAdjustment: 5 });
+  assert.equal(warmer.TEMPERATURE.value, baseline.TEMPERATURE.value + 1);
+  assert.equal(moreHumid.HUMIDITY.value, baseline.HUMIDITY.value + 5);
+
+  const high = fieldClimate('plot', at, { soil: 40, temperatureAdjustment: 100, humidityAdjustment: 100 });
+  const low = fieldClimate('plot', at, { soil: 40, temperatureAdjustment: -100, humidityAdjustment: -100 });
+  assert.equal(high.TEMPERATURE.value, 60);
+  assert.equal(high.HUMIDITY.value, 100);
+  assert.equal(low.TEMPERATURE.value, -10);
+  assert.equal(low.HUMIDITY.value, 0);
 });
 
 test('soil dries faster in drought and stays in physical bounds', () => {

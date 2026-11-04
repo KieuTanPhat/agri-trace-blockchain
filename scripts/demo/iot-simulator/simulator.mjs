@@ -360,6 +360,8 @@ function createDevice({ kind, name, deviceCode }) {
     battery: 100,
     bootAt: Date.now(),
     soil: 42,
+    temperatureAdjustment: 0,
+    humidityAdjustment: 0,
     drought: false,
     intervalSec: 300,
     trip: null,
@@ -415,6 +417,28 @@ async function action(device, a, body) {
     case 'unplug': device.power = 'BATTERY'; log(device, 'Rút nguồn xe: chạy pin dự phòng'); break;
     case 'plug': device.power = 'MAINS'; device.bootAt = Date.now(); log(device, 'Cắm lại nguồn: khởi động lại, chờ bắt vệ tinh'); break;
     case 'spoof': device.spoofNext = true; log(device, 'Điểm GPS tiếp theo sẽ bị giả mạo (nhảy ~50 km)'); break;
+    case 'sensor_adjust': {
+      if (device.kind !== 'FIELD_SENSOR') throw new Error('Chỉ cảm biến vùng trồng có thể điều chỉnh số đo');
+      const metric = body.metric;
+      const delta = Number(body.delta);
+      if (!['TEMPERATURE', 'HUMIDITY'].includes(metric) || ![-1, 1].includes(delta))
+        throw new Error('Thông số điều chỉnh không hợp lệ');
+      const temperature = metric === 'TEMPERATURE';
+      const field = temperature ? 'temperatureAdjustment' : 'humidityAdjustment';
+      const step = temperature ? 1 : 5;
+      const limit = temperature ? 25 : 50;
+      const current = device[field] ?? 0;
+      const next = Math.max(-limit, Math.min(limit, current + step * delta));
+      if (next === current) throw new Error('Số đo mô phỏng đã đạt giới hạn điều chỉnh');
+      device[field] = next;
+      const at = new Date();
+      device.lastFixAt = at.getTime();
+      device.queue.push(...readingsAt(device, at));
+      const label = temperature ? 'nhiệt độ' : 'độ ẩm không khí';
+      const amount = temperature ? '1 °C' : '5%';
+      log(device, (delta > 0 ? 'Tăng ' : 'Giảm ') + label + ' mô phỏng ' + amount + '; đã tạo bản đo mới');
+      break;
+    }
     case 'drought': device.drought = !device.drought; log(device, device.drought ? 'Bắt đầu khô hạn nhanh' : 'Hết khô hạn'); break;
     case 'irrigate': device.soil = Math.min(62, device.soil + 22); log(device, 'Tưới: độ ẩm đất tăng'); break;
     case 'interval': device.intervalSec = Math.max(30, Number(body.seconds) || 300); log(device, `Chu kỳ đo ${device.intervalSec}s`); break;
