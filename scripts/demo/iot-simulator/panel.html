@@ -80,33 +80,6 @@
   .button:disabled, .create-button:disabled { cursor: wait; opacity: .65; }
   .create-note { display: flex; align-items: start; gap: 8px; margin: 14px 1px 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
   .create-note svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; color: #81964e; }
-  .gps-scenario { margin: 0 0 15px; padding: 20px 22px 17px; border: 1px solid #dce5d5; border-radius: 17px; background: linear-gradient(115deg, #f2f5e9, #fff 74%); }
-  .gps-scenario-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-  .gps-scenario-title { display: flex; min-width: 0; align-items: center; gap: 12px; }
-  .gps-scenario-icon { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border-radius: 13px; color: var(--leaf); background: var(--forest); }
-  .gps-scenario-icon svg { width: 21px; height: 21px; }
-  .gps-scenario-kicker { margin: 0 0 2px; color: #6b8343; font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-  .gps-scenario-title h3 { margin: 0; font-size: 16px; font-weight: 760; letter-spacing: -.035em; }
-  .gps-scenario-title p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
-  .gps-scenario-status { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid #e1e8dc; border-radius: 999px; color: #5f7065; background: #fff; font-size: 10px; font-weight: 680; }
-  .gps-scenario-status::before { width: 7px; height: 7px; border-radius: 50%; content: ""; background: #9da99f; }
-  .gps-scenario-status[data-state="ready"]::before, .gps-scenario-status[data-state="tracking"]::before { background: #5f963c; box-shadow: 0 0 0 3px #e9f1df; }
-  .gps-scenario-status[data-state="tracking"] { border-color: #c9dfc7; color: #286744; background: #f3f8ef; }
-  .gps-scenario-status[data-state="needs-action"]::before { background: #c28a37; box-shadow: 0 0 0 3px #f6edda; }
-  .gps-scenario-status[data-state="error"]::before { background: #b94c42; box-shadow: 0 0 0 3px #f7e6e3; }
-  .gps-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 18px 0 0; padding: 0; list-style: none; }
-  .gps-step { position: relative; display: flex; align-items: start; gap: 10px; padding: 0 15px; border-left: 1px solid #e4e9dc; }
-  .gps-step:first-child { padding-left: 0; border-left: 0; }
-  .gps-step:last-child { padding-right: 0; }
-  .gps-step-number { display: grid; width: 25px; height: 25px; flex: 0 0 auto; place-items: center; border-radius: 8px; color: #4c6c35; background: #e7edda; font-size: 9px; font-weight: 800; }
-  .gps-step b { display: block; margin-top: 2px; font-size: 10px; font-weight: 760; }
-  .gps-step p { margin: 4px 0 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
-  .gps-step a { display: inline-block; margin-top: 5px; color: #456e3a; font-size: 9px; font-weight: 720; text-decoration-thickness: 1px; text-underline-offset: 2px; }
-  .gps-scenario-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e6ebdf; }
-  .gps-route-note { display: flex; align-items: center; gap: 7px; min-width: 0; color: #6b7b6e; font-size: 9px; }
-  .gps-route-note svg { width: 14px; height: 14px; flex: 0 0 auto; color: #668344; }
-  .gps-prepare { min-height: 33px; flex: 0 0 auto; padding: 0 11px; border: 1px solid #d8e1d1; border-radius: 9px; color: #34553c; background: #fff; font-size: 9px; font-weight: 740; }
-  .gps-prepare:hover { border-color: #9bb48d; background: #f9fbf5; }
   .device-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 15px; }
   .empty-state { min-height: 215px; grid-column: 1 / -1; display: grid; grid-template-columns: 158px minmax(0, 1fr) auto; align-items: center; gap: 26px; padding: 28px 34px; border: 1px dashed #d5ded1; border-radius: 19px; background: linear-gradient(110deg, #fff, #fbfcf8); }
   .empty-art { position: relative; display: grid; width: 140px; height: 140px; place-items: center; border-radius: 50%; background: #f0f4e4; }
@@ -184,9 +157,6 @@
     .create-form { grid-template-columns: 1fr 1fr; }
     .create-button { align-self: end; }
     .device-grid { grid-template-columns: 1fr; }
-    .gps-scenario { padding: 17px; }
-    .gps-steps { grid-template-columns: 1fr 1fr; gap: 13px 0; }
-    .gps-step:nth-child(3) { padding-left: 0; border-left: 0; }
   }
   @media (max-width: 620px) {
     .topbar-inner, .page-shell { width: calc(100% - 28px); }
@@ -213,18 +183,6 @@
     .control { height: 41px; }
     .create-button { width: 100%; min-height: 43px; }
     .create-note { margin-top: 12px; font-size: 9px; }
-    .gps-scenario { padding: 14px; border-radius: 14px; }
-    .gps-scenario-head { align-items: start; flex-direction: column; gap: 11px; }
-    .gps-scenario-title { align-items: start; gap: 9px; }
-    .gps-scenario-icon { width: 34px; height: 34px; border-radius: 11px; }
-    .gps-scenario-title h3 { font-size: 14px; }
-    .gps-scenario-title p { font-size: 9px; }
-    .gps-scenario-status { margin-left: 43px; padding: 6px 9px; font-size: 9px; }
-    .gps-steps { grid-template-columns: 1fr; gap: 11px; margin-top: 15px; }
-    .gps-step, .gps-step:first-child, .gps-step:nth-child(3), .gps-step:last-child { padding: 0; border-left: 0; }
-    .gps-step p { margin-top: 2px; font-size: 9px; }
-    .gps-scenario-foot { align-items: start; flex-direction: column; gap: 10px; margin-top: 13px; }
-    .gps-prepare { width: 100%; min-height: 38px; }
     .empty-state { min-height: 0; grid-template-columns: 53px minmax(0, 1fr); gap: 13px; padding: 17px 14px; border-radius: 15px; }
     .empty-art { width: 53px; height: 53px; }
     .empty-art::before { inset: 5px; }
@@ -283,26 +241,6 @@
       <div><p class="section-overline">Mạng thiết bị</p><h2 id="devices-title">Thiết bị của bạn</h2><p id="device-subtitle" class="section-description">Tạo thiết bị demo để bắt đầu kết nối AgriTrace.</p></div>
       <span id="device-count" class="count-pill"><span class="count-dot"></span><span>0 thiết bị</span></span>
     </div>
-
-    <section class="gps-scenario" aria-labelledby="gps-scenario-title">
-      <div class="gps-scenario-head">
-        <div class="gps-scenario-title">
-          <span class="gps-scenario-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.7"/></svg></span>
-          <div><p class="gps-scenario-kicker">Kịch bản demo · GPS tracking</p><h3 id="gps-scenario-title">Theo dõi xe từ lúc lấy hàng đến khi giao</h3><p>GPS tự nhận chuyến từ phiếu giao nhận trên AgriTrace.</p></div>
-        </div>
-        <span id="gps-demo-status" class="gps-scenario-status" data-state="needs-action" role="status" aria-live="polite">Chưa có GPS trên xe</span>
-      </div>
-      <ol class="gps-steps">
-        <li class="gps-step"><span class="gps-step-number">01</span><div><b>Tạo GPS mô phỏng</b><p>Tạo thiết bị GPS và lấy khóa công khai.</p></div></li>
-        <li class="gps-step"><span class="gps-step-number">02</span><div><b>Đăng ký và gắn vào xe</b><p>Dùng mã, khóa công khai rồi chọn xe đang đỗ.</p><a href="http://localhost:3000/enterprise/devices" target="_blank" rel="noreferrer">Mở Thiết bị IoT ↗</a></div></li>
-        <li class="gps-step"><span class="gps-step-number">03</span><div><b>Ký lấy hàng</b><p>Lập phiếu bằng đúng xe đó. GPS tự chạy sau khi phiếu chuyển sang đang giao.</p></div></li>
-        <li class="gps-step"><span class="gps-step-number">04</span><div><b>Theo dõi và ký giao</b><p>Xem hành trình trực tiếp. Khi ký giao, GPS tự dừng và hành trình được niêm phong.</p></div></li>
-      </ol>
-      <div class="gps-scenario-foot">
-        <span class="gps-route-note"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 15c3.3-.5 3.8-5.1 7-4.4 3.4.7 3-4.2 7-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2.5 2.5"/><circle cx="3" cy="15" r="1.8" fill="currentColor"/><circle cx="17" cy="4.6" r="1.8" fill="currentColor"/></svg><span>Tuyến demo thủ công có sẵn: Đà Lạt → Thủ Đức, qua đèo Bảo Lộc với đoạn mất sóng và điểm dừng.</span></span>
-        <button class="gps-prepare" type="button" onclick="prepareGpsDemo()">Chuẩn bị GPS xe</button>
-      </div>
-    </section>
 
     <section class="create-panel" id="create-panel" aria-labelledby="create-title">
       <div class="create-head">
@@ -363,12 +301,6 @@ async function call(path, body, method = 'POST') {
   }
 }
 const create = () => call('/api/devices', { kind: $('#kind').value, name: $('#name').value, deviceCode: $('#code').value });
-function prepareGpsDemo() {
-  $('#kind').value = 'GPS_TRACKER';
-  if (!$('#name').value.trim()) $('#name').value = 'GPS demo';
-  $('#create-panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
-  $('#name').focus({ preventScroll: true });
-}
 const act = (id, a, body = {}) => call(`/api/devices/${id}/${a}`, body);
 const del = (id) => confirm('Xóa thiết bị ảo này? Khóa riêng của nó sẽ mất (bản sao lưu vẫn được giữ trong .iot-simulator).') && call(`/api/devices/${id}`, null, 'DELETE');
 const copy = async (text) => {
@@ -473,22 +405,6 @@ function emptyState() {
     <div class="empty-content"><p class="eyebrow"><span class="eyebrow-mark"></span> SẴN SÀNG KẾT NỐI</p><h3>Chưa có thiết bị trong mạng lưới</h3><p>Tạo một thiết bị mô phỏng để bắt đầu. Sau đó đăng ký khóa công khai trên AgriTrace và gắn GPS vào xe hoặc cảm biến vào thửa trồng.</p><div class="empty-hint"><span>01 · Tạo thiết bị</span><span>02 · Đăng ký trên AgriTrace</span><span>03 · Tự đồng bộ</span></div></div>
     <a class="create-button empty-action" href="#create-panel"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Tạo thiết bị đầu tiên</a></div>`;
 }
-function updateGpsDemoStatus(devices) {
-  const status = $('#gps-demo-status');
-  const gps = devices.find((device) => device.kind === 'GPS_TRACKER');
-  let state = 'needs-action';
-  let label = 'Chưa có GPS trên xe';
-  if (gps?.assignmentError?.startsWith('Chưa đăng ký')) label = 'Đăng ký GPS trên AgriTrace';
-  else if (gps?.assignmentError) { state = 'error'; label = 'Cần kiểm tra kết nối GPS'; }
-  else if (gps && !gps.assignment) label = 'Đang chờ đồng bộ với AgriTrace';
-  else if (gps?.assignment?.device?.active === false) label = 'Thiết bị đã ngừng trên AgriTrace';
-  else if (gps?.trip?.arrivedAt) { state = 'ready'; label = 'Xe đã tới nơi · chờ ký giao'; }
-  else if (gps?.trip) { state = 'tracking'; label = `Đang theo dõi · ${gps.trip.progressKm} / ${gps.trip.totalKm} km`; }
-  else if (gps?.assignment?.vehicle) { state = 'ready'; label = 'Đã gắn xe · chờ ký lấy hàng'; }
-  else if (gps?.assignment) label = 'Gắn GPS vào xe trên AgriTrace';
-  status.dataset.state = state;
-  status.textContent = label;
-}
 async function refresh() {
   try {
     const response = await fetch('/api/state');
@@ -496,7 +412,6 @@ async function refresh() {
     const s = await response.json();
     provinces = s.provinces;
     $('#api').textContent = s.api;
-    updateGpsDemoStatus(s.devices);
     const focused = document.activeElement?.id;
     if (focused && /^(t|fm|dm)-/.test(focused)) return;
     document.querySelectorAll('details[data-key]').forEach((el) => (el.open ? open.add(el.dataset.key) : open.delete(el.dataset.key)));
@@ -514,8 +429,6 @@ async function refresh() {
   } catch {
     $('#api').textContent = 'Chưa kết nối';
     $('#device-subtitle').textContent = 'Không thể đọc trạng thái simulator. Hãy tải lại trang để kết nối lại.';
-    $('#gps-demo-status').dataset.state = 'error';
-    $('#gps-demo-status').textContent = 'Không thể kết nối simulator';
   }
 }
 refresh();
