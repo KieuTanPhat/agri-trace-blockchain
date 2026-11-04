@@ -41,23 +41,13 @@
   .topbar-right { display: flex; align-items: center; gap: 12px; }
   .local-chip, .simulation-chip, .badge { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; border-radius: 999px; font-size: 11px; font-weight: 730; }
   .local-chip { padding: 7px 11px; border: 1px solid var(--line); background: #fff; color: var(--ink-soft); letter-spacing: .04em; }
-  .local-dot, .live-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #6a9b38; box-shadow: 0 0 0 3px rgb(106 155 56 / 13%); }
+  .local-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #6a9b38; box-shadow: 0 0 0 3px rgb(106 155 56 / 13%); }
   .api-chip { max-width: 340px; color: var(--muted); font-size: 12px; }
   .api-chip code { color: var(--ink-soft); }
-  .page-shell { width: min(1320px, calc(100% - 64px)); margin: 0 auto; padding: 34px 0 76px; }
-  .hero { position: relative; min-height: 320px; overflow: visible; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; padding: 40px 4px; isolation: isolate; background: transparent; color: var(--ink); }
-  .hero::before { position: absolute; z-index: -1; inset: 0; content: ""; opacity: 0; }
-  .hero::after { display: none; }
-  .hero-copy { max-width: 980px; padding: 3px 0; }
+  .page-shell { width: min(1320px, calc(100% - 64px)); margin: 0 auto; padding: 20px 0 76px; }
   .eyebrow { display: flex; align-items: center; gap: 9px; margin: 0 0 18px; color: var(--forest); font-size: 10px; font-weight: 790; letter-spacing: .17em; text-transform: uppercase; }
   .eyebrow-mark { width: 18px; height: 1px; background: var(--forest); }
-  .hero h1 { max-width: 900px; margin: 0; font-size: clamp(42px, 4.9vw, 70px); font-weight: 710; line-height: 1.02; letter-spacing: -.065em; }
-  .hero h1 span { color: #5d792f; }
-  .hero-description { max-width: 790px; margin: 20px 0 0; color: var(--ink-soft); font-size: 15px; line-height: 1.75; }
-  .hero-points { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 23px; }
-  .hero-point { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #e2e8dd; border-radius: 999px; color: var(--ink-soft); background: #fff; font-size: 11px; font-weight: 630; }
-  .hero-point svg { width: 14px; height: 14px; color: var(--forest); }
-  .section-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 37px 2px 16px; }
+  .section-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 0 2px 16px; }
   .section-overline { margin: 0 0 5px; color: var(--ok); font-size: 9px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
   .section-head h2 { margin: 0; font-size: 23px; font-weight: 710; letter-spacing: -.045em; }
   .section-description { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
@@ -162,12 +152,8 @@
   .toast.error { border-color: #f0d3d0; color: var(--bad); }
   .page-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin: 24px 2px 0; color: #829087; font-size: 10px; }
   .page-footer strong { color: #5d7164; font-weight: 680; }
-  @keyframes ping { 0% { opacity: .85; transform: scale(.75); } 70%, 100% { opacity: 0; transform: scale(2.3); } }
   @media (max-width: 900px) {
     .topbar-inner, .page-shell { width: min(100% - 40px, 720px); }
-    .hero { min-height: auto; grid-template-columns: minmax(0, 1fr); gap: 0; padding: 32px 0; }
-    .hero h1 { font-size: clamp(42px, 6.8vw, 59px); }
-    .hero-art { width: min(100%, 300px); }
     .create-form { grid-template-columns: 1fr 1fr; }
     .create-button { align-self: end; }
     .device-grid { grid-template-columns: 1fr; }
@@ -183,12 +169,7 @@
     .api-chip { display: none; }
     .local-chip { padding: 6px 9px; font-size: 9px; }
     .page-shell { padding-top: 17px; padding-bottom: 42px; }
-    .hero { grid-template-columns: 1fr; gap: 20px; padding: 27px 0 22px; border-radius: 0; }
-    .hero h1 { font-size: clamp(39px, 11vw, 54px); }
-    .hero-description { margin-top: 13px; font-size: 12px; }
-    .hero-points { gap: 7px; margin-top: 16px; }
-    .hero-point { padding: 6px 9px; font-size: 9px; }
-    .section-head { align-items: start; margin: 28px 1px 12px; }
+    .section-head { align-items: start; margin: 0 1px 12px; }
     .section-head h2 { font-size: 20px; }
     .section-description { max-width: 245px; font-size: 10px; }
     .count-pill { gap: 6px; padding: 7px 9px; font-size: 9px; }
@@ -255,34 +236,6 @@
 </header>
 
 <main class="page-shell">
-  <section class="hero" aria-labelledby="hero-title">
-    <div class="hero-copy">
-      <p class="eyebrow"><span class="eyebrow-mark"></span> INTERNET OF THINGS · AGRITRACE</p>
-      <h1 id="hero-title">Mỗi lô hàng,<br><span>một nhịp đập.</span></h1>
-      <p class="hero-description">Theo dõi cảm biến tại vùng trồng và hành trình xe giao nhận ngay trên AgriTrace. Thiết bị tự ghép với thửa, xe và phiếu; mọi dữ liệu ở đây đều được đánh dấu mô phỏng.</p>
-      <div class="hero-points">
-        <span class="hero-point"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l2.8 1.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Đồng bộ mỗi 15 giây</span>
-        <span class="hero-point"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 15.5 7.5 11l3 2.5L17 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="6" r="2" fill="currentColor"/></svg> GPS tự chạy theo phiếu</span>
-      </div>
-    </div>
-    <div class="hero-art" aria-hidden="true" hidden>
-      <div class="map-card">
-        <div class="map-grid"></div>
-        <svg class="route-svg" viewBox="0 0 380 255" fill="none">
-          <path class="route-glow" d="M27 190c35-5 46-48 85-40 38 8 35-58 78-55 37 3 43 38 79 14 30-20 42-3 80-49"/>
-          <path class="route-line" d="M27 190c35-5 46-48 85-40 38 8 35-58 78-55 37 3 43 38 79 14 30-20 42-3 80-49"/>
-          <circle cx="27" cy="190" r="6" class="route-point"/><circle cx="349" cy="60" r="7" class="route-point"/>
-          <circle cx="349" cy="60" r="12" class="route-pulse" stroke="#d9ec6c" stroke-width="2" opacity=".7"/>
-          <path d="M85 58h34M102 41v34M250 190h42M271 169v42" stroke="#d9ec6c" stroke-opacity=".3" stroke-width="1"/>
-          <circle cx="192" cy="95" r="3" fill="#d9ec6c" opacity=".76"/><circle cx="277" cy="109" r="3" fill="#d9ec6c" opacity=".7"/>
-        </svg>
-        <span class="map-caption"><span class="live-dot"></span> Mạng lưới mô phỏng</span>
-      </div>
-      <div class="floating-chip sensor"><span class="float-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5v2M10 15.5v2M2.5 10h2m11 0h2M4.7 4.7l1.4 1.4m7.8 7.8 1.4 1.4m0-10.6-1.4 1.4m-7.8 7.8-1.4 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.5"/></svg></span><span class="float-copy"><b>Cảm biến vùng trồng</b><span>Nhiệt độ · độ ẩm · đất</span></span></div>
-      <div class="floating-chip gps"><span class="float-icon orange"><svg viewBox="0 0 20 20" fill="none"><path d="M10 17s5-4.4 5-9a5 5 0 1 0-10 0c0 4.6 5 9 5 9Z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="8" r="1.7" stroke="currentColor" stroke-width="1.5"/></svg></span><span class="float-copy"><b>GPS hành trình</b><span>Vị trí theo phiếu giao nhận</span></span></div>
-    </div>
-  </section>
-
   <section aria-labelledby="devices-title">
     <div class="section-head">
       <div><p class="section-overline">Mạng thiết bị</p><h2 id="devices-title">Thiết bị của bạn</h2><p id="device-subtitle" class="section-description">Tạo thiết bị demo để bắt đầu kết nối AgriTrace.</p></div>
