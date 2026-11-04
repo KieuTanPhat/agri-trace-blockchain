@@ -99,8 +99,10 @@ ALTER TABLE distribution_transfer
   ADD COLUMN delivered_at timestamptz(6),
   ADD CONSTRAINT ck_distribution_transit_window CHECK (
     delivered_at IS NULL OR (in_transit_at IS NOT NULL AND delivered_at >= in_transit_at));
+-- Only transfers picked up from now on (in_transit_at set) are covered; earlier
+-- simulated data may hold one vehicle on several moving transfers and is kept.
 CREATE UNIQUE INDEX ux_distribution_vehicle_in_transit ON distribution_transfer(vehicle_id)
-  WHERE vehicle_id IS NOT NULL AND status = 'IN_TRANSIT';
+  WHERE vehicle_id IS NOT NULL AND status = 'IN_TRANSIT' AND in_transit_at IS NOT NULL;
 
 -- The carrying party may name its own declared vehicle for self delivery and
 -- pickup (GPS tracking). External carriers still have no AgriTrace vehicle.

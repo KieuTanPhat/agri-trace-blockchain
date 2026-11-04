@@ -40,8 +40,9 @@ của thiết bị thật (danh tính riêng, chữ ký, số thứ tự, mất 
    (`RECEIVER_PICKUP`); hai mode sau nay được chọn xe đã khai của chính mình.
    `EXTERNAL_CARRIER` không có định vị tự động. Nhật ký tay mở cho mọi bên chở trên
    AgriTrace (không gồm thuê ngoài).
-5. **Mỗi xe một phiếu.** Partial unique index chặn hai phiếu `IN_TRANSIT` cùng xe;
-   lỗi được báo khi ký lấy hàng.
+5. **Mỗi xe một phiếu.** Partial unique index chặn hai phiếu `IN_TRANSIT` cùng xe
+   khi lấy hàng từ nay (có `in_transit_at`); dữ liệu mô phỏng cũ giữ nguyên. Lỗi
+   được báo khi ký lấy hàng.
 6. **Không bắt buộc, có mức tin cậy.** IoT không chặn thu hoạch hay giao nhận.
    Hành trình có độ phủ (tỉ lệ thời gian có điểm, khoảng mất tín hiệu > 10 phút)
    và nguồn: `DEVICE`, `SIMULATED`, `NONE`. Thiết bị `simulated = true` luôn hiện

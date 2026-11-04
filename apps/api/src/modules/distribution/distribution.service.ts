@@ -1039,7 +1039,7 @@ export class DistributionService {
         status = 'IN_TRANSIT';
         transition.inTransitAt = new Date();
         // ADR-006: one moving transfer per vehicle (backed by a partial unique index).
-        if (t.vehicleId && await tx.distributionTransfer.count({ where: { vehicleId: t.vehicleId, status: 'IN_TRANSIT', id: { not: id } } }))
+        if (t.vehicleId && await tx.distributionTransfer.count({ where: { vehicleId: t.vehicleId, status: 'IN_TRANSIT', inTransitAt: { not: null }, id: { not: id } } }))
           throw new ConflictException('Xe đang chở một phiếu khác; hoàn tất phiếu đó trước khi lấy hàng');
         for (const l of t.lines) {
           if (t.senderSiteId) await tx.lotSiteHolding.update({ where: { lotId_organizationId_siteId: { lotId: l.lotId, organizationId: t.senderId, siteId: t.senderSiteId } }, data: { quantity: { decrement: l.quantity }, reserved: { decrement: l.quantity }, version: { increment: 1 } } });
