@@ -169,6 +169,13 @@ export class DistributionController {
   ) {
     return this.service.detail(req.user, id);
   }
+  /** ADR-006 GPS route of the vehicle while the transfer was in transit. */
+  @Get('transfers/:id/route') @ApiDataResponse(WorkspaceRecordDto) route(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.route(req.user, id);
+  }
   @Get('transfers/:id/challenge')
   @ApiDataResponse(DistributionChallengeDto)
   challenge(

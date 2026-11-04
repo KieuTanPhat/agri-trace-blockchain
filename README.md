@@ -191,33 +191,72 @@ Khi triển khai được duyệt, giữ smoke thực trên VPS theo runbook. Kh
 maintenance deadline 2 giờ, canary riêng, collector/systemd timer hoặc quan sát
 liên tục 24 giờ; sự cố sau bàn giao do chủ dự án vận hành.
 
-## Seed đầy đủ trên database local hiện tại
+## Seed đầy đủ trên Fabric local
 
-Quy trình dưới đây dùng `scripts/demo/seed-current.ps1`,
-chỉ dành cho stack local `agri-trace-demo-local`, database `agri_trace` cổng 5433.
-Nó **thay toàn bộ dữ liệu** sau backup; không tạo database khác. Các tài khoản,
-khóa ký demo, khóa mã hóa local, checkpoint và backup nằm trong `.codex/`, không
-commit hoặc gửi chúng ra ngoài. Ảnh chụp kèm nguồn và giấy phép nằm trong
-`scripts/demo/assets/manifest.json`; giấy tờ có nhãn DEMO, không có giá trị pháp lý.
+`scripts/demo/local-fabric-operator.mjs` dành riêng cho stack local
+`agri-trace-demo-local`, PostgreSQL 18 ở cổng 5433, API 8080 và Web 3000.
+Quy trình này **xóa dữ liệu ứng dụng cũ, không backup**, chỉ dùng khi chủ dự án
+đã cho phép rõ phạm vi đó. Nó kiểm tra quyền sở hữu container/volume, từ chối
+ledger cũ có proof bên ngoài và yêu cầu pilot có giao dịch Fabric `VALID` trước
+khi xóa. Không dùng helper này với production hoặc các database test khác.
+
+Bộ dữ liệu gồm 20 doanh nghiệp, 232 sản phẩm, 8 chuỗi, 100 vụ, 240 lô thu hoạch
+và 60 lô chế biến, 2.000 nhật ký chăm sóc, 75 lệnh chế biến và 94 tài khoản.
+316 ảnh từ năm thư mục nguồn được kiểm SHA-256, giữ nguyên bản gốc; mỗi logo và
+ảnh sản phẩm dùng cho một hồ sơ tương ứng, ảnh hoạt động và kho được tái sử dụng.
+Giao diện không thêm nhãn DEMO. Đây vẫn là dữ liệu tổng hợp do bộ seed tạo;
+việc commit Fabric chứng minh nội dung đã ghi, không xác nhận tính pháp lý của hồ sơ.
+Ngày nghiệp vụ trải 12 tháng, còn thời điểm block là thời điểm thực sự commit.
+
+Chuẩn bị Node dependencies, API/Gateway đã build, Docker Desktop và Docker trong
+WSL Ubuntu; Fabric binaries nằm trong `blockchain/.fabric/fabric-samples`.
+Desktop chạy ứng dụng, Docker WSL chạy peer/orderer/CA/chaincode riêng của generation.
+Các cổng Fabric của pilot và ứng dụng được tách riêng.
 
 ```powershell
-# Chuẩn bị: build API/Gateway theo hướng dẫn kiểm tra bên dưới; stack local đang chạy.
-python scripts/demo/prepare-assets.py
-# Tạo tài liệu demo theo prepare-documents.py (cần reportlab, pypdf và pdftoppm).
-./scripts/demo/seed-current.ps1                    # Chỉ xác minh target
-./scripts/demo/seed-current.ps1 -ReplaceCurrentData # Backup rồi thay dữ liệu một lần
-./scripts/demo/seed-current.ps1 -Resume             # Tiếp tục checkpoint, không reset lại
-./scripts/demo/seed-current.ps1 -Verify             # Kiểm DB, quyền và đăng nhập thật
-node scripts/demo/verify-browser.mjs
+node scripts/demo/prepare-comprehensive-assets.mjs "--source=C:\Users\kieup\Desktop\Data (1)"
+node scripts/demo/local-fabric-operator.mjs prepare
+node scripts/demo/local-fabric-operator.mjs build
+node scripts/demo/local-fabric-operator.mjs prepare --pilot
+node scripts/demo/local-fabric-operator.mjs pilot-images --pilot
+# Chạy lần lượt với --pilot trước; chỉ bỏ --pilot sau khi pilot verify đạt.
+node scripts/demo/local-fabric-operator.mjs network up --pilot
+node scripts/demo/local-fabric-operator.mjs network deploy --pilot
+node scripts/demo/local-fabric-operator.mjs network tune --pilot
+node scripts/demo/local-fabric-operator.mjs network export --pilot
+node scripts/demo/local-fabric-operator.mjs start --pilot
+node scripts/demo/local-fabric-operator.mjs seed --pilot
+node scripts/demo/local-fabric-operator.mjs verify --pilot
+node scripts/demo/local-fabric-operator.mjs network up
+node scripts/demo/local-fabric-operator.mjs network deploy
+node scripts/demo/local-fabric-operator.mjs network tune
+node scripts/demo/local-fabric-operator.mjs network export
+node scripts/demo/local-fabric-operator.mjs reset
+node scripts/demo/local-fabric-operator.mjs start
+node scripts/demo/local-fabric-operator.mjs seed
+node scripts/demo/local-fabric-operator.mjs verify
+node scripts/demo/local-fabric-operator.mjs browser
 ```
 
-Seed giữ nguyên schema/guard từ snapshot trong chính DB này, giữ catalog hệ thống
-và migration catalog; không tắt trigger. Để dùng dữ liệu quyền riêng tư, helper
-tạo khóa mã hóa local và Compose override riêng, pin đúng API image đang chạy.
-Khi kiểm tra đạt, khởi động lại Web/Worker đã dừng. Credential nằm ở
-`.codex/seed-current/accounts.json`; receipt và đường dẫn backup ở cùng thư mục.
-`-Restore` kiểm checksum và phục hồi snapshot trước seed vào chính DB đó sau khi
-dừng writer. Không coi backup DB local là bằng chứng khôi phục production/Fabric.
+`seed` tiếp tục checkpoint của cùng generation; không chạy `reset` lần nữa khi
+có lỗi. Giữ nguyên actor, body, khóa idempotency và chữ ký nếu kết quả chưa rõ;
+đối soát journal/domain/proof trước mọi lần sửa yêu cầu đã gửi. Không sửa trace,
+hash, số lượng hoặc lịch sử để làm bộ kiểm tra đạt. Seed dùng API nghiệp vụ và
+Worker thực; API không nhận Fabric private key. Bootstrap danh tính, media hồ sơ
+và cấu hình local được nhập theo giao dịch operator có audit, không tắt SQL guard.
+
+Credential, khóa ký, cấu hình riêng và checkpoint nằm trong `.codex/local-fabric/`;
+tài khoản ở `run/accounts.json`, nghiệm thu ở `run/verification.json`. Không
+commit hoặc công khai các file này. `verify` kiểm DB, toàn bộ QR, proof đọc từ peer
+và mã xác thực QSCC, đăng nhập và phạm vi quyền. `browser` dùng Chromium thật để
+đăng nhập các nhóm vai trò, kiểm ảnh, trang dữ liệu và QR ở viewport desktop/mobile;
+kết quả ở `run/browser-verification.json`, ảnh trong `run/ui/` cần được xem trực tiếp.
+Chỉ kết luận có Fabric thật khi các giao dịch được đọc lại với trạng thái `VALID`.
+
+Sau khi khởi động lại máy, mở Docker Desktop rồi chạy `local-fabric-operator.mjs
+start`. Lệnh khởi động lại đúng container Fabric đã có trong WSL, giữ WSL hoạt
+động và cập nhật endpoint riêng của Worker nếu IP WSL đổi; không tạo lại ledger.
+Không chạy `network up/deploy`, `reset` hoặc xuất lại khóa để khởi động hằng ngày.
 
 ## Kiểm tra toàn bộ
 

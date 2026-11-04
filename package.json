@@ -40,6 +40,8 @@
     "agents:sync": "node scripts/sync-agent-skills.mjs",
     "agents:check": "node scripts/check-agent-setup.mjs",
     "test:agents": "node --test scripts/agent-setup.test.mjs",
+    "demo:iot": "node scripts/demo/iot-simulator/simulator.mjs",
+    "test:iot-sim": "node --test scripts/demo/iot-simulator/device-models.test.mjs",
     "test:mobile:auth": "node --import tsx --test scripts/ci/mobile-phone.test.mts",
     "api-contract:generate": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs",
     "api-contract:check": "npm run build --workspace apps/api && node scripts/generate-api-contract.mjs --check",

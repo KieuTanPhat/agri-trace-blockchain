@@ -724,6 +724,40 @@ const prisma = new PrismaClient({
           }),
         ),
       );
+      // ADR-006: the self-delivering sender tracks its own vehicle with a signed GPS device.
+      await prisma.enterpriseSite.update({ where: { id: receiverSite.id }, data: { latitude: 10.86, longitude: 106.77 } });
+      const vehicle = await prisma.enterpriseVehicle.create({
+        data: { organizationId: farmOrgId, registration: `51C-${randomUUID().slice(0, 6)}`, kind: 'Xe tải nhỏ' },
+      });
+      const gps = generateKeyPairSync('ed25519');
+      const deviceCode = `SIM-GPS-${randomUUID().slice(0, 8)}`;
+      const gpsDevice = (
+        await post('/iot/v2/devices', {
+          kind: 'GPS_TRACKER',
+          deviceCode,
+          name: 'GPS xe nông trại',
+          publicKey: gps.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+          simulated: true,
+          vehicleId: vehicle.id,
+        }).expect(201)
+      ).body.data.record;
+      expect(gpsDevice).toMatchObject({ type: 'GPS_TRACKER', vehicleId: vehicle.id, simulated: true });
+      const sendPositions = (
+        positions: { sequence: number; recordedAt: string; latitude: number; longitude: number; accuracyM?: number }[],
+        privateKey = gps.privateKey,
+      ) => {
+        const body = { deviceCode, sentAt: new Date().toISOString(), positions };
+        const signature = sign(
+          null,
+          Buffer.concat([Buffer.from('agritrace:iot-device:1'), Buffer.from([0]), Buffer.from(canonicalize(body))]),
+          privateKey,
+        ).toString('base64url');
+        return request(app.getHttpServer()).post('/api/iot/v2/ingest/positions').set('x-device-signature', signature).send(body);
+      };
+      // Before any transit window the position is not stored (driver privacy).
+      const parked = await sendPositions([{ sequence: 1, recordedAt: new Date().toISOString(), latitude: 10.8, longitude: 106.7 }]);
+      expect(parked.status, JSON.stringify(parked.body)).toBe(200);
+      expect(parked.body.data).toMatchObject({ accepted: 0, ignored: 1 });
       const { lot } = await harvestedLot(1, selfChainId);
       await post('/distribution/allocations', {
         lotId: lot.id,
@@ -750,6 +784,7 @@ const prisma = new PrismaClient({
         await post('/distribution/transfers', {
           transportMode: 'SELF_DELIVERY',
           transportDetails: { registration: '51C-123.45', driverName: 'Tài xế nông trại' },
+          vehicleId: vehicle.id,
           receiverId: receiver.id,
           senderSiteId: senderSite.id,
           receiverSiteId: receiverSite.id,
@@ -839,6 +874,25 @@ const prisma = new PrismaClient({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId } },
       });
       expect(sent.quantity.toFixed(3)).toBe('0.400');
+      // Synthetic fixes a few milliseconds after pickup stay inside the transit window.
+      const t0 = (await prisma.distributionTransfer.findUniqueOrThrow({ where: { id: transfer.id } })).inTransitAt!.getTime();
+      const at = (ms: number) => new Date(t0 + ms).toISOString();
+      const moving = await sendPositions([
+        { sequence: 10, recordedAt: at(1), latitude: 10.8, longitude: 106.7, accuracyM: 6 },
+        { sequence: 11, recordedAt: at(2), latitude: 10.8005, longitude: 106.7, accuracyM: 6 },
+        // 50 km in a millisecond: a spoofed fix is kept as ANOMALY, not used for distance.
+        { sequence: 12, recordedAt: at(3), latitude: 11.25, longitude: 106.7, accuracyM: 6 },
+        { sequence: 13, recordedAt: at(4), latitude: 10.801, longitude: 106.7, accuracyM: 6 },
+      ]);
+      expect(moving.status, JSON.stringify(moving.body)).toBe(200);
+      expect(moving.body.data).toMatchObject({ accepted: 4, anomalies: 1, duplicates: 0 });
+      // Replaying a sequence never writes it twice; a foreign key is refused.
+      const replay = await sendPositions([{ sequence: 11, recordedAt: at(2), latitude: 10.8005, longitude: 106.7 }]);
+      expect(replay.body.data).toMatchObject({ accepted: 0, duplicates: 1 });
+      const forged = await sendPositions([{ sequence: 14, recordedAt: at(5), latitude: 10.802, longitude: 106.7 }], generateKeyPairSync('ed25519').privateKey);
+      expect(forged.status).toBe(401);
+      const route = (await get(`/distribution/transfers/${transfer.id}/route`, 'selfReceiver').expect(200)).body.data.record;
+      expect(route).toMatchObject({ trackable: true, source: 'SIMULATED', summary: { pointCount: 3, anomalyCount: 1 } });
       await post(`/distribution/transfers/${transfer.id}/receipt`, {
         version: transfer.version,
         reason: 'Đã kiểm đếm đủ lượng giao tại kho nhận',
@@ -851,6 +905,16 @@ const prisma = new PrismaClient({
         transfer = delivery.body.data.record;
       }
       expect(transfer.status).toBe('DELIVERED');
+      const seal = await prisma.distributionRouteSeal.findUniqueOrThrow({ where: { transferId: transfer.id } });
+      expect(seal).toMatchObject({ source: 'SIMULATED', pointCount: 3, anomalyCount: 1 });
+      const delivered = await prisma.traceEvent.findFirstOrThrow({
+        where: { lotId: lot.id, eventType: 'DISTRIBUTION_DELIVERED' },
+      });
+      expect((delivered.businessData as { routeSeal?: { digestHash: string } }).routeSeal?.digestHash).toBe(seal.digestHash);
+      // A buffered fix arriving after the seal is kept as LATE and does not change it.
+      const late = await sendPositions([{ sequence: 15, recordedAt: at(6), latitude: 10.803, longitude: 106.7 }]);
+      expect(late.body.data).toMatchObject({ late: 1, accepted: 0 });
+      await expect(prisma.$executeRaw`DELETE FROM distribution_position WHERE transfer_id = ${transfer.id}::uuid`).rejects.toThrow();
       const received = await prisma.lotHolding.findUniqueOrThrow({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: receiver.id } },
       });
@@ -897,6 +961,58 @@ const prisma = new PrismaClient({
         }).expect(201)
       ).body.data.record;
       expect(hired).toMatchObject({ carrierId: receiver.id, transportDetails: { carrierName: 'Xe tải Minh Phát' } });
+    });
+
+    it('records signed plot sensor readings into the running cycle and seals them at harvest (ADR-006)', async () => {
+      const cycle = await plantedCycle(1);
+      const plot = await prisma.plot.create({ data: { farmId, name: `Thửa IoT ${randomUUID().slice(0, 8)}` } });
+      await prisma.productionCycle.update({ where: { id: cycle.id }, data: { plotId: plot.id } });
+      const pair = generateKeyPairSync('ed25519');
+      const deviceCode = `SIM-FIELD-${randomUUID().slice(0, 8)}`;
+      await post('/iot/v2/devices', {
+        kind: 'FIELD_SENSOR',
+        deviceCode,
+        name: 'Cảm biến thửa',
+        publicKey: pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+        simulated: true,
+        plotId: plot.id,
+      }).expect(201);
+      // A field sensor cannot be attached to a vehicle.
+      await post('/iot/v2/devices', {
+        kind: 'FIELD_SENSOR',
+        deviceCode: `${deviceCode}-B`,
+        name: 'Sai loại',
+        publicKey: generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+        simulated: true,
+        vehicleId: randomUUID(),
+      }).expect(422);
+      const send = (readings: { sequence: number; sensorType: string; value: number; unit: string; recordedAt: string }[]) => {
+        const body = { deviceCode, sentAt: new Date().toISOString(), readings };
+        const signature = sign(
+          null,
+          Buffer.concat([Buffer.from('agritrace:iot-device:1'), Buffer.from([0]), Buffer.from(canonicalize(body))]),
+          pair.privateKey,
+        ).toString('base64url');
+        return request(app.getHttpServer()).post('/api/iot/v2/ingest/readings').set('x-device-signature', signature).send(body);
+      };
+      const first = await send([
+        { sequence: 1, sensorType: 'TEMPERATURE', value: 27.4, unit: '°C', recordedAt: '2026-09-25T06:00:00.000Z' },
+        { sequence: 2, sensorType: 'HUMIDITY', value: 71.2, unit: '%', recordedAt: '2026-09-25T06:00:00.000Z' },
+        { sequence: 3, sensorType: 'SOIL_MOISTURE', value: 38.5, unit: '%', recordedAt: '2026-09-25T06:00:00.000Z' },
+        // Before planting: refused, nothing written.
+        { sequence: 4, sensorType: 'TEMPERATURE', value: 24, unit: '°C', recordedAt: '2026-09-24T06:00:00.000Z' },
+      ]);
+      expect(first.status, JSON.stringify(first.body)).toBe(200);
+      expect(first.body.data).toMatchObject({ accepted: 3, rejected: 1 });
+      const again = await send([{ sequence: 1, sensorType: 'TEMPERATURE', value: 27.4, unit: '°C', recordedAt: '2026-09-25T06:00:00.000Z' }]);
+      expect(again.body.data).toMatchObject({ accepted: 0, duplicates: 1 });
+      const view = (await get(`/iot/v2/cycles/${cycle.id}/readings`).expect(200)).body.data;
+      expect(view).toMatchObject({ readingCount: 3, simulated: true });
+      expect(view.series.map((x: { sensorType: string }) => x.sensorType).sort()).toEqual(['HUMIDITY', 'SOIL_MOISTURE', 'TEMPERATURE']);
+      const harvest = await post(`/production-cycles/${cycle.id}/harvests`, { quantity: 1, unit: 'kg', harvestTime: '2026-09-26T00:00:00.000Z' });
+      expect(harvest.status, JSON.stringify(harvest.body)).toBe(201);
+      const window = await prisma.harvestSensorWindow.findFirstOrThrow({ where: { cycleId: cycle.id } });
+      expect(window.readingCount).toBe(3);
     });
 
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {

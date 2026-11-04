@@ -52,10 +52,8 @@ export function canUseEnterpriseRoute(
   if (within("/enterprise/sites"))
     return has(path.endsWith("/new") ? "sites.manage" : "sites.read");
   if (within("/enterprise/vehicles"))
-    return (
-      access.capabilities.includes("TRANSPORTER") &&
-      has(path.endsWith("/new") ? "vehicles.manage" : "vehicles.read")
-    );
+    return has(path.endsWith("/new") ? "vehicles.manage" : "vehicles.read");
+  if (within("/enterprise/devices")) return has("devices.read");
   if (within("/enterprise/inventory")) return has("inventory.manage") || has("quarantine.manage");
   if (within("/enterprise/materials")) return access.capabilities.includes('FARM') && has(path.endsWith('/new') ? 'materials.manage' : 'materials.read');
   if (within("/enterprise/qr")) return has("qr.manage");

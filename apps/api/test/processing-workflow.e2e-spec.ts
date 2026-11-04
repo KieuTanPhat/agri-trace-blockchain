@@ -277,7 +277,7 @@ describe('Processing lifecycle / isolated PostgreSQL', () => {
       await tx.lotHolding.create({ data: { lotId, organizationId, quantity: 5 } });
       await tx.lotSiteHolding.create({ data: { lotId, organizationId, siteId, quantity: 5 } });
     });
-    const input = { chainId, siteId, productId, processType: 'PACKING', baseUnit: 'kg', inputs: [{ lotId, quantity: '5.000' }], externalInputs: [] };
+    const input = { chainId, siteId, productId, processType: 'PACKING', baseUnit: 'kg', inputs: [{ lotId, quantity: '2.000' }], externalInputs: [] };
     const refused = await post('/processing-runs', input).expect(422);
     expect(refused.body.message ?? JSON.stringify(refused.body)).toContain('chưa tham gia');
     await db.chainMembership.create({ data: { chainId: sourceChain, organizationId, status: 'ACTIVE' } });
@@ -289,6 +289,18 @@ describe('Processing lifecycle / isolated PostgreSQL', () => {
     await expect(
       db.processingRun.update({ where: { id: run.id }, data: { originCycleId: cycleId, version: { increment: 1 } } }),
     ).rejects.toThrow();
+    // A real start must reconcile the same stock used by distribution, not
+    // merely pass the planning branch. The older guard omitted these promises.
+    await post(`/processing-runs/${run.id}/start`, { version: 0 }).expect(201);
+    const holding = { lotId_organizationId: { lotId, organizationId } };
+    const siteHolding = { lotId_organizationId_siteId: { lotId, organizationId, siteId } };
+    expect((await db.lotHolding.findUniqueOrThrow({ where: holding })).reserved.toFixed(3)).toBe('2.000');
+    expect((await db.lotSiteHolding.findUniqueOrThrow({ where: siteHolding })).reserved.toFixed(3)).toBe('2.000');
+    await expect(db.lotHolding.update({ where: holding, data: { reserved: { increment: 1 } } })).rejects.toThrow(/reservation/);
+    await expect(db.lotSiteHolding.update({ where: siteHolding, data: { reserved: { increment: 1 } } })).rejects.toThrow(/reservation|allocation/);
+    await post(`/processing-runs/${run.id}/cancel`, { version: 1, reason: 'Điều chỉnh kế hoạch chế biến, trả lại phần nguyên liệu đã giữ chỗ.' }).expect(201);
+    expect((await db.lotHolding.findUniqueOrThrow({ where: holding })).reserved.toFixed(3)).toBe('0.000');
+    expect((await db.lotSiteHolding.findUniqueOrThrow({ where: siteHolding })).reserved.toFixed(3)).toBe('0.000');
   });
 
   it('requires receipt evidence before planning without consuming any quantity', async () => {

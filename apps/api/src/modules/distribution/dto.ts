@@ -237,13 +237,6 @@ export class TransferObservationInput {
   @MinLength(3)
   @MaxLength(1000)
   note!: string;
-  @ApiProperty({
-    required: false,
-    description: 'Manually observed temperature in °C, not an IoT attestation',
-  })
-  @IsOptional()
-  @Matches(/^-?\d{1,2}(\.\d{1,2})?$/)
-  temperature?: string;
 }
 export class TransferSignature extends TransferVersion {
   @ApiProperty({ enum: ['CONSENT', 'PICKUP', 'DELIVERY'] })

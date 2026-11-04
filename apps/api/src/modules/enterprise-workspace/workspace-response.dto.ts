@@ -236,6 +236,8 @@ export class EnterpriseSiteRecordDto {
   @ApiProperty({ type: String, nullable: true }) ward!: string | null;
   @ApiProperty({ type: String, nullable: true }) areaM2!: string | null;
   @ApiProperty({ type: String, nullable: true }) coldAreaM2!: string | null;
+  @ApiProperty({ type: String, nullable: true }) latitude!: string | null;
+  @ApiProperty({ type: String, nullable: true }) longitude!: string | null;
   @ApiProperty({ type: String, nullable: true }) capacityKg!: string | null;
   @ApiProperty({ type: String, nullable: true }) expectedOutputTons!: string | null;
   @ApiProperty({ type: String, nullable: true }) manager!: string | null;

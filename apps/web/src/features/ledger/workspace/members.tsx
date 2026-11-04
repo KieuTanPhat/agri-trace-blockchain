@@ -180,6 +180,18 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
           schema={profileSchema}
           defaultValues={{ fullName: "", email: "", jobTitle: "", phone: "", contactAddress: "", tier: primary ? "2" : "3", roles: [] }}
           submitLabel={tr("Tạo thành viên")}
+          mapServerErrorToField={(messages) =>
+            messages.some((message) =>
+              message.includes("Email đã được đăng ký"),
+            )
+              ? {
+                  field: "email",
+                  message: tr(
+                    "Email đã được đăng ký. Vui lòng dùng email khác hoặc đăng nhập.",
+                  ),
+                }
+              : undefined
+          }
           invalidate={invalidate}
           wide
           onDone={async result => { if (avatar.current && result && typeof result === "object" && "record" in result) { const record = result.record; if (record && typeof record === "object" && "id" in record && typeof record.id === "string") { setCreatedMember(record.id); try { await wapi.uploadEvidence({file: avatar.current, entityType:"MEMBER", entityId:record.id,kind:"MEMBER_AVATAR",description:"Ảnh đại diện thành viên mới"},{idempotencyKey:crypto.randomUUID()}); } catch { setUploadError("Tài khoản đã tạo; ảnh chưa tải được. Bổ sung tại khối chứng cứ của thành viên, không tạo lại tài khoản."); } } } if (view === "new") router.push("/enterprise/members"); }}
@@ -381,7 +393,7 @@ function MemberDetail({ canonicalEdit = false, m, all, manage, primary, roles, c
         onOpenChange={open => canonicalEdit && !open ? router.push(`/enterprise/members/${m.id}`) : edit.props.onOpenChange(open)}
         title={tr("Sửa {p0}", { p0: m.fullName })}
         endpoint="POST /enterprise-workspace/members/:id"
-        description={tr("Lưu sẽ thu hồi phiên của thành viên. Khóa hoặc ngừng thành viên sẽ khóa mọi nhân viên trực thuộc và gỡ nhóm quyền của họ.")}
+        description={tr("Khi có thay đổi, phiên của thành viên sẽ bị thu hồi. Khóa hoặc ngừng thành viên sẽ khóa mọi nhân viên trực thuộc và gỡ nhóm quyền của họ.")}
         schema={editSchema}
         defaultValues={{ status: m.accountStatus, jobTitle: m.jobTitle ?? "", phone: m.phone ?? "", workSiteId: m.workSiteId ?? "", responsibleFarmId: m.responsibleFarmId ?? "", contactAddress: m.contactAddress ?? "", memberNote: m.memberNote ?? "", roles: m.enterpriseRoles.map((g) => ({ roleId: g.roleId, chainIds: g.chainIds, siteIds: g.siteIds })) }}
         version={m.enterpriseRevision}

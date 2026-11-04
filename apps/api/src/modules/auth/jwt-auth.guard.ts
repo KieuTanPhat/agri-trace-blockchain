@@ -11,7 +11,7 @@ import { isUUID } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthenticatedRequest, JwtPayload } from './auth.types.js';
 import { sessionFamilyWhere } from './session-family.js';
-import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
+import { enterpriseAuthority, isEnterpriseBusinessRole } from '../enterprise-workspace/enterprise-policy.js';
 import { enforcePasswordAge } from './password-age.js';
 
 const PASSWORD_CHANGE_ALLOWED = new Set([
@@ -126,6 +126,10 @@ export class JwtAuthGuard implements CanActivate {
       );
     }
 
+    // Inspection roles use compliance assignments and chain grants, even when
+    // their organization keeps a personnel hierarchy. That metadata must not
+    // turn them into delegated enterprise business actors.
+    const delegatedEnterprise = !!user.enterpriseTier && user.enterpriseTier > 1 && isEnterpriseBusinessRole(user.role.code);
     request.user = {
       sub: user.id,
       sid: payload.sid,
@@ -133,7 +137,7 @@ export class JwtAuthGuard implements CanActivate {
       role: user.role.code,
       organizationId: user.organizationId,
       accountStatus: user.accountStatus,
-      ...(user.enterpriseTier && user.enterpriseTier > 1
+      ...(delegatedEnterprise
         ? {
             enterpriseScope: {
               roleScopes: user.enterpriseRoles.map((r) => ({
@@ -193,7 +197,7 @@ export class JwtAuthGuard implements CanActivate {
           }
         : {}),
     };
-    if (user.enterpriseTier && user.enterpriseTier > 1)
+    if (delegatedEnterprise)
       await enterpriseAuthority(this.prisma, request.user, 'profile.read');
     return true;
   }

@@ -62,6 +62,8 @@ function DesktopNav({ path }: { path: string }) {
   return (
     <nav aria-label={pt("Điều hướng chính")} className="hidden items-center gap-1 lg:flex">
       {link("/", "Trang chủ")}
+      {link("/products", "Sản phẩm")}
+      {link("/news", "Bảng tin")}
       {link("/about", "Giới thiệu")}
       <div className="group relative">
         <Link
@@ -118,6 +120,8 @@ function MobileNav({ path }: { path: string }) {
         </div>
         <nav aria-label={pt("Điều hướng chính")} className="flex flex-col p-3">
           {item(customerHref("/"), "Trang chủ")}
+          {item(customerHref("/products"), "Sản phẩm")}
+          {item(customerHref("/news"), "Bảng tin")}
           {item(customerHref("/about"), "Giới thiệu")}
           {item(customerHref("/solutions"), "Giải pháp")}
           {SOLUTION_LINKS.slice(1).map((l) => item(l.href, l.label, true))}

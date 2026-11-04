@@ -983,6 +983,9 @@ model EnterpriseSite {
   ward String? @db.VarChar(255)
   areaM2 Decimal? @map("area_m2") @db.Decimal(14,2)
   coldAreaM2 Decimal? @map("cold_area_m2") @db.Decimal(14,2)
+  /// Optional map point for route display and arrival detection (ADR-006).
+  latitude Decimal? @db.Decimal(9,6)
+  longitude Decimal? @db.Decimal(9,6)
   capacityKg Decimal? @map("capacity_kg") @db.Decimal(14,3)
   expectedOutputTons Decimal? @map("expected_output_tons") @db.Decimal(14,3)
   manager String? @db.VarChar(255)
@@ -1008,6 +1011,8 @@ model EnterpriseVehicle {
   status String @default("ACTIVE") @db.VarChar(20)
   version Int @default(0)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  devices IotDevice[]
+  positions DistributionPosition[]
   @@unique([organizationId, registration])
   @@map("enterprise_vehicle")
 }
@@ -1049,8 +1054,13 @@ model DistributionTransfer {
   status String @default("PROPOSED") @db.VarChar(30)
   version Int @default(0)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// ADR-006 transit window: set when PICKUP / DELIVERY attestations complete.
+  inTransitAt DateTime? @map("in_transit_at") @db.Timestamptz(6)
+  deliveredAt DateTime? @map("delivered_at") @db.Timestamptz(6)
   lines DistributionLine[]
   attestations DistributionAttestation[]
+  positions DistributionPosition[]
+  routeSeal DistributionRouteSeal?
   @@index([senderId, status])
   @@index([receiverId, status])
   @@index([carrierId, status])
@@ -1133,10 +1143,58 @@ model DistributionObservation {
   organizationId String @map("organization_id") @db.Uuid
   eventTime DateTime @map("event_time") @db.Timestamptz(6)
   note String @db.VarChar(1000)
-  temperature Decimal? @db.Decimal(6,2)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   @@index([transferId,eventTime])
   @@map("distribution_observation")
+}
+
+/// Append-only GPS positions of the vehicle carrying a transfer (ADR-006).
+model DistributionPosition {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId     String               @map("transfer_id") @db.Uuid
+  deviceId       String               @map("device_id") @db.Uuid
+  vehicleId      String               @map("vehicle_id") @db.Uuid
+  deviceSequence BigInt               @map("device_sequence")
+  recordedAt     DateTime             @map("recorded_at") @db.Timestamptz(6)
+  receivedAt     DateTime             @default(now()) @map("received_at") @db.Timestamptz(6)
+  latitude       Decimal              @db.Decimal(9, 6)
+  longitude      Decimal              @db.Decimal(9, 6)
+  accuracyM      Decimal?             @map("accuracy_m") @db.Decimal(8, 2)
+  speedKmh       Decimal?             @map("speed_kmh") @db.Decimal(6, 2)
+  heading        Decimal?             @db.Decimal(6, 2)
+  satellites     Int?                 @db.SmallInt
+  battery        Decimal?             @db.Decimal(5, 2)
+  /// VALID | ANOMALY | LATE
+  validity       String               @db.VarChar(20)
+  anomalyCode    String?              @map("anomaly_code") @db.VarChar(40)
+  transfer       DistributionTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  device         IotDevice            @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  vehicle        EnterpriseVehicle    @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+
+  @@unique([deviceId, deviceSequence], map: "ux_distribution_position_device_sequence")
+  @@index([transferId, recordedAt], map: "ix_distribution_position_transfer_time")
+  @@map("distribution_position")
+}
+
+/// Route digest sealed with the final DELIVERY attestation (ADR-006).
+model DistributionRouteSeal {
+  transferId              String               @id @map("transfer_id") @db.Uuid
+  digestHash              String               @map("digest_hash") @db.VarChar(64)
+  schemaVersion           String               @default("distribution-route-1") @map("schema_version") @db.VarChar(40)
+  canonicalizationVersion String               @default("RFC8785-JCS-v1") @map("canonicalization_version") @db.VarChar(40)
+  /// DEVICE | SIMULATED | NONE
+  source                  String               @db.VarChar(20)
+  pointCount              Int                  @map("point_count")
+  anomalyCount            Int                  @map("anomaly_count")
+  distanceM               Int                  @map("distance_m")
+  coveragePercent         Decimal              @map("coverage_percent") @db.Decimal(5, 2)
+  maxGapSeconds           Int                  @map("max_gap_seconds")
+  periodStart             DateTime             @map("period_start") @db.Timestamptz(6)
+  periodEnd               DateTime             @map("period_end") @db.Timestamptz(6)
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  transfer                DistributionTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+
+  @@map("distribution_route_seal")
 }
 
 /// Site allocations never replace the organization-level conservation ledger.
@@ -1719,6 +1777,7 @@ model Plot {
   updatedAt DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
   farm      Farm               @relation(fields: [farmId], references: [id], onUpdate: NoAction)
   cycles    ProductionCycle[]
+  devices   IotDevice[]
 
   @@unique([farmId, name], map: "uq_plot_farm_name")
   @@index([farmId], map: "ix_plot_farm")
@@ -1901,6 +1960,15 @@ model IotDevice {
   lastSeenAt               DateTime?                 @map("last_seen_at") @db.Timestamptz(6)
   createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime                  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  /// ADR-006: FIELD_SENSOR on a plot or GPS_TRACKER on a vehicle, never both.
+  plotId                   String?                   @map("plot_id") @db.Uuid
+  vehicleId                String?                   @map("vehicle_id") @db.Uuid
+  /// Ed25519 raw public key, base64url; the device keeps its private key.
+  publicKey                String?                   @map("public_key") @db.VarChar(64)
+  simulated                Boolean                   @default(false)
+  plot                     Plot?                     @relation(fields: [plotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  vehicle                  EnterpriseVehicle?        @relation(fields: [vehicleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  positions                DistributionPosition[]
   cycle                    ProductionCycle?          @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   organization             Organization              @relation(fields: [organizationId], references: [id], onUpdate: NoAction)
   sensorReadings           SensorReading[]
@@ -1909,6 +1977,7 @@ model IotDevice {
   trackingBindings         ShipmentTrackingBinding[]
 
   @@index([cycleId], map: "ix_iot_device_cycle")
+  @@index([plotId], map: "ix_iot_device_plot")
   @@index([organizationId], map: "ix_iot_device_org")
   @@map("iot_device")
 }
@@ -1923,6 +1992,7 @@ model SensorReading {
   recordedAt        DateTime                 @map("recorded_at") @db.Timestamptz(6)
   ingestTime        DateTime                 @default(now()) @map("ingest_time") @db.Timestamptz(6)
   createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  deviceSequence    BigInt?                  @map("device_sequence")
   cycle             ProductionCycle          @relation(fields: [cycleId], references: [id], onUpdate: NoAction)
   device            IotDevice                @relation(fields: [deviceId], references: [id], onUpdate: NoAction)
   harvestMembership HarvestSensorMembership?

@@ -1,5 +1,6 @@
 import {
   ExecutionContext,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -23,6 +24,7 @@ describe('Current account authorization', () => {
       create: vi.fn(),
     },
     refreshSession: { findFirst: vi.fn() },
+    scopedRoleGrant: { findFirst: vi.fn() },
   };
 
   const guard = new JwtAuthGuard(jwt, prisma as unknown as PrismaService);
@@ -117,6 +119,23 @@ describe('Current account authorization', () => {
 
     await expect(guard.canActivate(ctx)).rejects.toBe(failure);
     expect(request.user).toBeUndefined();
+  });
+
+  it.each(['AUDITOR', 'COMPLIANCE_REVIEWER'])('keeps %s independent from enterprise delegation metadata', async (code) => {
+    findUnique.mockResolvedValue({id,email:'reviewer@example.test',role:{code},organizationId:'631e9648-174d-48a0-9494-353bda8775da',
+      organization:{status:'ACTIVE'},accountStatus:'ACTIVE',enterpriseTier:3,enterpriseRoles:[],passwordChangedAt:new Date(),createdAt:new Date()});
+    const {request,ctx}=context();
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(request.user.role).toBe(code);
+    expect(request.user.enterpriseScope).toBeUndefined();
+    expect(prisma.scopedRoleGrant.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('still rejects a delegated business member without an enterprise permission',async()=>{
+    findUnique.mockResolvedValue({id,email:'member@example.test',role:{code:'FARM_STAFF'},organizationId:'631e9648-174d-48a0-9494-353bda8775da',
+      organization:{status:'ACTIVE'},accountStatus:'ACTIVE',enterpriseTier:3,enterpriseRoles:[]});
+    prisma.scopedRoleGrant.findFirst.mockResolvedValue(null);
+    await expect(guard.canActivate(context().ctx)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
 });

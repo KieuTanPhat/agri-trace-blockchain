@@ -29,6 +29,7 @@ const creates: Record<string, Operation> = {
   "/enterprise-workspace/partners": "EW_INVITE_PARTNER",
   "/enterprise-workspace/sites": "EW_CREATE_SITE",
   "/enterprise-workspace/vehicles": "EW_CREATE_VEHICLE",
+  "/iot/v2/devices": "EW_DEVICE_REGISTER",
   "/production-cycles": "CREATE_PRODUCTION_CYCLE",
   "/shipments": "CREATE_SHIPMENT",
   "/inspections": "CREATE_INSPECTION",
@@ -58,6 +59,9 @@ export function commandRequest(
     discriminator = "",
   ) => ({ operation, payload: { ...data, ...ids }, discriminator });
   if (method === "POST" && creates[path]) return result(creates[path]);
+  const device = match(path, `/iot/v2/devices/(${uuid})/(binding|key|status)`);
+  if (device && method === "POST")
+    return result(device[2] === "binding" ? "EW_DEVICE_BIND" : device[2] === "key" ? "EW_DEVICE_ROTATE_KEY" : "EW_DEVICE_STATUS", { id: device[1] });
   const draftLink = match(path, `/production-cycles/drafts/(${uuid})/link`);
   if (draftLink && method === "POST")
     return result("EW_LINK_CYCLE_DRAFT", { id: draftLink[1] });

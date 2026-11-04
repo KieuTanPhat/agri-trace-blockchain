@@ -14,9 +14,11 @@ import {
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { ENTERPRISE_PERMISSIONS } from './enterprise-policy.js';
@@ -155,6 +157,8 @@ export class EnterpriseSiteInput {
   @ApiProperty({maxLength:255}) @IsString() @MinLength(2) @MaxLength(255) ward!: string;
   @ApiProperty({type:Number,minimum:0,exclusiveMinimum:true}) @Type(()=>Number) @IsNumber({maxDecimalPlaces:2}) @IsPositive() areaM2!:number;
   @ApiProperty({required:false,type:Number,minimum:0,exclusiveMinimum:true}) @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:2}) @IsPositive() coldAreaM2?:number;
+  @ApiProperty({required:false,type:Number,minimum:-90,maximum:90,description:'Vĩ độ điểm trên bản đồ (ADR-006); đi cùng longitude'}) @ValidateIf((o:EnterpriseSiteInput)=>o.latitude!==undefined||o.longitude!==undefined) @Type(()=>Number) @IsNumber({maxDecimalPlaces:6}) @Min(-90) @Max(90) latitude?:number;
+  @ApiProperty({required:false,type:Number,minimum:-180,maximum:180,description:'Kinh độ điểm trên bản đồ; đi cùng latitude'}) @ValidateIf((o:EnterpriseSiteInput)=>o.latitude!==undefined||o.longitude!==undefined) @Type(()=>Number) @IsNumber({maxDecimalPlaces:6}) @Min(-180) @Max(180) longitude?:number;
   @ApiProperty({required:false,type:Number,minimum:0,exclusiveMinimum:true}) @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:3}) @IsPositive() capacityKg?:number;
   @ApiProperty({required:false,type:Number,minimum:0,exclusiveMinimum:true}) @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:3}) @IsPositive() expectedOutputTons?:number;
   @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) manager?:string;

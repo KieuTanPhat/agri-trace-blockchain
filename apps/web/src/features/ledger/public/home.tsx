@@ -2,18 +2,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { customerHref } from "@/lib/site-origins";
-import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
 import { Button } from "@/components/ledger/ui/button";
-import { Container, CtaBand, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
+import { Container, PhotoCard, PhotoHero, Reveal, SectionHeading } from "./blocks";
 import { PHOTOS, PLATFORM_FEATURES, SOLUTIONS, TRACE_STEPS } from "./content";
+import { FeaturedNews } from "./news";
 import { TraceSearch } from "./trace-search";
 
 function Hero() {
   return (
     <PhotoHero
       tall
-      image={PHOTOS.heroRiceTerraces}
+      image={PHOTOS.heroBrand}
       eyebrow={pt("Truy xuất nguồn gốc nông sản trên blockchain")}
       title={pt("Hành trình nông sản, thông tin có thể đối chiếu.")}
       description={pt("Từ sản xuất, thu hoạch đến chế biến và giao nhận. Quét mã để xem nguồn gốc, nhật ký và bằng chứng được công khai của từng lô.")}
@@ -132,29 +132,6 @@ function ConsumerGuide() {
   );
 }
 
-function Contact() {
-  return (
-    <section className="pt-16">
-      <Container>
-        <Reveal className="flex flex-col gap-4 rounded-2xl border border-line bg-card p-7 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-[19px] font-semibold">{pt("Kết nối với AgriTrace")}</h2>
-            <p className="text-[15px] text-ink-2">{pt("Tư vấn triển khai truy xuất cho doanh nghiệp và chuỗi cung ứng.")}</p>
-          </div>
-          <div className="flex flex-wrap gap-3 text-[15px]">
-            <a href={SITE_CONTACT.emailUrl} className="rounded-md border border-line px-4 py-2 font-medium text-brand hover:bg-brand-weak">
-              {SITE_CONTACT.email}
-            </a>
-            <a href={SITE_CONTACT.zaloUrl} className="rounded-md border border-line px-4 py-2 font-medium text-brand hover:bg-brand-weak">
-              Zalo {SITE_CONTACT.zaloPhone}
-            </a>
-          </div>
-        </Reveal>
-      </Container>
-    </section>
-  );
-}
-
 export default function Home() {
   return (
     <>
@@ -163,8 +140,7 @@ export default function Home() {
       <Process />
       <Features />
       <ConsumerGuide />
-      <Contact />
-      <CtaBand />
+      <FeaturedNews />
     </>
   );
 }

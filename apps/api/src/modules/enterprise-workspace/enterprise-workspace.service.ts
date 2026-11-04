@@ -54,6 +54,55 @@ const MEMBER_SELECT = {
   accountStatus: true,
   enterpriseRoles: { include: { role: true } },
 } as const;
+const MEMBER_EMAIL_CONFLICT =
+  'Email đã được đăng ký. Vui lòng dùng email khác hoặc đăng nhập.';
+
+function isEmailUniqueViolation(error: unknown): boolean {
+  if (
+    !error ||
+    typeof error !== 'object' ||
+    !('code' in error) ||
+    error.code !== 'P2002'
+  )
+    return false;
+  const meta =
+    'meta' in error && error.meta && typeof error.meta === 'object'
+      ? error.meta
+      : undefined;
+  const target = meta && 'target' in meta ? meta.target : undefined;
+  const constraint = meta && 'constraint' in meta ? meta.constraint : undefined;
+  const targetText = Array.isArray(target)
+    ? target.filter((value): value is string => typeof value === 'string').join(' ')
+    : typeof target === 'string'
+      ? target
+      : '';
+  const uniqueTarget = `${targetText} ${typeof constraint === 'string' ? constraint : ''}`
+    .toLowerCase();
+  return uniqueTarget.includes('email') || uniqueTarget.includes('lower');
+}
+
+function normalizeMemberAssignments(
+  assignments: Array<Pick<MemberRoleInput, 'roleId' | 'chainIds' | 'siteIds'>>,
+) {
+  return assignments
+    .map(({ roleId, chainIds, siteIds }) => ({
+      roleId,
+      chainIds: [...chainIds].sort(),
+      siteIds: [...siteIds].sort(),
+    }))
+    .sort((a, b) => a.roleId.localeCompare(b.roleId));
+}
+
+function sameMemberAssignments(
+  current: Array<Pick<MemberRoleInput, 'roleId' | 'chainIds' | 'siteIds'>>,
+  next: Array<Pick<MemberRoleInput, 'roleId' | 'chainIds' | 'siteIds'>>,
+) {
+  return (
+    JSON.stringify(normalizeMemberAssignments(current)) ===
+    JSON.stringify(normalizeMemberAssignments(next))
+  );
+}
+
 @Injectable()
 export class EnterpriseWorkspaceService {
   constructor(private readonly db: PrismaService) {}
@@ -326,31 +375,43 @@ export class EnterpriseWorkspaceService {
     return commandTransaction(this.db, async (tx) => {
       const auth = await this.validateDelegation(tx, actor, input.roles);
       await this.validateMemberProfileReferences(tx, actor, input);
+      const email = input.email.trim().toLowerCase();
       if (!auth.primary && input.tier !== 3)
         throw new ForbiddenException('Cấp 2 chỉ được tạo tài khoản cấp 3');
       const role = await tx.role.findUniqueOrThrow({
         where: { code: auth.user.roleId ? actor.role : 'RETAILER' },
       });
       await assertEntitlement(tx, actor.organizationId!, 'members');
-      const user = await tx.user.create({
-        data: {
-          memberCode: await nextMemberCode(tx, actor.organizationId!),
-          organizationId: actor.organizationId!,
-          roleId: role.id,
-          email: input.email.trim().toLowerCase(),
-          fullName: input.fullName.trim(),
-          jobTitle: input.jobTitle.trim(),
-          phone: input.phone?.trim(),
-          workSiteId: input.workSiteId,
-          responsibleFarmId: input.responsibleFarmId,
-          contactAddress: input.contactAddress?.trim(),
-          memberNote: input.memberNote?.trim(),
-          passwordHash,
-          mustChangePassword: true,
-          enterpriseTier: input.tier,
-          supervisorId: actor.sub!,
-        },
+      const existingEmail = await tx.user.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
+        select: { id: true },
       });
+      if (existingEmail) throw new ConflictException(MEMBER_EMAIL_CONFLICT);
+      const user = await tx.user
+        .create({
+          data: {
+            memberCode: await nextMemberCode(tx, actor.organizationId!),
+            organizationId: actor.organizationId!,
+            roleId: role.id,
+            email,
+            fullName: input.fullName.trim(),
+            jobTitle: input.jobTitle.trim(),
+            phone: input.phone?.trim(),
+            workSiteId: input.workSiteId,
+            responsibleFarmId: input.responsibleFarmId,
+            contactAddress: input.contactAddress?.trim(),
+            memberNote: input.memberNote?.trim(),
+            passwordHash,
+            mustChangePassword: true,
+            enterpriseTier: input.tier,
+            supervisorId: actor.sub!,
+          },
+        })
+        .catch((error: unknown) => {
+          if (isEmailUniqueViolation(error))
+            throw new ConflictException(MEMBER_EMAIL_CONFLICT);
+          throw error;
+        });
       await this.assign(tx, actor, user.id, input.roles);
       const organization = await tx.organization.findUniqueOrThrow({
         where: { id: actor.organizationId! },
@@ -385,43 +446,91 @@ export class EnterpriseWorkspaceService {
         (!auth.primary && member.supervisorId !== actor.sub)
       )
         throw new ForbiddenException('Không thể sửa tài khoản này');
+
+      if (member.enterpriseRevision !== input.version)
+        throw new ConflictException('Quyền đã thay đổi; tải lại thành viên');
+
+      const assignments = input.status === 'ACTIVE' ? input.roles : [];
+      const currentAssignments = await tx.enterpriseMemberRole.findMany({
+        where: { userId: id, organizationId: actor.organizationId! },
+        select: { roleId: true, chainIds: true, siteIds: true },
+      });
+      const rolesChanged = !sameMemberAssignments(
+        currentAssignments,
+        assignments,
+      );
+      const nextJobTitle =
+        input.jobTitle === undefined ? member.jobTitle : input.jobTitle.trim();
+      const nextPhone =
+        input.phone === undefined ? member.phone : input.phone?.trim() || null;
+      const nextWorkSiteId =
+        input.workSiteId === undefined ? member.workSiteId : input.workSiteId;
+      const nextResponsibleFarmId =
+        input.responsibleFarmId === undefined
+          ? member.responsibleFarmId
+          : input.responsibleFarmId;
+      const nextContactAddress =
+        input.contactAddress === undefined
+          ? member.contactAddress
+          : input.contactAddress?.trim() || null;
+      const nextMemberNote =
+        input.memberNote === undefined
+          ? member.memberNote
+          : input.memberNote?.trim() || null;
+      const statusChanged = member.accountStatus !== input.status;
+      const profileChanged =
+        statusChanged ||
+        member.jobTitle !== nextJobTitle ||
+        member.phone !== nextPhone ||
+        member.workSiteId !== nextWorkSiteId ||
+        member.responsibleFarmId !== nextResponsibleFarmId ||
+        member.contactAddress !== nextContactAddress ||
+        member.memberNote !== nextMemberNote;
+
+      if (!rolesChanged && !profileChanged)
+        return {
+          record: await tx.user.findUniqueOrThrow({
+            where: { id },
+            select: MEMBER_SELECT,
+          }),
+        };
+
       const changed = await tx.user.updateMany({
         where: { id, enterpriseRevision: input.version },
         data: {
           accountStatus: input.status,
-          jobTitle: input.jobTitle?.trim(),
-          phone: input.phone === undefined ? undefined : input.phone?.trim() || null,
-          workSiteId: input.workSiteId,
-          responsibleFarmId: input.responsibleFarmId,
-          contactAddress: input.contactAddress === undefined ? undefined : input.contactAddress?.trim() || null,
-          memberNote: input.memberNote === undefined ? undefined : input.memberNote?.trim() || null,
+          jobTitle: nextJobTitle,
+          phone: nextPhone,
+          workSiteId: nextWorkSiteId,
+          responsibleFarmId: nextResponsibleFarmId,
+          contactAddress: nextContactAddress,
+          memberNote: nextMemberNote,
           enterpriseRevision: { increment: 1 },
         },
       });
       if (changed.count !== 1)
         throw new ConflictException('Quyền đã thay đổi; tải lại thành viên');
-      await this.assign(
-        tx,
-        actor,
-        id,
-        input.status === 'ACTIVE' ? input.roles : [],
-      );
-      const descendants = await tx.user.findMany({
-        where: { supervisorId: id, organizationId: actor.organizationId! },
-      });
-      for (const child of descendants) {
-        await this.assign(tx, actor, child.id, []);
-        await tx.user.update({
-          where: { id: child.id },
-          data: {
-            accountStatus: 'LOCKED',
-            enterpriseRevision: { increment: 1 },
-          },
+      if (rolesChanged)
+        await this.assign(tx, actor, id, assignments);
+
+      if (statusChanged || rolesChanged) {
+        const descendants = await tx.user.findMany({
+          where: { supervisorId: id, organizationId: actor.organizationId! },
         });
-        await tx.refreshSession.updateMany({
-          where: { userId: child.id, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
+        for (const child of descendants) {
+          await this.assign(tx, actor, child.id, []);
+          await tx.user.update({
+            where: { id: child.id },
+            data: {
+              accountStatus: 'LOCKED',
+              enterpriseRevision: { increment: 1 },
+            },
+          });
+          await tx.refreshSession.updateMany({
+            where: { userId: child.id, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+        }
       }
       await tx.refreshSession.updateMany({
         where: { userId: id, revokedAt: null },
@@ -559,6 +668,7 @@ export class EnterpriseWorkspaceService {
         'catalog.manage': ['catalog.read'],
         'sites.manage': ['sites.read'],
         'vehicles.manage': ['vehicles.read'],
+        'devices.manage': ['devices.read'],
         'production.write': ['production.read'],
         'distribution.write': [
           'distribution.read',

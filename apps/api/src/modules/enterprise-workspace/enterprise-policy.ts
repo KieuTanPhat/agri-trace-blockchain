@@ -9,6 +9,10 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { evidenceSubject } from './evidence-policy.js';
 import { lockChainScope } from '../supply-chains/chain-policy.js';
 
+export function isEnterpriseBusinessRole(role: string) {
+  return ['FARM_STAFF', 'PROCESSOR', 'TRANSPORTER', 'DISTRIBUTOR', 'RETAILER'].includes(role);
+}
+
 export const ENTERPRISE_PERMISSIONS = [
   'profile.read',
   'members.read',
@@ -43,6 +47,9 @@ export const ENTERPRISE_PERMISSIONS = [
   'materials.manage',
   'processing.read',
   'processing.write',
+  // ADR-006: field sensors on plots, GPS trackers on vehicles.
+  'devices.read',
+  'devices.manage',
 ] as const;
 export type EnterprisePermission = (typeof ENTERPRISE_PERMISSIONS)[number];
 
@@ -265,6 +272,10 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_COMPLETE_SITE: 'sites.manage',
   EW_UPDATE_SITE: 'sites.manage',
   EW_CREATE_VEHICLE: 'vehicles.manage',
+  EW_DEVICE_REGISTER: 'devices.manage',
+  EW_DEVICE_BIND: 'devices.manage',
+  EW_DEVICE_ROTATE_KEY: 'devices.manage',
+  EW_DEVICE_STATUS: 'devices.manage',
   EW_UPDATE_VEHICLE: 'vehicles.manage',
   EW_CREATE_PRODUCT: 'catalog.manage',
   EW_UPDATE_PRODUCT: 'catalog.manage',
@@ -529,6 +540,9 @@ export async function restrictEnterpriseBusiness(
   lock: boolean,
   businessRole: string,
 ) {
+  // Compliance authority has already checked the independent assignment/grant.
+  // Personnel hierarchy metadata must not turn it into a business write scope.
+  if (!isEnterpriseBusinessRole(businessRole)) return;
   const user = await db.user.findUnique({
     where: { id: input.actor!.sub! },
     select: { enterpriseTier: true },

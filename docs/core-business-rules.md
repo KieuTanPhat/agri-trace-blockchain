@@ -212,7 +212,10 @@ Shipments are not converted or rewritten automatically. Shipment-flow Lot
 actions are hidden for allocated Lots. Organization-level `quantity.adjust`
 records physical sale/damage quantities and immutable movements; it does not
 create orders, payments, valuation, accounting or warehouse optimization.
-Carrier journal observations are labelled MANUAL, separate from IoT proofs.
+Carrier journal observations are labelled MANUAL, separate from IoT proofs, and
+carry no temperature (ADR-006). GPS positions of the carrying party's vehicle are
+recorded only inside the transit window and sealed with the DELIVERY attestation;
+see [ADR-006](adr-006-iot-plot-vehicle-tracking.md).
 Producer notices are explicit public projections. Recall notices block further
 distribution and sale without erasing the physical holding or its history.
 
@@ -455,7 +458,9 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   `SELF_DELIVERY` (bên giao tự chở) và `RECEIVER_PICKUP` (bên nhận tự lấy). Khi
   bên giao hoặc bên nhận kiêm người chở, mỗi bước chỉ cần chữ ký của các doanh
   nghiệp khác nhau tham gia bước đó (`distribution_phase_parties`); chỉ đơn vị
-  vận chuyển trên AgriTrace ghi quan sát cảm biến. Thông tin xe/tài xế nhập tay
+  vận chuyển trên AgriTrace ghi quan sát cảm biến (từ 04/11/2026 theo ADR-006:
+  mọi bên chở trừ thuê ngoài ghi nhật ký tay, không ghi nhiệt độ; tự giao/tự lấy được
+  chọn xe đã khai để gắn GPS). Thông tin xe/tài xế nhập tay
   nằm trong snapshot ký của phiếu không dùng `PLATFORM_CARRIER`; phiếu cũ giữ
   nguyên snapshot. Phiếu đi theo chuỗi của lô (không chọn chuỗi). Bên nhận hoặc
   đơn vị vận chuyển chưa ở chuỗi nhận lời mời khi phiếu được lập; chủ quản chấp

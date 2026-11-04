@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   useForm,
+  type Path,
   type DefaultValues,
   type UseFormReturn,
   type FieldValues,
@@ -56,6 +57,10 @@ export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
   success?: string | ((result: unknown) => string);
   onDone?: (result: unknown) => void;
   onLockChange?: (locked: boolean) => void;
+  /** Maps a known server conflict to the corresponding form control. */
+  mapServerErrorToField?: (messages: string[]) =>
+    | { field: string; message: string }
+    | undefined;
   version?: number;
   wide?: boolean;
   /** Hiển thị trong trang (panel quyết định) thay vì dialog. */
@@ -128,6 +133,7 @@ function Body<S extends z.ZodType<FieldValues>>({
   invalidate = [],
   success,
   onDone,
+  mapServerErrorToField,
   version,
   inline,
 }: CommandDialogProps<S> & { onLockChange?: (locked: boolean) => void }) {
@@ -153,6 +159,7 @@ function Body<S extends z.ZodType<FieldValues>>({
   const [error, setError] = useState<ReturnType<
     typeof ledgerCommandError
   > | null>(null);
+  const fieldToFocus = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const mfaRef = useRef<HTMLInputElement>(null);
   const showMfa = stepUp;
@@ -195,6 +202,15 @@ function Body<S extends z.ZodType<FieldValues>>({
     } catch (cause) {
       const err = ledgerCommandError(cause);
       setError(err);
+      const fieldError = mapServerErrorToField?.(err.messages);
+      if (fieldError) {
+        const field = fieldError.field as Path<z.infer<S>>;
+        form.setError(field, {
+          type: "server",
+          message: fieldError.message,
+        });
+        fieldToFocus.current = field;
+      }
       recoveryId.current = err.recoveryId ?? recoveryId.current;
       // A response alone cannot release the original request. Inspect the
       // journal for validation/conflict failures without resending a command.
@@ -254,7 +270,16 @@ function Body<S extends z.ZodType<FieldValues>>({
     if (mfaError) mfaRef.current?.focus();
   }, [mfaError]);
 
+  useEffect(() => {
+    if (busy || frozen || !fieldToFocus.current) return;
+    form.setFocus(fieldToFocus.current as Path<z.infer<S>>);
+    fieldToFocus.current = null;
+  }, [busy, form, frozen]);
+
   const submit = form.handleSubmit((values) => execute(values));
+  const inlineError = error
+    ? mapServerErrorToField?.(error.messages)
+    : undefined;
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
@@ -320,7 +345,7 @@ function Body<S extends z.ZodType<FieldValues>>({
         </div>
       )}
 
-      {error && (
+      {error && !inlineError && (
         <Callout
           tone={error.isConflict ? "warn" : "danger"}
           title={

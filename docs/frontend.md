@@ -124,7 +124,9 @@ Trong không gian doanh nghiệp, bỏ khối tiêu đề/mô tả lặp lại �
 các nút thao tác nếu trang có và hiển thị Tìm nhanh bên dưới thanh không gian. Với hồ sơ
 `PENDING_REVIEW`, thay Tìm nhanh bằng nhãn `CHỜ XÉT DUYỆT`. Hộp thêm đối tác liệt kê
 doanh nghiệp đã được duyệt theo trang, giữ tìm kiếm và chỉ trả mã số thuế trong kết quả
-truy vấn cụ thể.
+truy vấn cụ thể. Khi tạo thành viên bằng email đã có tài khoản, lỗi chỉ rõ Email ngay
+dưới trường đó. Dòng lô trong biểu mẫu giao nhận giữ nhãn và trường số lượng căn trên
+khi số lượng báo lỗi, và xếp dọc trên màn hình hẹp.
 
 ## Phiên, quyền và command
 
@@ -200,7 +202,9 @@ trong bộ nhớ trang, không thay body/key của yêu cầu đang chờ.
 
 Trang khách hàng nằm trong nhóm route `app/(site)`; `layout.tsx` của nhóm dựng
 `LedgerPublicShell` một lần để header/footer không dựng lại khi chuyển trang. `/` có ô tra cứu
-mã, vai trò trong chuỗi, quy trình truy xuất và liên hệ từ `lib/site-contact.ts`. `/about`,
+mã, vai trò trong chuỗi, quy trình truy xuất và năm bài mới nhất từ `/public/news`. `/products`
+đọc danh mục công khai theo cursor, lọc trên dữ liệu đã tải và chia 12 sản phẩm mỗi trang;
+`/news` liệt kê bài đã đăng, `/news/:id` hiển thị nội dung đầy đủ và ảnh bìa công khai. `/about`,
 `/solutions` (gồm bảng giá `#bang-gia` và link đăng ký sang domain doanh nghiệp) và `/contact`
 là trang tĩnh, nội dung và ảnh (Unsplash, nguồn trong `PHOTO_CREDITS`) ở
 `features/ledger/public/content.ts`; chỉ mô tả năng lực đã có, không đặt số liệu, khách hàng hay
@@ -294,6 +298,12 @@ quyền hiện hành trước khi sử dụng. Domain mới yêu cầu đăng nh
   nạp dữ liệu; script lấy logo từ `Data/logoDoanhNghiep`, upload qua API và
   tạo snapshot. `node scripts/demo/publish-fruit-news.mjs` thêm ảnh bìa bằng
   API admin. Cả hai kiểm đúng container/DB local trước khi ghi.
+- Website dùng `node scripts/demo/publish-public-news.mjs` để nạp sáu bài biên
+  tập có nguồn tham khảo và ảnh Unsplash đã ghi credit. Script chỉ ghi fixture
+  vào demo local sau khi xác minh đúng Compose project, checkout, database và
+  volume; nó thay nội dung placeholder seed hoặc tạo bài còn thiếu, giữ nguyên
+  bài đã biên tập riêng và không chạy với target production. Quản trị bài viết
+  ngoài dữ liệu demo vẫn dùng API admin có audit.
 
 `npm run check --workspace apps/web` gồm typecheck, Vitest, lint-contract, image-optimizer
 và production build; build đã chạy ESLint/Oxlint. Browser contract suite từ gốc repo:

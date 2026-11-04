@@ -18,6 +18,7 @@ OpenAPI JSON hoặc inventory Ledger để lấy bối cảnh chung.
 | UI, auth/recovery, QR/camera/PWA, mobile | [Frontend](frontend.md), [harvest recovery](harvest-recovery.md) khi liên quan |
 | Transaction/outbox/Worker | [ADR-001](adr-001-modular-monolith-dedicated-worker.md) |
 | Tư cách tham gia, chủ chuỗi, đầu vào liên chuỗi | [ADR-005](adr-005-chain-owner-service-model.md) |
+| Cảm biến thửa, GPS xe, niêm phong hành trình, thiết bị ảo | [ADR-006](adr-006-iot-plot-vehicle-tracking.md) |
 | Binding, ledger permission, chữ ký c2 | [ADR-004](adr-004-hybrid-binding-and-signatures.md), phần cần dùng của [Hybrid runbook](hybrid-fabric-runbook.md) |
 | Migration và restore | [Database runbook](database-migration-runbook.md) |
 | CI, ma trận HYB-AC và kiểm chứng | [CI guide](ci.md) |

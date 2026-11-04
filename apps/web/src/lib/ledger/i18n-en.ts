@@ -1232,8 +1232,8 @@ export const EN: Record<string, string> = {
     "Save the recovery codes now — shown only once",
   "Lưu nhóm": "Save role",
   "Lưu phiên bản mới": "Save new version",
-  "Lưu sẽ thu hồi phiên của thành viên. Khóa hoặc ngừng thành viên sẽ khóa mọi nhân viên trực thuộc và gỡ nhóm quyền của họ.":
-    "Saving revokes the member's sessions. Locking or deactivating a member locks all direct reports and removes their roles.",
+  "Khi có thay đổi, phiên của thành viên sẽ bị thu hồi. Khóa hoặc ngừng thành viên sẽ khóa mọi nhân viên trực thuộc và gỡ nhóm quyền của họ.":
+    "When changes are saved, the member's sessions are revoked. Locking or deactivating a member locks all direct reports and removes their roles.",
   "Lưu thay đổi": "Save changes",
   "Lưu thứ tự": "Save order",
   "Lưu trữ sổ cái": "Ledger storage",

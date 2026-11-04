@@ -26,6 +26,7 @@ import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
+import { TransferRouteSection } from "@/components/ledger/workspace/transfer-route";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
@@ -216,7 +217,8 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
             externalHirer: v.transportMode === "EXTERNAL_CARRIER" ? v.externalHirer : undefined,
             carrierId: platform ? v.carrierId : undefined,
             carrierSiteId: platform ? v.carrierSiteId : undefined,
-            vehicleId: platform ? v.vehicleId || undefined : undefined,
+            // ADR-006: the carrying party may pick its own declared vehicle (GPS tracking).
+            vehicleId: v.transportMode !== "EXTERNAL_CARRIER" ? v.vehicleId || undefined : undefined,
             transportDetails: platform ? undefined : details,
             pickupRequestId: request?.id,
             receiverId: v.receiverId,
@@ -237,7 +239,7 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
         const c = f.control as unknown as Control<z.infer<typeof createSchema>>;
         return (
           <>
-            <TransportFields control={c} request={!!request} carriers={partyOrgs.filter((o) => o.type === "TRANSPORTER")} sites={options.data?.items ?? []} vehicles={options.data?.vehicles ?? []} />
+            <TransportFields control={c} request={!!request} me={me} carriers={partyOrgs.filter((o) => o.type === "TRANSPORTER")} sites={options.data?.items ?? []} vehicles={options.data?.vehicles ?? []} />
             <div className="grid gap-3 sm:grid-cols-2">
               <SelectField control={c} name="senderSiteId" label={tr("Cơ sở giao (của bạn)")} options={(options.data?.items ?? []).filter((s) => s.organizationId === me).map((s) => ({ value: s.id, label: s.name }))} />
               <SelectField control={c} name="receiverId" label={tr("Bên nhận")} options={partyOrgs.filter((o) => ["PROCESSOR", "DISTRIBUTOR", "RETAILER"].includes(o.type) && (!request || o.id === request.receiverId)).map((o) => ({ value: o.id, label: o.name }))} />
@@ -255,7 +257,7 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
     </CommandDialog>
   );
 }
-function TransportFields({ control, request, carriers, sites, vehicles }: { control: Control<CreateValues>; request: boolean; carriers: { id: string; name: string }[]; sites: { id: string; organizationId: string; name: string }[]; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
+function TransportFields({ control, request, me, carriers, sites, vehicles }: { control: Control<CreateValues>; request: boolean; me: string; carriers: { id: string; name: string }[]; sites: { id: string; organizationId: string; name: string }[]; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
   const mode = useWatch({ control, name: "transportMode" });
   return (
     <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
@@ -267,7 +269,7 @@ function TransportFields({ control, request, carriers, sites, vehicles }: { cont
           <>
             <SelectField control={control} name="carrierId" label={tr("Đơn vị vận chuyển")} options={carriers.map((o) => ({ value: o.id, label: o.name }))} />
             <PartySite control={control} party="carrierId" name="carrierSiteId" label={tr("Cơ sở vận chuyển")} sites={sites} />
-            <PartyVehicle control={control} vehicles={vehicles} />
+            <PartyVehicle control={control} vehicles={vehicles} party="carrierId" />
           </>
         ) : (
           <>
@@ -277,6 +279,7 @@ function TransportFields({ control, request, carriers, sites, vehicles }: { cont
                 <TextField control={control} name="carrierName" label={tr("Tên đơn vị vận chuyển")} max={255} />
               </>
             )}
+            {(mode === "SELF_DELIVERY" || mode === "RECEIVER_PICKUP") && <PartyVehicle control={control} vehicles={vehicles} party={mode === "SELF_DELIVERY" ? me : "receiverId"} label={tr("Xe đã khai (tùy chọn, để theo dõi GPS)")} />}
             <TextField control={control} name="registration" label={tr("Biển số xe")} max={40} />
             <TextField control={control} name="driverName" label={tr("Tài xế / người nhận hàng")} max={255} />
             <TextField control={control} name="driverPhone" label={tr("Số điện thoại")} inputMode="tel" />
@@ -374,9 +377,10 @@ function PartySite({ control, party, name, label, sites }: { control: Control<Cr
   const org = useWatch({ control, name: party });
   return <SelectField control={control} name={name} label={label} options={sites.filter((s) => s.organizationId === org).map((s) => ({ value: s.id, label: s.name }))} />;
 }
-function PartyVehicle({ control, vehicles }: { control: Control<CreateValues>; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
-  const org = useWatch({ control, name: "carrierId" });
-  return <SelectField control={control} name="vehicleId" label={tr("Phương tiện")} options={vehicles.filter((v) => v.organizationId === org).map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }))} />;
+function PartyVehicle({ control, vehicles, party, label }: { control: Control<CreateValues>; vehicles: { id: string; organizationId: string; registration: string; kind: string }[]; party: string; label?: string }) {
+  const watched = useWatch({ control, name: party === "receiverId" ? "receiverId" : "carrierId" });
+  const org = party === "receiverId" || party === "carrierId" ? watched : party;
+  return <SelectField control={control} name="vehicleId" label={label ?? tr("Phương tiện")} options={vehicles.filter((v) => v.organizationId === org).map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }))} />;
 }
 function LinesField({ control, lots }: { control: Control<CreateValues>; lots: { lotId: string; lotCode: string; productName: string; available: string; unit: string; siteHoldings: { siteId: string; available: string }[] }[] }) {
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
@@ -387,10 +391,10 @@ function LinesField({ control, lots }: { control: Control<CreateValues>; lots: {
       <legend className="mb-1 text-[13px] font-medium">{tr("Dòng lô (tối đa 30)")}</legend>
       {!site && <p className="text-[12.5px] text-ink-2">{tr("Chọn cơ sở giao để thấy lô còn khả dụng tại cơ sở.")}</p>}
       {fields.map((f, i) => (
-        <div key={f.id} className="grid grid-cols-[minmax(0,1fr)_120px_auto] items-end gap-2">
-          <SelectField control={control} name={`lines.${i}.lotId`} label={tr("Lô {p0}", { p0: i + 1 })} options={pickable.map((l) => ({ value: l.lotId, label: `${l.lotCode} · ${l.productName} · ${tr("khả dụng")} ${fmtNumber(l.siteHoldings.find((s) => s.siteId === site)?.available)} ${l.unit}` }))} />
-          <TextField control={control} name={`lines.${i}.quantity`} label={tr("Số lượng")} inputMode="decimal" />
-          <Button type="button" variant="ghost" size="icon-sm" aria-label={tr("Bỏ dòng này")} onClick={() => remove(i)} disabled={fields.length === 1}><Trash2 /></Button>
+        <div key={f.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_auto]">
+          <SelectField control={control} name={`lines.${i}.lotId`} label={tr("Lô {p0}", { p0: i + 1 })} className="min-w-0" options={pickable.map((l) => ({ value: l.lotId, label: `${l.lotCode} · ${l.productName} · ${tr("khả dụng")} ${fmtNumber(l.siteHoldings.find((s) => s.siteId === site)?.available)} ${l.unit}` }))} />
+          <TextField control={control} name={`lines.${i}.quantity`} label={tr("Số lượng")} inputMode="decimal" className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1" />
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={tr("Bỏ dòng này")} onClick={() => remove(i)} disabled={fields.length === 1} className="col-start-2 row-start-1 mt-6 sm:col-start-3"><Trash2 /></Button>
         </div>
       ))}
       <Button type="button" size="xs" variant="outline" className="self-start" onClick={() => append({ lotId: "", quantity: "" })} disabled={fields.length >= 30}><Plus /> {tr("Thêm dòng lô")}</Button>
@@ -500,13 +504,14 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                   })}
                 </ul>
               </section>
+              {["IN_TRANSIT", "DELIVERED"].includes(t.status) && <TransferRouteSection transferId={t.id} status={t.status} />}
               {t.observations.length > 0 && (
                 <section className="flex flex-col gap-2">
                   <h3 className="text-[13px] font-semibold">{tr("Nhật ký vận chuyển")}</h3>
                   <ol className="flex flex-col gap-1 border-l-2 border-line pl-3 text-[13px]">
                     {t.observations.map((o) => (
                       <li key={o.id}>
-                        <span className="font-mono text-[11.5px] text-ink-2">{fmtDateTime(o.eventTime)}</span> {o.note}{o.temperature ? ` · ${o.temperature} °C` : ""}
+                        <span className="font-mono text-[11.5px] text-ink-2">{fmtDateTime(o.eventTime)}</span> {o.note}
                       </li>
                     ))}
                   </ol>
@@ -547,13 +552,10 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
               </CommandDialog>
             )}
             {(act.target === "OBSERVE" || view==="journal") && t.allowedActions.includes("OBSERVE") && (
-              <CommandDialog {...journalProps} title={tr("Ghi nhật ký vận chuyển")} endpoint="POST /distribution/transfers/:id/journal" description={tr("Nhiệt độ ghi tay, không phải dữ liệu thiết bị IoT.")} schema={z.object({ eventTime: z.string().min(1), note: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(1000), temperature: z.union([z.literal(""), z.string().regex(/^-?\d{1,2}(\.\d{1,2})?$/, { error: () => tr("Ví dụ: 4.5 hoặc -18") })]).optional() })} defaultValues={{ eventTime: nowLocal, note: "", temperature: "" }} submitLabel={tr("Ghi nhật ký")} invalidate={invalidate} run={(v, cmd) => distApi.observe(t.id, { eventTime: localToIso(v.eventTime)!, note: v.note, temperature: v.temperature || undefined }, cmd)}>
+              <CommandDialog {...journalProps} title={tr("Ghi nhật ký vận chuyển")} endpoint="POST /distribution/transfers/:id/journal" description={tr("Ghi tay các mốc trên đường (nguồn MANUAL); vị trí tự động do GPS trên xe ghi.")} schema={z.object({ eventTime: z.string().min(1), note: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(1000) })} defaultValues={{ eventTime: nowLocal, note: "" }} submitLabel={tr("Ghi nhật ký")} invalidate={invalidate} run={(v, cmd) => distApi.observe(t.id, { eventTime: localToIso(v.eventTime)!, note: v.note }, cmd)}>
                 {(f) => (
                   <>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <TextField control={f.control} name="eventTime" label={tr("Thời điểm")} type="datetime-local" />
-                      <TextField control={f.control} name="temperature" label={tr("Nhiệt độ (°C)")} />
-                    </div>
+                    <TextField control={f.control} name="eventTime" label={tr("Thời điểm")} type="datetime-local" />
                     <TextAreaField control={f.control} name="note" label={tr("Nội dung")} max={1000} />
                   </>
                 )}

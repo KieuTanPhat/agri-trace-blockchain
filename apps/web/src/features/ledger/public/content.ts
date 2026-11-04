@@ -1,9 +1,10 @@
 /**
  * Nội dung tĩnh của trang công khai (tiếng Việt là khóa dịch, xem public-i18n-en.ts).
  * Chỉ mô tả năng lực đã có trong hệ thống; không đặt số liệu, khách hàng hay giá chưa xác nhận.
- * Ảnh lấy từ Unsplash (giấy phép Unsplash), nguồn ghi trong PHOTO_CREDITS.
+ * Ảnh bìa AgriTrace tạo bằng AI; các ảnh còn lại từ Unsplash, nguồn ghi trong PHOTO_CREDITS.
  */
 import type { StaticImageData } from "next/image";
+import heroBrand from "../../../../public/images/site/agritrace-brand-cover.webp";
 import heroRiceTerraces from "../../../../public/images/site/hero-rice-terraces.jpg";
 import aboutRiceVillage from "../../../../public/images/site/about-rice-village.jpg";
 import teaHills from "../../../../public/images/site/tea-hills.jpg";
@@ -15,7 +16,7 @@ import roleRetail from "../../../../public/images/site/role-retail.jpg";
 import roleInspection from "../../../../public/images/site/role-inspection.jpg";
 import roleConsumer from "../../../../public/images/site/role-consumer.jpg";
 
-export const PHOTOS = { heroRiceTerraces, aboutRiceVillage, teaHills, teaLeaves, roleConsumer };
+export const PHOTOS = { heroBrand, heroRiceTerraces, aboutRiceVillage, teaHills, teaLeaves, roleConsumer };
 
 export const PHOTO_CREDITS = [
   ["hero-rice-terraces", "Neil Mewes", "https://unsplash.com/photos/Wut1lHNKZ5M"],

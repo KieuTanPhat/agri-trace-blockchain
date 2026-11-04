@@ -35,6 +35,8 @@ import { prepareC2,consumeC2 } from './distribution-c2.js';
 import { BUSINESS_CAPABILITIES, lockChainScope } from '../supply-chains/chain-policy.js';
 import { requestLedgerGrant } from '../ledger/ledger-permissions.js';
 import { assertPartnerSlot } from '../supply-chains/chain-membership-rules.js';
+import { sealRoute } from '../iot/route-seal.js';
+import { transferRoute } from '../iot/route-read.js';
 import type {
   TransferInput,
   TransferSignature,
@@ -226,6 +228,39 @@ export class DistributionService {
       })),
     }));
   }
+  /** ADR-006 route read model; same participant/site scope as the transfer detail. */
+  async route(actor: CommandActor, id: string) {
+    const t = await this.db.distributionTransfer.findFirst({
+      where: {
+        id,
+        ...participantWhere(
+          actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
+        ),
+      },
+    });
+    if (!t) throw new NotFoundException('Không tìm thấy giao nhận');
+    const site =
+      t.senderId === actor.organizationId
+        ? t.senderSiteId
+        : t.carrierId === actor.organizationId
+          ? t.carrierSiteId
+          : t.receiverSiteId;
+    const membership = await this.db.chainMembership.findUnique({
+      where: { chainId_organizationId: { chainId: t.chainId, organizationId: actor.organizationId! } },
+    });
+    const authority = await enterpriseAuthority(
+      this.db,
+      actor,
+      'distribution.read',
+      membership?.status === 'ACTIVE' ? t.chainId : undefined,
+      site ?? undefined,
+    );
+    if (!authority.primary && !site)
+      throw new ForbiddenException(
+        'Giao nhận chưa có cơ sở được phân công cho nhân viên',
+      );
+    return { record: await transferRoute(this.db, t) };
+  }
   async detail(actor: CommandActor, id: string) {
     const t = await this.db.distributionTransfer.findFirst({
       where: {
@@ -271,7 +306,7 @@ export class DistributionService {
       ...(has('distribution.sign') && membership?.status === 'ACTIVE' ? phases.filter(p => !signed.has(p)) : []),
       ...(has('distribution.sign') && t.receiverId === actor.organizationId && t.status === 'IN_TRANSIT' && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
       ...(has('distribution.write') && t.senderId === actor.organizationId && ['PROPOSED','READY'].includes(t.status) ? ['CANCEL'] : []),
-      ...(has('distribution.write') && t.transportMode === 'PLATFORM_CARRIER' && t.carrierId === actor.organizationId && t.status === 'IN_TRANSIT' ? ['OBSERVE'] : []),
+      ...(has('distribution.write') && t.transportMode !== 'EXTERNAL_CARRIER' && t.carrierId === actor.organizationId && t.status === 'IN_TRANSIT' ? ['OBSERVE'] : []),
       ...(has('distribution.write') && t.carrierId === actor.organizationId && t.status === 'DELIVERED' ? ['RETURN'] : []),
       ...(has('distribution.write') && ['PROPOSED','READY','IN_TRANSIT'].includes(t.status)?['RENEW_CONSENT']:[]),
     ];
@@ -576,9 +611,11 @@ export class DistributionService {
           .map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])
           .filter(([, v]) => typeof v === 'string' && v),
       ) as Record<string, string>;
-      if (mode === 'PLATFORM_CARRIER' ? Object.keys(details).length > 0 : !!input.vehicleId)
+      // ADR-006: the carrying party may pick its own declared vehicle (GPS
+      // tracking); an external carrier has no vehicle on AgriTrace.
+      if (mode === 'PLATFORM_CARRIER' ? Object.keys(details).length > 0 : mode === 'EXTERNAL_CARRIER' && !!input.vehicleId)
         throw new UnprocessableEntityException(
-          mode === 'PLATFORM_CARRIER' ? 'Thông tin xe nhập tay chỉ dùng khi không qua đơn vị vận chuyển trên AgriTrace' : 'Chỉ chọn phương tiện đã khai khi dùng đơn vị vận chuyển trên AgriTrace',
+          mode === 'PLATFORM_CARRIER' ? 'Thông tin xe nhập tay chỉ dùng khi không qua đơn vị vận chuyển trên AgriTrace' : 'Xe thuê ngoài không chọn phương tiện đã khai',
         );
       if (mode === 'EXTERNAL_CARRIER' && !details.carrierName)
         throw new UnprocessableEntityException('Nhập tên đơn vị vận chuyển bên ngoài');
@@ -996,8 +1033,14 @@ export class DistributionService {
       let status = t.status;
       const required = phaseParties(t, input.phase).length;
       if (input.phase === 'CONSENT' && phaseCount === required && t.status==='PROPOSED') status = 'READY';
+      const transition: { inTransitAt?: Date; deliveredAt?: Date } = {};
+      let routeSeal: Prisma.InputJsonObject | undefined;
       if (input.phase === 'PICKUP' && phaseCount === required) {
         status = 'IN_TRANSIT';
+        transition.inTransitAt = new Date();
+        // ADR-006: one moving transfer per vehicle (backed by a partial unique index).
+        if (t.vehicleId && await tx.distributionTransfer.count({ where: { vehicleId: t.vehicleId, status: 'IN_TRANSIT', id: { not: id } } }))
+          throw new ConflictException('Xe đang chở một phiếu khác; hoàn tất phiếu đó trước khi lấy hàng');
         for (const l of t.lines) {
           if (t.senderSiteId) await tx.lotSiteHolding.update({ where: { lotId_organizationId_siteId: { lotId: l.lotId, organizationId: t.senderId, siteId: t.senderSiteId } }, data: { quantity: { decrement: l.quantity }, reserved: { decrement: l.quantity }, version: { increment: 1 } } });
           await tx.lotHolding.update({
@@ -1017,6 +1060,9 @@ export class DistributionService {
       }
       if (input.phase === 'DELIVERY' && phaseCount === required) {
         status = 'DELIVERED';
+        transition.deliveredAt = new Date();
+        // The c2 path commits a payload that was signed before; it is not extended.
+        if (!consumed) routeSeal = await sealRoute(tx, t, transition.deliveredAt);
         const receipt = await tx.distributionReceipt.findUnique({ where: { transferId: id } });
         const receiptLines = receipt?.lines as ReceiptLine[] | undefined;
         for (const l of t.lines) {
@@ -1052,7 +1098,7 @@ export class DistributionService {
       }
       const updated = await tx.distributionTransfer.update({
         where: { id },
-        data: { status, version: { increment: 1 } },
+        data: { status, version: { increment: 1 }, ...transition },
         include: { lines: true },
       });
       if(consumed)for(const row of consumed)await this.trace.createInTransaction(tx,{entityType:'LOT',entityId:row.lotId,lotId:row.lotId,eventId:row.intent.eventId,eventType:row.intent.eventType,actor,businessData:row.payload,signature:{intentId:row.intent.id}});
@@ -1068,6 +1114,7 @@ export class DistributionService {
           attestationDigest: canonicalSha256(body),
           signatureCommitment,
           signerOrganizationId: actor.organizationId!,
+          ...(routeSeal ? { routeSeal } : {}),
         },
       );
       return { record: updated };
@@ -1127,10 +1174,10 @@ export class DistributionService {
         !t ||
         t.carrierId !== actor.organizationId ||
         t.status !== 'IN_TRANSIT' ||
-        t.transportMode !== 'PLATFORM_CARRIER'
+        t.transportMode === 'EXTERNAL_CARRIER'
       )
         throw new ForbiddenException(
-          'Chỉ đơn vị vận chuyển trên AgriTrace ghi nhật ký khi đang vận chuyển',
+          'Chỉ bên chở hàng trên AgriTrace ghi nhật ký khi đang vận chuyển',
         );
       const time = new Date(input.eventTime);
       if (time.getTime() > Date.now() + 60_000 || time < t.createdAt)
@@ -1141,14 +1188,12 @@ export class DistributionService {
           organizationId: actor.organizationId!,
           eventTime: time,
           note: input.note,
-          temperature: input.temperature,
         },
       });
       await this.events(tx, t, actor, 'DISTRIBUTION_OBSERVED', {
         observationId: observation.id,
         eventTime: time.toISOString(),
         note: input.note,
-        temperature: input.temperature ?? null,
         source: 'MANUAL',
       });
       return { record: observation };
