@@ -26,6 +26,8 @@ import {
   DeviceAssignmentInput,
   DeviceIngestResultDto,
   DeviceStatusInput,
+  DeviceVersionInput,
+  UpdateDeviceInput,
   RegisterDeviceInput,
   RotateDeviceKeyInput,
   SignedPositionsInput,
@@ -117,6 +119,24 @@ export class DevicesController {
   @ApiDataResponse(WorkspaceRecordDto, 201)
   status(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: DeviceStatusInput, @IdempotencyKey() key: string) {
     return this.run(req, key, 'EW_DEVICE_STATUS', { id, ...dto }, () => this.registry.setStatus(req.user, id, dto));
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('devices/:id/profile')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  update(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateDeviceInput, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'EW_DEVICE_UPDATE', { id, ...dto }, () => this.registry.update(req.user, id, dto));
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('devices/:id/delete')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  remove(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: DeviceVersionInput, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'EW_DEVICE_DELETE', { id, ...dto }, () => this.registry.remove(req.user, id, dto));
   }
 
   @ApiBearerAuth()

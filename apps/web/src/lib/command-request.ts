@@ -58,9 +58,9 @@ export function commandRequest(
     discriminator = "",
   ) => ({ operation, payload: { ...data, ...ids }, discriminator });
   if (method === "POST" && creates[path]) return result(creates[path]);
-  const device = match(path, `/iot/v2/devices/(${uuid})/(binding|key|status)`);
+  const device = match(path, `/iot/v2/devices/(${uuid})/(binding|key|status|profile|delete)`);
   if (device && method === "POST")
-    return result(device[2] === "binding" ? "EW_DEVICE_BIND" : device[2] === "key" ? "EW_DEVICE_ROTATE_KEY" : "EW_DEVICE_STATUS", { id: device[1] });
+    return result(({ binding: "EW_DEVICE_BIND", key: "EW_DEVICE_ROTATE_KEY", status: "EW_DEVICE_STATUS", profile: "EW_DEVICE_UPDATE", delete: "EW_DEVICE_DELETE" } as Record<string, Operation>)[device[2]], { id: device[1] });
   const draftLink = match(path, `/production-cycles/drafts/(${uuid})/link`);
   if (draftLink && method === "POST")
     return result("EW_LINK_CYCLE_DRAFT", { id: draftLink[1] });

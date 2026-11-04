@@ -1118,6 +1118,28 @@ const prisma = new PrismaClient({
       expect((await get(`/lots/${sensorLot.id}`).expect(200)).body.data.sensorEvidence).toMatchObject({ simulated: true, status: 'FINALIZED', digestHash: window.digestHash });
       const sensorQr = await prisma.traceQr.findUniqueOrThrow({ where: { lotId: sensorLot.id } });
       expect((await request(app.getHttpServer()).get(`/api/public/trace/${sensorQr.traceToken}`).expect(200)).body.data.sensorEvidence).toMatchObject({ simulated: true, status: 'FINALIZED', digestHash: window.digestHash });
+
+      // Rename keeps the signing identity; removing a device with data hides it
+      // and keeps its readings, while a device without data is deleted.
+      const sensor = await prisma.iotDevice.findUniqueOrThrow({ where: { deviceCode } });
+      await post(`/iot/v2/devices/${sensor.id}/profile`, { version: sensor.authorityRevision, name: 'Cảm biến thửa A' }).expect(201);
+      expect((await prisma.iotDevice.findUniqueOrThrow({ where: { id: sensor.id } })).authorityRevision).toBe(sensor.authorityRevision);
+      const removed = (await post(`/iot/v2/devices/${sensor.id}/delete`, { version: sensor.authorityRevision }).expect(201)).body.data.record;
+      expect(removed).toMatchObject({ deleted: false, archived: true });
+      expect(await prisma.iotDevice.findUniqueOrThrow({ where: { id: sensor.id } })).toMatchObject({ status: 'INACTIVE', plotId: null, archivedAt: expect.any(Date) });
+      expect(await prisma.sensorReading.count({ where: { deviceId: sensor.id } })).toBe(3);
+      expect((await get('/iot/v2/devices').expect(200)).body.data.items.some((d: { id: string }) => d.id === sensor.id)).toBe(false);
+      const unused = (await post('/iot/v2/devices', {
+        kind: 'FIELD_SENSOR',
+        deviceCode: `${deviceCode}-C`,
+        name: 'Chưa dùng',
+        publicKey: generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+        simulated: true,
+        plotId: plot.id,
+      }).expect(201)).body.data.record;
+      await post(`/iot/v2/devices/${unused.id}/delete`, { version: unused.authorityRevision + 1 }).expect(409);
+      expect((await post(`/iot/v2/devices/${unused.id}/delete`, { version: unused.authorityRevision }).expect(201)).body.data.record).toMatchObject({ deleted: true });
+      expect(await prisma.iotDevice.findUnique({ where: { id: unused.id } })).toBeNull();
     });
 
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {

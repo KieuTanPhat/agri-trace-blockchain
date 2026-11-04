@@ -37,7 +37,6 @@ export function DeviceDetail({ id }: { id: string }) {
       <div className="flex flex-wrap gap-1">
         <Badge tone={d.online ? "ok" : "neutral"}>{d.online ? tr("Đang gửi") : tr("Mất kết nối")}</Badge>
         <Badge tone={d.status === "ACTIVE" ? "ok" : "neutral"}>{d.status === "ACTIVE" ? tr("Hoạt động") : tr("Ngừng")}</Badge>
-        {d.simulated && <Badge tone="warn">{tr("Mô phỏng")}</Badge>}
       </div>
 
       {field ? (

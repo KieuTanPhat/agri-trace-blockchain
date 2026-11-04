@@ -15,8 +15,10 @@ import { scopedCycleReadWhere } from '../supply-chains/business-read-scope.js';
 import type {
   BindDeviceInput,
   DeviceStatusInput,
+  DeviceVersionInput,
   RegisterDeviceInput,
   RotateDeviceKeyInput,
+  UpdateDeviceInput,
 } from './device-dto.js';
 
 /** A device that reported within this window is shown as online. */
@@ -55,6 +57,7 @@ export class DeviceRegistryService {
       where: {
         organizationId: actor.organizationId!,
         type: { in: ['FIELD_SENSOR', 'GPS_TRACKER'] },
+        archivedAt: null,
       },
       select: DEVICE_SELECT,
       orderBy: { createdAt: 'desc' },
@@ -253,6 +256,44 @@ export class DeviceRegistryService {
         throw new ConflictException('Xe đã có GPS khác đang hoạt động');
       const record = await tx.iotDevice.update({ where: { id }, data: { status: input.status }, select: DEVICE_SELECT });
       return { record };
+    });
+  }
+
+  /** Renames a device; the name is not part of its signing identity. */
+  update(actor: CommandActor, id: string, input: UpdateDeviceInput) {
+    return commandTransaction(this.prisma, async (tx) => {
+      await enterpriseAuthority(tx, actor, 'devices.manage', undefined, undefined, true);
+      await this.lockDevice(tx, actor, id, input.version);
+      const record = await tx.iotDevice.update({ where: { id }, data: { name: input.name.trim(), updatedAt: new Date() }, select: DEVICE_SELECT });
+      return { record };
+    });
+  }
+
+  /** A device that never sent data is deleted. One with readings or positions
+   * keeps them for traceability: it is stopped, detached and hidden instead. */
+  remove(actor: CommandActor, id: string, input: DeviceVersionInput) {
+    return commandTransaction(this.prisma, async (tx) => {
+      await enterpriseAuthority(tx, actor, 'devices.manage', undefined, undefined, true);
+      const device = await this.lockDevice(tx, actor, id, input.version);
+      if (device.type === 'GPS_TRACKER') await this.lockVehicles(tx, [device.vehicleId]);
+      if (device.vehicleId && (await tx.distributionTransfer.count({ where: { vehicleId: device.vehicleId, status: 'IN_TRANSIT', inTransitAt: { not: null } } })))
+        throw new ConflictException('Xe đang chở hàng; chỉ xóa GPS sau khi phiếu được ký nhận');
+      const [readings, positions, telemetry, digests, bindings] = await Promise.all([
+        tx.sensorReading.count({ where: { deviceId: id } }),
+        tx.distributionPosition.count({ where: { deviceId: id } }),
+        tx.shipmentTelemetry.count({ where: { deviceId: id } }),
+        tx.shipmentTelemetryDigest.count({ where: { deviceId: id } }),
+        tx.shipmentTrackingBinding.count({ where: { deviceId: id } }),
+      ]);
+      if (readings + positions + telemetry + digests + bindings === 0) {
+        await tx.iotDevice.delete({ where: { id } });
+        return { record: { id, deleted: true } };
+      }
+      await tx.iotDevice.update({
+        where: { id },
+        data: { status: 'INACTIVE', plotId: null, vehicleId: null, archivedAt: new Date(), updatedAt: new Date() },
+      });
+      return { record: { id, deleted: false, archived: true } };
     });
   }
 

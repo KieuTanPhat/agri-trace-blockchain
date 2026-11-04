@@ -42,9 +42,14 @@ test("a moving vehicle shows its assignment and readings while GPS rebinding is 
   await page.goto("/enterprise/devices");
   await expect(page.getByText("51C-TEST", { exact: true })).toBeVisible();
   await expect(page.getByText("Lâm Đồng → Hồ Chí Minh", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Gắn", exact: true })).toBeDisabled();
+  // The list only opens the detail; device actions live there.
+  await expect(page.getByRole("button", { name: "Gắn", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Chi tiết", exact: true }).click();
   const detail = page.getByTestId("device-detail");
   await expect(detail).toBeVisible();
-  await expect(detail.getByText("Mô phỏng", { exact: true })).toBeVisible();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("button", { name: "Gắn", exact: true })).toBeDisabled();
+  await expect(sheet.getByRole("button", { name: "Xóa", exact: true })).toBeDisabled();
+  await expect(sheet.getByRole("button", { name: "Sửa", exact: true })).toBeEnabled();
+  await expect(sheet.getByText("Mô phỏng", { exact: true })).toHaveCount(0);
 });

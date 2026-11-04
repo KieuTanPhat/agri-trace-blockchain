@@ -279,6 +279,8 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_DEVICE_BIND: 'devices.manage',
   EW_DEVICE_ROTATE_KEY: 'devices.manage',
   EW_DEVICE_STATUS: 'devices.manage',
+  EW_DEVICE_UPDATE: 'devices.manage',
+  EW_DEVICE_DELETE: 'devices.manage',
   EW_UPDATE_VEHICLE: 'vehicles.manage',
   EW_CREATE_PRODUCT: 'catalog.manage',
   EW_UPDATE_PRODUCT: 'catalog.manage',

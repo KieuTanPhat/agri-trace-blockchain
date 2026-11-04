@@ -51,6 +51,10 @@ export class RotateDeviceKeyInput extends DeviceVersionInput {
   @ApiProperty({ pattern: SPKI.source }) @Matches(SPKI) publicKey!: string;
 }
 
+export class UpdateDeviceInput extends DeviceVersionInput {
+  @ApiProperty({ maxLength: 255 }) @IsString() @MinLength(1) @MaxLength(255) name!: string;
+}
+
 export class DeviceStatusInput extends DeviceVersionInput {
   @ApiProperty({ enum: ['ACTIVE', 'INACTIVE'] }) @IsIn(['ACTIVE', 'INACTIVE']) status!: 'ACTIVE' | 'INACTIVE';
 }

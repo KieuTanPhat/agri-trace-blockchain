@@ -36,6 +36,7 @@ const registerSchema = z
 const bindSchema = z.object({ target: z.string().optional() });
 const keySchema = z.object({ publicKey: z.string().trim().regex(SPKI, { error: () => tr("Khóa công khai Ed25519 dạng base64url (59 ký tự)") }) });
 const emptySchema = z.object({});
+const nameSchema = z.object({ name: z.string().trim().min(1, { error: () => tr("Không được để trống") }).max(255) });
 
 export default function DevicesPage() {
   const { can } = useWorkspaceAccess();
@@ -46,6 +47,8 @@ export default function DevicesPage() {
   const bind = useDialog<Device>();
   const rotate = useDialog<Device>();
   const toggle = useDialog<Device>();
+  const rename = useDialog<Device>();
+  const remove = useDialog<Device>();
   const plots = (options.data?.plots ?? []).map((p) => ({ value: p.id, label: `${p.farm.name} · ${p.name}` }));
   // A GPS goes only on a parked vehicle without another active tracker.
   const vehicleOptions = (deviceId?: string) =>
@@ -104,25 +107,13 @@ export default function DevicesPage() {
       key: "status",
       header: tr("Trạng thái"),
       cell: (d) => (
-        <span className="flex flex-wrap gap-1">
-          <Badge tone={d.status === "ACTIVE" ? "ok" : "neutral"}>{d.status === "ACTIVE" ? tr("Hoạt động") : tr("Ngừng")}</Badge>
-          {d.simulated && <Badge tone="warn">{tr("Mô phỏng")}</Badge>}
-        </span>
+        <Badge tone={d.status === "ACTIVE" ? "ok" : "neutral"}>{d.status === "ACTIVE" ? tr("Hoạt động") : tr("Ngừng")}</Badge>
       ),
     },
     {
       key: "act",
       header: <span className="sr-only">{tr("Thao tác")}</span>,
-      cell: (d) => (
-          <span className="flex flex-wrap gap-1">
-            <Button size="xs" variant="outline" onClick={() => setOpenId(d.id)}>{tr("Chi tiết")}</Button>
-            {manage && <>
-            <Button size="xs" variant="outline" disabled={!!d.activeTransfer} title={d.activeTransfer ? tr("Xe đang chở hàng; đổi hoặc tháo GPS sau khi phiếu được ký nhận") : undefined} onClick={() => { void options.refetch(); bind.open(d); }}>{tr("Gắn")}</Button>
-            <Button size="xs" variant="outline" onClick={() => rotate.open(d)}>{tr("Đổi khóa")}</Button>
-            <Button size="xs" variant="outline" onClick={() => toggle.open(d)}>{d.status === "ACTIVE" ? tr("Ngừng") : tr("Kích hoạt")}</Button>
-            </>}
-          </span>
-      ),
+      cell: (d) => <Button size="xs" variant="outline" onClick={() => setOpenId(d.id)}>{tr("Chi tiết")}</Button>,
     },
   ];
 
@@ -147,6 +138,16 @@ export default function DevicesPage() {
             <SheetTitle>{opened?.name}</SheetTitle>
             <SheetDescription>{opened ? tr(KIND_LABEL[opened.type] ?? opened.type) : ""}</SheetDescription>
           </SheetHeader>
+          {opened && manage && (
+            // Device actions live in the detail so the list stays a plain overview.
+            <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+              <Button size="xs" variant="outline" onClick={() => rename.open(opened)}>{tr("Sửa")}</Button>
+              <Button size="xs" variant="outline" disabled={!!opened.activeTransfer} title={opened.activeTransfer ? tr("Xe đang chở hàng; đổi hoặc tháo GPS sau khi phiếu được ký nhận") : undefined} onClick={() => { void options.refetch(); bind.open(opened); }}>{tr("Gắn")}</Button>
+              <Button size="xs" variant="outline" onClick={() => rotate.open(opened)}>{tr("Đổi khóa")}</Button>
+              <Button size="xs" variant="outline" onClick={() => toggle.open(opened)}>{opened.status === "ACTIVE" ? tr("Ngừng") : tr("Kích hoạt")}</Button>
+              <Button size="xs" variant="outline" className="text-danger" disabled={!!opened.activeTransfer} onClick={() => remove.open(opened)}>{tr("Xóa")}</Button>
+            </div>
+          )}
           {opened && <DeviceDetail id={opened.id} />}
         </SheetContent>
       </Sheet>
@@ -191,7 +192,7 @@ export default function DevicesPage() {
                 ) : (
                   <SelectField control={f.control} name="vehicleId" label={tr("Xe")} options={vehicles} hint={vehicles.length ? (busyVehicles.length ? tr("Không hiện xe đang chở hàng hoặc đã có GPS: {p0}", { p0: busyVehicles.map((v) => v.registration).join(", ") }) : undefined) : (options.data?.vehicles.length ? tr("Mọi xe đang chở hàng hoặc đã có GPS. Gắn sau khi phiếu được ký nhận.") : tr("Doanh nghiệp chưa khai xe nào đang hoạt động. Thêm xe ở Tài nguyên → Phương tiện."))} />
                 )}
-                <ChoiceField control={f.control} name="simulated" label={tr("Nguồn thiết bị")} options={[{ value: "yes", label: tr("Thiết bị ảo (mô phỏng)"), help: tr("Dữ liệu luôn hiện nhãn mô phỏng, kể cả trên QR") }, { value: "no", label: tr("Thiết bị thật") }]} />
+                <ChoiceField control={f.control} name="simulated" label={tr("Nguồn thiết bị")} options={[{ value: "yes", label: tr("Thiết bị ảo"), help: tr("Gửi dữ liệu từ bảng điều khiển thiết bị ảo") }, { value: "no", label: tr("Thiết bị thật") }]} />
               </>
             );
           }}
@@ -236,6 +237,41 @@ export default function DevicesPage() {
           run={(v, cmd) => iotApi.rotateKey(rotate.target!.id, { version: rotate.target!.authorityRevision, publicKey: v.publicKey }, cmd)}
         >
           {(f) => <TextField control={f.control} name="publicKey" label={tr("Khóa công khai mới")} />}
+        </CommandDialog>
+      )}
+
+      {rename.target && (
+        <CommandDialog
+          {...rename.props}
+          title={tr("Sửa thiết bị {p0}", { p0: rename.target.name })}
+          endpoint={`POST /iot/v2/devices/${rename.target.id}/profile`}
+          description={tr("Mã thiết bị và khóa không đổi ở đây; dùng Đổi khóa khi thay thiết bị.")}
+          schema={nameSchema}
+          defaultValues={{ name: rename.target.name }}
+          version={rename.target.authorityRevision}
+          submitLabel={tr("Lưu")}
+          invalidate={[["iot-devices"]]}
+          run={(v, cmd) => iotApi.update(rename.target!.id, { version: rename.target!.authorityRevision, name: v.name }, cmd)}
+        >
+          {(f) => <TextField control={f.control} name="name" label={tr("Tên gợi nhớ")} max={255} />}
+        </CommandDialog>
+      )}
+
+      {remove.target && (
+        <CommandDialog
+          {...remove.props}
+          title={tr("Xóa thiết bị {p0}", { p0: remove.target.name })}
+          endpoint={`POST /iot/v2/devices/${remove.target.id}/delete`}
+          description={tr("Thiết bị chưa gửi dữ liệu sẽ bị xóa hẳn. Thiết bị đã có dữ liệu được ngừng, tháo khỏi tài sản và ẩn khỏi danh sách; dữ liệu đã ghi vẫn giữ cho truy xuất.")}
+          schema={emptySchema}
+          defaultValues={{}}
+          version={remove.target.authorityRevision}
+          submitLabel={tr("Xóa")}
+          tone="danger"
+          invalidate={[["iot-devices"], ["iot-device-options"]]}
+          run={async (_, cmd) => { const r = await iotApi.remove(remove.target!.id, { version: remove.target!.authorityRevision }, cmd); setOpenId(null); return r; }}
+        >
+          {() => null}
         </CommandDialog>
       )}
 

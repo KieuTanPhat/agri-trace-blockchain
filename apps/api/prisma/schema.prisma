@@ -1941,6 +1941,8 @@ model IotDevice {
   /// Ed25519 raw public key, base64url; the device keeps its private key.
   publicKey                String?                   @map("public_key") @db.VarChar(64)
   simulated                Boolean                   @default(false)
+  /// Removed from the device list; kept only because it already sent data.
+  archivedAt               DateTime?                 @map("archived_at") @db.Timestamptz(6)
   plot                     Plot?                     @relation(fields: [plotId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   vehicle                  EnterpriseVehicle?        @relation(fields: [vehicleId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   positions                DistributionPosition[]
