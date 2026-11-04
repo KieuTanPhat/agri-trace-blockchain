@@ -69,6 +69,7 @@ export class ComplianceController {
 
   @ApiDataResponse(InspectionRecordDto, 201)
   @Roles(...COMPLIANCE_REVIEW_ROLES)
+  @CommandPolicy('COMPLIANCE_REVIEWER')
   @ApiForbiddenResponse({
     description:
       'Chỉ tài khoản Kiểm định (AUDITOR) có assignment active với Farm của Lot được ghi inspection.',
@@ -136,6 +137,7 @@ export class ComplianceController {
 
   @ApiDataResponse(CertificateRecordDto, 200)
   @Roles(...COMPLIANCE_REVIEW_ROLES)
+  @CommandPolicy('COMPLIANCE_REVIEWER')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @Patch('certificates/:id/review')
   @ApiForbiddenResponse({

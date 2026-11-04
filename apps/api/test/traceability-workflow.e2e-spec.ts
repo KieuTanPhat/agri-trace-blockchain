@@ -1889,7 +1889,6 @@ const prisma = new PrismaClient({
             (action) => `/shipments/${shipment.id}/${action}`,
           ),
           '/certificates',
-          '/inspections',
           '/iot/readings',
           ...['telemetry', 'devices', 'telemetry-digests'].map(
             (action) => `/iot/shipments/${shipment.id}/${action}`,
@@ -1919,11 +1918,18 @@ const prisma = new PrismaClient({
         });
         const before = await snapshot();
         for (const path of routes) await post(path, {}, user).expect(403);
+        // An inspector passes the route guard, so send a valid body: the denial
+        // must come from the missing chain grant and farm assignment.
+        await post(
+          '/inspections',
+          { lotId: lot.id, result: 'PASS', inspectedAt: '2026-09-27T00:00:00.000Z' },
+          user,
+        ).expect(403);
         await request(app.getHttpServer())
           .patch(`/api/certificates/${certificate.id}/review`)
           .set('Authorization', bearer(user))
           .set('Idempotency-Key', randomUUID())
-          .send({ status: 'APPROVED' })
+          .send({ version: certificate.version, status: 'APPROVED' })
           .expect(403);
         expect(await snapshot()).toEqual(before);
         for (const path of [
