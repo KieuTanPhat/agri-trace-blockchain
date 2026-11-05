@@ -53,6 +53,7 @@ model Role {
 }
 
 model User {
+  staffPasswordResets StaffPasswordReset[]
   phone                      String?                     @db.VarChar(30)
   jobTitle                   String?                     @map("job_title") @db.VarChar(255)
   workSiteId                 String?                     @map("work_site_id") @db.Uuid
@@ -110,6 +111,7 @@ model User {
 
   @@unique([id, organizationId], map: "uq_user_org_scope")
   @@map("app_user")
+  contractPreviews           ServiceContractPreview[] @relation("ServiceContractPreviewCreator")
   credentialMails             EnterpriseMail[]            @relation("AccountCredentialMail")
 }
 
@@ -349,6 +351,7 @@ model Invoice {
   subscription      Subscription?       @relation(fields: [subscriptionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   planVersion       ServicePlanVersion? @relation(fields: [planVersionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   payments          InvoicePayment[]
+  sepayReceipts     SepayWebhookReceipt[]
 
   @@index([organizationId, issuedAt(sort: Desc)], map: "ix_invoice_org")
   @@index([status, dueAt], map: "ix_invoice_status")
@@ -368,6 +371,23 @@ model InvoicePayment {
 
   @@index([invoiceId], map: "ix_invoice_payment_invoice")
   @@map("invoice_payment")
+}
+
+/// Append-only provider receipts. A retry cannot apply a bank transaction twice.
+model SepayWebhookReceipt {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mode          String   @db.VarChar(4)
+  transactionId String   @map("transaction_id") @db.VarChar(20)
+  payloadHash   String   @map("payload_hash") @db.VarChar(64)
+  invoiceId     String?  @map("invoice_id") @db.Uuid
+  outcome       String   @db.VarChar(20)
+  reason        String   @db.VarChar(100)
+  receivedAt    DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+  invoice       Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([mode, transactionId])
+  @@index([invoiceId, receivedAt(sort: Desc)])
+  @@map("sepay_webhook_receipt")
 }
 
 /// A processor consumes held input lots and creates finished lots. Completed
@@ -736,6 +756,7 @@ model EnterpriseEnrollment {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   serviceOrder EnterpriseServiceOrder?
+  contractPreviews ServiceContractPreview[]
   messages EnterpriseMail[]
   @@map("enterprise_enrollment")
 }
@@ -803,6 +824,27 @@ model EnterpriseRegistrationDocument {
 }
 
 /// Immutable quotation/contract snapshot; only its simulated settlement may advance.
+/// Private immutable PDF preview; acceptance copies the exact bytes, never rerenders.
+model ServiceContractPreview {
+  id String @id @db.Uuid
+  enrollmentId String @map("enrollment_id") @db.Uuid
+  createdBy String @map("created_by") @db.Uuid
+  input Json
+  quotation Json
+  contractText String @map("contract_text")
+  sourceDigest String @map("source_digest") @db.VarChar(64)
+  contractDigest String @unique @map("contract_digest") @db.VarChar(64)
+  pdfBytes Bytes @map("pdf_bytes")
+  pdfSha256 String @map("pdf_sha256") @db.VarChar(64)
+  templateVersion String @map("template_version") @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  enrollment EnterpriseEnrollment @relation(fields:[enrollmentId],references:[id],onDelete:Restrict)
+  creator User @relation("ServiceContractPreviewCreator",fields:[createdBy],references:[id],onDelete:Restrict,onUpdate:NoAction)
+  @@index([enrollmentId,createdAt(sort:Desc)])
+  @@map("service_contract_preview")
+}
+
 model EnterpriseServiceOrder {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   enrollmentId String @unique @map("enrollment_id") @db.Uuid
@@ -814,6 +856,9 @@ model EnterpriseServiceOrder {
   quotation Json
   contractText String @map("contract_text")
   contractDigest String @map("contract_digest") @db.VarChar(64)
+  contractPdf Bytes? @map("contract_pdf")
+  contractPdfHash String? @map("contract_pdf_hash") @db.VarChar(64)
+  contractTemplateVersion String? @map("contract_template_version") @db.VarChar(40)
   status String @default("AWAITING_PAYMENT") @db.VarChar(30)
   acceptedAt DateTime @map("accepted_at") @db.Timestamptz(6)
   paidAt DateTime? @map("paid_at") @db.Timestamptz(6)
@@ -828,6 +873,8 @@ model EnterpriseMail {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   enrollmentId String? @map("enrollment_id") @db.Uuid
   userId String? @map("user_id") @db.Uuid
+  staffResetId String? @unique @map("staff_reset_id") @db.Uuid
+  staffReset StaffPasswordReset? @relation(fields:[staffResetId],references:[id],onDelete:Restrict)
   verificationId String? @unique @map("verification_id") @db.Uuid
   otpCiphertext String? @map("otp_ciphertext")
   kind String @db.VarChar(30)
@@ -835,6 +882,8 @@ model EnterpriseMail {
   subject String @db.VarChar(255)
   text String
   attachment String?
+  attachmentPdf Bytes? @map("attachment_pdf")
+  attachmentPdfHash String? @map("attachment_pdf_hash") @db.VarChar(64)
   status String @default("PENDING") @db.VarChar(20)
   attempts Int @default(0)
   nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
@@ -848,6 +897,24 @@ model EnterpriseMail {
   @@unique([enrollmentId, kind])
   @@index([status, nextAttemptAt])
   @@map("enterprise_mail")
+}
+
+model StaffPasswordReset {
+  id String @id @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  email String @db.VarChar(255)
+  passwordDigest String @map("password_digest") @db.VarChar(64)
+  codeDigest String @map("code_digest") @db.VarChar(64)
+  attempts Int @default(0)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  mail EnterpriseMail?
+  @@index([userId, createdAt(sort: Desc)], map: "ix_staff_reset_user_created")
+  @@unique([userId], map: "uq_staff_reset_open", where: raw("((consumed_at IS NULL) AND (superseded_at IS NULL))"))
+  @@map("staff_password_reset")
 }
 
 model RegistrationEmailVerification {

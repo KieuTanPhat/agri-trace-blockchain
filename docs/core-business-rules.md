@@ -145,13 +145,18 @@ shows temporary use and refuses quotation/order/payment commands. The optional
 flow below applies only after an operator explicitly enables collection.
 
 Approval alone does not grant business authority for new enrollments. An owner
-previews and acknowledges an immutable service quotation/contract, then local
-simulated settlement records `PAID_SIMULATED` and queues the contract email; it
-does not grant capabilities or organization roles. A separate SYSTEM_ADMIN
-activation command grants the approved business authority and records
-`ENTERPRISE_SERVICE_ACTIVATED`. Amounts come from the versioned server catalog,
-never the submitted client. Real payment and qualified contract signatures remain
-unimplemented. Existing enrollments retain their previous admission policy. SMTP
+previews and acknowledges an immutable service quotation/contract. A private, append-only PDF preview is merged from a versioned static template before acceptance; confirmation copies its exact bytes/hash to the order. Expired or changed previews cannot be accepted. Service history exposes only this owner organization's relevant steps; it does not grant platform audit access. Worker email attaches the same accepted PDF after confirmed settlement. Optional SePay
+settlement verifies the recipient, unique invoice code, exact server-side amount,
+transaction window and reviewed enrollment/capabilities. Receipt, invoice,
+subscription, contract, automatic activation and mail outbox share one commit.
+Test mode records `SIMULATION`/`PAID_SIMULATED`; Live records `SEPAY`/`PAID`.
+Retries cannot add another payment or extend the term twice. Automatic activation
+has a system audit actor and a deferred SQL check for its matching receipt; manual
+SYSTEM_ADMIN activation remains available under the existing policy. Amounts come
+from the versioned server catalog, never the submitted client. Qualified contract
+signatures remain separate work; PDF mail attachments use the accepted snapshot. The integration stays
+disabled by default and provider/production acceptance is not implied by local
+fixtures; see [SePay](sepay.md). Existing enrollments retain their previous admission policy. SMTP
 is Worker-only, requires TLS, and never relays reserved test recipients externally.
 There is no enterprise peer hosting mode or connection request. Chain creation atomically enqueues shared-platform ledger provisioning. Approval, settlement and service activation do not claim ledger readiness: registry, credential and permission confirmation remain mandatory. Enterprises keep independent signing keys; AgritraceMSP operates peers, and OrdererMSP operates ordering on the shared agritrace channel.
 
@@ -813,3 +818,42 @@ FOR_SALE, chuyến DELIVERED và availableQuantity > 0. Giao nhận mới đề 
 bị từ chối, đã tiêu thụ hoặc đã bán hết không đủ điều kiện. Hạn dùng theo ngày
 Việt Nam. Nếu không có nhà bán lẻ đáp ứng, hiển thị `Chưa bán`.
 Trạng thái sản phẩm tổng hợp không thay cảnh báo riêng của từng lô.
+
+### Quản trị danh mục gói dịch vụ
+
+`POST /platform-billing/plans` tạo gói và phiên bản DRAFT đầu tiên trong cùng
+transaction có audit/journal; mã gói không được tái sử dụng. Thêm gói không công
+bố, thu tiền hay cấp quyền. `POST /platform-billing/plans/:code/status` chỉ dành
+cho SYSTEM_ADMIN, yêu cầu Idempotency-Key, lý do và expectedStatus. Cùng khóa
+audit/plan với tạo phiên bản/công bố; quyết định trên trạng thái cũ trả 409.
+Ngừng cung cấp đổi service_plan.status thành RETIRED, không retire/sửa snapshot
+phiên bản đã công bố, không hủy thuê bao/hóa đơn/hợp đồng cũ. Danh mục chọn mua
+và gia hạn chỉ lấy ACTIVE có phiên bản PUBLISHED; mở lại gói chỉ có DRAFT chưa
+làm nó xuất hiện trong danh mục. Không công bố bản nháp khi gói đang ngừng cung cấp.
+
+### Khôi phục mật khẩu app nhân viên
+
+`POST /auth/staff/password-reset/request` và `/confirm` cùng gate
+STAFF_APP_AUTH_ENABLED/native origin, không nhận quyền của consumer hoặc owner.
+Challenge ràng buộc HMAC với requestId, userId, email và digest password hash
+tại lúc yêu cầu; lưu tối đa 5 lần sai và expiry 10 phút. Yêu cầu không đổi mật
+khẩu, không mở khóa tài khoản. Gửi mới thay mã cũ sau cooldown 60 giây, tối đa
+10 yêu cầu được cấp mã/ngày. Unknown/ineligible email nhận cùng thông báo.
+
+Xác nhận lấy lock audit → organization/user → challenge, đọc lại vai/trạng thái,
+email và snapshot mật khẩu; mật khẩu đã thay đổi từ lúc cấp mã làm proof vô hiệu.
+Mã sai tăng attempts trong transaction đã commit trước khi trả lỗi. Thành công
+tiêu thụ challenge, cập nhật bcrypt hash và passwordChangedAt/version, thu hồi
+tất cả refresh sessions và append audit cùng transaction. Không tạo session mới,
+không mở khóa role/platform hoặc bypass đổi mật khẩu. Migration mới chỉ thêm
+bảng recovery, liên kết outbox và mở rộng kind/scope; không sửa lịch sử cũ.
+
+### Audit nhân viên theo tổ chức (05/11/2026)
+
+Chủ doanh nghiệp có quyền quản lý thành viên được đọc lịch sử nhân viên hiện
+thuộc chính tổ chức mình. Quyền đọc không cấp cho nhân viên hoặc admin nền tảng
+qua endpoint doanh nghiệp. Chặn xem chéo cả danh sách, tìm kiếm và cursor; tổ
+chức lấy từ actor, đồng thời kiểm snapshot tổ chức của journal. Dùng nhật ký đã
+commit và audit tài khoản hiện có; không đổi hash/lịch sử hoặc lưu payload nhạy
+cảm chỉ để dựng trang. Trang chỉ đọc, không bao hàm mọi thao tác chưa được ghi
+nhật ký. Không nới phạm vi theo tham số organizationId phía client.

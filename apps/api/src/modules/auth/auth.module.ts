@@ -20,6 +20,7 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
 import { JwtModule, type JwtModuleOptions } from '@nestjs/jwt';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { StaffPasswordResetService } from './staff-password-reset.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { RolesGuard } from './roles.guard.js';
 import { OrganizationAccessService } from './organization-access.service.js';
@@ -50,6 +51,7 @@ import { PlatformMfaService } from '../platform-governance/platform-mfa.service.
   ],
   providers: [
     AuthService,
+    StaffPasswordResetService,
     JwtAuthGuard,
     RolesGuard,
     OrganizationAccessService,

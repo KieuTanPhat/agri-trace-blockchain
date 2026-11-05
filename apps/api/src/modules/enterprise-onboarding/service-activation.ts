@@ -109,7 +109,7 @@ export async function activateEnrollmentTx(
     ownerId: string;
     organization: { profile?: { registrationData?: unknown } | null };
   },
-  by: string,
+  by: string | null,
   reason: string,
 ) {
   await tx.enterpriseEnrollment.update({

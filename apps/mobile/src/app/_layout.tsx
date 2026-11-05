@@ -12,7 +12,8 @@ import {
 } from '@expo-google-fonts/be-vietnam-pro';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import Constants from 'expo-constants';
+import { BrandLoading } from '../components/BrandLogo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { color } from '../theme/tokens';
 
@@ -27,7 +28,7 @@ export default function RootLayout() {
     BeVietnamPro_600SemiBold,
     BeVietnamPro_700Bold,
   });
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: color.bg }} />;
+  if (!loaded) return <BrandLoading variant={Constants.expoConfig?.extra?.variant === 'staff' ? 'staff' : 'consumer'} />;
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />

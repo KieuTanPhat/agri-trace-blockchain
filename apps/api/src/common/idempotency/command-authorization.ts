@@ -269,6 +269,8 @@ export async function authorizeCommand(
     case 'PLATFORM_USER_RESET_PASSWORD':
     case 'PLATFORM_ORG_UPDATE':
     // Billing, organization/QR controls and platform configuration.
+    case 'PLATFORM_BILLING_PLAN_CREATE':
+    case 'PLATFORM_BILLING_PLAN_STATUS':
     case 'PLATFORM_BILLING_PLAN_DRAFT':
     case 'PLATFORM_BILLING_PLAN_PUBLISH':
     case 'PLATFORM_BILLING_CONFIRM_PAYMENT':

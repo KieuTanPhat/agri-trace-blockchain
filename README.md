@@ -118,13 +118,16 @@ Doanh nghiệp vào `/register` (chọn vai trò, năm bước, OTP email đăng
 admin xét hồ sơ và từng năng lực, sau đó kích hoạt sử dụng tạm riêng; doanh nghiệp
 theo dõi ở `/enterprise/service`. Luồng này không tạo hóa đơn, thanh toán hoặc
 subscription giả. Quyền ghi truy xuất vẫn yêu cầu binding và quyền chuỗi hợp lệ.
-Khi operator chủ động bật thanh toán, doanh nghiệp chọn mô hình peer/gói dịch vụ,
-xem hợp đồng ở `/enterprise/service/contract` và thanh toán mô phỏng local ở
-`/enterprise/service/payment`; luồng mô phỏng chỉ ghi `PAID_SIMULATED` và xếp hàng
-email hợp đồng, không thu tiền thật. Kích hoạt dịch vụ vẫn là quyết định riêng
-trước khi cấp quyền nghiệp vụ hoặc yêu cầu peer tại `/enterprise/connections`. Hợp đồng và kết
-quả xét duyệt gửi bằng Worker mail; SMTP dùng file private, test dùng Mailpit.
-Chưa tích hợp thu tiền NAPAS/QR hoặc chữ ký số hợp đồng có chứng thư.
+Khi operator chủ động bật thanh toán, chủ chuỗi chọn gói, xem hợp đồng ở
+`/enterprise/service/contract` và thanh toán tại `/enterprise/service/payment`.
+Tích hợp [SePay](docs/sepay.md) mặc định tắt: webhook xác thực giao dịch khớp hóa
+đơn rồi cập nhật thuê bao và tự kích hoạt nếu hồ sơ/năng lực đã được duyệt.
+Test mode chỉ ghi `SIMULATION`/`PAID_SIMULATED`, không thu tiền thật; Live ghi
+`SEPAY`/`PAID` và cần nghiệm thu riêng. Hợp đồng và kết quả xét duyệt gửi bằng
+Worker mail; [Gmail SMTP](docs/email.md) dùng file private, Mailpit chỉ dùng khi
+chủ động test offline. Hợp đồng mới gửi kèm đúng PDF đã xác nhận; hợp đồng HTML
+cũ giữ lịch sử. Chữ ký số có chứng thư là công việc riêng. Không cấu hình
+peer riêng cho doanh nghiệp; chuỗi dùng hạ tầng chung.
 Quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission
 (`ENTERPRISE_ONBOARDING_ENABLED=false`). Demo cách ly bật `true` ở cả hai process;
 xem [quy tắc đăng ký](docs/core-business-rules.md#enterprise-workspace-and-source-preserving-distribution) và
@@ -143,8 +146,10 @@ chạy:
 docker compose --env-file .env.docker up --build
 ```
 
-The local Worker sends queued email to Mailpit, not to real inboxes. View
-captured messages at `http://localhost:8025`.
+Worker local dùng SMTP: điền Gmail và App Password vào `.env.docker` theo
+[hướng dẫn email](docs/email.md). Mailpit là profile test tùy chọn; dùng
+`MAIL_TRANSPORT=mailpit docker compose --env-file .env.docker --profile mailpit up --build`
+khi cần hộp thư offline tại `http://localhost:8025`.
 
 PostgreSQL 18 dùng volume tại `/var/lib/postgresql`. Volume đã khởi tạo bằng
 PostgreSQL 16 cần quy trình chuyển dữ liệu hoặc tạo mới có ủy quyền; thay tag image

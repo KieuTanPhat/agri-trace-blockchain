@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
+import { BrandLogo } from '../../components/BrandLogo';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { errorText } from '../../api/client';
 import { useSession } from '../../auth/session';
@@ -45,8 +46,8 @@ export default function StaffLogin() {
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 104, gap: 22 }}
         >
           <View style={{ alignItems: 'center', gap: 5 }}>
-            <Image source={require('../../../assets/brand/logo-agritrace.webp')} style={{ width: 232, height: 112 }} contentFit="contain" accessibilityLabel="AgriTrace" />
-            <T size={25} weight="heavy" style={{ textAlign: 'center' }}>
+            <BrandLogo variant="staff" maxWidth={288} />
+            <T size={25} weight="heavy" style={{ textAlign: 'center', flexShrink: 1 }}>
               Đăng nhập nhân viên
             </T>
           </View>
@@ -55,6 +56,9 @@ export default function StaffLogin() {
             <Field label="Mật khẩu" icon="lock" value={password} onChangeText={setPassword} secure autoComplete="current-password" textContentType="password" placeholder="Nhập mật khẩu" onSubmitEditing={() => void submit()} />
             {error && <Notice kind="error" title={error} />}
             <Button label="Đăng nhập" onPress={() => void submit()} loading={busy} disabled={!email.trim() || !password} />
+            <Pressable accessibilityRole="link" accessibilityLabel="Quên mật khẩu?" disabled={busy} onPress={() => router.push('/staff/forgot-password')} style={{alignSelf:'center',padding:10,minHeight:44,justifyContent:'center'}}>
+              <T size={14} weight="bold" c="#176540">Quên mật khẩu?</T>
+            </Pressable>
           </Card>
         </ScrollView>
       </KeyboardAvoidingView>

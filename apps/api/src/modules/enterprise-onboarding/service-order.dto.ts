@@ -85,14 +85,52 @@ export class ServiceOrderView {
   >;
   @ApiProperty() contractText!: string;
   @ApiProperty() contractDigest!: string;
-  @ApiProperty({ enum: ['AWAITING_PAYMENT', 'PAID_SIMULATED'] })
+  @ApiProperty() hasPdf!: boolean;
+  @ApiPropertyOptional({ type: String, nullable: true }) pdfSha256!:
+    string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) templateVersion!:
+    string | null;
+  @ApiProperty({ enum: ['AWAITING_PAYMENT', 'PAID_SIMULATED', 'PAID'] })
   status!: string;
   @ApiProperty() version!: number;
   @ApiProperty({ format: 'date-time' }) acceptedAt!: string;
   @ApiPropertyOptional({ type: String, nullable: true, format: 'date-time' })
   paidAt!: string | null;
 }
+export class ServiceContractFileView {
+  @ApiProperty() filename!: string;
+  @ApiProperty({ enum: ['application/pdf'] }) contentType!: string;
+  @ApiProperty() sha256!: string;
+  @ApiProperty({
+    description:
+      'Private PDF bytes encoded as base64; never a public download URL',
+  })
+  contentBase64!: string;
+}
+export class ServiceContractHistoryView {
+  @ApiProperty() id!: string;
+  @ApiProperty() action!: string;
+  @ApiProperty({ format: 'date-time' }) occurredAt!: string;
+  @ApiProperty() outcome!: string;
+}
+export class ServicePreviewView {
+  @ApiProperty({ type: Object, additionalProperties: true }) quotation!: Record<
+    string,
+    unknown
+  >;
+  @ApiProperty() contractText!: string;
+  @ApiProperty() contractDigest!: string;
+  @ApiProperty() previewId!: string;
+  @ApiProperty() pdfSha256!: string;
+  @ApiProperty() templateVersion!: string;
+  @ApiProperty({ format: 'date-time' }) expiresAt!: string;
+  @ApiProperty({ type: ServiceQuoteInput }) input!: ServiceQuoteInput;
+}
 export class ServiceWorkspaceView {
+  @ApiPropertyOptional({ type: ServicePreviewView, nullable: true })
+  latestPreview!: ServicePreviewView | null;
+  @ApiProperty({ type: [ServiceContractHistoryView] })
+  history!: ServiceContractHistoryView[];
   @ApiProperty() stage!: string;
   @ApiProperty({ type: () => ServiceCatalogView }) catalog!: Record<
     string,
@@ -102,14 +140,6 @@ export class ServiceWorkspaceView {
   order!: ServiceOrderView | null;
   @ApiProperty({ type: Object, additionalProperties: true, isArray: true })
   emails!: Array<Record<string, unknown>>;
-}
-export class ServicePreviewView {
-  @ApiProperty({ type: Object, additionalProperties: true }) quotation!: Record<
-    string,
-    unknown
-  >;
-  @ApiProperty() contractText!: string;
-  @ApiProperty() contractDigest!: string;
 }
 export class EnterpriseAccessView {
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 3, nullable: true })

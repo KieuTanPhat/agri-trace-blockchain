@@ -99,6 +99,7 @@ const table: Record<string, Record<string, Entry>> = {
     NONE: ["Chưa có gói", "warn"],
   },
   plan: {
+    RETIRED: ["Ngừng áp dụng", "neutral"],
     DRAFT: ["Bản nháp", "warn"],
     PUBLISHED: ["Đã công bố", "ok"],
   },

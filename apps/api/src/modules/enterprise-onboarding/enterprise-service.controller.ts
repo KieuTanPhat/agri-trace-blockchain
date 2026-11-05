@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
@@ -17,6 +27,7 @@ import {
   ServicePreviewView,
   ServiceQuoteInput,
   ServiceWorkspaceView,
+  ServiceContractFileView,
 } from './service-order.dto.js';
 import { VIETNAM_ADDRESSES } from './address-catalog.js';
 import { serviceCatalog } from './service-catalog.js';
@@ -68,12 +79,22 @@ export class EnterpriseServiceController {
   mine(@Req() req: AuthenticatedRequest) {
     return this.service.mine(req.user);
   }
+  @Get('enterprise-service/documents/:kind/:id')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiDataResponse(ServiceContractFileView)
+  document(
+    @Req() req: AuthenticatedRequest,
+    @Param('kind') kind: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.document(req.user, kind, id);
+  }
   @Post('enterprise-service/preview')
   @ApiHeader({
     name: 'Idempotency-Key',
     required: true,
     description:
-      'Preview request identifier. This operation is pure and does not create a contract.',
+      'Idempotent PDF snapshot preview; acceptance is a separate command.',
   })
   @ApiDataResponse(ServicePreviewView, 201)
   preview(
@@ -81,8 +102,18 @@ export class EnterpriseServiceController {
     @Body() input: ServiceQuoteInput,
     @IdempotencyKey() key: string,
   ) {
-    void key;
-    return this.service.preview(req.user, input);
+    return this.idem.executeCommand(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
+        operation: 'ENTERPRISE_SERVICE_PREVIEW',
+        requestType: 'COMMAND',
+        payload: input,
+      },
+      () => this.service.preview(req.user, input),
+    );
   }
   @Post('enterprise-service/orders')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
@@ -123,7 +154,10 @@ export class EnterpriseServiceController {
         requestType: 'COMMAND',
         payload: input,
       },
-      () => commandTransaction(this.db, (tx) => upgradeToChainOwner(tx, req.user, input)),
+      () =>
+        commandTransaction(this.db, (tx) =>
+          upgradeToChainOwner(tx, req.user, input),
+        ),
     );
   }
   @Post('capability-requests')
@@ -144,7 +178,10 @@ export class EnterpriseServiceController {
         requestType: 'COMMAND',
         payload: input,
       },
-      () => commandTransaction(this.db, (tx) => requestCapability(tx, req.user, input)),
+      () =>
+        commandTransaction(this.db, (tx) =>
+          requestCapability(tx, req.user, input),
+        ),
     );
   }
   @Post('enterprise-service/payment-simulation')

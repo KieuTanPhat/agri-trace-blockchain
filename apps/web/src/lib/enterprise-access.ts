@@ -33,6 +33,7 @@ export function canUseEnterpriseRoute(
   if (!active) return false;
   const permissions = access.permissions,
     has = (p: string) => permissions.includes(p);
+  if (within("/enterprise/audit-log")) return access.primary && has("members.manage");
   if (within("/enterprise/members/new")) return has("members.manage");
   if (within("/enterprise/members"))
     return has(

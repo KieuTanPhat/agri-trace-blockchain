@@ -10,7 +10,7 @@ describe('Mobile transfer presentation', () => {
   it('uses the lifecycle returned by the API', () => {
     expect(transferStatus('READY')).toEqual({ label: 'Sẵn sàng lấy hàng', t: 'orange' });
     expect(transferStatus('DELIVERED')).toEqual({ label: 'Đã giao', t: 'green' });
-    expect(transferStatus('PROPOSED').label).toBe('Chờ đồng thuận');
+    expect(transferStatus('PROPOSED').label).toBe('Chờ xác nhận');
     expect(transferStatus('FUTURE_STATE').label).toBe('Trạng thái chưa xác định');
   });
   it('does not display signatures from a superseded consent epoch as current', () => {
@@ -23,7 +23,7 @@ describe('Mobile transfer presentation', () => {
     ] });
     expect(signatures.map((s) => s.id)).toEqual(['current-consent', 'current-delivery']);
     expect(signatures.map((s) => [s.phaseLabel, s.organizationName])).toEqual([
-      ['Đồng thuận', 'Vườn'], ['Giao hàng', 'Cửa hàng'],
+      ['Xác nhận', 'Vườn'], ['Giao hàng', 'Cửa hàng'],
     ]);
   });
   it('does not infer signatures from delivery status', () => {

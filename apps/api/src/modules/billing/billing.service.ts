@@ -8,7 +8,10 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
-import { appendPlatformAudit, lockPlatformAudit } from '../platform-governance/platform-audit.js';
+import {
+  appendPlatformAudit,
+  lockPlatformAudit,
+} from '../platform-governance/platform-audit.js';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { simulationEnabled } from '../enterprise-onboarding/service-catalog.js';
 import { assertEnterprisePaymentsEnabled } from '../enterprise-onboarding/payment-policy.js';
@@ -32,6 +35,8 @@ import {
 } from './billing-core.js';
 import type {
   ConfirmPaymentInput,
+  CreateServicePlanInput,
+  ServicePlanStatusInput,
   EnterpriseInvoicePayInput,
   EnterpriseRenewalInput,
   InvoiceQuery,
@@ -76,14 +81,110 @@ export class BillingService {
     };
   }
 
-  draftVersion(actor: CommandActor, planCode: string, input: PlanVersionDraftInput) {
+  createPlan(actor: CommandActor, input: CreateServicePlanInput) {
+    return commandTransaction(this.db, async (tx) => {
+      await lockPlatformAudit(tx);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan:${input.code}`},0))`;
+      if (await tx.servicePlan.findUnique({ where: { code: input.code } }))
+        throw new ConflictException('Mã gói dịch vụ đã tồn tại; chọn mã khác');
+      const plan = await tx.servicePlan.create({
+        data: {
+          code: input.code,
+          name: input.name,
+          description: input.description || null,
+        },
+      });
+      const version = await tx.servicePlanVersion.create({
+        data: {
+          planCode: plan.code,
+          version: 1,
+          setupFee: BigInt(input.setupFee),
+          annualFee: BigInt(input.annualFee),
+          termMonths: input.termMonths,
+          limits: { ...input.limits },
+          note: input.note,
+          createdBy: actor.sub,
+        },
+      });
+      await appendPlatformAudit(tx, {
+        actor: { sub: actor.sub, role: actor.role },
+        action: 'SERVICE_PLAN_CREATED',
+        subjectType: 'SERVICE_PLAN',
+        subjectId: plan.code,
+        reason: input.note,
+        details: {
+          name: plan.name,
+          planVersionId: version.id,
+          setupFee: input.setupFee,
+          annualFee: input.annualFee,
+          termMonths: input.termMonths,
+          limits: { ...input.limits },
+        },
+      });
+      return {
+        record: {
+          code: plan.code,
+          status: plan.status,
+          version: planVersionView(version),
+        },
+      };
+    });
+  }
+
+  setPlanStatus(
+    actor: CommandActor,
+    code: string,
+    input: ServicePlanStatusInput,
+  ) {
+    return commandTransaction(this.db, async (tx) => {
+      await lockPlatformAudit(tx);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan:${code}`},0))`;
+      const plan = await tx.servicePlan.findUnique({ where: { code } });
+      if (!plan) throw new NotFoundException('Không tìm thấy gói dịch vụ');
+      if (plan.status !== input.expectedStatus)
+        throw new ConflictException(
+          'Trạng thái gói đã thay đổi; tải lại danh sách trước khi thao tác',
+        );
+      if (plan.status === input.status)
+        throw new ConflictException('Gói đã ở trạng thái được yêu cầu');
+      const updated = await tx.servicePlan.update({
+        where: { code },
+        data: { status: input.status },
+      });
+      await appendPlatformAudit(tx, {
+        actor: { sub: actor.sub, role: actor.role },
+        action:
+          input.status === 'ACTIVE'
+            ? 'SERVICE_PLAN_RESUMED'
+            : 'SERVICE_PLAN_RETIRED',
+        subjectType: 'SERVICE_PLAN',
+        subjectId: code,
+        reason: input.reason,
+        details: { previousStatus: plan.status, status: updated.status },
+      });
+      // Published snapshots, existing subscriptions, invoices and contracts stay intact.
+      return { record: { code: updated.code, status: updated.status } };
+    });
+  }
+
+  draftVersion(
+    actor: CommandActor,
+    planCode: string,
+    input: PlanVersionDraftInput,
+  ) {
     return commandTransaction(this.db, async (tx) => {
       await lockPlatformAudit(tx);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan:${planCode}`},0))`;
-      const plan = await tx.servicePlan.findUnique({ where: { code: planCode } });
+      const plan = await tx.servicePlan.findUnique({
+        where: { code: planCode },
+      });
       if (!plan || plan.status !== 'ACTIVE')
         throw new NotFoundException('Không tìm thấy gói đang mở bán');
-      if (await tx.servicePlanVersion.findFirst({ where: { planCode, status: 'DRAFT' } }))
+      if (
+        await tx.servicePlanVersion.findFirst({
+          where: { planCode, status: 'DRAFT' },
+        })
+      )
         throw new ConflictException('Gói đã có một phiên bản nháp chờ công bố');
       const last = await tx.servicePlanVersion.aggregate({
         where: { planCode },
@@ -107,7 +208,13 @@ export class BillingService {
         subjectType: 'SERVICE_PLAN_VERSION',
         subjectId: created.id,
         reason: input.note,
-        details: { planCode, version: created.version, setupFee: input.setupFee, annualFee: input.annualFee, limits: { ...input.limits } },
+        details: {
+          planCode,
+          version: created.version,
+          setupFee: input.setupFee,
+          annualFee: input.annualFee,
+          limits: { ...input.limits },
+        },
       });
       return { record: planVersionView(created) };
     });
@@ -115,7 +222,9 @@ export class BillingService {
 
   publishVersion(actor: CommandActor, versionId: string, reason: string) {
     return commandTransaction(this.db, async (tx) => ({
-      record: planVersionView(await publishPlanVersionTx(tx, actor, versionId, reason)),
+      record: planVersionView(
+        await publishPlanVersionTx(tx, actor, versionId, reason),
+      ),
     }));
   }
 
@@ -137,8 +246,14 @@ export class BillingService {
       const effective = effectiveSubscriptionStatus(row, graceDays);
       if (
         query.status === 'EXPIRING'
-          ? !(effective === 'ACTIVE' && row.endsAt && row.endsAt.getTime() - Date.now() < 30 * 86_400_000)
-          : query.status && !['PENDING_PAYMENT', 'CANCELLED'].includes(query.status) && effective !== query.status
+          ? !(
+              effective === 'ACTIVE' &&
+              row.endsAt &&
+              row.endsAt.getTime() - Date.now() < 30 * 86_400_000
+            )
+          : query.status &&
+            !['PENDING_PAYMENT', 'CANCELLED'].includes(query.status) &&
+            effective !== query.status
       )
         continue;
       items.push(await subscriptionView(this.db, row));
@@ -149,7 +264,9 @@ export class BillingService {
   async invoices(query: InvoiceQuery) {
     const rows = await this.db.invoice.findMany({
       where: {
-        ...(query.organizationId ? { organizationId: query.organizationId } : {}),
+        ...(query.organizationId
+          ? { organizationId: query.organizationId }
+          : {}),
         ...(query.status === 'OVERDUE'
           ? { status: 'ISSUED', dueAt: { lt: new Date() } }
           : query.status
@@ -163,7 +280,11 @@ export class BillingService {
     return { items: rows.map(invoiceView) };
   }
 
-  confirmPayment(actor: CommandActor, invoiceId: string, input: ConfirmPaymentInput) {
+  confirmPayment(
+    actor: CommandActor,
+    invoiceId: string,
+    input: ConfirmPaymentInput,
+  ) {
     assertEnterprisePaymentsEnabled();
     return commandTransaction(this.db, async (tx) => {
       await lockPlatformAudit(tx);
@@ -180,18 +301,33 @@ export class BillingService {
     });
   }
 
-  voidInvoice(actor: CommandActor, invoiceId: string, input: InvoiceVersionInput) {
+  voidInvoice(
+    actor: CommandActor,
+    invoiceId: string,
+    input: InvoiceVersionInput,
+  ) {
     return commandTransaction(this.db, async (tx) => {
       await lockPlatformAudit(tx);
-      return { record: invoiceView(await voidInvoiceTx(tx, actor, invoiceId, input)) };
+      return {
+        record: invoiceView(await voidInvoiceTx(tx, actor, invoiceId, input)),
+      };
     });
   }
 
-  issueRenewal(actor: CommandActor, organizationId: string, input: IssueRenewalInput) {
+  issueRenewal(
+    actor: CommandActor,
+    organizationId: string,
+    input: IssueRenewalInput,
+  ) {
     assertEnterprisePaymentsEnabled();
     return commandTransaction(this.db, async (tx) => {
       await lockPlatformAudit(tx);
-      const invoice = await renewalInvoiceTx(tx, organizationId, input.planCode, actor.sub);
+      const invoice = await renewalInvoiceTx(
+        tx,
+        organizationId,
+        input.planCode,
+        actor.sub,
+      );
       await appendPlatformAudit(tx, {
         actor: { sub: actor.sub, role: actor.role },
         action: 'INVOICE_ISSUED',
@@ -199,7 +335,11 @@ export class BillingService {
         subjectId: invoice.id,
         organizationId,
         reason: input.reason,
-        details: { number: invoice.number, kind: invoice.kind, amount: Number(invoice.amount) },
+        details: {
+          number: invoice.number,
+          kind: invoice.kind,
+          amount: Number(invoice.amount),
+        },
       });
       return { record: invoiceView(invoice) };
     });
@@ -213,14 +353,22 @@ export class BillingService {
       where: { status: 'PAID', paidAt: { gte: since } },
       include: { planVersion: true },
     });
-    const open = await this.db.invoice.findMany({ where: { status: 'ISSUED' } });
-    const buckets = new Map<string, { month: string; paid: number; simulated: number; count: number }>();
+    const open = await this.db.invoice.findMany({
+      where: { status: 'ISSUED' },
+    });
+    const buckets = new Map<
+      string,
+      { month: string; paid: number; simulated: number; count: number }
+    >();
     for (let i = 0; i < months; i++) {
       const d = addMonths(since, i);
       const key = d.toISOString().slice(0, 7);
       buckets.set(key, { month: key, paid: 0, simulated: 0, count: 0 });
     }
-    const byPlan = new Map<string, { planCode: string; amount: number; count: number }>();
+    const byPlan = new Map<
+      string,
+      { planCode: string; amount: number; count: number }
+    >();
     for (const inv of paid) {
       const key = inv.paidAt!.toISOString().slice(0, 7);
       const bucket = buckets.get(key);
@@ -237,17 +385,30 @@ export class BillingService {
       byPlan.set(code, plan);
     }
     const graceDays = await settingNumber(this.db, 'billing.graceDays', 15);
-    const subs = await this.db.subscription.findMany({ where: { status: 'ACTIVE' } });
+    const subs = await this.db.subscription.findMany({
+      where: { status: 'ACTIVE' },
+    });
     return {
       months: [...buckets.values()],
       byPlan: [...byPlan.values()].sort((a, b) => b.amount - a.amount),
-      paidTotal: paid.filter((i) => !i.simulated).reduce((s, i) => s + Number(i.amount), 0),
-      simulatedTotal: paid.filter((i) => i.simulated).reduce((s, i) => s + Number(i.amount), 0),
+      paidTotal: paid
+        .filter((i) => !i.simulated)
+        .reduce((s, i) => s + Number(i.amount), 0),
+      simulatedTotal: paid
+        .filter((i) => i.simulated)
+        .reduce((s, i) => s + Number(i.amount), 0),
       outstandingTotal: open.reduce((s, i) => s + Number(i.amount), 0),
-      overdueTotal: open.filter((i) => i.dueAt < new Date()).reduce((s, i) => s + Number(i.amount), 0),
-      activeSubscriptions: subs.filter((s) => effectiveSubscriptionStatus(s, graceDays) === 'ACTIVE').length,
+      overdueTotal: open
+        .filter((i) => i.dueAt < new Date())
+        .reduce((s, i) => s + Number(i.amount), 0),
+      activeSubscriptions: subs.filter(
+        (s) => effectiveSubscriptionStatus(s, graceDays) === 'ACTIVE',
+      ).length,
       expiringIn30Days: subs.filter(
-        (s) => s.endsAt && s.endsAt > new Date() && s.endsAt.getTime() - Date.now() < 30 * 86_400_000,
+        (s) =>
+          s.endsAt &&
+          s.endsAt > new Date() &&
+          s.endsAt.getTime() - Date.now() < 30 * 86_400_000,
       ).length,
       note: 'Doanh thu mô phỏng (thanh toán thử nghiệm) tách riêng; chỉ khoản xác nhận thủ công hoặc qua cổng thanh toán là tiền thật.',
     };
@@ -270,7 +431,10 @@ export class BillingService {
       limits: e.limits,
       usage: await usageFor(this.db, organizationId),
       subscription: e.subscription
-        ? await subscriptionView(this.db, { ...e.subscription, organization: null })
+        ? await subscriptionView(this.db, {
+            ...e.subscription,
+            organization: null,
+          })
         : null,
       invoices: invoices.map(invoiceView),
       plans: e.paying ? await publishedCatalog(this.db) : [],
@@ -281,14 +445,36 @@ export class BillingService {
   requestRenewal(actor: CommandActor, input: EnterpriseRenewalInput) {
     assertEnterprisePaymentsEnabled();
     return commandTransaction(this.db, async (tx) => {
-      const auth = await enterpriseAuthority(tx, actor, 'profile.manage', undefined, undefined, true);
+      const auth = await enterpriseAuthority(
+        tx,
+        actor,
+        'profile.manage',
+        undefined,
+        undefined,
+        true,
+      );
       if (!auth.primary)
-        throw new ForbiddenException('Chỉ quản trị cấp 1 được gia hạn gói dịch vụ');
-      return { record: invoiceView(await renewalInvoiceTx(tx, actor.organizationId!, input.planCode, actor.sub)) };
+        throw new ForbiddenException(
+          'Chỉ quản trị cấp 1 được gia hạn gói dịch vụ',
+        );
+      return {
+        record: invoiceView(
+          await renewalInvoiceTx(
+            tx,
+            actor.organizationId!,
+            input.planCode,
+            actor.sub,
+          ),
+        ),
+      };
     });
   }
 
-  paySimulated(actor: CommandActor, invoiceId: string, input: EnterpriseInvoicePayInput) {
+  paySimulated(
+    actor: CommandActor,
+    invoiceId: string,
+    input: EnterpriseInvoicePayInput,
+  ) {
     if (!simulationEnabled())
       throw new ForbiddenException(
         'Thanh toán mô phỏng chỉ bật trong môi trường local; cổng SePay chưa tích hợp',
@@ -314,12 +500,23 @@ export class BillingService {
 }
 
 /** Enrollment owners pay before activation; afterwards the level-1 admin does. */
-async function payerAuthority(tx: Prisma.TransactionClient, actor: CommandActor) {
+async function payerAuthority(
+  tx: Prisma.TransactionClient,
+  actor: CommandActor,
+) {
   const enrollment = await tx.enterpriseEnrollment.findUnique({
     where: { organizationId: actor.organizationId! },
   });
-  if (enrollment?.ownerId === actor.sub && enrollment.status === 'APPROVED') return;
-  const auth = await enterpriseAuthority(tx, actor, 'profile.manage', undefined, undefined, true);
+  if (enrollment?.ownerId === actor.sub && enrollment.status === 'APPROVED')
+    return;
+  const auth = await enterpriseAuthority(
+    tx,
+    actor,
+    'profile.manage',
+    undefined,
+    undefined,
+    true,
+  );
   if (!auth.primary)
     throw new ForbiddenException('Chỉ quản trị cấp 1 được thanh toán hóa đơn');
 }
@@ -337,11 +534,23 @@ async function renewalInvoiceTx(
     where: { organizationId, status: 'ACTIVE' },
   });
   if (!subscription)
-    throw new ConflictException('Tổ chức chưa có gói dịch vụ đang hiệu lực để gia hạn');
-  if (await tx.invoice.findFirst({ where: { subscriptionId: subscription.id, status: 'ISSUED' } }))
+    throw new ConflictException(
+      'Tổ chức chưa có gói dịch vụ đang hiệu lực để gia hạn',
+    );
+  if (
+    await tx.invoice.findFirst({
+      where: { subscriptionId: subscription.id, status: 'ISSUED' },
+    })
+  )
     throw new ConflictException('Đã có hóa đơn chờ thanh toán cho gói này');
-  const current = await tx.servicePlanVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId } });
-  if (current.planCode !== planCode && subscription.endsAt && subscription.endsAt > new Date())
+  const current = await tx.servicePlanVersion.findUniqueOrThrow({
+    where: { id: subscription.planVersionId },
+  });
+  if (
+    current.planCode !== planCode &&
+    subscription.endsAt &&
+    subscription.endsAt > new Date()
+  )
     throw new ConflictException(
       `Kỳ ${current.planCode} còn hiệu lực đến ${subscription.endsAt.toISOString().slice(0, 10)}; gia hạn cùng gói, hoặc đổi gói sau khi kỳ hiện tại kết thúc (trong thời gian ân hạn)`,
     );

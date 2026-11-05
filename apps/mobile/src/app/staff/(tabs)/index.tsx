@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { BrandLogo } from '../../../components/BrandLogo';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -92,7 +93,7 @@ export default function StaffHome() {
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(239,248,236,0.62)' }} />
       </View>
       <View style={{ paddingTop: insets.top + 6, paddingHorizontal: space.lg, paddingBottom: space.sm, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-        <Image source={require('../../../../assets/brand/logo-agritrace.webp')} style={{ width: 126, height: 48 }} contentFit="contain" accessibilityLabel="AgriTrace" />
+        <BrandLogo variant="staff" maxWidth={168} align="start" />
         <View style={{ flex: 1 }} />
         {pending > 0 && <IconButton name="sync" label="Lệnh chờ gửi" badge={pending} onPress={() => router.push('/staff/sync')} />}
         <IconButton name="bell" label="Thông báo nội bộ" badge={messages.data?.counts.unread} onPress={() => router.push('/staff/messages')} />

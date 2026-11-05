@@ -36,14 +36,26 @@ import { Guard } from "@/components/ledger/kit/guard";
 import {
   Callout,
   EmptyState,
+  ErrorState,
+  Field,
+  Fields,
+  LoadingRows,
   PageBody,
   PageHeader,
+  Section,
 } from "@/components/ledger/kit/page";
 import { Badge, Code, Status } from "@/components/ledger/kit/status";
 
 import { t as tr } from "@/lib/ledger/i18n";
 
 const MACHINE_ROLES: string[] = ["IOT_DEVICE", "SYSTEM_ACTOR"];
+const searchable = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
 
 const createSchema = z
   .object({
@@ -60,15 +72,10 @@ const createSchema = z
     roleCode: z.string().min(1, { error: () => tr("Chọn vai") }),
     organizationId: z.string().optional(),
   })
-  .refine(
-    (v) =>
-      v.roleCode !== "AUDITOR" ||
-      !!v.organizationId,
-    {
-      path: ["organizationId"],
-      error: () => tr("Vai này phải thuộc một tổ chức kiểm định (AUDITOR)"),
-    },
-  );
+  .refine((v) => v.roleCode !== "AUDITOR" || !!v.organizationId, {
+    path: ["organizationId"],
+    error: () => tr("Vai này phải thuộc một tổ chức kiểm định (AUDITOR)"),
+  });
 const statusSchema = z.object({
   accountStatus: z.enum(["ACTIVE", "INACTIVE", "LOCKED"]),
   reason: reason(),
@@ -108,24 +115,104 @@ export function PlatformUsers({
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
+  const [organization, setOrganization] = useState("");
+
+  const people = useMemo(
+    () => q.data?.filter((u) => !MACHINE_ROLES.includes(u.role.code)),
+    [q.data],
+  );
+  const filterRoles = useMemo(
+    () =>
+      Array.from(new Map(people?.map((u) => [u.role.code, u.role])).values())
+        .map((r) => ({ value: r.code, label: `${r.name} (${r.code})` }))
+        .sort((a, b) => a.label.localeCompare(b.label, "vi")),
+    [people],
+  );
+  const filterOrganizations = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          people?.flatMap((u) =>
+            u.organization
+              ? [[u.organization.id, u.organization] as const]
+              : [],
+          ),
+        ).values(),
+      )
+        .map((o) => ({ value: o.id, label: o.name }))
+        .sort((a, b) => a.label.localeCompare(b.label, "vi")),
+    [people],
+  );
 
   const rows = useMemo(
     () =>
-      q.data?.filter(
+      people?.filter(
         (u) =>
-          // Machine identities are internal and never listed as people.
-          !MACHINE_ROLES.includes(u.role.code) &&
           (!accountId || u.id === accountId) &&
           (!role || u.role.code === role) &&
           (!status || u.accountStatus === status) &&
-          (!search ||
-            `${u.fullName} ${u.email}`
-              .toLowerCase()
-              .includes(search.toLowerCase())),
+          (!organization ||
+            (organization === "NO_ORGANIZATION"
+              ? !u.organization
+              : u.organization?.id === organization)) &&
+          (!search.trim() ||
+            searchable(`${u.fullName} ${u.email ?? ""}`).includes(
+              searchable(search.trim()),
+            )),
       ),
-    [q.data, role, status, search, accountId],
+    [people, role, status, search, accountId, organization],
   );
   const invalidate = [["users"], ["inbox"]];
+  const selected = accountId
+    ? people?.find((u) => u.id === accountId)
+    : undefined;
+  // The mutation API only manages platform roles. Enterprise/consumer records
+  // remain visible for lookup; loading/error never grants mutation controls.
+  const manageable = (u: PlatformUser) =>
+    !roles.error && (roles.data?.some((r) => r.code === u.role.code) ?? false);
+  const accountActions = (u: PlatformUser) =>
+    manageable(u) ? (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={tr("Thao tác với {p0}", { p0: u.fullName })}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem
+            onSelect={() => action.open({ kind: "status", user: u })}
+          >
+            {tr("Đổi trạng thái tài khoản")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={u.accountStatus !== "LOCKED" && !u.lockedUntil}
+            onSelect={() => action.open({ kind: "unlock", user: u })}
+          >
+            {tr("Mở khóa")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => action.open({ kind: "reset", user: u })}
+          >
+            {tr("Đặt mật khẩu tạm")}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => action.open({ kind: "revoke", user: u })}
+          >
+            {tr("Thu hồi mọi phiên")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : (
+      <span className="whitespace-nowrap text-xs text-ink-2">
+        {tr("Chỉ xem")}
+      </span>
+    );
 
   const columns: Column<PlatformUser>[] = [
     {
@@ -143,16 +230,21 @@ export function PlatformUsers({
             )}
           </span>
           <span className="truncate font-mono text-[11.5px] text-ink-2">
-            {u.email}
+            {u.email || tr("Chưa có email")}
           </span>
         </div>
       ),
     },
     {
       key: "role",
-      header: "Vai",
+      header: tr("Vai trò"),
       sort: (u) => u.role.code,
-      cell: (u) => <Code>{u.role.code}</Code>,
+      cell: (u) => (
+        <div className="flex flex-col items-start gap-1">
+          <span>{u.role.name}</span>
+          <Code>{u.role.code}</Code>
+        </div>
+      ),
     },
     {
       key: "org",
@@ -160,7 +252,7 @@ export function PlatformUsers({
       hideBelow: "md",
       cell: (u) => (
         <span className="text-ink-2">
-          {u.organization?.name ?? tr("Nền tảng")}
+          {u.organization?.name ?? tr("Không thuộc tổ chức")}
         </span>
       ),
     },
@@ -199,44 +291,7 @@ export function PlatformUsers({
       key: "act",
       header: <span className="sr-only">{tr("Thao tác")}</span>,
       className: "w-10 text-right",
-      cell: (u) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={tr("Thao tác với {p0}", { p0: u.fullName })}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem
-              onSelect={() => action.open({ kind: "status", user: u })}
-            >
-              {tr("Đổi trạng thái tài khoản")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={u.accountStatus !== "LOCKED" && !u.lockedUntil}
-              onSelect={() => action.open({ kind: "unlock", user: u })}
-            >
-              {tr("Mở khóa")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => action.open({ kind: "reset", user: u })}
-            >
-              {tr("Đặt mật khẩu tạm")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => action.open({ kind: "revoke", user: u })}
-            >
-              {tr("Thu hồi mọi phiên")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
+      cell: accountActions,
     },
   ];
 
@@ -253,58 +308,199 @@ export function PlatformUsers({
           createMode
             ? tr("Tạo tài khoản nền tảng")
             : accountId
-              ? (q.data?.find((u) => u.id === accountId)?.fullName ??
-                tr("Tài khoản"))
-              : tr("Tài khoản nền tảng")
+              ? (selected?.fullName ?? tr("Tài khoản"))
+              : tr("Quản lý tài khoản người dùng")
         }
         description={tr(
-          "Tài khoản quản trị và tài khoản thuộc tổ chức kiểm định. Mọi thay đổi cần lý do, version hiện tại và được ghi nhật ký; khóa tài khoản thu hồi mọi phiên trong cùng giao dịch.",
+          "Tra cứu tài khoản quản trị, doanh nghiệp, nhân viên và người dùng theo dữ liệu hệ thống. Mọi thay đổi cần lý do và được ghi nhật ký; khóa tài khoản thu hồi mọi phiên.",
         )}
+        crumbs={
+          accountId
+            ? [
+                {
+                  label: tr("Quản lý tài khoản người dùng"),
+                  href: "/admin/users",
+                },
+              ]
+            : undefined
+        }
         actions={
-          <Button size="sm" asChild>
-            <Link href="/admin/users/new">
-              <Plus /> {tr("Tạo tài khoản")}
-            </Link>
-          </Button>
+          !createMode && !roles.error && roles.data?.length ? (
+            <Button size="sm" asChild>
+              <Link href="/admin/users/new">
+                <Plus /> {tr("Tạo tài khoản")}
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
       <PageBody>
-        <FilterBar
-          search={search}
-          onSearch={setSearch}
-          placeholder={tr("Tên hoặc email")}
-          active={!!(search || role || status)}
-          onReset={() => (setSearch(""), setRole(""), setStatus(""))}
-        >
-          <FilterSelect
-            label="Vai"
-            value={role}
-            onChange={setRole}
-            options={roleOptions}
-          />
-          <FilterSelect
-            label={tr("Trạng thái")}
-            value={status}
-            onChange={setStatus}
-            options={[
-              { value: "ACTIVE", label: tr("Hoạt động") },
-              { value: "INACTIVE", label: tr("Vô hiệu hóa") },
-              { value: "LOCKED", label: tr("Bị khóa") },
-            ]}
-          />
-        </FilterBar>
-        <div className="overflow-hidden rounded-md border border-line bg-card">
-          <DataTable
-            rows={rows}
-            loading={q.isLoading}
-            error={q.error}
-            onRetry={() => q.refetch()}
-            columns={columns}
-            rowKey={(u) => u.id}
-            href={accountId ? undefined : (u) => `/admin/users/${u.id}`}
-            empty={<EmptyState title={tr("Không có tài khoản phù hợp")} />}
-          />
-        </div>
+        {roles.error && (
+          <Callout tone="warn">
+            {tr(
+              "Không tải được quyền quản lý tài khoản. Các thao tác đang tạm ẩn.",
+            )}{" "}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void roles.refetch()}
+            >
+              {tr("Thử lại")}
+            </Button>
+          </Callout>
+        )}
+        {accountId ? (
+          q.error ? (
+            <ErrorState error={q.error} onRetry={() => void q.refetch()} />
+          ) : q.isLoading ? (
+            <LoadingRows rows={4} />
+          ) : selected ? (
+            <>
+              <Section
+                title={tr("Thông tin tài khoản")}
+                aside={accountActions(selected)}
+                bodyClassName="space-y-5 p-4 sm:p-5"
+              >
+                <Fields cols={2}>
+                  <Field label={tr("Họ tên")}>{selected.fullName}</Field>
+                  <Field label="Email">
+                    {selected.email || tr("Chưa có email")}
+                  </Field>
+                  <Field label={tr("Vai trò")}>
+                    <span>{selected.role.name}</span>{" "}
+                    <Code>{selected.role.code}</Code>
+                  </Field>
+                  <Field label={tr("Tổ chức")}>
+                    {selected.organization ? (
+                      <Link
+                        className="text-brand underline"
+                        href={`/admin/organizations?organizationId=${encodeURIComponent(selected.organization.id)}`}
+                      >
+                        {selected.organization.name}
+                      </Link>
+                    ) : (
+                      tr("Không thuộc tổ chức")
+                    )}
+                  </Field>
+                  <Field label={tr("Trạng thái")}>
+                    <Status group="account" value={selected.accountStatus} />
+                  </Field>
+                  <Field label={tr("Đăng nhập lần sau")}>
+                    {tr(
+                      selected.mustChangePassword
+                        ? "Bắt buộc đổi mật khẩu"
+                        : "Không yêu cầu đổi mật khẩu",
+                    )}
+                  </Field>
+                  <Field label={tr("Ngày tạo")}>
+                    {fmtDateTime(selected.createdAt)}
+                  </Field>
+                  <Field label={tr("Cập nhật")}>
+                    {fmtDateTime(selected.updatedAt)}
+                  </Field>
+                  {selected.lockedUntil &&
+                    Date.parse(selected.lockedUntil) > Date.now() && (
+                      <Field label={tr("Khóa tạm đến")}>
+                        {fmtDateTime(selected.lockedUntil)}
+                      </Field>
+                    )}
+                </Fields>
+              </Section>
+              {!manageable(selected) && !roles.isLoading && !roles.error && (
+                <Callout>
+                  {tr(
+                    "Tài khoản doanh nghiệp, nhân viên và người tiêu dùng chỉ tra cứu tại đây. Các thao tác quản lý thực hiện theo luồng dành cho loại tài khoản đó.",
+                  )}
+                </Callout>
+              )}
+              <Link
+                className="text-sm text-brand underline"
+                href="/admin/users"
+              >
+                {tr("Về danh sách tài khoản")}
+              </Link>
+            </>
+          ) : (
+            <EmptyState
+              title={tr("Không tìm thấy tài khoản")}
+              action={
+                <Button asChild variant="outline">
+                  <Link href="/admin/users">
+                    {tr("Về danh sách tài khoản")}
+                  </Link>
+                </Button>
+              }
+            >
+              {tr(
+                "Tài khoản không tồn tại hoặc không nằm trong danh sách được phép xem.",
+              )}
+            </EmptyState>
+          )
+        ) : (
+          <>
+            <FilterBar
+              search={search}
+              onSearch={setSearch}
+              placeholder={tr("Tên hoặc email")}
+              active={!!(search || role || status || organization)}
+              onReset={() => (
+                setSearch(""),
+                setRole(""),
+                setStatus(""),
+                setOrganization("")
+              )}
+            >
+              <FilterSelect
+                label={tr("Vai trò")}
+                value={role}
+                onChange={setRole}
+                options={filterRoles}
+              />
+              <FilterSelect
+                label={tr("Tổ chức")}
+                value={organization}
+                onChange={setOrganization}
+                options={[
+                  {
+                    value: "NO_ORGANIZATION",
+                    label: tr("Không thuộc tổ chức"),
+                  },
+                  ...filterOrganizations,
+                ]}
+              />
+              <FilterSelect
+                label={tr("Trạng thái")}
+                value={status}
+                onChange={setStatus}
+                options={[
+                  { value: "ACTIVE", label: tr("Hoạt động") },
+                  { value: "INACTIVE", label: tr("Vô hiệu hóa") },
+                  { value: "LOCKED", label: tr("Bị khóa") },
+                ]}
+              />
+            </FilterBar>
+            <div className="overflow-hidden rounded-md border border-line bg-card">
+              <DataTable
+                rows={rows}
+                loading={q.isLoading}
+                error={q.error}
+                onRetry={() => q.refetch()}
+                columns={columns}
+                rowKey={(u) => u.id}
+                href={accountId ? undefined : (u) => `/admin/users/${u.id}`}
+                empty={<EmptyState title={tr("Không có tài khoản phù hợp")} />}
+              />
+            </div>
+            {!q.isLoading && !q.error && (
+              <p className="text-xs text-ink-2">
+                {tr("Hiển thị {p0}/{p1} tài khoản", {
+                  p0: rows?.length ?? 0,
+                  p1: people?.length ?? 0,
+                })}
+              </p>
+            )}
+          </>
+        )}
         <p className="text-[12px] text-ink-2">
           {tr(
             "Tài khoản hiện hữu không có thao tác đổi vai trò. Trạng thái MFA từng tài khoản xem ở",
@@ -320,14 +516,14 @@ export function PlatformUsers({
       </PageBody>
 
       <CommandDialog
-        open={createMode}
+        open={createMode && !roles.error && !!roles.data?.length}
         onOpenChange={(open) => {
           if (!open) router.push("/admin/users");
         }}
         title={tr("Tạo tài khoản")}
         endpoint="POST /users"
         description={tr(
-          "Mật khẩu tạm do hệ thống tạo và gửi; tài khoản phải đổi ở lần đăng nhập đầu. Tạo tài khoản quản trị có thể cần người quản trị thứ hai phê duyệt.",
+          "Chỉ tạo tài khoản quản trị hoặc kiểm định tại đây. Mật khẩu tạm do hệ thống tạo và gửi qua email; người dùng phải đổi ở lần đăng nhập đầu. Tài khoản doanh nghiệp và nhân viên được tạo qua luồng đăng ký hoặc quản lý thành viên.",
         )}
         schema={createSchema}
         defaultValues={{
@@ -343,7 +539,8 @@ export function PlatformUsers({
               email: v.email,
               fullName: v.fullName,
               roleCode: v.roleCode,
-              organizationId: v.organizationId || undefined,
+              organizationId:
+                v.roleCode === "AUDITOR" ? v.organizationId : undefined,
             },
             cmd,
           )
@@ -380,7 +577,9 @@ export function PlatformUsers({
                   name="organizationId"
                   label={tr("Tổ chức kiểm định")}
                   options={(orgs.data ?? [])
-                    .filter((o) => o.type === "AUDITOR")
+                    .filter(
+                      (o) => o.type === "AUDITOR" && o.status === "ACTIVE",
+                    )
                     .map((o) => ({ value: o.id, label: o.name }))}
                   placeholder={tr("Chọn tổ chức AUDITOR")}
                 />

@@ -71,18 +71,27 @@ function validateContract(document) {
       throw new Error(`Missing or duplicate operationId: ${method.toUpperCase()} ${path}`);
     operationIds.add(operation.operationId);
     const success = Object.entries(operation.responses ?? {}).filter(([code]) => /^2\d\d$/.test(code));
+    // SePay is a provider callback: its durable receipt deduplicates by the
+    // provider transaction id, and it requires the exact {success:true} body.
+    const sepayWebhook = method === 'post' && path === '/api/payments/sepay/webhook/{mode}';
     if (!success.length && path !== '/api/auth/register') throw new Error(`${method.toUpperCase()} ${path} has no success contract`);
     for (const [code, response] of success) {
       const binary = Object.entries(response.content ?? {}).length > 0 && Object.entries(response.content).every(([media, content]) => ['application/pdf','image/png','image/jpeg'].includes(media) && content.schema?.type === 'string' && content.schema?.format === 'binary');
       if (binary) continue;
       const fields = properties(response.content?.['application/json']?.schema);
+      if (sepayWebhook) {
+        if (code !== '200' || fields.success?.type !== 'boolean' || fields.success?.enum?.[0] !== true || Object.keys(fields).length !== 1 ||
+            !(operation.parameters ?? []).some(p => p.in === 'header' && p.name.toLowerCase() === 'authorization' && p.required))
+          throw new Error('SePay must document authenticated provider acknowledgement');
+        continue;
+      }
       if (['success', 'data', 'timestamp', 'requestId'].some(field => !fields[field]))
         throw new Error(`${method.toUpperCase()} ${path} ${code} is missing its response envelope/schema`);
     }
     // Signed device ingest (ADR-006) deduplicates by the per-device sequence; the
     // signed assignment read changes nothing. Neither uses an Idempotency-Key.
     const deviceIngest = method === 'post' && (path.startsWith('/api/iot/v2/ingest/') || path === '/api/iot/v2/device/assignment');
-    const needsKey = method === 'post' && !path.startsWith('/api/auth/') && !deviceIngest || method === 'patch' && path === '/api/certificates/{id}/review';
+    const needsKey = method === 'post' && !path.startsWith('/api/auth/') && !deviceIngest && !sepayWebhook || method === 'patch' && path === '/api/certificates/{id}/review';
     if (needsKey && !(operation.parameters ?? []).some(parameter => parameter.in === 'header' && parameter.name.toLowerCase() === 'idempotency-key' && parameter.required))
       throw new Error(`${method.toUpperCase()} ${path} must document required Idempotency-Key`);
     const multipart = operation.requestBody?.content?.['multipart/form-data']?.schema;

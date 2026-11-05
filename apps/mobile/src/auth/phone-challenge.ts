@@ -1,5 +1,6 @@
 /** A challenge is memory-only. Resends and back navigation share one cooldown. */
 export interface PhoneVerification {
+  readonly automaticallyVerified?: boolean;
   confirm(code: string): Promise<string>;
   dispose(): Promise<void>;
 }
@@ -46,12 +47,16 @@ export class PhoneChallenge {
   private sending = false;
   private confirming = false;
   private epoch = 0;
+  private lastRequestedPhone = "";
   constructor(
-    private readonly send: (phone: string) => Promise<PhoneVerification>,
+    private readonly send: (phone: string, forceResend?: boolean) => Promise<PhoneVerification>,
     private readonly now = Date.now,
   ) {}
   get seconds() {
     return Math.max(0, Math.ceil((this.nextSendAt - this.now()) / 1000));
+  }
+  get automaticallyVerified() {
+    return this.verification?.automaticallyVerified === true;
   }
   async request(value: string) {
     const phone = normalizePhone(value);
@@ -61,9 +66,15 @@ export class PhoneChallenge {
     const epoch = this.epoch;
     // Even a lost response may have sent a billable SMS. Never auto retry it.
     this.nextSendAt = this.now() + 60_000;
+    const previous = this.verification;
     this.verification = null;
+    this.expiresAt = 0;
+    const resend = this.lastRequestedPhone === phone;
+    this.lastRequestedPhone = phone;
     try {
-      const verification = await this.send(phone);
+      await previous?.dispose();
+      if (epoch !== this.epoch) throw new PhoneAuthError("Đã đóng phiên xác minh.");
+      const verification = await this.send(phone, resend);
       if (epoch !== this.epoch) {
         await verification.dispose();
         throw new PhoneAuthError("Đã đóng phiên xác minh.");
@@ -90,7 +101,7 @@ export class PhoneChallenge {
       throw new PhoneAuthError(
         "Phiên xác minh đã hết hạn. Yêu cầu mã mới sau khi hết thời gian chờ.",
       );
-    if (!/^\d{6}$/.test(code))
+    if (!this.automaticallyVerified && !/^\d{6}$/.test(code))
       throw new PhoneAuthError("Nhập đủ 6 số trong SMS.");
     this.confirming = true;
     const epoch = this.epoch;

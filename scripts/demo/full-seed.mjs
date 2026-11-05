@@ -21,6 +21,8 @@ import {
   lockPlatformAudit,
 } from "../../apps/api/dist/modules/platform-governance/platform-audit.js";
 
+import { mergeServiceContract } from "../../apps/api/dist/modules/enterprise-onboarding/service-contract-pdf.js";
+
 const target = seedTarget();
 const local = target.run;
 const assets = target.assets;
@@ -2066,6 +2068,11 @@ await step("onboarding-profiles", async () => {
       });
       if (stage !== "approved") {
         const contractText = `AGRITRACE AGT - Hợp đồng trải nghiệm không có giá trị pháp lý. Gói ${plan.planCode}, thời hạn ${plan.termMonths} tháng, phí thiết lập ${plan.setupFee} VND, phí năm ${plan.annualFee} VND. Không có thanh toán thật hoặc chữ ký số chứng thực.`;
+        const contractPdf = await mergeServiceContract({organizationName: org.name, representative: user.fullName,
+          businessId: `AGT-${stage}`, billingName: org.name, billingEmail: email, billingAddress: "Đức Trọng, Lâm Đồng",
+          planName: plan.planCode, planCode: plan.planCode, termMonths: plan.termMonths,
+          setup: Number(plan.setupFee), annual: Number(plan.annualFee), total: Number(plan.setupFee+plan.annualFee),
+          limits: plan.limits, reference: enrollment.id});
         const order = await tx.enterpriseServiceOrder.create({
           data: {
             enrollmentId: enrollment.id,
@@ -2084,6 +2091,7 @@ await step("onboarding-profiles", async () => {
             },
             contractText,
             contractDigest: digest(contractText),
+            contractPdf: contractPdf.bytes, contractPdfHash: contractPdf.sha256, contractTemplateVersion: contractPdf.templateVersion,
             status: "AWAITING_PAYMENT",
             acceptedAt: now,
           },

@@ -7,10 +7,12 @@ import {
   PlatformBillingController,
 } from './billing.controller.js';
 import { BillingService } from './billing.service.js';
+import { SepayController } from './sepay.controller.js';
+import { SepayService } from './sepay.service.js';
 
 @Module({
   imports: [PrismaModule, AuthModule, IdempotencyModule],
-  controllers: [PlatformBillingController, EnterpriseBillingController],
-  providers: [BillingService],
+  controllers: [PlatformBillingController, EnterpriseBillingController, SepayController],
+  providers: [BillingService, SepayService],
 })
 export class BillingModule {}

@@ -23,6 +23,8 @@ import {
   BillingReasonInput,
   BillingRecordDto,
   ConfirmPaymentInput,
+  CreateServicePlanInput,
+  ServicePlanStatusInput,
   EnterpriseBillingDto,
   EnterpriseInvoicePayInput,
   EnterpriseRenewalInput,
@@ -83,6 +85,39 @@ export class PlatformBillingController extends CommandController {
   }
 
   @Roles('SYSTEM_ADMIN')
+  @Post('plans')
+  @ApiHeader(KEY)
+  @ApiDataResponse(BillingRecordDto, 201)
+  createPlan(
+    @Body() input: CreateServicePlanInput,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.command(req, key, 'PLATFORM_BILLING_PLAN_CREATE', input, () =>
+      this.service.createPlan(req.user, input),
+    );
+  }
+
+  @Roles('SYSTEM_ADMIN')
+  @Post('plans/:code/status')
+  @ApiHeader(KEY)
+  @ApiDataResponse(BillingRecordDto, 201)
+  setPlanStatus(
+    @Param('code') code: string,
+    @Body() input: ServicePlanStatusInput,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.command(
+      req,
+      key,
+      'PLATFORM_BILLING_PLAN_STATUS',
+      { ...input, code },
+      () => this.service.setPlanStatus(req.user, code, input),
+    );
+  }
+
+  @Roles('SYSTEM_ADMIN')
   @Post('plans/:code/versions')
   @ApiHeader(KEY)
   @ApiDataResponse(BillingRecordDto, 201)
@@ -92,8 +127,12 @@ export class PlatformBillingController extends CommandController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.command(req, key, 'PLATFORM_BILLING_PLAN_DRAFT', { ...input, code }, () =>
-      this.service.draftVersion(req.user, code, input),
+    return this.command(
+      req,
+      key,
+      'PLATFORM_BILLING_PLAN_DRAFT',
+      { ...input, code },
+      () => this.service.draftVersion(req.user, code, input),
     );
   }
 
@@ -107,8 +146,12 @@ export class PlatformBillingController extends CommandController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.command(req, key, 'PLATFORM_BILLING_PLAN_PUBLISH', { ...input, id }, () =>
-      this.service.publishVersion(req.user, id, input.reason),
+    return this.command(
+      req,
+      key,
+      'PLATFORM_BILLING_PLAN_PUBLISH',
+      { ...input, id },
+      () => this.service.publishVersion(req.user, id, input.reason),
     );
   }
 
@@ -136,8 +179,12 @@ export class PlatformBillingController extends CommandController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.command(req, key, 'PLATFORM_BILLING_CONFIRM_PAYMENT', { ...input, id }, () =>
-      this.service.confirmPayment(req.user, id, input),
+    return this.command(
+      req,
+      key,
+      'PLATFORM_BILLING_CONFIRM_PAYMENT',
+      { ...input, id },
+      () => this.service.confirmPayment(req.user, id, input),
     );
   }
 
@@ -151,8 +198,12 @@ export class PlatformBillingController extends CommandController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.command(req, key, 'PLATFORM_BILLING_VOID_INVOICE', { ...input, id }, () =>
-      this.service.voidInvoice(req.user, id, input),
+    return this.command(
+      req,
+      key,
+      'PLATFORM_BILLING_VOID_INVOICE',
+      { ...input, id },
+      () => this.service.voidInvoice(req.user, id, input),
     );
   }
 
@@ -166,8 +217,12 @@ export class PlatformBillingController extends CommandController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.command(req, key, 'PLATFORM_BILLING_ISSUE_RENEWAL', { ...input, organizationId: id }, () =>
-      this.service.issueRenewal(req.user, id, input),
+    return this.command(
+      req,
+      key,
+      'PLATFORM_BILLING_ISSUE_RENEWAL',
+      { ...input, organizationId: id },
+      () => this.service.issueRenewal(req.user, id, input),
     );
   }
 
@@ -219,8 +274,12 @@ export class EnterpriseBillingController extends CommandController {
     @IdempotencyKey() key: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.command(req, key, 'ENTERPRISE_BILLING_PAY_SIMULATION', { ...input, id }, () =>
-      this.service.paySimulated(req.user, id, input),
+    return this.command(
+      req,
+      key,
+      'ENTERPRISE_BILLING_PAY_SIMULATION',
+      { ...input, id },
+      () => this.service.paySimulated(req.user, id, input),
     );
   }
 }

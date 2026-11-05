@@ -267,3 +267,12 @@ cũ hoặc tự resolve migration chưa hoàn tất. `hybrid-floor.json` chặn 
 schema/protocol. Rollback ứng dụng chỉ tới image verified tương thích; không
 restore DB riêng sau ledger commit. Hosted chaincode thay đổi cần lifecycle review,
 không gọi `upgrade` để thay B/C vào channel legacy.
+
+## SMTP của Dedicated Worker
+
+Cấu hình gửi hợp đồng/OTP qua SMTP nằm trong private env của Worker; xem
+[hướng dẫn Gmail và nghiệm thu PDF](email.md). Production Compose mặc định tắt
+mail, nhận cùng `JWT_SECRET` của API để giải mã OTP/mật khẩu tạm. Bật SMTP sau khi
+kiểm tra credential, recipient và hàng đợi đúng môi trường; không gửi lịch sử
+từ bản dump. Mailpit không được phép trên production. Thay env phải triển khai
+lại Worker theo quy trình controller hiện hành, không khởi chạy Compose local.

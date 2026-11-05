@@ -1,3 +1,4 @@
+import { EnterpriseAuditService } from './enterprise-audit.service.js';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { IdempotencyModule } from '../../common/idempotency/idempotency.module.js';
@@ -13,6 +14,6 @@ import { ProfileAmendmentsService, ProfileAmendmentsController, ProfileReviewCon
 @Module({
   imports: [PrismaModule, AuthModule, IdempotencyModule, TraceModule],
   controllers: [EnterpriseWorkspaceController, EnterpriseResourcesController, PublicEvidenceController,MemberInvitationsController,AcceptMemberInvitationController,ProfileAmendmentsController,ProfileReviewController,EnterpriseMessagesController],
-  providers: [EnterpriseWorkspaceService, EnterpriseResourcesService,MemberInvitationsService,ProfileAmendmentsService,EnterpriseMessagesService],
+  providers: [EnterpriseAuditService, EnterpriseWorkspaceService, EnterpriseResourcesService,MemberInvitationsService,ProfileAmendmentsService,EnterpriseMessagesService],
 })
 export class EnterpriseWorkspaceModule {}

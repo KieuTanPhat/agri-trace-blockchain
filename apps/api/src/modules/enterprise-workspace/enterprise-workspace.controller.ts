@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
@@ -15,6 +16,8 @@ import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorat
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
+import { EnterpriseAuditService } from './enterprise-audit.service.js';
+import { EnterpriseAuditQueryDto, EnterpriseAuditPageDto } from './enterprise-audit.dto.js';
 import { EnterpriseWorkspaceService } from './enterprise-workspace.service.js';
 import {
   EnterpriseMemberInput,
@@ -51,6 +54,7 @@ import {
 export class EnterpriseWorkspaceController {
   constructor(
     private readonly service: EnterpriseWorkspaceService,
+    private readonly audit: EnterpriseAuditService,
     private readonly idem: IdempotencyService,
   ) {}
   private run(
@@ -78,6 +82,13 @@ export class EnterpriseWorkspaceController {
   ) {
     return this.service.overview(req.user);
   }
+  @Get('audit')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiDataResponse(EnterpriseAuditPageDto)
+  auditLog(@Req() req: AuthenticatedRequest, @Query() query: EnterpriseAuditQueryDto) {
+    return this.audit.list(req.user, query);
+  }
+
   @Get('members') @ApiDataResponse(EnterpriseMemberListDto) members(
     @Req() req: AuthenticatedRequest,
   ) {

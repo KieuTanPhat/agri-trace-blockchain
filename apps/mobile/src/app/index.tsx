@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { Image } from 'expo-image';
+import { BrandLogo } from '../components/BrandLogo';
 import { Redirect, router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +17,7 @@ export default function Root() {
   if (variant === 'staff') return <Redirect href="/staff" />;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff', padding: 24, gap: 18, justifyContent: 'center' }}>
-      <Image source={require('../../assets/brand/logo-agritrace.webp')} style={{ width: 190, height: 107, alignSelf: 'center' }} contentFit="contain" accessibilityLabel="AgriTrace" />
+      <BrandLogo variant="staff" maxWidth={270} />
       <T size={24} weight="heavy" style={{ textAlign: 'center' }}>
         Chọn ứng dụng để xem
       </T>

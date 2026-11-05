@@ -465,6 +465,7 @@ export async function authorizeEnterpriseCommand(
     ![
       'ENTERPRISE_SERVICE_ORDER',
       'ENTERPRISE_SERVICE_PAY',
+  'ENTERPRISE_SERVICE_PREVIEW',
       'ENTERPRISE_UPGRADE_OWNER',
       'ENTERPRISE_CAPABILITY_REQUEST',
     ].includes(input.operation)
@@ -481,6 +482,7 @@ export async function authorizeEnterpriseCommand(
   const serviceCommand = [
     'ENTERPRISE_SERVICE_ORDER',
     'ENTERPRISE_SERVICE_PAY',
+  'ENTERPRISE_SERVICE_PREVIEW',
     'ENTERPRISE_UPGRADE_OWNER',
     'ENTERPRISE_CAPABILITY_REQUEST',
   ].includes(input.operation);

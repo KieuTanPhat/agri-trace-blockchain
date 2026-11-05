@@ -84,6 +84,17 @@ services:
       <<: *database
       NODE_ENV: production
       WORKER_HEALTH_PORT: "8081"
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      # Explicitly enable SMTP only after configuring the private sender credentials.
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-disabled}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-AgriTrace}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      ENTERPRISE_WEB_BASE_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}
       FABRIC_ENABLED: "false"
       NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-320}
     command: [node, apps/api/dist/worker-main.js]

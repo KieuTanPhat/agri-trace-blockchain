@@ -215,7 +215,9 @@ export async function entitlementFor(db: Db, organizationId: string) {
     applies: true,
     paying,
     status,
-    limits: subscription ? normalizeLimits(subscription.planVersion.limits) : null,
+    limits: subscription
+      ? normalizeLimits(subscription.planVersion.limits)
+      : null,
     periodStart:
       subscription?.endsAt != null
         ? addMonths(subscription.endsAt, -subscription.planVersion.termMonths)
@@ -231,7 +233,9 @@ export async function usageFor(
   const [products, chains, partners, members] = await Promise.all([
     db.product.count({ where: { organizationId, status: 'ACTIVE' } }),
     // The farm ledger is free and outside the plan limit.
-    db.supplyChain.count({ where: { ownerOrganizationId: organizationId, personal: false } }),
+    db.supplyChain.count({
+      where: { ownerOrganizationId: organizationId, personal: false },
+    }),
     db.chainMembership
       .findMany({
         where: {
@@ -266,7 +270,9 @@ async function assertFarmLedgerLimit(
   const since = yearStart();
   const used =
     resource === 'cycles'
-      ? await tx.productionCycle.count({ where: { chainId, createdAt: { gte: since } } })
+      ? await tx.productionCycle.count({
+          where: { chainId, createdAt: { gte: since } },
+        })
       : await tx.lot.count({
           where: { harvest: { cycle: { chainId } }, createdAt: { gte: since } },
         });
@@ -325,7 +331,9 @@ export async function assertEntitlement(
 }
 
 async function nextInvoiceNumber(tx: Db) {
-  const [row] = await tx.$queryRaw<Array<{ n: bigint }>>`SELECT nextval('invoice_number_seq') AS n`;
+  const [row] = await tx.$queryRaw<
+    Array<{ n: bigint }>
+  >`SELECT nextval('invoice_number_seq') AS n`;
   return `AGT-${new Date().getUTCFullYear()}-${String(row.n).padStart(6, '0')}`;
 }
 
@@ -348,7 +356,12 @@ export async function issueInvoiceTx(
   const v = input.planVersion;
   const lines = [
     ...(input.kind === 'INITIAL' && v.setupFee > 0n
-      ? [{ description: `Phí khởi tạo ${v.plan.name}`, amount: Number(v.setupFee) }]
+      ? [
+          {
+            description: `Phí khởi tạo ${v.plan.name}`,
+            amount: Number(v.setupFee),
+          },
+        ]
       : []),
     {
       description: `Phí duy trì ${v.plan.name} (${v.termMonths} tháng, phiên bản ${v.version})`,
@@ -451,8 +464,18 @@ export async function settleInvoiceTx(
       const from = sub.endsAt && sub.endsAt > now ? sub.endsAt : now;
       // Limits follow the term that was paid for: another plan starts only
       // once the current term has ended (see renewalInvoiceTx).
-      if (from > now && invoice.planVersion.planCode !== (await tx.servicePlanVersion.findUniqueOrThrow({ where: { id: sub.planVersionId } })).planCode)
-        throw new ConflictException('Kỳ hiện tại còn hiệu lực; hóa đơn đổi gói chỉ thanh toán sau khi kỳ hiện tại kết thúc. Hủy hóa đơn này và gia hạn cùng gói.');
+      if (
+        from > now &&
+        invoice.planVersion.planCode !==
+          (
+            await tx.servicePlanVersion.findUniqueOrThrow({
+              where: { id: sub.planVersionId },
+            })
+          ).planCode
+      )
+        throw new ConflictException(
+          'Kỳ hiện tại còn hiệu lực; hóa đơn đổi gói chỉ thanh toán sau khi kỳ hiện tại kết thúc. Hủy hóa đơn này và gia hạn cùng gói.',
+        );
       await tx.subscription.update({
         where: { id: sub.id },
         data: {
@@ -462,7 +485,9 @@ export async function settleInvoiceTx(
         },
       });
     } else
-      throw new ConflictException('Gói dịch vụ đã hủy; không áp dụng thanh toán');
+      throw new ConflictException(
+        'Gói dịch vụ đã hủy; không áp dụng thanh toán',
+      );
   }
   await appendPlatformAudit(tx, {
     actor: actor ? { sub: actor.sub, role: actor.role } : null,
@@ -508,8 +533,14 @@ export async function voidInvoiceTx(
   // by a corrected one at the contract's plan version, so the organization can
   // still pay and be activated.
   let replacement: { id: string; number: string } | null = null;
-  if (invoice.subscriptionId && invoice.kind === 'INITIAL' && invoice.planVersionId) {
-    const sub = await tx.subscription.findUnique({ where: { id: invoice.subscriptionId } });
+  if (
+    invoice.subscriptionId &&
+    invoice.kind === 'INITIAL' &&
+    invoice.planVersionId
+  ) {
+    const sub = await tx.subscription.findUnique({
+      where: { id: invoice.subscriptionId },
+    });
     if (sub?.status === 'PENDING_PAYMENT')
       replacement = await issueInvoiceTx(tx, {
         organizationId: invoice.organizationId,
@@ -550,6 +581,13 @@ export async function publishPlanVersionTx(
   if (!draft || draft.status !== 'DRAFT')
     throw new ConflictException('Chỉ công bố phiên bản nháp');
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`plan:${draft.planCode}`},0))`;
+  const plan = await tx.servicePlan.findUnique({
+    where: { code: draft.planCode },
+  });
+  if (!plan || plan.status !== 'ACTIVE')
+    throw new ConflictException(
+      'Mở lại gói dịch vụ trước khi công bố phiên bản',
+    );
   const previous = await tx.servicePlanVersion.findFirst({
     where: { planCode: draft.planCode, status: 'PUBLISHED' },
   });
@@ -560,7 +598,11 @@ export async function publishPlanVersionTx(
     });
   const published = await tx.servicePlanVersion.update({
     where: { id: versionId },
-    data: { status: 'PUBLISHED', publishedAt: new Date(), publishedBy: actor.sub },
+    data: {
+      status: 'PUBLISHED',
+      publishedAt: new Date(),
+      publishedBy: actor.sub,
+    },
   });
   await appendPlatformAudit(tx, {
     actor: { sub: actor.sub, role: actor.role },

@@ -84,9 +84,11 @@ theo catalog và OTP email; mật khẩu tạm buộc đổi. Admission mặc đ
 
 Mặc định hoãn thu tiền (`ENTERPRISE_PAYMENTS_ENABLED=false`): admin duyệt hồ sơ
 và từng capability, rồi kích hoạt dùng tạm bằng command riêng. Không tạo invoice,
-paid order hoặc subscription giả. Khi chủ động bật thu tiền, settlement local
-chỉ ghi `PAID_SIMULATED` và xếp hàng email; activation vẫn là bước riêng.
-NAPAS/QR thu tiền và chữ ký hợp đồng có chứng thư chưa được tích hợp.
+paid order hoặc subscription giả. Khi chủ động bật thu tiền, [SePay](sepay.md)
+xác thực callback theo hóa đơn, giữ receipt chống trùng và tự kích hoạt sau khi
+hồ sơ/năng lực đã được duyệt. Test mode ghi `SIMULATION`/`PAID_SIMULATED`, Live
+ghi `SEPAY`/`PAID`; provider acceptance là cổng riêng. Worker nhận mail outbox
+sau commit; hợp đồng mới merge từ mẫu PDF tĩnh, lưu đúng bytes/hash từ xem trước đến xác nhận và mail đính kèm. Có popup QR trên bản PDF và lịch sử giao dịch riêng tư theo chủ hồ sơ. Hợp đồng cũ giữ nguyên. Mẫu hiện dùng kiểm thử, chưa có chữ ký hợp đồng có chứng thư.
 
 Thành viên hai cấp (chủ doanh nghiệp cấp 1, nhân viên cấp 3 trực thuộc chủ; không còn cấp quản lý 2), nhóm quyền riêng, đối tác, danh mục và cơ sở không thay
 chain membership/capability/assignment. Chủ doanh nghiệp giữ vai nghiệp vụ theo

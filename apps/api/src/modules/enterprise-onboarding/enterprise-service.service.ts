@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { mergeServiceContract } from './service-contract-pdf.js';
 import {
   BadRequestException,
   ConflictException,
@@ -23,7 +25,10 @@ import {
 } from '../billing/billing-core.js';
 import { chainOwner } from './registration-profile.dto.js';
 import { activateEnrollmentTx } from './service-activation.js';
-import { assertEnterprisePaymentsEnabled, serviceWorkspaceStage } from './payment-policy.js';
+import {
+  assertEnterprisePaymentsEnabled,
+  serviceWorkspaceStage,
+} from './payment-policy.js';
 import { lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import type {
   ServiceOrderInput,
@@ -49,6 +54,28 @@ const orderView = (r: EnterpriseServiceOrder) => ({
   version: r.version,
   acceptedAt: r.acceptedAt.toISOString(),
   paidAt: r.paidAt?.toISOString() ?? null,
+  pdfSha256: r.contractPdfHash,
+  templateVersion: r.contractTemplateVersion,
+  hasPdf: r.contractPdf !== null,
+});
+const quoteInput = (input: ServiceQuoteInput): ServiceQuoteInput => ({
+  planCode: input.planCode,
+  catalogVersion: input.catalogVersion,
+  billingName: input.billingName,
+  billingEmail: input.billingEmail,
+  billingAddress: input.billingAddress,
+});
+const previewView = (
+  p: import('../../generated/prisma/client.js').ServiceContractPreview,
+) => ({
+  previewId: p.id,
+  quotation: p.quotation,
+  contractText: p.contractText,
+  contractDigest: p.contractDigest,
+  pdfSha256: p.pdfSha256,
+  templateVersion: p.templateVersion,
+  expiresAt: p.expiresAt.toISOString(),
+  input: p.input,
 });
 export const serviceStage = (r: {
   status: string;
@@ -117,18 +144,13 @@ async function previewService(
     tax: 'Chưa xác định — bản mô phỏng',
   };
   const contractText = [
-    'AGRITRACE — HỢP ĐỒNG DỊCH VỤ ĐIỆN TỬ (BẢN MÔ PHỎNG LOCAL)',
-    `Phiên bản điều khoản: ${SERVICE_CATALOG_VERSION}`,
-    `Doanh nghiệp/chủ thể: ${org.name}. Mã số thuế: ${org.businessId ?? 'Chưa khai báo'}.`,
-    `Tên thanh toán: ${input.billingName}. Địa chỉ thanh toán: ${input.billingAddress}. Email thanh toán: ${input.billingEmail}.`,
-    `Dịch vụ: ${plan.name} (phiên bản giá ${plan.version.version}), kỳ hạn ${plan.version.termMonths} tháng; hạn mức ${plan.version.limits.products} sản phẩm, ${plan.version.limits.chains} chuỗi, ${plan.version.limits.members} thành viên. Phí khởi tạo ${quotation.setup.toLocaleString('vi-VN')} VND; duy trì ${quotation.annual.toLocaleString('vi-VN')} VND; tổng tham khảo ${quotation.total.toLocaleString('vi-VN')} VND.`,
-    'Hạ tầng blockchain dùng chung do AgriTrace vận hành. Doanh nghiệp tự giữ khóa ký nghiệp vụ. Phí QR và thuế cần được xác định trước sử dụng thương mại.',
-    'Phạm vi: hồ sơ sản phẩm, vùng sản xuất, nhật ký, lô hàng, phân phối và truy xuất QR. Không bao gồm kế toán hoặc quản trị bán hàng.',
-    'Doanh nghiệp chịu trách nhiệm về tính chính xác của dữ liệu và quản lý quyền nhân viên. Chỉ chia sẻ dữ liệu theo phạm vi được cấp. Thông tin pháp lý và liên hệ không công khai qua QR.',
-    'Chuỗi được AgriTrace tự động chuẩn bị trên hạ tầng chung. Chỉ mở ghi sau khi registry và quyền được ledger xác nhận; thanh toán hay duyệt hồ sơ không thay thế bước này.',
-    'Bản thử nghiệm không thu tiền, không phát hành hóa đơn, không tạo chữ ký số có chứng thư và không xác lập hợp đồng thương mại có hiệu lực. Không nhập số thẻ hay tài khoản ngân hàng.',
-    'Thao tác xác nhận chỉ ghi nhận đồng ý thử nghiệm. Tích hợp chữ ký điện tử hợp lệ và NAPAS/QR thanh toán sẽ được thực hiện sau. Giá tham khảo không phải báo giá chính thức của iCheck.',
-    'Nguồn cấu trúc giá: https://icheck.com.vn/chi-phi-trien-khai-truy-xuat-nguon-goc (giá tham khảo 07/08/2026, đối chiếu 17/10/2026).',
+    'AGRITRACE — HỢP ĐỒNG DỊCH VỤ THỬ NGHIỆM · service-test-v1',
+    `Doanh nghiệp: ${org.name}. Mã số thuế: ${org.businessId ?? 'Chưa khai báo'}.`,
+    `Tên thanh toán: ${input.billingName}. Địa chỉ: ${input.billingAddress}. Email: ${input.billingEmail}.`,
+    `Gói ${plan.name} (${plan.code}), phiên bản giá ${plan.version.version}; thời hạn ${plan.version.termMonths} tháng.`,
+    `Hạn mức ${plan.version.limits.products} sản phẩm, ${plan.version.limits.chains} chuỗi, ${plan.version.limits.members} thành viên.`,
+    `Khởi tạo ${quotation.setup} VND; duy trì ${quotation.annual} VND; tổng giá gói ${quotation.total} VND. Thuế chưa xác định trong mẫu thử.`,
+    'Điều kiện hợp tác nằm trong bản PDF đã điền thông tin. Mẫu phục vụ kiểm thử, chưa dùng để ký kết thương mại.',
   ].join('\n\n');
   return {
     quotation,
@@ -205,31 +227,160 @@ export class EnterpriseServiceService {
         : open && paying && row.serviceOrder?.status === 'AWAITING_PAYMENT'
           ? 'AWAITING_PAYMENT'
           : base;
+    const latest = row.serviceOrder
+      ? null
+      : await this.db.serviceContractPreview.findFirst({
+          where: {
+            enrollmentId: row.id,
+            createdBy: actor.sub!,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+    const history = await this.db.platformAudit.findMany({
+      where: {
+        organizationId: row.organizationId,
+        action: {
+          in: [
+            'SERVICE_PLAN_SELECTED',
+            'SERVICE_CONTRACT_PREVIEWED',
+            'SERVICE_CONTRACT_ACCEPTED',
+            'SERVICE_PAYMENT_SIMULATED',
+            'SERVICE_PAYMENT_CONFIRMED',
+            'ENTERPRISE_SERVICE_ACTIVATED',
+          ],
+        },
+      },
+      orderBy: { sequence: 'desc' },
+      take: 50,
+      select: { id: true, action: true, occurredAt: true, outcome: true },
+    });
     return {
       stage,
       paying,
+      latestPreview: latest ? previewView(latest) : null,
+      history: history.map((h) => ({
+        ...h,
+        occurredAt: h.occurredAt.toISOString(),
+      })),
       catalog: serviceCatalog(plans, catalogDigest(plans)),
       order: row.serviceOrder ? orderView(row.serviceOrder) : null,
       emails,
     };
   }
-  async preview(actor: CommandActor, input: ServiceQuoteInput) {
-    const row = await enrollmentOwner(this.db, actor);
-    assertEnterprisePaymentsEnabled();
-    if (row.status !== 'APPROVED')
-      throw new ForbiddenException(
-        'Hồ sơ phải được quản trị phê duyệt trước khi chọn dịch vụ',
-      );
-    if (!payingEnrollment(row.organization.participationStatus))
-      throw new ForbiddenException('Thành viên không cần mua gói dịch vụ');
-    return previewService(
+  preview(actor: CommandActor, input: ServiceQuoteInput) {
+    return commandTransaction(
       this.db,
-      {
-        name: row.organization.name,
-        businessId: row.businessId,
+      async (tx) => {
+        const row = await enrollmentOwner(tx, actor, true);
+        assertEnterprisePaymentsEnabled();
+        if (
+          row.status !== 'APPROVED' ||
+          !payingEnrollment(row.organization.participationStatus)
+        )
+          throw new ForbiddenException(
+            'Chủ chuỗi có hồ sơ được duyệt mới được chọn dịch vụ',
+          );
+        if (row.serviceOrder)
+          throw new ConflictException('Hồ sơ đã xác nhận hợp đồng');
+        const snapshot = await previewService(
+          tx,
+          { name: row.organization.name, businessId: row.businessId },
+          input,
+        );
+        const id = randomUUID();
+        const representative =
+          row.organization.profile?.representative ?? row.organization.name;
+        const sourceDigest = canonicalSha256({
+          digest: snapshot.contractDigest,
+          representative,
+        });
+        const pdf = await mergeServiceContract({
+          organizationName: row.organization.name,
+          representative,
+          businessId: row.businessId,
+          ...quoteInput(input),
+          planName: snapshot.quotation.name,
+          termMonths: snapshot.quotation.termMonths,
+          setup: snapshot.quotation.setup,
+          annual: snapshot.quotation.annual,
+          total: snapshot.quotation.total,
+          limits: snapshot.quotation.limits,
+          reference: id,
+        });
+        const saved = await tx.serviceContractPreview.create({
+          data: {
+            id,
+            enrollmentId: row.id,
+            createdBy: actor.sub!,
+            input: { ...quoteInput(input) },
+            quotation: snapshot.quotation,
+            contractText: snapshot.contractText,
+            sourceDigest,
+            contractDigest: canonicalSha256({
+              sourceDigest,
+              pdfSha256: pdf.sha256,
+              templateVersion: pdf.templateVersion,
+            }),
+            pdfBytes: pdf.bytes,
+            pdfSha256: pdf.sha256,
+            templateVersion: pdf.templateVersion,
+            expiresAt: new Date(Date.now() + 30 * 60_000),
+          },
+        });
+        for (const action of [
+          'SERVICE_PLAN_SELECTED',
+          'SERVICE_CONTRACT_PREVIEWED',
+        ])
+          await appendPlatformAudit(tx, {
+            actor,
+            action,
+            subjectType: 'SERVICE_CONTRACT_PREVIEW',
+            subjectId: id,
+            organizationId: row.organizationId,
+            details: {
+              planCode: input.planCode,
+              amount: snapshot.quotation.total,
+              pdfSha256: pdf.sha256,
+            },
+          });
+        return previewView(saved);
       },
-      input,
+      { timeout: 15000 },
     );
+  }
+  async document(actor: CommandActor, kind: string, id: string) {
+    const row = await enrollmentOwner(this.db, actor);
+    const file =
+      kind === 'preview'
+        ? await this.db.serviceContractPreview
+            .findFirst({
+              where: { id, enrollmentId: row.id, createdBy: actor.sub! },
+              select: { pdfBytes: true, pdfSha256: true },
+            })
+            .then((p) => p && { bytes: p.pdfBytes, hash: p.pdfSha256 })
+        : kind === 'order'
+          ? await this.db.enterpriseServiceOrder
+              .findFirst({
+                where: { id, enrollmentId: row.id },
+                select: { contractPdf: true, contractPdfHash: true },
+              })
+              .then(
+                (p) =>
+                  p?.contractPdf && {
+                    bytes: p.contractPdf,
+                    hash: p.contractPdfHash!,
+                  },
+              )
+          : null;
+    if (!file)
+      throw new NotFoundException('Không có bản PDF trong phạm vi tài khoản');
+    return {
+      filename: 'hop-dong-agritrace.pdf',
+      contentType: 'application/pdf',
+      sha256: file.hash,
+      contentBase64: Buffer.from(file.bytes).toString('base64'),
+    };
   }
   create(actor: CommandActor, input: ServiceOrderInput) {
     return commandTransaction(this.db, async (tx) => {
@@ -249,9 +400,24 @@ export class EnterpriseServiceService {
         },
         input,
       );
-      if (snapshot.contractDigest !== input.contractDigest)
+      const preview = await tx.serviceContractPreview.findUnique({
+        where: { contractDigest: input.contractDigest },
+      });
+      const sourceDigest = canonicalSha256({
+        digest: snapshot.contractDigest,
+        representative:
+          row.organization.profile?.representative ?? row.organization.name,
+      });
+      if (
+        !preview ||
+        preview.enrollmentId !== row.id ||
+        preview.createdBy !== actor.sub ||
+        preview.expiresAt <= new Date() ||
+        preview.sourceDigest !== sourceDigest ||
+        canonicalSha256(preview.input) !== canonicalSha256(quoteInput(input))
+      )
         throw new ConflictException(
-          'Nội dung hợp đồng khác bản đã xem; cần xem lại',
+          'Hợp đồng hoặc bảng giá đã thay đổi/hết hạn; xem lại PDF trước khi xác nhận',
         );
       const saved = await tx.enterpriseServiceOrder.create({
         data: {
@@ -261,7 +427,12 @@ export class EnterpriseServiceService {
           billingName: input.billingName,
           billingAddress: input.billingAddress,
           amount: snapshot.quotation.total,
-          ...snapshot,
+          quotation: preview.quotation as Prisma.InputJsonValue,
+          contractText: preview.contractText,
+          contractDigest: preview.contractDigest,
+          contractPdf: preview.pdfBytes,
+          contractPdfHash: preview.pdfSha256,
+          contractTemplateVersion: preview.templateVersion,
           acceptedAt: new Date(),
         },
       });
@@ -283,6 +454,19 @@ export class EnterpriseServiceService {
         planVersion,
         kind: 'INITIAL',
         createdBy: actor.sub,
+      });
+      await appendPlatformAudit(tx, {
+        actor,
+        action: 'SERVICE_CONTRACT_ACCEPTED',
+        subjectType: 'SERVICE_ORDER',
+        subjectId: saved.id,
+        organizationId: row.organizationId,
+        details: {
+          planCode: saved.planCode,
+          amount: saved.amount,
+          contractDigest: saved.contractDigest,
+          pdfSha256: saved.contractPdfHash,
+        },
       });
       return orderView(saved);
     });
@@ -335,10 +519,23 @@ export class EnterpriseServiceService {
         });
       // A chain owner whose capabilities are all reviewed is activated by its
       // payment (ADR-005); otherwise the administrator activates after review.
-      const requests = await tx.capabilityRequest.findMany({ where: { organizationId: row.organizationId } });
-      const reviewed = !requests.some((r) => r.status === 'PENDING') && requests.some((r) => r.status === 'APPROVED');
-      if (!row.serviceActivatedAt && reviewed && row.organization.participationStatus === 'CHAIN_OWNER') {
-        const createChain = await activateEnrollmentTx(tx, row, actor.sub!, 'Tự kích hoạt khi chủ chuỗi thanh toán gói dịch vụ');
+      const requests = await tx.capabilityRequest.findMany({
+        where: { organizationId: row.organizationId },
+      });
+      const reviewed =
+        !requests.some((r) => r.status === 'PENDING') &&
+        requests.some((r) => r.status === 'APPROVED');
+      if (
+        !row.serviceActivatedAt &&
+        reviewed &&
+        row.organization.participationStatus === 'CHAIN_OWNER'
+      ) {
+        const createChain = await activateEnrollmentTx(
+          tx,
+          row,
+          actor.sub!,
+          'Tự kích hoạt khi chủ chuỗi thanh toán gói dịch vụ',
+        );
         await appendPlatformAudit(tx, {
           actor,
           action: 'ENTERPRISE_SERVICE_ACTIVATED',
@@ -346,7 +543,13 @@ export class EnterpriseServiceService {
           subjectId: row.id,
           organizationId: row.organizationId,
           reason: 'Tự kích hoạt khi chủ chuỗi thanh toán gói dịch vụ',
-          details: { manual: false, paymentVerified: false, simulated: true, participationStatus: 'CHAIN_OWNER', createChain },
+          details: {
+            manual: false,
+            paymentVerified: false,
+            simulated: true,
+            participationStatus: 'CHAIN_OWNER',
+            createChain,
+          },
         });
       }
       const recipient = row.organization.profile?.contactEmail;
@@ -361,7 +564,9 @@ export class EnterpriseServiceService {
           recipient,
           subject: 'AgriTrace — Hợp đồng điện tử sau thanh toán mô phỏng',
           text: `Thanh toán mô phỏng đã hoàn tất. Không có tiền thật được thu. Hợp đồng đính kèm và tại trang Dịch vụ của doanh nghiệp. Mã đối chiếu: ${order.contractDigest}. AgriTrace tự chuẩn bị kết nối blockchain sau khi dịch vụ được kích hoạt.`,
-          attachment: order.contractText,
+          attachment: order.contractPdf ? null : order.contractText,
+          attachmentPdf: order.contractPdf,
+          attachmentPdfHash: order.contractPdfHash,
         },
       });
       await appendPlatformAudit(tx, {

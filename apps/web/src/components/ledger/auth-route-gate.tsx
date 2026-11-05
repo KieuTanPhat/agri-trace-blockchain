@@ -6,6 +6,7 @@ import { getAuthorizationScope } from "@/lib/auth-scope";
 import { t } from "@/lib/ledger/i18n";
 import { ErrorState } from "./kit/page";
 import {LedgerPortalScope} from "./portal-scope";
+import { LedgerAccountBoundary } from "./account-menu";
 import { isCustomerPage } from "@/lib/site-origins";
 
 const PUBLIC = new Set([
@@ -58,9 +59,9 @@ export function LedgerAuthRouteGate({
   const ready = privateAccessStatus === "ready";
   return (
     <>
-      {!ready &&
-        (privateAccessStatus === "unavailable" ? (
-          <div className="pointer-events-auto" onPointerDownCapture={event=>event.stopPropagation()} onKeyDownCapture={event=>event.stopPropagation()}><ErrorState
+      {!ready && <div onPointerDown={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()}>
+        <LedgerAccountBoundary>{(privateAccessStatus === "unavailable" ? (
+          <div className="pointer-events-auto" onPointerDown={event=>event.stopPropagation()} onKeyDown={event=>event.stopPropagation()}><ErrorState
             error={{
               status: 503,
               message: t("Chưa xác minh được quyền truy cập"),
@@ -70,11 +71,13 @@ export function LedgerAuthRouteGate({
         ) : (
           <div
             role="status"
-            className="grid min-h-dvh place-items-center text-[13px] text-ink-2"
+            className="text-[13px] text-ink-2"
           >
             {t("Đang kiểm tra phiên đăng nhập…")}
           </div>
         ))}
+        </LedgerAccountBoundary>
+      </div>}
       <div key={identity} hidden={!ready} inert={!ready} ref={setPortalContainer}>
         <LedgerPortalScope value={portalContainer}>{admitted.current === identity ? children : null}</LedgerPortalScope>
       </div>

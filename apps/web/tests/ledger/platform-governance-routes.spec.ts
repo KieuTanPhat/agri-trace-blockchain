@@ -55,7 +55,7 @@ const routes: [string, string, string][] = [
   ["/admin/settings", "admin-settings", "Tham số hệ thống"],
   [`/admin/users/${account}`, "admin-users-detail", "Người vận hành kiểm thử"],
   ["/admin/users/new", "admin-users-new", "Tạo tài khoản nền tảng"],
-  ["/admin/users", "admin-users", "Tài khoản nền tảng"],
+  ["/admin/users", "admin-users", "Quản lý tài khoản người dùng"],
 ];
 for (const [url, name, heading] of routes)
   test(`canonical Ledger governance route ${url}`, async ({ page, api }) => {

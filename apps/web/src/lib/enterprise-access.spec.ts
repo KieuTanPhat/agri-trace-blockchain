@@ -98,3 +98,9 @@ describe("enterpriseLanding", () => {
     expect(enterpriseLanding({ ...staff, stage: "APPROVED" })).toBeNull();
   });
 });
+
+it("only the primary enterprise owner can open employee activity",()=>{
+ expect(canUseEnterpriseRoute("/enterprise/audit-log",staff)).toBe(false);
+ expect(canUseEnterpriseRoute("/enterprise/audit-log",{...staff,permissions:["members.manage"]})).toBe(false);
+ expect(canUseEnterpriseRoute("/enterprise/audit-log",{...staff,primary:true,permissions:["members.manage"]})).toBe(true);
+});

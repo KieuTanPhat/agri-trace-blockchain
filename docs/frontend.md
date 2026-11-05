@@ -35,12 +35,12 @@ và toàn vòng trên APK vẫn cần nghiệm thu thiết bị; test hook khôn
 
 Bản APK `staff` đăng nhập email/API, không dùng Firebase Phone Auth.
 `apps/mobile/react-native.config.js` loại RN Firebase app/auth khỏi autolinking
-Android/iOS chỉ khi `EXPO_PUBLIC_APP_VARIANT=staff`. Tắt config plugin không đủ
-để loại module RN đã cài. Đã kiểm tra kết quả Expo autolinking Android: staff
-không link hai module, consumer vẫn link. Log EAS trước sửa có firebase-auth
-25.0.0 Kotlin metadata 2.4 nhưng compiler đọc 2.2; loại module không dùng giải
-quyết đường build staff, chưa chứng minh build consumer tương thích Kotlin.
-Sau thay đổi cần build APK staff mới; lint/typecheck không thay compile Gradle.
+Android/iOS khi app là staff hoặc chưa bật
+`EXPO_PUBLIC_CONSUMER_PHONE_AUTH_ENABLED=true`. Tắt config plugin không đủ
+để loại module RN đã cài. Chỉ consumer có bật SMS mới link Firebase. Log EAS
+có firebase-auth 25.0.0 Kotlin metadata 2.4 nhưng compiler đọc 2.2; loại module
+không dùng khỏi bản tắt SMS, chưa chứng minh bản bật SMS tương thích Kotlin.
+Sau thay đổi cần build APK mới; lint/typecheck không thay compile Gradle.
 
 ### Mobile nhân viên: giao nhận
 
@@ -92,12 +92,35 @@ chung.
 
 ### ACheck: xác minh điện thoại trên bản development
 
+EAS profile `development` cài app nhân viên; `development-consumer` cài ACheck
+(`vn.agritrace.consumer`, scheme `acheck`) trên dự án Expo hiện có
+`@tuanlo123/agritrace-mobile`. Profile ACheck bật Firebase SMS; phải cung cấp
+`google-services.json` khớp package và SHA của khóa ký EAS. Bản bật SMS dùng
+`expo-build-properties` đặt Kotlin 2.4.0 theo
+[hướng dẫn RN Firebase v27](https://rnfirebase.io/migrating-to-v27#kotlin--240-supported)
+để đọc metadata của Firebase Auth 25;
+không bỏ qua kiểm tra metadata. Từ `apps/mobile`, chạy
+`npx eas-cli@latest build --platform android --profile development-consumer`.
+Profile này build ARM 64/32 bit cho điện thoại Android; không build x86/x86_64
+cho máy ảo.
+Sau khi build thành công, mở link Install trên Android. Development APK cần Metro:
+`EXPO_PUBLIC_APP_VARIANT=consumer EXPO_PUBLIC_CONSUMER_PHONE_AUTH_ENABLED=true npx expo start --dev-client --lan --clear`.
+Đặt `EXPO_PUBLIC_API_BASE_URL` tới API local có thể truy cập từ điện thoại.
+
 UI đăng ký/quên mật khẩu dùng Firebase native để nhận token xác minh và gửi
 `firebaseIdToken` tới API; không có mã OTP giả hoặc SMS tự gửi khi mở màn hình.
 Tạo tài khoản xong giữ phiên bằng SecureStore; đổi mật khẩu xong yêu cầu đăng nhập
 lại. Mất phản hồi sau khi gửi yêu cầu thì thử đăng nhập, không tự gửi lại command.
 Cooldown tồn tại khi quay lại bước trước; lỗi giới hạn Firebase không được né
 bằng đổi IP. Refresh trả chậm sau đăng xuất không được khôi phục phiên cũ.
+Android dùng listener `verifyPhoneNumber` để không tự tiêu thụ OTP phía sau
+màn nhập mã. Khi Firebase tự xác minh, màn hình hiện nút Tiếp tục; vẫn chỉ
+gửi đăng ký/đổi mật khẩu khi người dùng xác nhận. Timeout tự đọc SMS không
+làm hết hạn mã nhập tay. Gửi lại sau cooldown dùng force-resend của SDK;
+Back/đổi số hủy phiên cũ, callback cũ không được đăng xuất phiên mới.
+Với Web local cổng 3300, đặt `EXPO_PUBLIC_TRACE_ORIGIN` bằng đúng origin trong
+QR (ví dụ `http://127.0.0.1:3300`). Đây là origin để kiểm tra link; app tra mã
+qua `EXPO_PUBLIC_API_BASE_URL`, không mở địa chỉ loopback của QR trên điện thoại.
 Các lần tải dữ liệu được gắn audience/session ID và tham số trang. Đổi phiên hoặc
 đổi ID ẩn dữ liệu cũ ngay; phản hồi và callback cập nhật của phiên cũ bị loại bỏ.
 Fetch dùng `no-store`; tải lại chỉ công bố kết quả của request mới nhất. Ảnh tin,
@@ -204,13 +227,26 @@ chỉ hiện sau khi được duyệt.
 Mặc định hoãn thanh toán: admin xét từng năng lực rồi kích hoạt dùng tạm; trang
 `/enterprise/service` hiển thị tiến độ, không bắt mua gói hoặc tạo hóa đơn giả.
 Hợp đồng/thanh toán mô phỏng local chỉ mở khi operator bật
-`ENTERPRISE_PAYMENTS_ENABLED=true`. Không chọn hosting mode, nhập peer/MSP/CA hoặc gửi yêu cầu kết nối. Chuỗi tự chuẩn bị blockchain sau khi tạo; trang ledger của chuỗi hiển thị tiến độ và lỗi cần hỗ trợ. Duyệt hồ sơ/kích hoạt dịch vụ không đồng nghĩa chuỗi đã sẵn sàng ghi.
+`ENTERPRISE_PAYMENTS_ENABLED=true`. Khi cấu hình SePay, trang thanh toán hiện QR
+và mã hóa đơn do máy chủ chọn, đọc trạng thái mỗi 3 giây khi đang chờ và làm mới
+quyền khi đã thanh toán. Không dùng thao tác quét QR hoặc nút kiểm tra để tự đánh
+dấu đã trả tiền. Test mode có cảnh báo không chuyển tiền thật; giao dịch cần đối
+soát dừng hiển thị QR chuyển thêm tiền. Chỉ webhook đã xác thực/commit mới cập
+nhật thanh toán và tự kích hoạt theo năng lực đã duyệt; xem [SePay](sepay.md).
+Không chọn hosting mode, nhập peer/MSP/CA hoặc gửi yêu cầu kết nối. Chuỗi tự chuẩn bị blockchain sau khi tạo; trang ledger của chuỗi hiển thị tiến độ và lỗi cần hỗ trợ. Duyệt hồ sơ/kích hoạt dịch vụ không đồng nghĩa chuỗi đã sẵn sàng ghi.
 
 Admin giữ hồ sơ/capability/điều chỉnh, người dùng/phân công, MFA,
 cases/support/privacy/notices, billing và vận hành. `/admin/products` và trang theo
 organization chỉ đọc. Không cấp Admin/Auditor quyền ghi nghiệp vụ để làm hiện nút.
 Audit CSV, recall JSON và báo cáo giữ projection/limit/quyền baseline; decimal string
 không được làm tròn qua Number.
+
+`/admin/users` là Quản lý tài khoản người dùng: hiển thị tài khoản người mà
+`GET /users` trả về, tìm theo tên/email và lọc vai, tổ chức, trạng thái. Bộ lọc
+vai lấy từ danh sách người dùng, không dùng danh mục vai được phép tạo tài khoản.
+Danh mục tạo mới vẫn lấy từ `/users/roles` và giữ quyền hiện có; tài khoản
+doanh nghiệp/nhân viên đi qua đăng ký hoặc quản lý thành viên. Tài khoản máy
+`IOT_DEVICE`/`SYSTEM_ACTOR` không hiển thị trong danh sách người dùng.
 
 Doanh nghiệp giữ member/role/ownership, profile amendment, sites/vehicles/materials/areas,
 catalog/revision/import, evidence, đối tác/inbox/support và dịch vụ. File riêng được xin
@@ -424,3 +460,90 @@ rõ ràng. Không đổi key/body hay retry command khi kết quả chưa rõ.
   Browser fixture không chứng minh API/DB/Fabric hoặc camera/native/SMS thật.
 - Chạy subset test bị ảnh hưởng rồi gate Web/CI phù hợp; chỉ chạy lại sau thay đổi
   hoặc failure chưa giải quyết. Quyền vận hành/production theo tác vụ và runbook.
+
+### Service contract PDF and payment dialog
+
+Service package cards are native radio controls with live price/limit summary. The
+server persists a versioned PDF preview, restored after refresh; confirmation copies
+the exact bytes and opens a scoped payment dialog over the PDF. Its overlay alone
+uses blur, preserving other dialog styles. Private PDF data stays in memory, no
+localStorage/public URL. Payment/activation truth comes from checkout polling; email
+status comes from the outbox. Existing deferred-access screens and local simulation
+fallback remain available under their feature flags. Test 1440/390 widths, keyboard
+selection, PDF download fallback, close/reopen, refresh, pending/error/review states,
+server-confirmed success and account isolation. Browser automation is currently
+blocked by the host; API/unit/PDF rendering checks do not substitute UI acceptance.
+
+### Quản lý tài khoản người dùng
+
+`/admin/users` tra cứu tài khoản người dùng thực, bỏ tài khoản máy, tìm tên không dấu/email và lọc vai/tổ chức/trạng thái. `/admin/users/:id` có trang chi tiết riêng với trạng thái, ngày tạo/cập nhật, liên kết tổ chức và cờ yêu cầu đổi mật khẩu. Không hiển thị mật khẩu hoặc hash; API Users dùng projection tường minh không chứa các trường đó.
+
+Các command Users hiện chỉ quản lý vai nền tảng SYSTEM_ADMIN/AUDITOR, nên UI chỉ cho tra cứu tài khoản doanh nghiệp/nhân viên/consumer. Mất dữ liệu vai được quản lý hoặc gặp lỗi tải sẽ ẩn thao tác, không dùng dữ liệu cache lỗi để mở quyền. Khi tạo AUDITOR, selector chỉ có tổ chức AUDITOR đang hoạt động; đổi vai sang SYSTEM_ADMIN không gửi tổ chức từ lựa chọn trước. Tạo tài khoản không có ô mật khẩu; đặt lại chỉ nhập mật khẩu tạm che ký tự, không có chức năng xem mật khẩu hiện có. Lý do/version/idempotency và kiểm quyền cuối cùng vẫn do API xử lý.
+
+Kiểm React gồm dữ liệu dư chứa mật khẩu/hash không xuất hiện, tạo không hỏi mật khẩu, reset che ký tự, tìm kiếm, scope thao tác và lỗi tải quyền với cache cũ. Kiểm trực tiếp desktop/màn hẹp là bước riêng.
+
+### Quản trị gói dịch vụ
+
+`/admin/billing` dùng DataTable chung, mỗi gói một dòng, tìm tên/mã không dấu
+và lọc trạng thái. Chi tiết chứa lịch sử phiên bản, phí, hạn mức và công bố bản
+nháp. SYSTEM_ADMIN có thêm gói mới (luôn tạo v1 DRAFT) và ngừng cung cấp/mở lại
+qua hộp thoại xác nhận có lý do. AUDITOR chỉ đọc. Lệnh trạng thái gửi trạng thái
+đang hiển thị để API từ chối quyết định cũ. Các query plans/ws-service/ws-billing
+được invalidation trong phạm vi phiên hiện hành sau lệnh thành công; API vẫn
+kiểm lại catalog khi tạo đơn. Gói RETIRED không xuất hiện để chọn/gia hạn mới;
+không thay đổi quyền đang có, phiên bản hợp đồng, hóa đơn hay thuê bao cũ.
+
+### Nhân viên: quên mật khẩu qua email
+
+App staff có link `Quên mật khẩu?` ở màn đăng nhập và public route
+`/staff/forgot-password`. Nhập email đăng nhập → yêu cầu mã → nhập OTP trong 6 ô số → API xác minh mã
+thành công → màn đặt mật khẩu mới/xác nhận → đăng nhập lại. Mã hết hạn sau 10 phút, giới hạn 5 lần sai,
+gửi lại cách nhau ít nhất 60 giây (tối đa 10 mã/ngày/tài khoản). Chỉ tài khoản
+ENTERPRISE_STAFF đang hoạt động trong tổ chức hoạt động được khôi phục; không
+dùng luồng này cho ACheck, chủ doanh nghiệp, admin hoặc auditor.
+
+API không tiết lộ email có tồn tại hay không; phản hồi yêu cầu chỉ xác nhận đã
+nhận yêu cầu, không chứng minh SMTP đã giao thư. Dedicated Worker gửi mã được
+mã hóa trong outbox; mã hết hạn/đã dùng/được thay thế không được gửi tiếp. Chỉ
+sau khi xác minh mã, API cấp resetToken tối đa 5 phút (không quá hạn mã gốc).
+Bước confirm bắt buộc resetToken này, không nhận OTP trực tiếp. Token chỉ ở bộ nhớ
+màn hình, không lưu storage/URL; xác minh chưa đổi mật khẩu hoặc thu hồi phiên. Chỉ
+sau confirm hợp lệ mới đổi password hash, tăng version, ghi audit và thu hồi toàn bộ
+refresh sessions. App không tự đăng nhập sau reset. Yêu cầu gửi mã mất phản hồi
+giữ requestId/body để thử lại; mất phản hồi xác nhận thì hướng dẫn thử đăng nhập
+bằng mật khẩu mới, không tự gửi lại. Không lưu mã OTP hoặc mật khẩu vào storage. Metadata yêu cầu/cooldown giữ trong
+bộ nhớ tối đa 10 phút để nhập lại cùng email sau khi quay ra vẫn dùng đúng
+requestId; màn mới không tự điền email cũ hoặc tự gửi thêm mã.
+
+Màn khôi phục là JS và API; không thêm module native. Sau khi API được cập nhật
+và migration mới được áp đúng DB, reload Metro là đủ với APK development cùng
+phiên bản Expo/native dependencies.
+
+Menu tài khoản trên thanh đầu trang vẫn hiện ở màn thiếu quyền, lỗi tải quyền và
+chờ kiểm tra quyền; đăng xuất nằm trong menu này, không có nút đăng xuất rời giữa
+màn lỗi. Header dự phòng chỉ hiển thị thông tin phiên, không lộ dữ liệu nghiệp vụ. Khi máy chủ từ chối hoặc mất
+kết nối, hiển thị lỗi và cho thử lại, không báo đã đăng xuất hay khôi phục phiên cũ
+bằng cách bỏ qua phản hồi máy chủ.
+
+### Hoạt động nhân viên của doanh nghiệp
+
+Chủ doanh nghiệp vào `/enterprise/audit-log` (menu **Hoạt động nhân viên**). Chỉ
+chủ quản có `members.manage` được xem; nhân viên và tài khoản quản trị nền tảng
+không dùng endpoint tenant này. API `/enterprise-workspace/audit` tự lấy tổ chức
+từ danh tính đã xác thực, không nhận `organizationId` từ bộ lọc. Bản ghi vừa phải
+thuộc nhân viên hiện còn trong tổ chức (kể cả tài khoản bị khóa), vừa có snapshot
+tổ chức trùng khớp. Người đã chuyển khỏi tổ chức không nằm trong trang này.
+
+Bảng chỉ đọc gồm thời gian, tên/email nhân viên, thao tác, nhóm và kết quả. Có
+tìm tên/email, lọc thao tác/kết quả/ngày và xem tiếp bằng cursor gắn với tài khoản,
+tổ chức, bộ lọc. Xác minh quyền trong cùng transaction với truy vấn; không cache
+HTTP và không trả responseBody, OTP, token, chi tiết audit hoặc chuỗi hash toàn hệ
+thống. Client dùng cache theo authorization scope hiện hành, ẩn dữ liệu cũ khi
+quyền tải lỗi. Không có thao tác sửa/xóa lịch sử.
+
+Nguồn là command journal đã commit và các audit tài khoản hiện có: đổi/khôi phục
+mật khẩu, khóa do đăng nhập sai, tự thu hồi phiên. Không suy ra mọi lượt xem,
+đăng nhập thành công, thao tác chưa gửi/offline hay lần thất bại không được lưu
+đều có audit. Dữ liệu seed do chủ doanh nghiệp thực hiện không được gán lại thành
+hoạt động nhân viên; doanh nghiệp có thể thấy bảng trống cho đến khi có sự kiện
+nhân viên phù hợp. Không sửa schema hoặc tạo lại lịch sử cho màn này.

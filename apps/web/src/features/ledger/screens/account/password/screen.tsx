@@ -122,23 +122,12 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
       <Button type="submit" disabled={form.formState.isSubmitting}>
         {t("Đổi mật khẩu")}
       </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={async () => {
-          if (
-            await confirm({
-              title: t("Đăng xuất"),
-              confirmLabel: t("Đăng xuất"),
-            })
-          ) {
-            await auth.logout();
-            router.replace("/login");
-          }
-        }}
-      >
-        {t("Đăng xuất")}
-      </Button>
+      <Button type="button" variant="ghost" onClick={async () => {
+        if (!(await confirm({title: t("Đăng xuất"), confirmLabel: t("Đăng xuất")}))) return;
+        setError(null);
+        try { await auth.logout(); router.replace("/login"); }
+        catch { setError(t("Không thể đăng xuất. Kiểm tra kết nối máy chủ rồi thử lại.")); }
+      }}>{t("Đăng xuất")}</Button>
     </form>
   );
   if (auth.user?.mustChangePassword)

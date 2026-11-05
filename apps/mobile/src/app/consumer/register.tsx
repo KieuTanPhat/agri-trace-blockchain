@@ -37,20 +37,24 @@ export default function Register() {
   const { signIn, signOut } = useSession();
   const [challenge] = useState(() => new PhoneChallenge(requestPhoneVerification));
   const [seconds, setSeconds] = useState(0);
+  const [automaticallyVerified, setAutomaticallyVerified] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState(false);
   useEffect(() => {
-    const timer = setInterval(() => setSeconds(challenge.seconds), 500);
+    const timer = setInterval(() => {
+      setSeconds(challenge.seconds);
+      setAutomaticallyVerified(challenge.automaticallyVerified);
+    }, 500);
     return () => { clearInterval(timer); void challenge.clear(); };
   }, [challenge]);
   const sendCode = async () => {
     if (busy) return;
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setAutomaticallyVerified(false);
     try { await challenge.request(phone); setStep(3); }
     catch (e) { setError(phoneError(e)); }
-    finally { setSeconds(challenge.seconds); setBusy(false); }
+    finally { setSeconds(challenge.seconds); setAutomaticallyVerified(challenge.automaticallyVerified); setBusy(false); }
   };
   const verify = async (digits: string) => {
     if (busy || uncertain) return;
@@ -93,7 +97,7 @@ export default function Register() {
     password && (password.length < 12 || bytes(password) < 12) ? 'Mật khẩu cần ít nhất 12 ký tự' : bytes(password) > 72 ? 'Mật khẩu tối đa 72 byte' : null;
   const step1Ok = phoneOk(phone) && !!password && !pwError && password === confirm;
   const step2Ok = fullName.trim().length > 1 && !!province && !!ward && agreed;
-  const back = () => { if (busy) return; if (step === 3) void challenge.clear(); if (step > 1) setStep((step - 1) as 1 | 2); else if (router.canGoBack()) router.back(); else router.replace('/consumer'); };
+  const back = () => { if (busy) return; setError(null); if (step === 3) { void challenge.clear(); setAutomaticallyVerified(false); } if (step > 1) setStep((step - 1) as 1 | 2); else if (router.canGoBack()) router.back(); else router.replace('/consumer'); };
 
   if (success || uncertain) return <View style={{ flex: 1, paddingTop: insets.top + 24, padding: 24, gap: 20 }}><Notice kind={success ? 'info' : 'warn'} title={success ?? error ?? ''} /><Button label={success && !reset ? 'Vào tài khoản' : 'Đăng nhập'} onPress={() => router.replace(success && !reset ? '/consumer/account' : '/consumer/login')} /></View>;
 
@@ -185,19 +189,19 @@ export default function Register() {
 
         {error && <Notice kind="error" title={error} />}
         {step !== 3 && seconds > 0 && <T size={14} c={color.muted}>Có thể yêu cầu mã mới sau {seconds} giây.</T>}
-        {step === 3 && <OtpStep phone={phone} seconds={seconds} busy={busy} onVerify={digits => void verify(digits)} onResend={() => void sendCode()} onChangePhone={() => { if (!busy) { void challenge.clear(); setStep(1); } }} />}
+        {step === 3 && <OtpStep phone={challenge.phone} automaticallyVerified={automaticallyVerified} seconds={seconds} busy={busy} onVerify={digits => void verify(digits)} onResend={() => void sendCode()} onChangePhone={() => { if (!busy) { void challenge.clear(); setAutomaticallyVerified(false); setStep(1); } }} />}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function OtpStep({ phone, onChangePhone, seconds, busy, onVerify, onResend }: { phone: string; onChangePhone: () => void; seconds: number; busy: boolean; onVerify: (digits: string) => void; onResend: () => void }) {
+function OtpStep({ phone, automaticallyVerified, onChangePhone, seconds, busy, onVerify, onResend }: { phone: string; automaticallyVerified: boolean; onChangePhone: () => void; seconds: number; busy: boolean; onVerify: (digits: string) => void; onResend: () => void }) {
   const [digits, setDigits] = useState('');
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const masked = phone.replace(/\s+/g, '').replace(/^(\+84|0)(\d{3})\d{3}(\d{3})$/, '0$2 *** $3');
   return (
     <>
-      <T size={30} weight="heavy">
+      {automaticallyVerified ? <Notice kind="info" title="Số điện thoại đã được xác minh tự động" body="Không cần nhập lại mã SMS. Nhấn Tiếp tục để hoàn tất." /> : <><T size={30} weight="heavy">
         Nhập mã xác minh
       </T>
       <T size={16.5} c={color.inkSoft}>
@@ -223,16 +227,17 @@ function OtpStep({ phone, onChangePhone, seconds, busy, onVerify, onResend }: { 
         accessibilityLabel="Mã xác minh 6 số"
         style={[{ position: 'absolute', opacity: 0, height: 1, width: 1, fontFamily: font.bold }, noOutline]}
       />
+      </>}
       <T size={15.5} c={color.inkSoft} style={{ textAlign: 'center' }}>
-        {seconds > 0 ? `Gửi lại mã sau 0:${String(seconds).padStart(2, '0')}` : 'Bạn có thể yêu cầu gửi lại mã.'}
+        {!automaticallyVerified && (seconds > 0 ? `Có thể yêu cầu gửi lại sau ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : 'Bạn có thể yêu cầu gửi lại mã.')}
       </T>
       <Pressable accessibilityRole="link" onPress={onChangePhone} style={{ alignSelf: 'center', padding: 8 }}>
         <T size={16} weight="heavy" c={color.blue}>
           Đổi số điện thoại
         </T>
       </Pressable>
-      <Button label="Gửi lại mã" kind="soft" disabled={seconds > 0 || busy} onPress={() => { setDigits(''); onResend(); }} />
-      <Button label="Xác minh" loading={busy} disabled={digits.length !== 6 || busy} onPress={() => onVerify(digits)} />
+      {!automaticallyVerified && <Button label="Gửi lại mã" kind="soft" disabled={seconds > 0 || busy} onPress={() => { setDigits(''); onResend(); }} />}
+      <Button label={automaticallyVerified ? 'Tiếp tục' : 'Xác minh'} loading={busy} disabled={(!automaticallyVerified && digits.length !== 6) || busy} onPress={() => onVerify(automaticallyVerified ? '' : digits)} />
     </>
   );
 }

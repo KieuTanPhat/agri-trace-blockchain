@@ -221,16 +221,16 @@ export async function runEnterpriseBrowserScenarios(options) {
       step('owner-service-purchase');
       await owner.goto(`${options.origin}/enterprise/service`, { waitUntil: 'domcontentloaded' });
       assert.equal(await owner.getByRole('combobox', { name: 'Hình thức vận hành', exact: true }).count(), 0);
-      await owner.getByLabel('Địa chỉ hóa đơn', { exact: true }).fill('123 Địa chỉ hóa đơn cách ly');
+      await owner.getByLabel('Địa chỉ thanh toán', { exact: true }).fill('123 Địa chỉ hóa đơn cách ly');
       const previewed = owner.waitForResponse(response => new URL(response.url()).pathname === '/api/enterprise-service/preview' &&
         response.request().method() === 'POST', { timeout });
-      await owner.getByRole('button', { name: 'Xem hợp đồng', exact: true }).click();
+      await owner.getByRole('button', { name: 'Tiếp tục · Kiểm tra hợp đồng', exact: true }).click();
       assert.ok([200, 201].includes((await previewed).status()), 'Service preview must succeed');
       await owner.waitForURL(url => url.pathname === '/enterprise/service/contract', { timeout });
-      await owner.getByRole('checkbox', { name: /^Tôi đã đọc và đồng ý nội dung hợp đồng/ }).check();
+      await owner.getByRole('checkbox', { name: /^Tôi đã kiểm tra và đồng ý với bản hợp đồng PDF/ }).check();
       await command(owner, '/enterprise-service/orders', () =>
-        owner.getByRole('button', { name: 'Xác nhận hợp đồng', exact: true }).click());
-      await owner.waitForURL(url => url.pathname === '/enterprise/service/payment', { timeout });
+        owner.getByRole('button', { name: 'Xác nhận và thanh toán', exact: true }).click());
+      await owner.getByRole('dialog', {name:'Thanh toán dịch vụ',exact:true}).waitFor({timeout});
       await command(owner, '/enterprise-service/payment-simulation', () =>
         owner.getByRole('button', { name: 'Thanh toán mô phỏng', exact: true }).click());
       // ADR-005: capabilities were reviewed first, so the chain owner's paid
