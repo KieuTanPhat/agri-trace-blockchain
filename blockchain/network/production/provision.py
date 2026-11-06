@@ -459,7 +459,9 @@ class Network:
             require(json.loads(config_file.read_text()) == expected, 'Existing Worker template differs; configuration was not overwritten')
         else:
             write_json(config_file, expected)
-        os.chown(configuration, 1000, 1000); os.chown(config_file, 1000, 1000)
+        # The Worker reads through its group. The bootstrap operator runs as root
+        # with every capability dropped, so it can only read as the file owner.
+        os.chown(configuration, 1000, 1000); os.chown(config_file, 0, 1000)
         config_file.chmod(0o440)
 
     def provision(self):
