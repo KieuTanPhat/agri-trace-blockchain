@@ -23,6 +23,19 @@ import {
 
 import { mergeServiceContract } from "../../apps/api/dist/modules/enterprise-onboarding/service-contract-pdf.js";
 
+// Production allows 120 requests a minute from one address: stay under it.
+const rawFetch = globalThis.fetch;
+const requestTimes = [];
+globalThis.fetch = async function pacedFetch(...args) {
+  for (;;) {
+    const now = Date.now();
+    while (requestTimes.length && now - requestTimes[0] > 60000) requestTimes.shift();
+    if (requestTimes.length < 100) break;
+    await new Promise((resolve) => setTimeout(resolve, 60000 - (now - requestTimes[0]) + 50));
+  }
+  requestTimes.push(Date.now());
+  return rawFetch(...args);
+};
 const target = seedTarget();
 const local = target.run;
 const assets = target.assets;
@@ -1051,7 +1064,7 @@ async function tripTick() {
 }
 let lastTick = 0;
 async function maybeTick() {
-  if (!trips.length || Date.now() - lastTick < 30000) return;
+  if (!trips.length || Date.now() - lastTick < 60000) return;
   lastTick = Date.now();
   await tripTick();
 }
@@ -1079,7 +1092,7 @@ const transfers = await step("distribution", async () => {
     if (i % 25 === 0) console.log(`Distribution ${i + 1}`);
   }
   const minimum = Date.now() + 12 * 60000;
-  while (Date.now() < minimum && trips.length) { await tripTick(); await new Promise((r) => setTimeout(r, 30000)); }
+  while (Date.now() < minimum && trips.length) { await tripTick(); await new Promise((r) => setTimeout(r, 60000)); }
   for (const trip of trips.splice(0)) { await receiveAndDeliver(trip.t); busyVehicles.delete(trip.t.vehicle); }
   for (const t of deferred) await fullTransfer(t);
   return true;
