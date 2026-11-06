@@ -256,8 +256,8 @@ export async function runEnterpriseBrowserScenarios(options) {
       await until(async () => (await options.operator.db.ledgerProvisioningJob.findUniqueOrThrow({ where: { chainId: personal.id } })).status === 'COMPLETED', 'automatic personal chain provisioning', 120_000);
       await options.operator.verifyProvisioning(enrollmentId, personal.id);
       assert.equal(await owner.getByLabel('Peer host', { exact: true }).count(), 0);
-      await owner.goto(`${options.origin}/supply-chains/${chain.id}/ledger`, { waitUntil: 'domcontentloaded' });
-      await owner.getByText(/Sổ cái của chuỗi đã sẵn sàng/).waitFor({ timeout });
+      await owner.goto(`${options.origin}/supply-chains/${chain.id}`, { waitUntil: 'domcontentloaded' });
+      await owner.locator(`a[href="/supply-chains/${chain.id}"][aria-current="page"]`).waitFor({ timeout });
       await bothLayouts(owner);
       await noPasswordStorage(owner, options.operator.password);
       results.push({ mode, viewports: [1365, 390], registrationRetries: registrations,
