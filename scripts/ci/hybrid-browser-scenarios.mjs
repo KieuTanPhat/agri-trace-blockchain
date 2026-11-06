@@ -81,6 +81,8 @@ function signingReview(page, title) {
 async function signOut(page) {
   // The switched account may have no access to the current business route.
   // Its account page remains available without granting any business permission.
+  // Let the previous page finish restoring its session: leaving mid-refresh drops the rotated cookie.
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
   await page.goto(new URL('/account/password', page.url()).href, { waitUntil: 'domcontentloaded' });
   const account = page.getByRole("button", { name: "Tài khoản", exact: true }).filter({ visible: true }).first();
   try {
