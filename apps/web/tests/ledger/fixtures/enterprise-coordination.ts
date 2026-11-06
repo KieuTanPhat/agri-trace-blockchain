@@ -1,11 +1,12 @@
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {resolve} from 'node:path';
 import type {components} from "../../../src/lib/generated/api";
 import {registerScenario,readScenario} from "./scenarios";
 import {organizationId} from "./enterprise-membership";
 import "./enterprise-products";
 type S=components["schemas"];
-const template=readFileSync(new URL('../../../../api/assets/contracts/service-test-v1.pdf',import.meta.url));
+const template=readFileSync(resolve(__dirname,'../../../../api/assets/contracts/service-test-v1.pdf'));
 const pdfSha256=createHash('sha256').update(template).digest('hex');
 export const partnerId="88888888-8888-4888-8888-888888888888",peerId="99999999-9999-4999-8999-999999999999";
 const partner:S["EnterprisePartnerDto"]={id:partnerId,inviteeId:organizationId,inviterId:peerId,inviter:{id:peerId,name:"Đối tác Ledger",code:"AGT-PEER1",type:"TRANSPORTER"},invitee:{id:organizationId,name:"DOANH_NGHIEP_A",code:"AGT-0017",type:"FARM"},note:"Liên kết doanh nghiệp",status:"INVITED",version:4,createdAt:"2026-10-22T00:00:00Z"};
@@ -17,7 +18,7 @@ for(const name of ["coordination.partners","coordination.service"])registerScena
  if(path==="/enterprise-access"&&r.method==="GET")return {data:{stage:name==="coordination.service"?"SELECT_SERVICE":"ACTIVE",capabilities:["FARM"],owner:state.actor==="org-owner",primary:state.actor==="org-owner",tier:state.actor==="org-owner"?1:3,permissions:state.actor==="org-owner"?["profile.read","partners.read","partners.manage","evidence.read","evidence.manage"]:["profile.read","partners.read"]}};
  if(r.method==="GET"){
   if(path.startsWith("/enterprise-service/documents/"))return {data:{filename:"contract.pdf",contentType:"application/pdf",sha256:pdfSha256,contentBase64:template.toString("base64")} satisfies S["ServiceContractFileView"]};
-  if(path==="/enterprise-service/payment/sepay")return {data:{enabled:false,mode:null,invoiceId:null,invoiceNumber:null,amount:null,status:null,dueAt:null,paidAt:null,simulated:false,serviceActive:false,bank:null,accountNumber:null,accountHolder:null,paymentCode:null,qrUrl:null,reviewMessage:null} satisfies S["SepayCheckoutView"]};
+  if(path==="/enterprise-service/payment/sepay")return {data:{enabled:false,gateway:null,mode:null,invoiceId:null,invoiceNumber:null,amount:null,status:null,dueAt:null,paidAt:null,simulated:false,serviceActive:false,bank:null,accountNumber:null,accountHolder:null,paymentCode:null,qrUrl:null,reviewMessage:null} satisfies S["SepayCheckoutView"]};
   if(path==="/enterprise-workspace/partners")return {data:{items:[{...partner,status:state.values.has("accepted")?"ACTIVE":"INVITED"}]}};
   if(path==="/enterprise-workspace/partners/external"||path==="/enterprise-workspace/partners/search")return {data:{items:[]}};
   if(path==="/enterprise-enrollments/mine")return {data:{...enrollment,participationStatus:name==="coordination.service"?"CHAIN_OWNER":"MEMBER"}};

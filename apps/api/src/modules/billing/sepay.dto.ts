@@ -22,7 +22,44 @@ export class SepayWebhookAcknowledgement {
   @ApiProperty({ enum: [true] }) success!: true;
 }
 
+export class SepayGatewayField {
+  @ApiProperty() name!: string;
+  @ApiProperty() value!: string;
+}
+
+export class SepayGatewayForm {
+  @ApiProperty() action!: string;
+  @ApiProperty({ type: [SepayGatewayField] }) fields!: SepayGatewayField[];
+}
+
+export class SepayIpnOrder {
+  @ApiProperty() id!: string;
+  @ApiProperty() order_invoice_number!: string;
+  @ApiProperty() order_status!: string;
+  @ApiProperty() order_currency!: string;
+  @ApiProperty() order_amount!: string;
+}
+
+export class SepayIpnTransaction {
+  @ApiProperty() id!: string;
+  @ApiProperty() payment_method!: string;
+  @ApiProperty() transaction_type!: string;
+  @ApiProperty() transaction_date!: string;
+  @ApiProperty() transaction_status!: string;
+  @ApiProperty() transaction_amount!: string;
+  @ApiProperty() transaction_currency!: string;
+}
+
+export class SepayIpnInput {
+  @ApiProperty({ enum: ['ORDER_PAID', 'TRANSACTION_VOID'] })
+  notification_type!: string;
+  @ApiProperty({ type: SepayIpnOrder }) order!: SepayIpnOrder;
+  @ApiProperty({ type: SepayIpnTransaction }) transaction!: SepayIpnTransaction;
+}
+
 export class SepayCheckoutView {
+  @ApiProperty({ type: SepayGatewayForm, nullable: true })
+  gateway!: SepayGatewayForm | null;
   @ApiProperty() enabled!: boolean;
   @ApiProperty({ enum: ['test', 'live'], nullable: true }) mode!:
     'test' | 'live' | null;

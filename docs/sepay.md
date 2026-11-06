@@ -5,6 +5,58 @@ Phạm vi: backend Web, hóa đơn/gói dịch vụ và giao diện doanh nghi�
 
 ## Luồng
 
+### Payment Gateway: Merchant ID / Secret Key
+
+Màn hình đăng ký **Cổng thanh toán → Sandbox → Tích hợp API** dùng Gateway,
+khác sản phẩm webhook ngân hàng bên dưới. Với Gateway, đặt trong môi trường API:
+
+```dotenv
+ENTERPRISE_PAYMENTS_ENABLED=true
+ENTERPRISE_PAYMENT_SIMULATION_ENABLED=false
+SEPAY_MODE=disabled
+SEPAY_GATEWAY_MODE=test
+SEPAY_MERCHANT_ID=YOUR_SANDBOX_MERCHANT_ID
+SEPAY_MERCHANT_SECRET=YOUR_PRIVATE_MERCHANT_SECRET
+SEPAY_IPN_SECRET=YOUR_SEPARATE_RANDOM_SECRET_AT_LEAST_32_CHARACTERS
+SEPAY_WEB_ORIGIN=https://YOUR_PUBLIC_WEB_DOMAIN
+```
+
+Khóa merchant và khóa IPN **khác nhau**, chỉ giữ ở backend; không gửi qua chat,
+commit hoặc đặt vào `NEXT_PUBLIC_*`. Sandbox không chạy với `NODE_ENV=production`.
+Áp migration `20270101000012_sepay_gateway` trước API mới trên DB cách ly;
+migration chỉ mở rộng ID receipt, không đổi lịch sử. Production theo runbook.
+
+Trong SePay, cấu hình IPN URL
+`https://YOUR_PUBLIC_API_DOMAIN/api/payments/sepay/ipn/test`, chọn auth type
+**SECRET_KEY** và đặt đúng `SEPAY_IPN_SECRET` (header `X-Secret-Key`). Cần HTTPS
+công khai cho API và Web; local dùng tunnel. Không dùng Merchant Secret làm khóa IPN.
+
+Chủ doanh nghiệp chọn gói, xác nhận PDF rồi bấm **Thanh toán qua SePay**.
+API ký form HMAC-SHA256 bằng giá hóa đơn; trình duyệt POST form tới
+`https://pay-sandbox.sepay.vn/v1/checkout/init`. SePay xử lý QR chuyển khoản.
+Cả quay về thành công/lỗi/hủy đều mở lại **đúng invoiceId**; chỉ IPN hợp lệ mới
+thanh toán và kích hoạt. Đóng trang không mất hóa đơn, không tạo mã hóa đơn mới
+để thử lại một kết quả chưa rõ.
+
+IPN kiểm trạng thái CAPTURED/APPROVED, PAYMENT/BANK_TRANSFER, VND, số tiền order
+và transaction, thời điểm, hóa đơn và điều kiện doanh nghiệp. Receipt Gateway
+có tiền tố `PG:` để không trùng ID webhook ngân hàng. Retry khác timestamp gửi
+nhưng cùng settlement được chấp nhận; cùng ID đổi settlement trả lỗi đối soát.
+Thông báo VOID ghi receipt cần đối soát riêng, không tự xóa khoản đã trả hay
+gia hạn thêm. Không lưu dữ liệu khách hàng/thẻ từ IPN. Luồng gia hạn sử dụng
+hóa đơn gia hạn hiện có, không tự trừ tiền định kỳ.
+
+Chuyển live chỉ sau nghiệm thu riêng: dùng `SEPAY_GATEWAY_MODE=live`, merchant,
+khóa IPN và URL `/api/payments/sepay/ipn/live` riêng. Backend chọn cố định host
+`https://pay.sepay.vn/v1/checkout/init`; không nhận URL checkout từ người dùng.
+Hai loại tích hợp không bật đồng thời. Cấu hình mặc định vẫn tắt thu tiền.
+
+Nguồn: [Form và chữ ký Gateway](https://developer.sepay.vn/vi/cong-thanh-toan/API/don-hang/form-thanh-toan),
+[IPN và hai loại khóa](https://developer.sepay.vn/vi/cong-thanh-toan/IPN),
+[Sandbox](https://developer.sepay.vn/vi/cong-thanh-toan/sandbox).
+
+### Webhook ngân hàng: API Key
+
 1. Hồ sơ được quản trị duyệt, các năng lực được xét. Chủ chuỗi chọn gói,
    nhập tên/email/địa chỉ thanh toán, xem và xác nhận snapshot hợp đồng.
 2. Hóa đơn lấy số tiền VND từ phiên bản giá trên máy chủ. Trang

@@ -3025,6 +3025,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/payments/sepay/ipn/{mode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SepayController_ipn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/payments/sepay/webhook/{mode}": {
         parameters: {
             query?: never;
@@ -10396,6 +10412,7 @@ export interface components {
             bank: string | null;
             dueAt: string | null;
             enabled: boolean;
+            gateway: components["schemas"]["SepayGatewayForm"] | null;
             invoiceId: string | null;
             invoiceNumber: string | null;
             /** @enum {string|null} */
@@ -10408,6 +10425,36 @@ export interface components {
             simulated: boolean;
             /** @enum {string|null} */
             status: "ISSUED" | "PAID" | "VOID" | null;
+        };
+        SepayGatewayField: {
+            name: string;
+            value: string;
+        };
+        SepayGatewayForm: {
+            action: string;
+            fields: components["schemas"]["SepayGatewayField"][];
+        };
+        SepayIpnInput: {
+            /** @enum {string} */
+            notification_type: "ORDER_PAID" | "TRANSACTION_VOID";
+            order: components["schemas"]["SepayIpnOrder"];
+            transaction: components["schemas"]["SepayIpnTransaction"];
+        };
+        SepayIpnOrder: {
+            id: string;
+            order_amount: string;
+            order_currency: string;
+            order_invoice_number: string;
+            order_status: string;
+        };
+        SepayIpnTransaction: {
+            id: string;
+            payment_method: string;
+            transaction_amount: string;
+            transaction_currency: string;
+            transaction_date: string;
+            transaction_status: string;
+            transaction_type: string;
         };
         SepayWebhookAcknowledgement: {
             /** @enum {boolean} */
@@ -36366,6 +36413,125 @@ export interface operations {
                         /** Format: date-time */
                         timestamp: string;
                     };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    SepayController_ipn: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Separate server-only SEPAY_IPN_SECRET configured in Gateway IPN settings */
+                "X-Secret-Key": string;
+            };
+            path: {
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SepayIpnInput"];
+            };
+        };
+        responses: {
+            /** @description Acknowledged only after settlement/receipt commits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SepayWebhookAcknowledgement"];
                 };
             };
             /** @description Error envelope from GlobalExceptionFilter */

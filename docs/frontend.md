@@ -233,6 +233,10 @@ quyền khi đã thanh toán. Không dùng thao tác quét QR hoặc nút kiểm
 dấu đã trả tiền. Test mode có cảnh báo không chuyển tiền thật; giao dịch cần đối
 soát dừng hiển thị QR chuyển thêm tiền. Chỉ webhook đã xác thực/commit mới cập
 nhật thanh toán và tự kích hoạt theo năng lực đã duyệt; xem [SePay](sepay.md).
+Với `SEPAY_GATEWAY_MODE=test|live`, thay QR trực tiếp bằng nút **Thanh toán qua
+SePay** gửi form đã ký tới Gateway. Sau thành công/lỗi/hủy, người dùng quay lại
+đúng hóa đơn; trang tiếp tục đọc trạng thái từ API, không tin kết quả redirect.
+Gateway nhận IPN với khóa riêng, dùng chung kiểm tra hóa đơn và kích hoạt gói.
 Không chọn hosting mode, nhập peer/MSP/CA hoặc gửi yêu cầu kết nối. Chuỗi tự chuẩn bị blockchain sau khi tạo; trang ledger của chuỗi hiển thị tiến độ và lỗi cần hỗ trợ. Duyệt hồ sơ/kích hoạt dịch vụ không đồng nghĩa chuỗi đã sẵn sàng ghi.
 
 Admin giữ hồ sơ/capability/điều chỉnh, người dùng/phân công, MFA,

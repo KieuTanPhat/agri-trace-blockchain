@@ -17321,6 +17321,15 @@
           "enabled": {
             "type": "boolean"
           },
+          "gateway": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SepayGatewayForm"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
           "invoiceId": {
             "nullable": true,
             "type": "string"
@@ -17370,6 +17379,7 @@
           }
         },
         "required": [
+          "gateway",
           "enabled",
           "mode",
           "invoiceId",
@@ -17386,6 +17396,124 @@
           "paymentCode",
           "qrUrl",
           "reviewMessage"
+        ],
+        "type": "object"
+      },
+      "SepayGatewayField": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object"
+      },
+      "SepayGatewayForm": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/SepayGatewayField"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "action",
+          "fields"
+        ],
+        "type": "object"
+      },
+      "SepayIpnInput": {
+        "properties": {
+          "notification_type": {
+            "enum": [
+              "ORDER_PAID",
+              "TRANSACTION_VOID"
+            ],
+            "type": "string"
+          },
+          "order": {
+            "$ref": "#/components/schemas/SepayIpnOrder"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/SepayIpnTransaction"
+          }
+        },
+        "required": [
+          "notification_type",
+          "order",
+          "transaction"
+        ],
+        "type": "object"
+      },
+      "SepayIpnOrder": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "order_amount": {
+            "type": "string"
+          },
+          "order_currency": {
+            "type": "string"
+          },
+          "order_invoice_number": {
+            "type": "string"
+          },
+          "order_status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "order_invoice_number",
+          "order_status",
+          "order_currency",
+          "order_amount"
+        ],
+        "type": "object"
+      },
+      "SepayIpnTransaction": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "transaction_amount": {
+            "type": "string"
+          },
+          "transaction_currency": {
+            "type": "string"
+          },
+          "transaction_date": {
+            "type": "string"
+          },
+          "transaction_status": {
+            "type": "string"
+          },
+          "transaction_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "payment_method",
+          "transaction_type",
+          "transaction_date",
+          "transaction_status",
+          "transaction_amount",
+          "transaction_currency"
         ],
         "type": "object"
       },
@@ -55223,6 +55351,155 @@
         ],
         "tags": [
           "supply-chains"
+        ]
+      }
+    },
+    "/api/payments/sepay/ipn/{mode}": {
+      "post": {
+        "operationId": "SepayController_ipn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Separate server-only SEPAY_IPN_SECRET configured in Gateway IPN settings",
+            "in": "header",
+            "name": "X-Secret-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SepayIpnInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SepayWebhookAcknowledgement"
+                }
+              }
+            },
+            "description": "Acknowledged only after settlement/receipt commits"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelopeDto"
+                }
+              }
+            },
+            "description": "Error envelope from GlobalExceptionFilter"
+          }
+        },
+        "tags": [
+          "sepay-payments"
         ]
       }
     },

@@ -377,7 +377,7 @@ model InvoicePayment {
 model SepayWebhookReceipt {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   mode          String   @db.VarChar(4)
-  transactionId String   @map("transaction_id") @db.VarChar(20)
+  transactionId String   @map("transaction_id") @db.VarChar(128)
   payloadHash   String   @map("payload_hash") @db.VarChar(64)
   invoiceId     String?  @map("invoice_id") @db.Uuid
   outcome       String   @db.VarChar(20)

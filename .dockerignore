@@ -36,6 +36,7 @@ artifacts
 .tools
 graphify-out
 .superpowers
+.private-local-backup
 .codegraph
 docs-analysis
 tools

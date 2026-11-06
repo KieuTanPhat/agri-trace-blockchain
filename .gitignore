@@ -77,6 +77,7 @@ Thumbs.db
 /git_files.txt
 /.codex-remote-attachments/
 /.superpowers/
+/.private-local-backup/
 /.codegraph/
 
 # Local IoT simulator state (device test keys, queues)

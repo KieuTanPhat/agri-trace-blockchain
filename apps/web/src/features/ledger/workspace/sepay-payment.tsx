@@ -95,7 +95,7 @@ export function SepayPayment({
       {test && (
         <Callout tone="warn" title={tr("Chế độ thử nghiệm SePay")}>
           {tr(
-            "Không chuyển tiền thật. Giao dịch thử nghiệm chỉ được xác nhận qua webhook test, không tính vào doanh thu thật.",
+            "Không chuyển tiền thật. Giao dịch thử nghiệm được máy chủ xác nhận qua SePay, không tính vào doanh thu thật.",
           )}
         </Callout>
       )}
@@ -146,7 +146,29 @@ export function SepayPayment({
         </>
       ) : (
         <>
-          {data.status === "ISSUED" && (
+          {data.status === "ISSUED" && data.gateway && !data.reviewMessage && (
+            <form
+              action={data.gateway.action}
+              method="POST"
+              className="space-y-3"
+            >
+              {data.gateway.fields.map((field) => (
+                <input
+                  key={field.name}
+                  type="hidden"
+                  name={field.name}
+                  value={field.value}
+                />
+              ))}
+              <p className="text-sm text-ink-2">
+                {tr(
+                  "Bạn sẽ chuyển sang SePay để thanh toán. Gói dịch vụ chỉ được cập nhật sau khi máy chủ xác nhận giao dịch.",
+                )}
+              </p>
+              <Button type="submit">{tr("Thanh toán qua SePay")}</Button>
+            </form>
+          )}
+          {data.status === "ISSUED" && !data.gateway && (
             <div className="grid gap-5 sm:grid-cols-[240px_1fr]">
               <div className="flex min-h-48 items-center justify-center rounded-md border border-line bg-white p-3">
                 {data.qrUrl && !data.reviewMessage ? (

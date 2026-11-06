@@ -73,7 +73,8 @@ function validateContract(document) {
     const success = Object.entries(operation.responses ?? {}).filter(([code]) => /^2\d\d$/.test(code));
     // SePay is a provider callback: its durable receipt deduplicates by the
     // provider transaction id, and it requires the exact {success:true} body.
-    const sepayWebhook = method === 'post' && path === '/api/payments/sepay/webhook/{mode}';
+    const sepayIpn = method === 'post' && path === '/api/payments/sepay/ipn/{mode}';
+    const sepayWebhook = method === 'post' && (path === '/api/payments/sepay/webhook/{mode}' || sepayIpn);
     if (!success.length && path !== '/api/auth/register') throw new Error(`${method.toUpperCase()} ${path} has no success contract`);
     for (const [code, response] of success) {
       const binary = Object.entries(response.content ?? {}).length > 0 && Object.entries(response.content).every(([media, content]) => ['application/pdf','image/png','image/jpeg'].includes(media) && content.schema?.type === 'string' && content.schema?.format === 'binary');
@@ -81,7 +82,7 @@ function validateContract(document) {
       const fields = properties(response.content?.['application/json']?.schema);
       if (sepayWebhook) {
         if (code !== '200' || fields.success?.type !== 'boolean' || fields.success?.enum?.[0] !== true || Object.keys(fields).length !== 1 ||
-            !(operation.parameters ?? []).some(p => p.in === 'header' && p.name.toLowerCase() === 'authorization' && p.required))
+            !(operation.parameters ?? []).some(p => p.in === 'header' && p.name.toLowerCase() === (sepayIpn ? 'x-secret-key' : 'authorization') && p.required))
           throw new Error('SePay must document authenticated provider acknowledgement');
         continue;
       }

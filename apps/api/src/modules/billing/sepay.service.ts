@@ -24,6 +24,11 @@ import {
   type SepayTransaction,
 } from './sepay-protocol.js';
 import type { SepayCheckoutView } from './sepay.dto.js';
+import {
+  sepayGatewayConfiguration,
+  sepayGatewayForm,
+  type SepaySettlement,
+} from './sepay-gateway.js';
 
 @Injectable()
 export class SepayService {
@@ -56,7 +61,9 @@ export class SepayService {
       throw new ForbiddenException(
         'Chỉ chủ hồ sơ doanh nghiệp đã được duyệt được mở thanh toán',
       );
-    const config = sepayConfiguration();
+    const gateway = sepayGatewayConfiguration();
+    const bankConfig = gateway ? null : sepayConfiguration();
+    const config = gateway ?? bankConfig;
     const empty: SepayCheckoutView = {
       enabled: false,
       mode: null,
@@ -74,6 +81,7 @@ export class SepayService {
       paymentCode: null,
       qrUrl: null,
       reviewMessage: null,
+      gateway: null,
     };
     if (!config) return empty;
     const subscription = await this.db.subscription.findFirst({
@@ -126,16 +134,27 @@ export class SepayService {
         invoice.status === 'PAID' ? invoice.simulated : config.mode === 'test',
       serviceActive:
         !!enrollment?.serviceActivatedAt && subscription?.status === 'ACTIVE',
-      bank: config.bank,
-      accountNumber: config.virtualAccount ?? config.accountNumber,
-      accountHolder: config.accountHolder,
+      bank: bankConfig?.bank ?? null,
+      accountNumber: bankConfig
+        ? (bankConfig.virtualAccount ?? bankConfig.accountNumber)
+        : null,
+      accountHolder: bankConfig?.accountHolder ?? null,
       paymentCode: sepayPaymentCode(invoice.number),
       qrUrl:
+        bankConfig &&
         ready &&
         !receipt &&
         invoice.status === 'ISSUED' &&
         invoice.dueAt > new Date()
-          ? sepayQrUrl(config, invoice.number, invoice.amount)
+          ? sepayQrUrl(bankConfig, invoice.number, invoice.amount)
+          : null,
+      gateway:
+        gateway &&
+        ready &&
+        !receipt &&
+        invoice.status === 'ISSUED' &&
+        invoice.dueAt > new Date()
+          ? sepayGatewayForm(gateway, invoice)
           : null,
       reviewMessage: !ready
         ? 'Năng lực chưa được xét đầy đủ. Chưa chuyển khoản; liên hệ quản trị để hoàn tất.'
@@ -149,7 +168,25 @@ export class SepayService {
    * No bank/Fabric/SMTP call is made here. Failures are retried by SePay with the
    * same transaction id; a lost HTTP response cannot extend a term twice. */
   receive(config: SepayConfiguration, transaction: SepayTransaction) {
-    const payloadHash = canonicalSha256(transaction);
+    return this.receiveSettlement(config, {
+      id: String(transaction.id),
+      invoiceNumber: sepayInvoiceNumber(transaction),
+      amount: BigInt(transaction.transferAmount),
+      posted: Date.parse(
+        transaction.transactionDate.replace(' ', 'T') + '+07:00',
+      ),
+      payloadHash: canonicalSha256(transaction),
+      rejection: sepayRecipientMatches(transaction, config)
+        ? null
+        : 'RECIPIENT_OR_DIRECTION_MISMATCH',
+    });
+  }
+
+  receiveSettlement(
+    config: { mode: 'test' | 'live' },
+    transaction: SepaySettlement,
+  ) {
+    const payloadHash = transaction.payloadHash;
     return this.db.$transaction(
       async (tx) => {
         // Global audit lock is always first, including ignored/provider commands.
@@ -169,7 +206,7 @@ export class SepayService {
             );
           return;
         }
-        const invoiceNumber = sepayInvoiceNumber(transaction);
+        const invoiceNumber = transaction.invoiceNumber;
         let invoice = invoiceNumber
           ? await tx.invoice.findUnique({ where: { number: invoiceNumber } })
           : null;
@@ -208,20 +245,18 @@ export class SepayService {
             },
           });
         };
-        if (!sepayRecipientMatches(transaction, config))
-          return record('IGNORED', 'RECIPIENT_OR_DIRECTION_MISMATCH');
+        if (transaction.rejection)
+          return record(
+            transaction.id.startsWith('PG:') ? 'REVIEW_REQUIRED' : 'IGNORED',
+            transaction.rejection,
+          );
         if (!invoice)
           return record('REVIEW_REQUIRED', 'INVOICE_CODE_NOT_MATCHED');
         if (invoice.status !== 'ISSUED')
           return record('REVIEW_REQUIRED', 'INVOICE_ALREADY_PROCESSED');
-        if (
-          invoice.currency !== 'VND' ||
-          invoice.amount !== BigInt(transaction.transferAmount)
-        )
+        if (invoice.currency !== 'VND' || invoice.amount !== transaction.amount)
           return record('REVIEW_REQUIRED', 'AMOUNT_OR_CURRENCY_MISMATCH');
-        const posted = Date.parse(
-          transaction.transactionDate.replace(' ', 'T') + '+07:00',
-        );
+        const posted = transaction.posted;
         if (
           posted < Math.floor(invoice.issuedAt.getTime() / 1000) * 1000 ||
           posted > invoice.dueAt.getTime() ||
