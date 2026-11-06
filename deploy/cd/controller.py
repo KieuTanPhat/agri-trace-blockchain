@@ -23,6 +23,11 @@ spec.loader.exec_module(policy)
 PolicyError, require = policy.PolicyError, policy.require
 
 
+# Must match the definition committed by blockchain/network/production/provision.py.
+ENDORSEMENT_POLICY = "OR('AgritraceMSP.peer')"
+ENDORSEMENT_VALIDATION_PARAMETER = "Ch4SCBIGCAESAggAGhISEAoMQWdyaXRyYWNlTVNQEAM="
+
+
 def atomic_json(filename, data):
     filename = Path(filename)
     filename.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -490,23 +495,24 @@ class Controller:
 
     def definition(self):
         channel, name = self.fabric["channel"], self.fabric["chaincode"]
-        results = [json.loads(self.peer("chaincode-query-committed", org, "querycommitted", "--channelID", channel, "--name", name, "--output", "json", timeout=30)) for org in (1, 2)]
-        require(results[0] == results[1], "Peers disagree on the committed chaincode definition")
+        results = [json.loads(self.peer("chaincode-query-committed", org, "querycommitted", "--channelID", channel, "--name", name, "--output", "json", timeout=30)) for org in self.fabric["peers"]]
+        require(all(result == results[0] for result in results), "Peers disagree on the committed chaincode definition")
         require(results[0].get("endorsement_plugin") == "escc" and results[0].get("validation_plugin") == "vscc" and
-                results[0].get("validation_parameter") == "EiAvQ2hhbm5lbC9BcHBsaWNhdGlvbi9FbmRvcnNlbWVudA==" and
+                results[0].get("validation_parameter") == ENDORSEMENT_VALIDATION_PARAMETER and
                 not results[0].get("collections"), "Custom Fabric policy/collections need separate reviewed lifecycle support")
         return results[0]
 
     def lifecycle(self, package_ids, version, sequence):
         binding = self.fabric["orderer"]
         orderer = ["-o", binding["address"], "--ordererTLSHostnameOverride", binding["hostname"], "--tls", "--cafile", binding["tls"]]
-        definition = ["--channelID", self.fabric["channel"], "--name", self.fabric["chaincode"], "--version", version, "--sequence", str(sequence)]
+        definition = ["--channelID", self.fabric["channel"], "--name", self.fabric["chaincode"], "--version", version, "--sequence", str(sequence),
+                      "--signature-policy", ENDORSEMENT_POLICY]
         peers = [item for peer in self.fabric["peers"].values() for item in ("--peerAddresses", peer["address"], "--tlsRootCertFiles", peer["tls"])]
-        for org in (1, 2):
+        for org in self.fabric["peers"]:
             self.peer("chaincode-approve", org, "approveformyorg", *orderer, *definition, "--package-id", package_ids[str(org)], "--waitForEvent", "--waitForEventTimeout", "60s")
         ready = json.loads(self.peer("chaincode-commit-readiness", 1, "checkcommitreadiness", *definition, "--output", "json"))
         msps = [peer["msp_id"] for peer in self.fabric["peers"].values()]
-        require(all(ready.get("approvals", {}).get(msp) for msp in msps), "Both organizations must approve the definition")
+        require(all(ready.get("approvals", {}).get(msp) for msp in msps), "Every platform peer organization must approve the definition")
         try:
             self.peer("chaincode-commit", 1, "commit", *orderer, *definition, *peers, "--waitForEvent", "--waitForEventTimeout", "60s")
         except (PolicyError, subprocess.TimeoutExpired):
@@ -525,11 +531,11 @@ class Controller:
                   "--lang", "node", "--label", f"agritrace-{candidate['sha']}")
         package_id = self.peer("chaincode-package-id", 1, "calculatepackageid", str(package)).decode().strip()
         require(package_id.startswith(f"agritrace-{candidate['sha']}:") and policy.DIGEST.fullmatch(package_id.split(":")[-1]), "Invalid chaincode package ID")
-        for org in (1, 2):
+        for org in self.fabric["peers"]:
             installed = json.loads(self.peer("chaincode-installed-packages", org, "queryinstalled", "--output", "json"))
             if package_id not in {entry["package_id"] for entry in installed.get("installed_chaincodes", [])}:
                 self.peer("chaincode-install", org, "install", str(package))
-        return self.lifecycle({"1": package_id, "2": package_id}, f"cd-{candidate['sha'][:12]}", expected_sequence + 1)
+        return self.lifecycle({org: package_id for org in self.fabric["peers"]}, f"cd-{candidate['sha'][:12]}", expected_sequence + 1)
 
     def restore_definition(self, state, previous):
         actual = self.definition()

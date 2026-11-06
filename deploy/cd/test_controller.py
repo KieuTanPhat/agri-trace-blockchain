@@ -148,6 +148,33 @@ class DomainDelivery(unittest.TestCase):
         self.assertEqual(self.controller.definition.call_count, 2)
         sleep.assert_called_once_with(5)
 
+    def single_peer_definition(self, **overrides):
+        committed = {"sequence": 1, "version": "2.0", "endorsement_plugin": "escc", "validation_plugin": "vscc",
+                     "validation_parameter": module.ENDORSEMENT_VALIDATION_PARAMETER, "collections": {}}
+        self.controller.fabric = dict(self.controller.fabric, peers={"1": {"address": "localhost:7051", "tls": "/tls", "msp_id": "AgritraceMSP"}},
+                                      orderer={"address": "localhost:7050", "hostname": "orderer", "tls": "/orderer"})
+        self.controller.peer = MagicMock(return_value=json.dumps({**committed, **overrides}).encode())
+
+    def test_definition_reads_the_single_platform_peer(self):
+        self.single_peer_definition()
+        self.assertEqual(self.controller.definition()["sequence"], 1)
+        self.assertEqual([call.args[1] for call in self.controller.peer.call_args_list], ["1"])
+
+    def test_definition_rejects_an_unreviewed_endorsement_policy(self):
+        self.single_peer_definition(validation_parameter="EiAvQ2hhbm5lbC9BcHBsaWNhdGlvbi9FbmRvcnNlbWVudA==")
+        with self.assertRaisesRegex(PolicyError, "Custom Fabric policy"):
+            self.controller.definition()
+
+    def test_lifecycle_keeps_the_provisioned_endorsement_policy(self):
+        self.single_peer_definition()
+        real = self.controller.peer.return_value
+        self.controller.peer = MagicMock(side_effect=lambda label, *_a, **_k: json.dumps({"approvals": {"AgritraceMSP": True}}).encode() if label == "chaincode-commit-readiness" else real)
+        self.controller.definition = MagicMock(return_value={"sequence": 2, "version": "cd-x"})
+        self.controller.lifecycle({"1": "package"}, "cd-x", 2)
+        approve = next(call for call in self.controller.peer.call_args_list if call.args[0] == "chaincode-approve")
+        self.assertIn(module.ENDORSEMENT_POLICY, approve.args)
+        self.assertEqual(approve.args[1], "1")
+
     def test_resume_fabric_times_out_without_starting_application(self):
         self.controller.run = MagicMock(return_value=b"")
         self.controller.definition = MagicMock(side_effect=PolicyError("peer unavailable"))
