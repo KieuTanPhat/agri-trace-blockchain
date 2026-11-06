@@ -5,6 +5,7 @@ import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
 import {useRouter} from "next/navigation";
 import Link from "next/link";
 import {ShipmentPlans as Plans} from "./shipment-plans";
+import {ChainSigningKeys as SigningKeys} from "./chain-signing";
 import {EvidencePanel} from "@/components/ledger/workspace/evidence-panel";
 
 import { useFieldArray, type Control } from "react-hook-form";
@@ -209,6 +210,8 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
   const members = useQuery({ queryKey: ["chain-members", id], queryFn: () => chainApi.members(id) });
   const profile = useQuery({ queryKey: ["chain-profile", id], queryFn: () => chainApi.profile(id) });
   const ctxQ = useQuery({ queryKey: ["chain-context"], queryFn: chainApi.context });
+  // Keys only matter on dual-signed chains; the first key is registered from the direct link.
+  const signing = useQuery({ queryKey: ["chain-handover-mode", id], queryFn: () => chainApi.signingContext(id), retry: false });
   const access=useWorkspaceAccess();
   const memberAct = useDialog<MemberAct>();
   const invite = useDialog();
@@ -217,7 +220,8 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
   const prof = useDialog<"ACTIVATE" | "SUSPEND">();
   const c = chain.data;
   const owner = c?.ownerOrganizationId === me;
-  const tab = ["members", "plans"].includes(view) ? view : "";
+  const showSigning = view === "signing" || signing.data?.handoverMode === "DUAL_SIGNED" || !!signing.data?.keys.some((k) => k.status !== "REVOKED");
+  const tab = ["members", "plans", ...(showSigning ? ["signing"] : [])].includes(view) ? view : "";
   const orgAdmin=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="ORG_ADMIN" && !g.revokedAt);
   const canCreateChain=!!ctxQ.data?.grants.some(g=>g.scope==="ORGANIZATION" && g.role==="CREATE_CHAIN" && !g.revokedAt);
   const manager = owner && !!ctxQ.data?.grants.some((g) => g.chainId === id && g.role === "CHAIN_MANAGER" && !g.revokedAt);
@@ -245,7 +249,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
       />
       <PageBody className="min-w-0">
         <nav aria-label={tr("Mục quản lý chuỗi")} className="flex flex-wrap gap-1 border-b border-line">
-          {TABS.map(([part, label]) => (
+          {[...TABS, ...(showSigning ? [["signing", "Khóa ký"] as [string, string]] : [])].map(([part, label]) => (
             <Link key={part} aria-current={tab === part ? "page" : undefined} href={`/supply-chains/${c.id}${part ? "/" + part : ""}`}
               className={cn("-mb-px border-b-2 px-3 py-2 text-[13px]", tab === part ? "border-brand font-semibold text-brand-ink" : "border-transparent text-ink-2 hover:text-ink")}>{tr(label)}</Link>
           ))}
@@ -343,6 +347,7 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
               </ul>
             </Section>
           )}
+          {tab === "signing" && me && <SigningKeys chainId={c.id} canManage={orgAdmin}/>}
           {tab === "plans" && (profile.data?.state === "ACTIVE" ? <Plans chainId={c.id} manager={manager} names={names} members={members.data ?? []} /> : <Callout tone="info">{tr("Kế hoạch vận chuyển mở khi hồ sơ nghiệp vụ của chuỗi đang vận hành.")}</Callout>)}
         </section>
         {sentLink && <Callout tone="info" title={tr("Link mời (đã gửi email, chỉ hiện một lần)")}><span className="break-all font-mono text-[12px]">{sentLink}</span></Callout>}
