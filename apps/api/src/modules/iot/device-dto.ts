@@ -33,7 +33,7 @@ export class RegisterDeviceInput {
   @ApiProperty({ description: 'Khóa công khai Ed25519 SPKI base64url do thiết bị tạo', pattern: SPKI.source })
   @Matches(SPKI)
   publicKey!: string;
-  @ApiProperty({ description: 'Thiết bị ảo; dữ liệu luôn hiện nhãn mô phỏng' }) @IsBoolean() simulated!: boolean;
+  @ApiProperty({ description: 'Thiết bị ảo; nguồn SIMULATED được giữ trong dữ liệu niêm phong' }) @IsBoolean() simulated!: boolean;
   @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() plotId?: string;
   @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() vehicleId?: string;
 }

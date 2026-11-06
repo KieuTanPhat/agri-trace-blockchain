@@ -1,10 +1,10 @@
 /**
  * Nội dung tĩnh của trang công khai (tiếng Việt là khóa dịch, xem public-i18n-en.ts).
  * Chỉ mô tả năng lực đã có trong hệ thống; không đặt số liệu, khách hàng hay giá chưa xác nhận.
- * Ảnh Unsplash ghi nguồn trong PHOTO_CREDITS; ảnh bìa và minh họa About tạo riêng cho trang; ảnh người tiêu dùng, kiểm định và chế biến do chủ dự án cung cấp.
+ * Ảnh Unsplash ghi nguồn trong PHOTO_CREDITS; minh họa About tạo riêng cho trang; ảnh bìa, ảnh người tiêu dùng, kiểm định và chế biến do chủ dự án cung cấp.
  */
 import type { StaticImageData } from "next/image";
-import heroAgritrace from "../../../../public/images/site/hero-agritrace-rice-harvest.png";
+import heroAgritrace from "../../../../public/images/site/hero-agritrace-dong-bang.png";
 import aboutGrowerPartner from "../../../../public/images/site/about-grower-partner.webp";
 import teaHills from "../../../../public/images/site/tea-hills.jpg";
 import teaLeaves from "../../../../public/images/site/tea-leaves.jpg";

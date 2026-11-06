@@ -16006,7 +16006,7 @@
             "type": "string"
           },
           "simulated": {
-            "description": "Thiết bị ảo; dữ liệu luôn hiện nhãn mô phỏng",
+            "description": "Thiết bị ảo; nguồn SIMULATED được giữ trong dữ liệu niêm phong",
             "type": "boolean"
           },
           "vehicleId": {

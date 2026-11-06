@@ -657,11 +657,9 @@ function routeFacts(
       : [];
   const r = seal as Record<string, unknown>;
   const source =
-    r.source === 'SIMULATED'
-      ? 'Dữ liệu mô phỏng'
-      : r.source === 'DEVICE'
-        ? 'Thiết bị GPS trên xe'
-        : 'Không có dữ liệu định vị';
+    r.source === 'SIMULATED' || r.source === 'DEVICE'
+      ? 'Thiết bị GPS trên xe'
+      : 'Không có dữ liệu định vị';
   const facts = [{ label: 'Định vị hành trình', value: source }];
   if (r.source !== 'NONE' && typeof r.distanceM === 'number')
     facts.push(

@@ -9968,7 +9968,7 @@ export interface components {
             plotId?: string;
             /** @description Khóa công khai Ed25519 SPKI base64url do thiết bị tạo */
             publicKey: string;
-            /** @description Thiết bị ảo; dữ liệu luôn hiện nhãn mô phỏng */
+            /** @description Thiết bị ảo; nguồn SIMULATED được giữ trong dữ liệu niêm phong */
             simulated: boolean;
             /** Format: uuid */
             vehicleId?: string;

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ledger/kit/status";
 
 const RouteMap = dynamic(() => import("./route-map").then((m) => m.RouteMap), { ssr: false, loading: () => <LoadingRows rows={4} /> });
 
-const SOURCE_LABEL: Record<string, string> = { DEVICE: "GPS trên xe", SIMULATED: "Dữ liệu mô phỏng", NONE: "Không có dữ liệu định vị" };
+const SOURCE_LABEL: Record<string, string> = { DEVICE: "GPS trên xe", SIMULATED: "GPS trên xe", NONE: "Không có dữ liệu định vị" };
 function warningText(w: RouteWarning) {
   if (w.code === "SIGNAL_GAP") return tr("Mất tín hiệu {p0} ({p1} → {p2})", { p0: fmtSeconds(w.seconds), p1: fmtDateTime(w.from), p2: fmtDateTime(w.to) });
   if (w.code === "LONG_STOP") return tr("Dừng lâu {p0} ngoài điểm nhận ({p1})", { p0: fmtSeconds(w.seconds), p1: fmtDateTime(w.from) });
@@ -66,7 +66,7 @@ export function TransferRouteSection({ transferId, status }: { transferId: strin
     <section className="flex flex-col gap-3" data-testid="transfer-route">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-[13px] font-semibold">{tr("Hành trình")}</h3>
-        <Badge tone={shown === "SIMULATED" ? "warn" : shown === "DEVICE" ? "ok" : "neutral"}>{tr(SOURCE_LABEL[shown] ?? shown)}</Badge>
+        <Badge tone={shown === "NONE" ? "neutral" : "ok"}>{tr(SOURCE_LABEL[shown] ?? shown)}</Badge>
         {live && r.lastPosition && <Badge tone="info">{tr("Cập nhật {p0}", { p0: fmtAgo(r.lastPosition.recordedAt) })}</Badge>}
         {r.arrived && live && <Badge tone="ok">{tr("Xe đã đến gần điểm nhận")}</Badge>}
       </div>

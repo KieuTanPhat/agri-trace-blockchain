@@ -52,7 +52,6 @@ export function CycleSensors({ cycleId }: { cycleId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-semibold">{tr("Cảm biến vùng trồng")}</h3>
-          {r.simulated && <Badge tone="warn">{tr("Dữ liệu mô phỏng")}</Badge>}
           {r.lateCount > 0 && <Badge tone="neutral">{tr("{p0} bản ghi đến muộn", { p0: r.lateCount })}</Badge>}
         </div>
         <div role="tablist" className="flex gap-1">

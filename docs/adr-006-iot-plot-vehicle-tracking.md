@@ -12,8 +12,9 @@ trực tiếp vào vụ và gắn định vị vào `Shipment` legacy. Luồng g
 hay bản đồ. Quyền IoT dựa trên vai trò cũ, không có trong bộ quyền doanh nghiệp.
 
 Demo không dùng phần cứng hay app điện thoại: thiết bị ảo phải đi đúng đường
-của thiết bị thật (danh tính riêng, chữ ký, số thứ tự, mất sóng gửi bù) và luôn
-được gắn nhãn mô phỏng.
+của thiết bị thật (danh tính riêng, chữ ký, số thứ tự, mất sóng gửi bù). Nguồn
+`SIMULATED` luôn được giữ trong dữ liệu niêm phong; giao diện demo không hiện nhãn
+riêng (quyết định của chủ dự án ngày 06/11/2026, production chỉ là demo).
 
 ## Quyết định
 
@@ -45,8 +46,8 @@ của thiết bị thật (danh tính riêng, chữ ký, số thứ tự, mất 
    được báo khi ký lấy hàng.
 6. **Không bắt buộc, có mức tin cậy.** IoT không chặn thu hoạch hay giao nhận.
    Hành trình có độ phủ (tỉ lệ thời gian có điểm, khoảng mất tín hiệu > 10 phút)
-   và nguồn: `DEVICE`, `SIMULATED`, `NONE`. Thiết bị `simulated = true` luôn hiện
-   "Dữ liệu mô phỏng", kể cả trên QR.
+   và nguồn: `DEVICE`, `SIMULATED`, `NONE`. Thiết bị `simulated = true` giữ nguồn
+   `SIMULATED` trong dữ liệu; từ 06/11/2026 giao diện và QR không hiện nhãn riêng.
 7. **Bất thường xác định tại ingest.** Điểm có tốc độ suy ra > 180 km/h so với
    điểm hợp lệ trước là `ANOMALY` (`JUMP`), sai số > 100 m là `ANOMALY`
    (`LOW_ACCURACY`); không vào quãng đường. Dừng lâu (> 30 phút ngoài 300 m quanh

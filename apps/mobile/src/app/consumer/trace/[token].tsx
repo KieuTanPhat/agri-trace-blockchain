@@ -150,7 +150,6 @@ export default function Trace() {
             {lot.sensorEvidence.readingCount > 0 && (
               <Card style={{ padding: 16, gap: 6 }}>
                 <T size={17} weight="heavy">Cảm biến vùng trồng</T>
-                {lot.sensorEvidence.simulated && <Pill label="Dữ liệu mô phỏng" t="orange" />}
                 <Row label="BẮT ĐẦU" value={dateTime(lot.sensorEvidence.periodStart)} />
                 <Row label="KẾT THÚC" value={dateTime(lot.sensorEvidence.periodEnd)} />
                 <Row label="SỐ LẦN ĐO" value={String(lot.sensorEvidence.readingCount)} />

@@ -394,6 +394,7 @@ export function ProductDetail({ id }: { id: string }) {
             <Badge tone={p.saleStatus === "SELLING" ? "ok" : "neutral"}>{p.saleStatus === "SELLING" ? pt("Đang bán") : pt("Chưa bán")}</Badge>
           </div>
           <h1 className="text-3xl leading-tight font-semibold tracking-tight">{p.productName}</h1>
+          {p.description && <p className="text-[15px] leading-relaxed text-ink-2">{p.description}</p>}
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
               [QrCode, "Lô có mã QR", fmtNumber(p.traceCount)],
