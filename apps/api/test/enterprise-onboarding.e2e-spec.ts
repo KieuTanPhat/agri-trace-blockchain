@@ -969,8 +969,8 @@ const prisma = new PrismaClient({
         'CONTRACT',
         'CREDENTIALS',
       ]);
-      expect(messages.find((m) => m.kind === 'CONTRACT')?.attachment).toBe(
-        preview.contractText,
+      expect(messages.find((m) => m.kind === 'CONTRACT')?.attachmentPdfHash).toMatch(
+        /^[0-9a-f]{64}$/,
       );
       expect(
         await prisma.organizationCapability.count({
