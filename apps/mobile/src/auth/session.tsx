@@ -10,7 +10,7 @@ import { SessionGate } from './session-gate';
  * without secure storage: it keeps the token in sessionStorage, which the
  * browser drops when the tab closes.
  */
-export type Audience = 'consumer' | 'staff';
+type Audience = 'consumer' | 'staff';
 
 type Session<U> = { sessionId: string; accessToken: string; refreshToken: string; user: U };
 type State<U> = { status: 'loading' | 'anonymous' | 'signed-in'; user: U | null; scope: string };
@@ -20,6 +20,8 @@ type Ctx<U> = State<U> & {
   signOut: () => Promise<void>;
   /** Authenticated call; refreshes once on 401, then signs out. */
   call: <T>(path: string, init?: { body?: unknown; form?: FormData; idempotencyKey?: string }) => Promise<T>;
+  /** Rotates the session to pick up account changes such as a cleared forced password change. */
+  reloadUser: () => Promise<void>;
 };
 
 const Context = createContext<Ctx<unknown> | null>(null);
@@ -109,6 +111,9 @@ export function SessionProvider<U>({ audience, children }: { audience: Audience;
         const token = session.current?.refreshToken ?? (await store.get(key));
         try { await clear(); }
         finally { if (token) await api(ROUTES[audience].logout, { body: { refreshToken: token } }).catch(() => undefined); }
+      },
+      async reloadUser() {
+        await refresh();
       },
       async call<T>(path: string, init: { body?: unknown; form?: FormData; idempotencyKey?: string } = {}) {
         const run = (token: string | null) => api<T>(path, { ...init, token });

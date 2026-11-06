@@ -32,6 +32,7 @@ describe('Processing lifecycle / isolated PostgreSQL', () => {
   const tag = randomUUID();
   let app: INestApplication;
   let organizationId: string,
+    farmOrgId: string,
     chainId: string,
     siteId: string,
     productId: string;
@@ -68,6 +69,7 @@ describe('Processing lifecycle / isolated PostgreSQL', () => {
       data: { name: `[TEST] Other processor ${tag}`, type: 'PROCESSOR' },
     });
     organizationId = processor.id;
+    farmOrgId = farm.id;
     const users = [];
     for (const [org, roleCode] of [
       [farm, 'FARM_STAFF'],
@@ -197,10 +199,14 @@ describe('Processing lifecycle / isolated PostgreSQL', () => {
   });
 
   async function receipt(withImage = true) {
+    // ADR-005: external receipts name a supplier from the private address book.
+    const supplier = await db.enterpriseExternalPartner.create({
+      data: { organizationId, businessId: `SUP-${randomUUID().slice(0, 8)}`, name: '[TEST] External supplier', kind: 'FARM', address: '[TEST] Supplier address', phone: '0912345678' },
+    });
     const created = await post('/processing-runs/receipts', {
       siteId,
       materialName: '[TEST] Fresh fruit',
-      supplierName: '[TEST] External supplier',
+      supplierId: supplier.id,
       documentNo: randomUUID(),
       receivedAt: new Date().toISOString(),
       quantity: '10.000',
@@ -244,6 +250,57 @@ describe('Processing lifecycle / isolated PostgreSQL', () => {
     output: { quantity: '8.000', unit: 'kg' },
     byProducts: [],
     losses: [{ reason: 'MOISTURE', quantity: '2.000' }],
+  });
+
+  it('plans a run from a lot of another chain only for an ACTIVE member and pins its own binding (ADR-005)', async () => {
+    const sourceChain = await provisionChain(db, {
+      ownerOrganizationId: farmOrgId,
+      memberOrganizationIds: [],
+      grants: [],
+    });
+    const lotId = randomUUID(),
+      cycleId = randomUUID(),
+      harvestId = randomUUID();
+    // Storage fixture only: a held lot of the source chain at the processor
+    // site. Triggers are bypassed solely to place this stock.
+    await db.$transaction(async (tx) => {
+      await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
+      await tx.productionCycle.create({
+        data: { id: cycleId, cycleCode: `X-${cycleId}`, productId, farmId: randomUUID(), farmOrgId, chainId: sourceChain },
+      });
+      await tx.harvestEvent.create({
+        data: { id: harvestId, cycleId, harvestTime: new Date(), quantity: 5, unit: 'kg' },
+      });
+      await tx.lot.create({
+        data: { id: lotId, lotCode: `X-${lotId}`, harvestId, productId, farmOrgId, initialQuantity: 5, availableQuantity: 5, unit: 'kg' },
+      });
+      await tx.lotHolding.create({ data: { lotId, organizationId, quantity: 5 } });
+      await tx.lotSiteHolding.create({ data: { lotId, organizationId, siteId, quantity: 5 } });
+    });
+    const input = { chainId, siteId, productId, processType: 'PACKING', baseUnit: 'kg', inputs: [{ lotId, quantity: '2.000' }], externalInputs: [] };
+    const refused = await post('/processing-runs', input).expect(422);
+    expect(refused.body.message ?? JSON.stringify(refused.body)).toContain('chưa tham gia');
+    await db.chainMembership.create({ data: { chainId: sourceChain, organizationId, status: 'ACTIVE' } });
+    const run = (await post('/processing-runs', input).expect(201)).body.data.record;
+    const row = await db.processingRun.findUniqueOrThrow({ where: { id: run.id } });
+    const own = await db.chainLedgerProfile.findUniqueOrThrow({ where: { chainId } });
+    expect(row.originCycleId).toBeNull();
+    expect(row.bindingDigest).toBe(own.activeBindingDigest);
+    await expect(
+      db.processingRun.update({ where: { id: run.id }, data: { originCycleId: cycleId, version: { increment: 1 } } }),
+    ).rejects.toThrow();
+    // A real start must reconcile the same stock used by distribution, not
+    // merely pass the planning branch. The older guard omitted these promises.
+    await post(`/processing-runs/${run.id}/start`, { version: 0 }).expect(201);
+    const holding = { lotId_organizationId: { lotId, organizationId } };
+    const siteHolding = { lotId_organizationId_siteId: { lotId, organizationId, siteId } };
+    expect((await db.lotHolding.findUniqueOrThrow({ where: holding })).reserved.toFixed(3)).toBe('2.000');
+    expect((await db.lotSiteHolding.findUniqueOrThrow({ where: siteHolding })).reserved.toFixed(3)).toBe('2.000');
+    await expect(db.lotHolding.update({ where: holding, data: { reserved: { increment: 1 } } })).rejects.toThrow(/reservation/);
+    await expect(db.lotSiteHolding.update({ where: siteHolding, data: { reserved: { increment: 1 } } })).rejects.toThrow(/reservation|allocation/);
+    await post(`/processing-runs/${run.id}/cancel`, { version: 1, reason: 'Điều chỉnh kế hoạch chế biến, trả lại phần nguyên liệu đã giữ chỗ.' }).expect(201);
+    expect((await db.lotHolding.findUniqueOrThrow({ where: holding })).reserved.toFixed(3)).toBe('0.000');
+    expect((await db.lotSiteHolding.findUniqueOrThrow({ where: siteHolding })).reserved.toFixed(3)).toBe('0.000');
   });
 
   it('requires receipt evidence before planning without consuming any quantity', async () => {

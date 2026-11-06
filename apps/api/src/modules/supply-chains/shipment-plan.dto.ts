@@ -14,7 +14,7 @@ import {
 } from 'class-validator';
 import { ChainVersionDto } from './dto.js';
 
-export class ShipmentPlanPayloadDto {
+class ShipmentPlanPayloadDto {
   @ApiProperty({ type: String, format: 'uuid' })
   @IsUUID()
   transporterOrgId!: string;

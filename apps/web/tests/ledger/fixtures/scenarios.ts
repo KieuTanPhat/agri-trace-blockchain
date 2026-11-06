@@ -19,7 +19,7 @@ export type FixtureState = {
   requests: CapturedRequest[];
   values: Map<string, unknown>;
 };
-export type Scenario = {
+type Scenario = {
   configure?: (state: FixtureState) => void;
   handle: (
     request: CapturedRequest,

@@ -7,7 +7,7 @@ import { z } from "zod";
 import { Plus } from "lucide-react";
 import { wapi, type MaterialInput } from "@/lib/ledger/resource-api";
 import type { Material } from "@/lib/ledger/resource-types";
-import { fmtDate, fmtNumber } from "@/lib/ledger/format";
+import { fmtDate } from "@/lib/ledger/format";
 import { localized, t as tr } from "@/lib/ledger/i18n";
 import { useOverview, useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
@@ -19,12 +19,11 @@ import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components
 import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
-import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { EvidencePanel, EvidenceCover } from "@/components/ledger/workspace/evidence-panel";
 import { RevisionHistory } from "@/components/ledger/workspace/revision-history";
 
-export const MATERIAL_KIND_LABEL: Record<string, string> = localized({ SEED: "Giống", FERTILIZER: "Phân bón", PROTECTION: "Thuốc bảo vệ thực vật", OTHER: "Vật tư khác" });
+const MATERIAL_KIND_LABEL: Record<string, string> = localized({ SEED: "Giống", FERTILIZER: "Phân bón", PROTECTION: "Thuốc bảo vệ thực vật", OTHER: "Vật tư khác" });
 const opt = (max: number) => z.string().trim().max(max).optional();
-const optNum = z.union([z.literal(""), z.coerce.number<number>().min(0, { error: () => tr("≥ 0") })]).optional();
 // MaterialInput (enterprise-workspace/resources.dto.ts)
 const fields = {
   code: opt(100),
@@ -35,7 +34,6 @@ const fields = {
   supplier: opt(255),
   batchCode: opt(100),
   activeIngredient: opt(255),
-  price: optNum,
   origin: opt(255),
   manufacturer: opt(255),
   description: opt(2000),
@@ -61,7 +59,6 @@ function toInput(v: Values): MaterialInput {
     supplier: blank(v.supplier),
     batchCode: blank(v.batchCode),
     activeIngredient: blank(v.activeIngredient),
-    price: blank(v.price) as number | undefined,
     origin: blank(v.origin),
     manufacturer: blank(v.manufacturer),
     description: blank(v.description),
@@ -78,7 +75,6 @@ const fromRow = (m: Material): Values => ({
   supplier: m.supplier ?? "",
   batchCode: m.batchCode ?? "",
   activeIngredient: m.activeIngredient ?? "",
-  price: m.price !== null ? Number(m.price) : "",
   origin: m.origin ?? "",
   manufacturer: m.manufacturer ?? "",
   description: m.description ?? "",
@@ -102,7 +98,7 @@ export default function MaterialsPage({view="list",resourceId}:{view?:"list"|"ne
     { key: "name", header: tr("Tên"), sort: (m) => m.name, cell: (m) => <span className="flex flex-col"><span className="font-medium">{m.name}</span><span className="text-[11.5px] text-ink-2">{[m.seedType, m.supplier].filter(Boolean).join(" · ")}</span></span> },
     { key: "kind", header: tr("Loại"), cell: (m) => <span className="text-[12.5px]">{MATERIAL_KIND_LABEL[m.kind]}</span> },
     { key: "unit", header: tr("Đơn vị"), hideBelow: "md", cell: (m) => <span className="text-[12.5px]">{m.unit}</span> },
-    { key: "ev", header: tr("Ảnh"), hideBelow: "md", cell: (m) => (m.evidenceComplete ? <Badge tone="ok">{tr("Đủ")}</Badge> : <Badge tone="warn">{tr("Thiếu")}</Badge>) },
+    { key: "ev", header: tr("Ảnh"), hideBelow: "md", cell: (m) => <span className="flex items-center gap-2"><EvidenceCover entityType="MATERIAL" entityId={m.id} prefer={[]} />{!m.evidenceComplete && <Badge tone="warn">{tr("Hồ sơ thiếu")}</Badge>}</span> },
     { key: "status", header: tr("Trạng thái"), cell: (m) => <Badge tone={m.status === "ACTIVE" ? "ok" : "neutral"}>{m.status === "ACTIVE" ? tr("Đang dùng") : tr("Ngừng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (m) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/materials/${m.id}`)}>{tr("Chi tiết")}</Button> },
   ];
@@ -123,7 +119,7 @@ export default function MaterialsPage({view="list",resourceId}:{view?:"list"|"ne
         </div>
       </PageBody>
       <MaterialSheet row={q.data?.find((m) => m.id === openId) ?? null} onClose={() => {setOpenId(null);router.push("/enterprise/materials");}} canManage={can("materials.manage")} canEvidence={can("materials.manage") && can("evidence.manage")} />
-      <CommandDialog {...add.props} open={view==="new" && can("materials.manage") && farmCapable} onOpenChange={o=>{if(!o)router.push("/enterprise/materials");}} onDone={()=>router.push("/enterprise/materials")} title={tr("Thêm giống/vật tư")} endpoint="POST /enterprise-workspace/materials" description={tr("Mã do hệ thống tự sinh. Mục mới ở trạng thái ngừng cho tới khi hoàn tất ảnh.")} schema={createSchema} defaultValues={{ code: "", name: "", kind: "SEED", unit: "", seedType: "", supplier: "", batchCode: "", activeIngredient: "", price: "", origin: "", manufacturer: "", description: "", withdrawalDays: "", expiryDate: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-materials"]]} wide run={(v, cmd) => wapi.createMaterial(toInput(v), cmd)}>
+      <CommandDialog {...add.props} open={view==="new" && can("materials.manage") && farmCapable} onOpenChange={o=>{if(!o)router.push("/enterprise/materials");}} onDone={()=>router.push("/enterprise/materials")} title={tr("Thêm giống/vật tư")} endpoint="POST /enterprise-workspace/materials" description={tr("Mã do hệ thống tự sinh. Mục mới ở trạng thái ngừng cho tới khi hoàn tất ảnh.")} schema={createSchema} defaultValues={{ code: "", name: "", kind: "SEED", unit: "", seedType: "", supplier: "", batchCode: "", activeIngredient: "", origin: "", manufacturer: "", description: "", withdrawalDays: "", expiryDate: "" }} submitLabel={tr("Thêm")} invalidate={[["ws-materials"]]} wide run={(v, cmd) => wapi.createMaterial(toInput(v), cmd)}>
         {(f) => <MaterialFields f={f as never} creating />}
       </CommandDialog>
     </>
@@ -147,7 +143,6 @@ function MaterialFields({ f, creating }: { f: { control: never; watch: (k: strin
         <TextField control={c} name="manufacturer" label={tr("Nhà sản xuất")} />
         <TextField control={c} name="batchCode" label={tr("Số lô")} />
         <TextField control={c} name="origin" label={tr("Xuất xứ")} />
-        <TextField control={c} name="price" label={tr("Đơn giá (VND)")} type="number" />
         <TextField control={c} name="expiryDate" label={tr("Hạn dùng")} type="date" />
       </div>
       <TextAreaField control={c} name="description" label={tr("Mô tả")} max={2000} />
@@ -192,7 +187,6 @@ function MaterialSheet({ row, onClose, canManage, canEvidence }: { row: Material
                   [tr("Nhà sản xuất"), m.manufacturer],
                   [tr("Số lô"), m.batchCode],
                   [tr("Xuất xứ"), m.origin],
-                  [tr("Đơn giá"), m.price && `${fmtNumber(m.price)} VND`],
                   [tr("Hạn dùng"), m.expiryDate && fmtDate(m.expiryDate)],
                   [tr("Mô tả"), m.description],
                 ]

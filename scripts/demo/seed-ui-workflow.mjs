@@ -82,18 +82,19 @@ async function bootstrap(){
   for(const org of plan.organizations){
    const roleCode=org.type==='FARM'?'FARM_STAFF':org.type;
    const role=await tx.role.upsert({where:{code:roleCode},create:{code:roleCode,name:roleCode},update:{}});
-   await tx.organization.create({data:{id:org.id,name:org.name,type:org.type,status:'ACTIVE'}});
-   const owner=userFor(org,1),manager=userFor(org,2);
+   await tx.organization.create({data:{id:org.id,name:org.name,type:org.type,status:'ACTIVE',participationStatus:['FARM','PROCESSOR'].includes(org.type)?'CHAIN_OWNER':'MEMBER'}});
+   // Slot 2 is a lead employee; there is no manager tier, so every employee reports to the owner.
+   const owner=userFor(org,1);
    for(const c of credentials.filter(c=>c.organizationId===org.id))await tx.user.create({data:{
     id:c.id,email:c.email,passwordHash:hashes.get(c.id),fullName:c.fullName,roleId:role.id,organizationId:org.id,
-    enterpriseTier:c.tier,memberCode:`NV000${c.tier}`,jobTitle:c.tier===1?'[DEMO] Chủ quản':c.tier===2?'[DEMO] Quản lý':'[DEMO] Nhân viên',
-    supervisorId:c.tier===1?null:c.tier===2?owner.id:manager.id,phone:c.phone,contactAddress:'[DEMO] Địa chỉ thử nghiệm, không liên hệ thực tế',
+    enterpriseTier:c.tier===1?1:3,memberCode:`NV000${c.tier}`,jobTitle:c.tier===1?'[DEMO] Chủ quản':c.tier===2?'[DEMO] Quản lý':'[DEMO] Nhân viên',
+    supervisorId:c.tier===1?null:owner.id,phone:c.phone,contactAddress:'[DEMO] Địa chỉ thử nghiệm, không liên hệ thực tế',
     passwordChangedAt:new Date(state.startedAt),mustChangePassword:false,
    }});
    await tx.organizationCapability.upsert({where:{organizationId_code:{organizationId:org.id,code:org.type}},create:{organizationId:org.id,code:org.type},update:{}});
    await tx.enterpriseEnrollment.create({data:{id:workflowId(`enrollment:${org.key}`,0),organizationId:org.id,ownerId:owner.id,
+    status:'APPROVED',reviewedBy:admin.id,reviewNote:'Synthetic local dataset; not legal review',
     registrationDigest:fingerprint({namespace:UI_WORKFLOW_NAMESPACE,id:org.id}),businessId:`DEMO100-${org.key.toUpperCase()}`,
-    hostingMode:'MANAGED_ORG',status:'APPROVED',reviewedBy:admin.id,reviewNote:'Synthetic local dataset; not legal review',
     serviceActivatedAt:new Date(state.startedAt),serviceActivatedBy:admin.id,serviceActivationReason:'Owner-authorized local UI dataset; temporary access, no payment',
    }});
    await tx.enterpriseProfile.create({data:{organizationId:org.id,legalForm:org.type==='FARM'?'COOPERATIVE':'ENTERPRISE',
@@ -211,7 +212,7 @@ const at=(days)=>new Date(new Date(state.startedAt).getTime()+days*86400000).toI
 async function produce(org,p,setup){
  const {a,farm,plot,site,chain}=setup;
  const product=unwrap(await command(a,'/catalog/products',{
-  productName:p.name,sku:p.sku,category:p.processed?'[DEMO] Sản phẩm chế biến':'[DEMO] Nông sản',defaultUnit:'kg',price:p.price,
+  productName:p.name,sku:p.sku,category:p.processed?'[DEMO] Sản phẩm chế biến':'[DEMO] Nông sản',defaultUnit:'kg',
   variety:'Dữ liệu tổng hợp để kiểm thử',storageConditions:'[DEMO] Bảo quản khô thoáng; không phải hướng dẫn cho hàng thật',
   ingredients:'[DEMO] Thành phần minh họa',usageInstructions:'Chỉ dùng thử nghiệm phần mềm',description:'Dữ liệu thử nghiệm tổng hợp; không phải hàng hóa hoặc chứng nhận thật.',
   ...(farm?{originFarmId:farm.id}:{manufacturingSiteId:site.id}),
@@ -252,7 +253,7 @@ async function verify(){
  for(const p of plan.products){
   const record=state.products[p.key];assert.ok(record);
   const detail=await raw(null,`/public/products/${record.productId}`);assert.equal(detail.productName,p.name);assert.ok(detail.lots.items.some(l=>l.traceToken===record.traceToken));
-  assert.ok(detail.imageUrl,'Public demo image missing');assert.equal(Number(detail.price),p.price,'Published demo catalog price missing');
+  assert.ok(detail.imageUrl,'Public demo image missing');assert.ok(detail.category,'Published demo catalog details missing');
   const trace=await raw(null,`/public/trace/${record.traceToken}`);assert.ok(trace,'Trace missing');
   const lot=await db.lot.findUniqueOrThrow({where:{id:record.lotId}});assert.equal(lot.productId,record.productId);assert.equal(lot.unit,'kg');
   if(p.processed){const run=await db.processingRun.findUniqueOrThrow({where:{id:lot.processingRunId}});assert.equal(run.status,'COMPLETED');assert.equal(run.inputTotal.toFixed(3),'10.000');assert.equal(run.outputTotal.toFixed(3),'8.000');assert.equal(run.lossTotal.toFixed(3),'2.000');}

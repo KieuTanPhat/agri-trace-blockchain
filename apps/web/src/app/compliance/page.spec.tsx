@@ -56,7 +56,7 @@ describe("Compliance forms use current server subject permissions", () => {
       screen.queryByRole("button", {name:"Nộp chứng nhận"}),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button",{name:"Ghi kiểm định"}));
-    fireEvent.keyDown(screen.getByRole("combobox",{name:"Lô hàng"}),{key:"ArrowDown"});
+    fireEvent.keyDown(await screen.findByRole("combobox",{name:"Lô hàng"}),{key:"ArrowDown"});
     expect(await screen.findByRole("option", { name: "LOT" })).toBeInTheDocument();
   });
   it("offers certificate submission for scoped production without global FARM_STAFF", async () => {
@@ -72,7 +72,7 @@ describe("Compliance forms use current server subject permissions", () => {
     ).not.toBeInTheDocument();
   });
   it("keeps a producer with an auditor capability from a scoped self-review form", async () => {
-    user = { ...user, role: { code: "COMPLIANCE_REVIEWER", name: "Reviewer" } };
+    user = { ...user, role: { code: "AUDITOR", name: "Kiểm định" } };
     api.getProductionCycles.mockResolvedValue([
       { ...cycle, canReviewCompliance: false },
     ]);

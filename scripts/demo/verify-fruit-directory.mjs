@@ -11,7 +11,7 @@ for(const p of page.items){
   assert.equal(response.status,200);
   const j=await response.json(),detail=j.data??j;
   assert.ok(detail.lots.items.length>0,`No public QR for ${p.productName}`);
-  assert.ok(detail.imageUrl&&Number(detail.price)>0,'Explicitly published product image and indicative price are required');
+  assert.ok(detail.imageUrl&&detail.category,'Explicitly published product image and catalog details are required');
   assert.ok(!('managerUserId' in detail)&&!('organization' in detail),'Private catalog fields must remain private');
   const image=await fetch(`http://localhost:8080/api${detail.imageUrl}`);
   assert.equal(image.status,200);

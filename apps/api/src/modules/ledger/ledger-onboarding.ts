@@ -6,7 +6,7 @@ import type {
 import type { Prisma } from '../../generated/prisma/client.js';
 import { recordCredential } from './ledger-bindings.js';
 
-export interface OnboardInput {
+interface OnboardInput {
   /** Operator with the controller and every governed MSP admin. */
   operator: RegistryOperator;
   /** Any client on the channel (reads the chaincode health/registry). */

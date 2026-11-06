@@ -87,10 +87,8 @@ export class ProfileAmendmentsService {
   const p=input.profile, province=VIETNAM_ADDRESSES.find(v=>v.code===p.provinceCode),ward=province?.wards.find(v=>v.code===p.wardCode);
   const businessId=p.businessId?.trim().replace(/[-\s]/g,'')||null;
   if(!province||!ward)throw new ConflictException('Chọn tỉnh/thành và xã/phường từ danh mục');
-  if(businessId&&!/^(?:\d{10}|\d{12}|\d{13})$/.test(businessId))throw new ConflictException('Mã pháp lý không hợp lệ');
+  if(businessId&&!/^(?:\d{10}|\d{13})$/.test(businessId))throw new ConflictException('Mã pháp lý không hợp lệ');
   if(REGISTERED_FORMS.includes(p.legalForm)&&(!businessId||!p.registrationNumber?.trim()||!p.representativeTitle?.trim()))throw new ConflictException('Bổ sung mã pháp lý, giấy đăng ký và chức vụ đại diện');
-  if(['ENTERPRISE','COOPERATIVE'].includes(p.legalForm)&&businessId?.length===12)throw new ConflictException('Mã số 12 chữ số chỉ dành cho hộ kinh doanh');
-  if(['PRODUCER_HOUSEHOLD','INDIVIDUAL_PRODUCER'].includes(p.legalForm)&&!p.activities.includes('FARM'))throw new ConflictException('Hộ/cá nhân sản xuất cần năng lực sản xuất');
   if(p.activities.includes('FARM')!==!!p.production)throw new ConflictException('Khai báo sản xuất CROP khi chọn năng lực sản xuất');
   if(await tx.traceEvidence.count({where:{id:{in:input.evidenceIds},organizationId:org.id,entityType:'PROFILE',entityId:org.id}})!==input.evidenceIds.length)throw new ForbiddenException('Chọn chứng cứ pháp lý riêng tư của tổ chức');
   const target={name:p.name.trim(),legalForm:p.legalForm,address:p.address.trim(),province:province.name,provinceCode:province.code,ward:ward.name,wardCode:ward.code,representative:p.representative.trim(),activities:[...p.activities].sort(),legalData:{businessId,registrationNumber:p.registrationNumber?.trim()||null,representativeTitle:p.representativeTitle?.trim()||null,production:p.production??null}};

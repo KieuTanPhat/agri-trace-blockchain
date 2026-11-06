@@ -1,7 +1,7 @@
 "use client";
 import { useCallback } from "react";
 import { useAuth } from "../auth-store";
-import { canAccessManagementRoute } from "../permissions";
+import { actingRole, canAccessManagementRoute } from "../permissions";
 const reads: Record<string, string> = {
   "dashboard.read": "/admin",
   "inbox.read": "/admin/inbox",
@@ -32,7 +32,6 @@ const reads: Record<string, string> = {
   "monitoring.read": "/admin/monitoring",
   "backup.read": "/admin/backup",
   "securityAlerts.read": "/admin/security-alerts",
-  "tickets.read": "/admin/support",
   "cases.read": "/admin/cases",
   "settings.read": "/admin/settings",
 };
@@ -59,7 +58,7 @@ export function useLedgerSession() {
         return false;
       return canAccessManagementRoute(
         href.split(/[?#]/)[0],
-        auth.user.role.code,
+        actingRole(auth.user),
         auth.user.productionAccess,
       );
     },
@@ -68,19 +67,17 @@ export function useLedgerSession() {
   const can = useCallback(
     (permission: string) => {
       if (!auth.user || auth.privateAccessStatus !== "ready") return false;
-      const role = auth.user.role.code;
+      const role = actingRole(auth.user);
       if (permission === "privacy.write")
-        return role === "SYSTEM_ADMIN" || role === "PLATFORM_PRIVACY_OFFICER";
+        return role === "SYSTEM_ADMIN";
       if (permission === "reports.triage")
-        return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
+        return role === "SYSTEM_ADMIN";
       if (permission === "notices.write") return role === "SYSTEM_ADMIN";
       if (permission === "news.write") return role === "SYSTEM_ADMIN";
       if (permission === "reference.write" || permission === "qr.write")
         return role === "SYSTEM_ADMIN";
-      if (permission === "tickets.write")
-        return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
       if (permission === "cases.write")
-        return role === "SYSTEM_ADMIN" || role === "PLATFORM_CASE_MANAGER";
+        return role === "SYSTEM_ADMIN";
       if (reads[permission])
         return canAccessManagementRoute(
           reads[permission],

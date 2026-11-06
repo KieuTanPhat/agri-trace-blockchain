@@ -5,8 +5,19 @@
 Bộ nạp bổ sung `npm run demo:ui:workflow` chạy từ root repo, có xác nhận đúng
 DB `agri_trace_ui_test`, backup và checkpoint. Bộ này tạo 70 luồng sản xuất,
 30 luồng chế biến và 100 QR qua API, dùng ảnh DEMO/ledger mô phỏng. Không reset
-dữ liệu cũ, không phải biên nhận Fabric thật. Xem
-[hướng dẫn và tài khoản local](../../docs/testing/ui-workflow-100.md).
+dữ liệu cũ, không phải biên nhận Fabric thật. Build API trước, xác minh API/DB
+local đúng target rồi xem trước từ root:
+
+```bash
+AGRI_UI_WORKFLOW_CONFIRM=agri_trace_ui_test AGRI_UI_WORKFLOW_API=http://127.0.0.1:8080/api npm run demo:ui:workflow -- --dry-run
+```
+
+Bỏ `--dry-run` để nạp/resume; dùng `--verify` để đối chiếu mà không tạo command.
+Script giữ backup/fingerprint/checkpoint và advisory lock. Unknown outcome phải
+đối soát bằng body/key cũ; không xóa checkpoint hoặc khôi phục đè để dọn demo.
+Credential, inventory và state nằm trong `.codex/ui-workflow-100/agri_trace_ui_test/`,
+không commit/chia sẻ. Chỉ scope tenant tương ứng thấy dữ liệu; Admin xem toàn bộ
+tổ chức. Kiểm API không thay nghiệm thu camera/OTP/chữ ký trên thiết bị thật.
 
 ## Catalog kiểm thử rộng trên database cách ly
 
@@ -32,11 +43,9 @@ NestJS API sử dụng PostgreSQL và Prisma. API mặc định chạy tại
 
 Command journal, reviewer scope và harvest sensor window tuân theo
 [quy tắc nghiệp vụ](../../docs/core-business-rules.md). Cài mới Hybrid theo
-[kế hoạch hiện hành](../../docs/plans/fresh-install-cleanup-2026-10-13.md) và
 [runbook production](../../docs/production-runbook.md).
-Các migration mới cần review SQL/rehearsal có kiểm soát trước triển khai. Sau
-migrate, dùng `npm run db:provision-compliance-role --workspace apps/api` để thêm
-role reviewer còn thiếu; không dùng demo seed trên dữ liệu dùng chung.
+Các migration mới cần review SQL/rehearsal có kiểm soát trước triển khai. Không
+dùng demo seed trên dữ liệu dùng chung.
 
 ## Chạy local
 
@@ -181,11 +190,11 @@ Các endpoint hiện có:
   - Client tạo `requestId` (UUID) một lần và gửi lại đúng `requestId` cùng nội dung
     form gốc khi retry; không tạo `requestId` mới khi chưa rõ kết quả.
   - Quản trị duyệt tại `/admin/enterprises`. Xem
-    [kế hoạch onboarding](../../docs/plans/enterprise-onboarding.md) và
+    [quy tắc đăng ký](../../docs/core-business-rules.md#enterprise-workspace-and-source-preserving-distribution) và
     [hướng dẫn kết nối](../../docs/hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
     Việc gate đang bật trên production phải xác nhận theo runbook, không suy ra từ mã.
 
-## Hybrid A/B/C
+## Hybrid B/c2 và migration lịch sử
 
 Ba migration append-only: `20261014000000_hybrid_chain_scope` (A: phân quyền theo
 chuỗi, backfill một chuỗi legacy cho mỗi org sản xuất, route lịch sử bất biến),
@@ -194,10 +203,10 @@ chuỗi, backfill một chuỗi legacy cho mỗi org sản xuất, route lịch 
 tạo kiểu, hàm và trigger nên phải có root-owned review pin đúng checksum/protocol;
 không bỏ parser hoặc sửa migration đã phát hành để qua CD. Migration
 `20261017000000_hybrid_fresh_install` chỉ cleanup DB chưa có business history;
-production mới dùng đủ 20 migration trong manifest. New cycle cần ACTIVE binding,
+catalog migration phải khớp manifest của candidate hiện hành. New cycle cần ACTIVE binding,
 không tạo legacy fallback. Xem [ADR-004](../../docs/adr-004-hybrid-binding-and-signatures.md),
 [runbook production](../../docs/production-runbook.md) và
-[cổng nghiệm thu](../../docs/plans/hybrid-production-readiness-2026-10-13.md).
+[cổng nghiệm thu](../../docs/production-runbook.md#cổng-nghiệm-thu-phát-hành).
 Kết quả từng lần chạy nằm trong PR/Issue hoặc artifact, không là một báo cáo
 Markdown cố định trong repository.
 
@@ -213,7 +222,7 @@ Test: `test/hybrid-binding-db.e2e-spec.ts` (guard SQL của B), `test/hybrid-han
 (API + SQL guard của bàn giao có chữ ký), `test/hybrid-migration.e2e-spec.ts` (diễn tập
 backfill) chạy trong `test:e2e` với PostgreSQL thường. `test/hybrid-fabric.e2e-spec.ts`
 chạy API → Worker → Fabric thật khi `HYBRID_FABRIC_E2E=1` với mạng test cách ly.
-Job `Hybrid A B C real Fabric and browser` trong Blockchain CI bật suite này và
+Job `Hybrid B C real Fabric and browser` trong Blockchain CI bật suite này và
 kiểm trình duyệt desktop/mobile với API/DB/Worker thật. Không tính lượt skip trong
 suite thông thường là nghiệm thu Fabric. PostgreSQL nên dùng múi giờ UTC.
 

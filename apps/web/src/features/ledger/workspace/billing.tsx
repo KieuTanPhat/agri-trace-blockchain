@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
 import { z } from "zod";
 import { wapi } from "@/lib/ledger/enterprise-coordination-api";
@@ -84,6 +85,7 @@ export default function WsBillingPage() {
                   <span className="flex items-center gap-2">
                     <Status group="invoice" value={i.status} />
                     {i.simulated && <Badge tone="warn" dot={false}>{tr("mô phỏng")}</Badge>}
+                    {primary && b.applies && i.status === "ISSUED" && <Button size="xs" variant="outline" asChild><Link href={`/enterprise/service/payment?invoiceId=${encodeURIComponent(i.id)}`}>{tr("Thanh toán QR")}</Link></Button>}
                     {primary && i.status === "ISSUED" && b.simulationEnabled && (
                       <Button size="xs" variant="outline" onClick={() => pay.open(i)}>
                         {tr("Thanh toán mô phỏng")}
@@ -97,7 +99,7 @@ export default function WsBillingPage() {
             <EmptyState title={tr("Chưa có hóa đơn")} />
           )}
         </Section>
-        <Callout>{tr("Cổng thanh toán thật (SePay/NAPAS) chưa tích hợp trong Backend: chỉ có thanh toán mô phỏng ở môi trường local hoặc nền tảng xác nhận chuyển khoản.")}</Callout>
+        <Callout>{tr("Thanh toán QR chỉ có hiệu lực sau khi máy chủ xác nhận giao dịch. Khoản thử nghiệm được ghi riêng, không tính vào doanh thu thật.")}</Callout>
       </PageBody>
       {s && (
         <CommandDialog

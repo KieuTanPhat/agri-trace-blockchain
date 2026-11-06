@@ -1,25 +1,34 @@
 import { Redirect, Stack, useSegments } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { SessionProvider, useSession } from '../../auth/session';
-import { Loading } from '../../components/ui';
-import { color } from '../../theme/tokens';
+import { Loading } from '../../components/staff/ui';
+import { color } from '../../theme/staff';
 
 /** Every staff screen except sign-in needs a session. */
 function Gate() {
-  const { status } = useSession();
+  const { status, user } = useSession<{ mustChangePassword?: boolean }>();
   const segments = useSegments();
   const onLogin = segments.at(-1) === 'login';
+  const onRecovery = segments.at(-1) === 'forgot-password';
+  const onPassword = segments.at(-1) === 'password';
   if (status === 'loading')
     return (
       <View style={{ flex: 1, justifyContent: 'center', backgroundColor: color.bg }}>
         <Loading label="Đang mở phiên làm việc…" />
       </View>
     );
-  if (status === 'anonymous' && !onLogin) return <Redirect href="/staff/login" />;
+  if (status === 'anonymous' && !onLogin && !onRecovery) return <Redirect href="/staff/login" />;
+  // An account created or reset by an administrator changes its password first.
+  if (status === 'signed-in' && user?.mustChangePassword && !onPassword) return <Redirect href="/staff/password" />;
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>
+    <>
+      {/* Staff screens use white app bars. */}
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.bg } }}>
       <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
     </Stack>
+    </>
   );
 }
 

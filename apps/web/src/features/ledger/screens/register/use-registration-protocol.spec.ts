@@ -177,7 +177,7 @@ it("freezes an unknown registration result and retries the original consented bo
   expect(sent).toHaveLength(2);
   expect(sent[1]).toBe(sent[0]);
   expect(JSON.parse(sent[1]).organizationName).toBe("Original");
-  expect(JSON.parse(sent[1]).hostingMode).toBe("MANAGED_ORG");
+  expect(JSON.parse(sent[1])).not.toHaveProperty("hostingMode");
   expect(localStorage.length).toBe(0);
   expect(sessionStorage.length).toBe(0);
   expect(verifies).toBe(1);
@@ -186,7 +186,7 @@ it("freezes an unknown registration result and retries the original consented bo
 it("uploads the required processor certificate even when FARM is not requested", async () => {
   const draft: RegistrationDraft = {
     ...registrationDefaults,
-    registrationRole: "PROCESSOR",
+    participationStatus: "MEMBER",
     legalForm: "ENTERPRISE",
     organizationName: "Công ty chế biến kiểm thử",
     businessId: "0123456789",

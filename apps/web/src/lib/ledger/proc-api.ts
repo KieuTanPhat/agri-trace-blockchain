@@ -15,6 +15,7 @@ export const procApi={
  receipts:async(source?:string)=>(await ledgerRequest<{items:MaterialReceipt[]}>(root+"/receipts"+(source?"?source="+id(source):""))).items,
  receipt:async(v:string)=>(await ledgerRequest<{record:MaterialReceipt}>(root+"/receipts/"+id(v))).record,
  createReceipt:(v:S["CreateMaterialReceiptInput"],c:LedgerCommandContext)=>post<MaterialReceipt>("/receipts",v,c),
+ confirmReceipt:(receiptId:string,c:LedgerCommandContext)=>post<S["SupplierConfirmationView"]>(`/receipts/${id(receiptId)}/confirmations`,{},c),
  start:(v:string,b:S["ProcessingVersionInput"],c:LedgerCommandContext)=>post<ProcessingRun>("/"+id(v)+"/start",b,c),
  addInputs:(v:string,b:S["AddProcessingInputsInput"],c:LedgerCommandContext)=>post<ProcessingRun>("/"+id(v)+"/inputs",b,c),
  addLog:(v:string,b:S["ProcessingLogInput"],c:LedgerCommandContext)=>post<ProcessingLog>("/"+id(v)+"/logs",b,c),

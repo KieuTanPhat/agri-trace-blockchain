@@ -62,7 +62,6 @@ export function EnrollmentProducts({
     ["ingredients", "Thành phần"],
     ["rawMaterials", "Nguyên liệu"],
     ["variety", "Giống"],
-    ["price", "Giá khai báo"],
     ["storageConditions", "Bảo quản"],
     ["usageInstructions", "Hướng dẫn sử dụng"],
     ["carrier", "Đơn vị vận chuyển"],

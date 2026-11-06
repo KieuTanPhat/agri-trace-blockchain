@@ -172,9 +172,9 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
       create: { code: 'FARM_STAFF', name: 'Farm' },
     });
     const reviewRole = await db.role.upsert({
-      where: { code: 'COMPLIANCE_REVIEWER' },
+      where: { code: 'AUDITOR' },
       update: {},
-      create: { code: 'COMPLIANCE_REVIEWER', name: 'Reviewer' },
+      create: { code: 'AUDITOR', name: 'Kiểm định' },
     });
     const submitter = await db.user.create({
       data: {
@@ -199,7 +199,7 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
     await evidence('LOT',main.lot.id,'LOT_IMAGE',true);
     logoId=(await evidence('PROFILE',farmOrgId,'OTHER',false)).id;
     await evidence('PROFILE',farmOrgId,'BUSINESS_LICENSE',false);
-    await db.product.update({where:{id:publicId},data:{organizationId:farmOrgId,price:65000,category:'Trái cây tươi',ingredients:'100% trái cây',storageConditions:'Nơi khô thoáng',usageInstructions:'Rửa sạch trước khi dùng'}});
+    await db.product.update({where:{id:publicId},data:{organizationId:farmOrgId,category:'Trái cây tươi',ingredients:'100% trái cây',storageConditions:'Nơi khô thoáng',usageInstructions:'Rửa sạch trước khi dùng'}});
     await db.publicDirectoryPublication.create({data:{id:randomUUID(),organizationId:farmOrgId,presentation:{publicDirectory:{published:true,catalogDetailsPublished:true,phone:'02873001234',province:'Lâm Đồng',address:'12 đường số 1',logoEvidenceId:logoId}}}});
     const certificate = async (options: {
       isPublic?: boolean;
@@ -284,7 +284,7 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
     request(app.getHttpServer()).get(`/api/public/${path}`);
   it('serves real published images and allowlisted contact/catalog details without exposing legal files',async()=>{
     const detail=(await get(`products/${publicId}`).expect(200)).body.data;
-    expect(detail).toMatchObject({price:'65000',category:'Trái cây tươi',imageUrl:expect.stringContaining(`/public/products/${publicId}/image?v=`),traceCount:1});
+    expect(detail).toMatchObject({category:'Trái cây tươi',imageUrl:expect.stringContaining(`/public/products/${publicId}/image?v=`),traceCount:1});
     const image=await get(`products/${publicId}/image`).expect(200);
     expect(image.headers['content-type']).toContain('image/png');expect(image.body.length).toBeGreaterThan(20);
     const org=(await get(`enterprises/${farmOrgId}`).expect(200)).body.data;
@@ -401,7 +401,7 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
     await get(`enterprises/${farmOrgId}/logo`).expect(404);
     await get(`enterprises/${farmOrgId}/logo?v=${logoId}`).expect(404);
     const product=(await get(`products/${publicId}`).expect(200)).body.data;
-    expect(product.price).toBeNull();
+    expect(product.category).toBeNull();
     const image=await db.traceEvidence.findFirstOrThrow({where:{entityType:'LOT',kind:'LOT_IMAGE',public:true,organizationId:farmOrgId}});
     await db.traceEvidence.create({data:{...image,id:randomUUID(),public:false,supersedesId:image.id,createdAt:new Date()}});
     await get(`products/${publicId}/image`).expect(404);

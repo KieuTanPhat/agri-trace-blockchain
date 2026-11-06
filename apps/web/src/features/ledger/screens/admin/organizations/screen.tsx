@@ -67,7 +67,7 @@ export function Directory({ detailBase = "/admin/organizations?organizationId=" 
           <span className="truncate font-medium">{o.name}</span>
           <span className="text-[11.5px] text-ink-2">
             {o.province ?? "—"} ·{" "}
-            {o.participationModel ? MODEL_LABEL[o.participationModel] : "—"}
+            {o.participationStatus ? MODEL_LABEL[o.participationStatus] : "—"}
           </span>
         </div>
       ),

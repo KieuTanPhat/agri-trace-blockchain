@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -8,12 +7,9 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { createHmac } from 'node:crypto';
-import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
-import { isPlatformAdminRole } from '../auth/role-codes.js';
-import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { appendPlatformAudit, lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import { settingNumber } from '../billing/billing-core.js';
 import type {
@@ -22,174 +18,14 @@ import type {
   ReferenceItemInput,
   ReportQuery,
   ReportTriageInput,
-  TicketAssignInput,
-  TicketCloseInput,
-  TicketCreateInput,
-  TicketQuery,
-  TicketReplyInput,
 } from './platform-admin.dto.js';
 
 const HOUR = 3_600_000;
-const PRIORITY_FACTOR: Record<string, number> = { URGENT: 0.25, HIGH: 0.5, NORMAL: 1, LOW: 2 };
 const iso = (d: Date | null | undefined) => d?.toISOString() ?? null;
-
-type TicketRow = Prisma.SupportTicketGetPayload<{
-  include: { organization: { select: { name: true } }; messages: true };
-}>;
-const ticketView = (t: TicketRow, platform: boolean, names: Map<string, string>) => ({
-  id: t.id,
-  code: t.code,
-  organizationId: t.organizationId,
-  organizationName: t.organization.name,
-  category: t.category,
-  priority: t.priority,
-  subject: t.subject,
-  status: t.status,
-  assigneeId: t.assigneeId,
-  assigneeName: t.assigneeId ? (names.get(t.assigneeId) ?? null) : null,
-  dueAt: t.dueAt.toISOString(),
-  overdue: !['RESOLVED', 'CLOSED'].includes(t.status) && t.dueAt.getTime() < Date.now(),
-  resolution: t.resolution,
-  closedAt: iso(t.closedAt),
-  version: t.version,
-  createdAt: t.createdAt.toISOString(),
-  updatedAt: t.updatedAt.toISOString(),
-  messages: t.messages
-    .filter((m) => platform || !m.internal)
-    .map((m) => ({
-      id: m.id,
-      authorSide: m.authorSide,
-      authorName: names.get(m.authorId) ?? null,
-      body: m.body,
-      internal: m.internal,
-      createdAt: m.createdAt.toISOString(),
-    })),
-});
 
 @Injectable()
 export class SupportService {
   constructor(private readonly db: PrismaService) {}
-
-  private async names(ids: string[]) {
-    const rows = await this.db.user.findMany({ where: { id: { in: [...new Set(ids)] } }, select: { id: true, fullName: true } });
-    return new Map(rows.map((r) => [r.id, r.fullName]));
-  }
-  private async ticketRows(where: Prisma.SupportTicketWhereInput, platform: boolean) {
-    const rows = await this.db.supportTicket.findMany({
-      where,
-      include: { organization: { select: { name: true } }, messages: { orderBy: { createdAt: 'asc' } } },
-      orderBy: [{ status: 'asc' }, { dueAt: 'asc' }],
-      take: 300,
-    });
-    const names = await this.names(rows.flatMap((r) => [...r.messages.map((m) => m.authorId), ...(r.assigneeId ? [r.assigneeId] : [])]));
-    return rows.map((r) => ticketView(r, platform, names));
-  }
-
-  // ---------- Tickets: enterprise side ----------
-  async myTickets(actor: CommandActor) {
-    await enterpriseAuthority(this.db, actor, 'profile.read');
-    return { items: await this.ticketRows({ organizationId: actor.organizationId! }, false) };
-  }
-  createTicket(actor: CommandActor, input: TicketCreateInput) {
-    return commandTransaction(this.db, async (tx) => {
-      await enterpriseAuthority(tx, actor, 'profile.read', undefined, undefined, true);
-      const sla = await settingNumber(tx, 'support.reviewSlaHours', 24);
-      const [row] = await tx.$queryRaw<Array<{ n: bigint }>>`SELECT nextval('support_ticket_seq') AS n`;
-      const ticket = await tx.supportTicket.create({
-        data: {
-          code: `HT-${String(row.n).padStart(6, '0')}`,
-          organizationId: actor.organizationId!,
-          createdBy: actor.sub!,
-          category: input.category,
-          priority: input.priority,
-          subject: input.subject,
-          dueAt: new Date(Date.now() + sla * (PRIORITY_FACTOR[input.priority] ?? 1) * HOUR),
-          messages: { create: { authorId: actor.sub!, authorSide: 'ENTERPRISE', body: input.body } },
-        },
-      });
-      return { record: { id: ticket.id, code: ticket.code } };
-    });
-  }
-  replyAsEnterprise(actor: CommandActor, id: string, input: TicketReplyInput) {
-    return commandTransaction(this.db, async (tx) => {
-      await enterpriseAuthority(tx, actor, 'profile.read', undefined, undefined, true);
-      const ticket = await tx.supportTicket.findUnique({ where: { id } });
-      if (!ticket || ticket.organizationId !== actor.organizationId) throw new NotFoundException('Không tìm thấy yêu cầu hỗ trợ');
-      if (ticket.status === 'CLOSED') throw new ConflictException('Yêu cầu đã đóng; tạo yêu cầu mới');
-      if (input.internal) throw new ForbiddenException('Ghi chú nội bộ dành cho nhân sự nền tảng');
-      const changed = await tx.supportTicket.updateMany({
-        where: { id, version: input.version },
-        data: { status: ticket.status === 'WAITING_CUSTOMER' || ticket.status === 'RESOLVED' ? 'IN_PROGRESS' : ticket.status, version: { increment: 1 }, updatedAt: new Date() },
-      });
-      if (changed.count !== 1) throw new ConflictException('Yêu cầu đã thay đổi; tải lại');
-      await tx.supportMessage.create({ data: { ticketId: id, authorId: actor.sub!, authorSide: 'ENTERPRISE', body: input.body } });
-      return { record: { id } };
-    });
-  }
-
-  // ---------- Tickets: platform side ----------
-  async tickets(query: TicketQuery) {
-    return { items: await this.ticketRows(query.status ? { status: query.status } : {}, true) };
-  }
-  async staff() {
-    const rows = await this.db.user.findMany({
-      where: { accountStatus: 'ACTIVE', role: { code: { in: ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER', 'PLATFORM_OPERATOR'] } } },
-      select: { id: true, fullName: true, email: true, role: { select: { code: true } } },
-      orderBy: { fullName: 'asc' },
-    });
-    return { items: rows.map((r) => ({ id: r.id, fullName: r.fullName, email: r.email, role: r.role.code })) };
-  }
-  assignTicket(actor: CommandActor, id: string, input: TicketAssignInput) {
-    return commandTransaction(this.db, async (tx) => {
-      await lockPlatformAudit(tx);
-      const assignee = await tx.user.findUnique({ where: { id: input.assigneeId }, include: { role: true } });
-      if (!assignee || assignee.accountStatus !== 'ACTIVE' || !isPlatformAdminRole(assignee.role.code))
-        throw new UnprocessableEntityException('Người phụ trách phải là nhân sự nền tảng đang hoạt động');
-      const changed = await tx.supportTicket.updateMany({
-        where: { id, version: input.version, status: { not: 'CLOSED' } },
-        data: { assigneeId: assignee.id, ...(input.priority ? { priority: input.priority } : {}), status: 'IN_PROGRESS', version: { increment: 1 }, updatedAt: new Date() },
-      });
-      if (changed.count !== 1) throw new ConflictException('Yêu cầu đã thay đổi hoặc đã đóng');
-      const ticket = await tx.supportTicket.findUniqueOrThrow({ where: { id } });
-      await appendPlatformAudit(tx, { actor: { sub: actor.sub, role: actor.role }, action: 'TICKET_ASSIGNED', subjectType: 'SUPPORT_TICKET', subjectId: id, organizationId: ticket.organizationId, details: { assigneeId: assignee.id, priority: ticket.priority } });
-      return { record: { id } };
-    });
-  }
-  replyAsPlatform(actor: CommandActor, id: string, input: TicketReplyInput) {
-    return commandTransaction(this.db, async (tx) => {
-      await lockPlatformAudit(tx);
-      const ticket = await tx.supportTicket.findUnique({ where: { id } });
-      if (!ticket) throw new NotFoundException('Không tìm thấy yêu cầu hỗ trợ');
-      if (ticket.status === 'CLOSED') throw new ConflictException('Yêu cầu đã đóng');
-      const changed = await tx.supportTicket.updateMany({
-        where: { id, version: input.version },
-        data: {
-          status: input.internal ? ticket.status : (input.status ?? 'WAITING_CUSTOMER'),
-          assigneeId: ticket.assigneeId ?? actor.sub,
-          ...(input.status === 'RESOLVED' ? { resolution: input.body.slice(0, 2000) } : {}),
-          version: { increment: 1 },
-          updatedAt: new Date(),
-        },
-      });
-      if (changed.count !== 1) throw new ConflictException('Yêu cầu đã thay đổi; tải lại');
-      await tx.supportMessage.create({ data: { ticketId: id, authorId: actor.sub!, authorSide: 'PLATFORM', body: input.body, internal: !!input.internal } });
-      await appendPlatformAudit(tx, { actor: { sub: actor.sub, role: actor.role }, action: input.internal ? 'TICKET_NOTE_ADDED' : 'TICKET_REPLIED', subjectType: 'SUPPORT_TICKET', subjectId: id, organizationId: ticket.organizationId, details: { status: input.status ?? null } });
-      return { record: { id } };
-    });
-  }
-  closeTicket(actor: CommandActor, id: string, input: TicketCloseInput) {
-    return commandTransaction(this.db, async (tx) => {
-      await lockPlatformAudit(tx);
-      const changed = await tx.supportTicket.updateMany({
-        where: { id, version: input.version, status: { not: 'CLOSED' } },
-        data: { status: 'CLOSED', closedAt: new Date(), resolution: input.reason, version: { increment: 1 }, updatedAt: new Date() },
-      });
-      if (changed.count !== 1) throw new ConflictException('Yêu cầu đã thay đổi hoặc đã đóng');
-      const ticket = await tx.supportTicket.findUniqueOrThrow({ where: { id } });
-      await appendPlatformAudit(tx, { actor: { sub: actor.sub, role: actor.role }, action: 'TICKET_CLOSED', subjectType: 'SUPPORT_TICKET', subjectId: id, organizationId: ticket.organizationId, reason: input.reason });
-      return { record: { id } };
-    });
-  }
 
   // ---------- Consumer reports ----------
   /** Public, unauthenticated. Stores a keyed hash of the network source only to
@@ -328,7 +164,7 @@ export class SupportService {
     const capabilities = actor.organizationId
       ? (await this.db.organizationCapability.findMany({ where: { organizationId: actor.organizationId, revokedAt: null }, select: { code: true } })).map((c) => c.code as string)
       : [];
-    const audiences = ['ALL', ...(isPlatformAdminRole(actor.role) || actor.role === 'AUDITOR' ? ['PLATFORM'] : actor.organizationId ? ['ENTERPRISE', ...capabilities] : [])];
+    const audiences = ['ALL', ...(actor.role === 'SYSTEM_ADMIN' || actor.role === 'AUDITOR' ? ['PLATFORM'] : actor.organizationId ? ['ENTERPRISE', ...capabilities] : [])];
     const rows = await this.db.systemNotice.findMany({
       where: { status: 'PUBLISHED', startsAt: { lte: now }, endsAt: { gt: now }, audience: { in: audiences } },
       orderBy: [{ severity: 'desc' }, { startsAt: 'desc' }],

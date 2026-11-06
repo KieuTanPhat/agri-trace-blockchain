@@ -30,8 +30,8 @@ export function ledgerEntityTypes(role: ScopedRole): string[] | null {
 }
 
 /** Each epoch contributes exactly two registry revisions (grant, revoke). */
-export const grantRevision = (epoch: number) => 2 * (epoch - 1);
-export const revokeRevision = (epoch: number) => 2 * (epoch - 1) + 1;
+const grantRevision = (epoch: number) => 2 * (epoch - 1);
+const revokeRevision = (epoch: number) => 2 * (epoch - 1) + 1;
 
 type GrantRef = {
   id: string;
@@ -253,7 +253,7 @@ export async function requestLedgerRevoke(
   }
 }
 
-export type CapturedPermission = {
+type CapturedPermission = {
   permissionRef: string;
   epoch: number;
   ordinal: bigint;

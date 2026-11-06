@@ -5,16 +5,16 @@
  * sorted keys plus JSON.stringify. The signer never trusts the digests the
  * server sends; it recomputes them from what the user is shown.
  */
-export type StringMap = Record<string, string>;
+type StringMap = Record<string, string>;
 
-export const INTENT_PROTOCOL = "agritrace-intent/2";
+const INTENT_PROTOCOL = "agritrace-intent/2";
 const INTENT_DOMAIN = "agritrace:intent:c2";
 const PAYLOAD_DOMAIN = "agritrace:intent-payload:c2";
 const SIGNATURE_DOMAIN = "agritrace:intent-signature:c2";
 const KEY_POP_DOMAIN = "agritrace:signing-key-pop:c1";
 const encoder = new TextEncoder();
 
-export function canonicalize(value: StringMap): string {
+function canonicalize(value: StringMap): string {
   const sorted: StringMap = {};
   for (const key of Object.keys(value).sort()) {
     if (typeof value[key] !== "string")
@@ -108,7 +108,7 @@ export type PreparedIntent = {
   signedMessage: string;
 };
 
-export type IntentCheck = { ok: true } | { ok: false; reason: string };
+type IntentCheck = { ok: true } | { ok: false; reason: string };
 
 /**
  * Re-derives everything the server claims about a prepared intent. A signer

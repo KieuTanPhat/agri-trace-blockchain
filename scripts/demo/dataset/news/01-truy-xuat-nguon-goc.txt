@@ -1,0 +1,50 @@
+TITLE: Truy xuất nguồn gốc nông sản: từ lựa chọn của doanh nghiệp đến yêu cầu của thị trường
+SUMMARY: Khung quy định về truy xuất nguồn gốc ở Việt Nam ngày càng rõ, nhưng khoảng cách giữa một chiếc tem QR và một hệ thống dữ liệu đáng tin vẫn còn lớn. Bài viết nhìn lại các yêu cầu chính và những việc một cơ sở sản xuất nên làm trước.
+COVER: AnhChamSoc/kiemtra1.jpg
+BODY:
+Vài năm trước, tem truy xuất trên một túi rau hay thùng trái cây thường được xem như một điểm cộng về hình ảnh. Doanh nghiệp in mã QR để trông hiện đại hơn, người mua quét thử một lần rồi thôi. Hiện nay câu chuyện đã khác. Các quy định trong nước, yêu cầu của nhà nhập khẩu và thói quen của người tiêu dùng cùng đẩy truy xuất nguồn gốc từ một lựa chọn marketing thành một phần của năng lực sản xuất. Câu hỏi không còn là có nên làm hay không, mà là làm thế nào để thông tin phía sau chiếc tem thực sự có giá trị.
+
+Truy xuất nguồn gốc là gì
+
+Hiểu đơn giản, truy xuất nguồn gốc là khả năng theo dõi và nhận diện một đơn vị sản phẩm qua các công đoạn sản xuất, sơ chế và phân phối. Định nghĩa này nghe có vẻ khô khan, nhưng nó chứa ba yêu cầu quan trọng. Thứ nhất, phải có đơn vị theo dõi rõ ràng, thường là lô hàng. Thứ hai, phải ghi lại được các công đoạn hàng hóa đã đi qua. Thứ ba, các công đoạn đó phải nối được với nhau, để từ sản phẩm trên kệ có thể lần ngược về vùng trồng và ngược lại, từ một vùng trồng có thể biết hàng đã đi đến đâu.
+
+Nhiều hệ thống hiện nay mới đáp ứng được một phần. Một mã QR dẫn tới trang giới thiệu công ty cho biết ai bán hàng, nhưng không cho biết lô hàng trên tay người mua đã đi qua những đâu. Sự khác biệt giữa thông tin chung của sản phẩm và thông tin riêng của từng lô chính là ranh giới giữa quảng bá và truy xuất.
+
+Khung quy định đã rõ hơn
+
+Thông tư 02/2024/TT-BKHCN của Bộ Khoa học và Công nghệ, có hiệu lực từ ngày 1 tháng 6 năm 2024, là một mốc đáng chú ý. Văn bản này quy định về quản lý truy xuất nguồn gốc sản phẩm, hàng hóa, bao gồm việc bảo đảm kết nối, chia sẻ dữ liệu giữa các hệ thống và quản lý mã truy xuất cùng vật mang dữ liệu. Theo đó, Cổng thông tin truy xuất nguồn gốc sản phẩm, hàng hóa quốc gia là đầu mối để cung cấp thông tin và kết nối với hệ thống của doanh nghiệp, còn vật mang dữ liệu cần phù hợp với tiêu chuẩn quốc gia TCVN 13275:2020.
+
+Ở lĩnh vực an toàn thực phẩm, các văn bản hướng dẫn cũng đang được điều chỉnh. Nghị định 46/2026/NĐ-CP được ban hành đầu năm 2026 với nội dung thay thế Nghị định 15/2018/NĐ-CP, trong đó có các quy định về lưu trữ thông tin truy xuất và trách nhiệm truy xuất khi phát hiện vấn đề. Tuy nhiên, quá trình thi hành văn bản này đã có những điều chỉnh về hiệu lực và các cơ quan quản lý vẫn tiếp tục hoàn thiện quy định. Vì vậy, cơ sở sản xuất nên theo dõi văn bản đang có hiệu lực trên các kênh chính thức thay vì dựa vào thông tin thứ cấp. Điều đáng lưu ý không nằm ở số hiệu của một nghị định cụ thể, mà ở xu hướng chung: trách nhiệm lưu giữ và cung cấp thông tin nguồn gốc đang được đặt rõ hơn lên vai cơ sở sản xuất, kinh doanh.
+
+Khoảng cách giữa tem và dữ liệu
+
+Một phân tích đăng trên báo chí kinh tế chỉ ra rằng nhiều hệ thống truy xuất vẫn chưa kết nối với cổng quốc gia, phần lớn doanh nghiệp vẫn dùng mã QR tĩnh và việc chuẩn hóa dữ liệu chưa đồng bộ. Đây là khoảng cách lớn nhất của truy xuất nguồn gốc hiện nay. Mã QR tĩnh về bản chất là một đường dẫn cố định, in giống nhau cho hàng nghìn sản phẩm. Nó không phân biệt được lô thu hoạch tuần này với lô tuần trước, nên khi một lô có vấn đề, doanh nghiệp vẫn không thể khoanh vùng nhanh.
+
+Một vấn đề khác là tính thời điểm của dữ liệu. Nếu nhật ký chăm sóc được ghi bù vào cuối vụ, hoặc nhập lại từ sổ tay sau nhiều tuần, dữ liệu có thể đầy đủ về hình thức nhưng khó được tin cậy. Vì thế, các hệ thống tốt thường yêu cầu ghi nhận gần thời điểm công việc diễn ra, gắn người thực hiện, và lưu lại lịch sử chỉnh sửa thay vì cho phép ghi đè.
+
+Nên bắt đầu từ đâu
+
+Với một hợp tác xã hay doanh nghiệp vừa và nhỏ, việc xây dựng truy xuất không nhất thiết phải bắt đầu bằng công nghệ phức tạp. Có năm việc thực tế nên làm trước.
+
+Việc đầu tiên là thống nhất đơn vị lô. Lô có thể tính theo thửa và ngày thu hoạch, hoặc theo mẻ chế biến. Quy tắc phải đơn giản để nhân viên ngoài đồng hiểu và làm đúng, vì mọi dữ liệu về sau đều bám vào đơn vị này.
+
+Việc thứ hai là ghi nhật ký ngay tại nơi làm việc. Một chiếc điện thoại với ứng dụng đơn giản có giá trị hơn một phần mềm mạnh nhưng chỉ được mở ở văn phòng. Ảnh chụp tại hiện trường là bằng chứng gọn nhẹ, giúp người ghi đỡ phải viết dài.
+
+Việc thứ ba là làm rõ điểm bàn giao. Phần lớn đứt gãy thông tin xảy ra khi hàng đổi tay, từ nông trại sang đơn vị vận chuyển, rồi sang kho phân phối. Mỗi lần bàn giao nên có xác nhận của cả hai bên về số lượng và tình trạng.
+
+Việc thứ tư là tách thông tin công khai và thông tin nội bộ. Người tiêu dùng cần biết nguồn gốc, thời điểm thu hoạch, đơn vị liên quan và cảnh báo nếu có. Giá mua, thông tin nhân sự và hợp đồng thì không nên hiện công khai. Tách bạch từ đầu giúp doanh nghiệp yên tâm chia sẻ dữ liệu.
+
+Việc thứ năm là tập dượt thu hồi. Một quy trình truy xuất chỉ được chứng minh khi có tình huống. Doanh nghiệp nên thử chọn ngẫu nhiên một lô và xem mất bao lâu để biết lô đó đến từ thửa nào, đã giao cho ai, còn tồn ở đâu. Thời gian trả lời chính là thước đo trung thực nhất của hệ thống.
+
+Công nghệ đóng vai trò gì
+
+Khi đã có nền nếp ghi chép, công nghệ giúp dữ liệu khó bị sửa đổi và dễ chia sẻ hơn. Sổ cái phân tán như blockchain có thể giúp phát hiện việc thay đổi bản ghi sau khi đã neo. Cảm biến có thể bổ sung số đo khách quan về điều kiện vùng trồng. Tuy nhiên, không công nghệ nào tự biến dữ liệu sai thành đúng. Nếu người ghi khai sai ngay từ đầu, blockchain chỉ lưu giữ lại cái sai đó một cách bền vững. Chất lượng của truy xuất vì thế vẫn phụ thuộc vào con người, quy trình và trách nhiệm của từng mắt xích.
+
+Nhìn về phía trước
+
+Thị trường đang thưởng cho sự minh bạch theo những cách rất cụ thể: được vào hệ thống phân phối hiện đại, được giữ đơn hàng xuất khẩu, được người mua tin tưởng khi có sự cố. Những đơn vị bắt đầu sớm sẽ có thêm một lợi thế ít được nhắc tới, đó là dữ liệu sản xuất của chính mình. Khi nhật ký được ghi đều đặn qua nhiều vụ, nhà vườn có thể nhìn lại chi phí, năng suất và rủi ro một cách có căn cứ. Truy xuất nguồn gốc, nếu làm đúng, không chỉ để trả lời câu hỏi của người mua, mà còn giúp người sản xuất hiểu rõ hơn công việc của mình.
+
+Nguồn tham khảo:
+Thông tư 02/2024/TT-BKHCN: https://thuvienphapluat.vn/van-ban/Thuong-mai/Circular-02-2024-TT-BKHCN-management-of-product-origin-tracing-605560.aspx
+VnEconomy, Truy xuất nguồn gốc - yêu cầu bắt buộc kiến tạo thị trường minh bạch: https://vneconomy.vn/truy-xuat-nguon-goc-yeu-cau-bat-buoc-kien-tao-thi-truong-minh-bach.htm
+Thư viện Pháp luật, Nghị định 46/2026/NĐ-CP còn hiệu lực không: https://thuvienphapluat.vn/hoi-dap-phap-luat/nghi-dinh-462026ndcp-con-hieu-luc-khong-138080217.html

@@ -8,35 +8,37 @@ Không gian doanh nghiệp hiện có đăng ký năm bước, xét duyệt, th�
 vụ/nhật ký/thu hoạch độc lập. Phân phối giữ nguyên lô nguồn, hỗ trợ nhiều dòng,
 nhiều chặng, lượng giao từng phần, ký hai phía và báo cáo đối soát; xem
 [nghiệp vụ](docs/core-business-rules.md#enterprise-workspace-and-source-preserving-distribution)
-và [các route giao diện](docs/frontend.md#không-gian-doanh-nghiệp-và-phân-phối).
+và [các luồng giao diện](docs/frontend.md#các-luồng-chính).
 Luồng phân phối mới chưa mở cho binding bắt buộc signed intent c2; các chuỗi đó
 giữ luồng Shipment đã ký hiện hành cho đến khi có integration/acceptance riêng.
 Kiểm thử local không phải nghiệm thu Fabric hoặc quyền của doanh nghiệp thật.
 
-Bản Hybrid A/B/C thực hiện theo [kế hoạch cài mới production](docs/plans/fresh-install-cleanup-2026-10-13.md).
-Đọc [PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md), [quy tắc nghiệp vụ](docs/core-business-rules.md),
-[ADR-004](docs/adr-004-hybrid-binding-and-signatures.md) và [runbook production](docs/production-runbook.md).
+Scope/binding/chữ ký B/c2 theo [ADR-004](docs/adr-004-hybrid-binding-and-signatures.md);
+nghiệm thu phát hành theo [runbook production](docs/production-runbook.md#cổng-nghiệm-thu-phát-hành).
+Đọc [PROJECT_CONTEXT](docs/PROJECT_CONTEXT.md) để chọn tài liệu theo tác vụ;
+không cần nạp toàn bộ business rules, ADR và runbook cho mọi thay đổi.
 CI/source completion và nghiệm thu runtime là các cổng riêng; kiểm SHA/receipt trong PR và controller state.
 
 ## Cấu trúc
 
-Hybrid A phân quyền theo chuỗi; B pin binding/authority/permission epoch và ledger
-registry; C dùng khóa Ed25519 tổ chức và bàn giao hai bên. Chữ ký độc lập bắt buộc
-ở bàn giao khác tổ chức; care/harvest giữ xác thực hiện hành. Một mạng có channel
-theo nhóm hợp tác. Hosted technical identities không chứng minh quyền của đối tác
-bên ngoài; external partner authority vẫn NotEvaluated, không tuyên bố HA.
+Hệ thống phân quyền theo chuỗi; B pin binding/authority/permission epoch và ledger
+registry; C c2 dùng khóa Ed25519 tổ chức và bàn giao hai bên. Chữ ký độc lập bắt buộc
+ở bàn giao khác tổ chức; care/harvest giữ xác thực hiện hành. Một mạng dùng chung channel `agritrace`: peer/client/admin thuộc `AgritraceMSP`, orderer thuộc `OrdererMSP`. Doanh nghiệp tách bằng organization/chain scope và khóa ký Ed25519 riêng, không có Fabric MSP/peer riêng. Worker tự chuẩn bị binding và đồng bộ quyền cho mọi chuỗi. Một VPS/orderer không chứng minh HA.
 
 ```text
 apps/
   api/                 NestJS API + dedicated blockchain worker entrypoint
   web/                 Next.js PWA
+  mobile/              Expo/React Native consumer và nhân viên
 blockchain/
   chaincode/           Smart contract Hyperledger Fabric
   gateway/             Adapter kết nối Fabric Gateway
   network/             Script dựng mạng Fabric local
 docs/
-  archive/business-specification-v1.2.md
+  PROJECT_CONTEXT.md   Bản đồ đọc và bối cảnh hiện hành
+  plans/backlog.md     Việc/acceptance còn mở, có nguồn lịch sử
   adr-001-modular-monolith-dedicated-worker.md
+  adr-005-chain-owner-service-model.md
 ```
 
 Các file cấu hình ở gốc được chia theo nơi sử dụng:
@@ -59,7 +61,7 @@ rollback tới image verified tương thích migration.
 Mọi sự kiện truy xuất đi qua binding Fabric của chuỗi (bản B, bản C có chữ ký c2).
 Luồng ghi bản A (route chung, envelope 3.0.0) và giao thức chữ ký c1 đã gỡ khỏi
 API, Worker, chaincode và Gateway; migration `20261213000000_retire_release_a_and_c1`
-từ chối database còn dữ liệu A/c1. Xem [kế hoạch gỡ](docs/plans/retire-release-a-and-legacy-2026-10-24.md).
+từ chối database còn dữ liệu A/c1. Xem [protocol hiện hành](docs/adr-004-hybrid-binding-and-signatures.md#phiên-bản-hiện-hành).
 
 Môi trường UAT cũ (schema 2, project `agri-trace-uat`) đã retire: stack, bootstrap và
 mẫu môi trường của nó không còn trong repo. Application CI kiểm ứng dụng bằng
@@ -116,16 +118,19 @@ Doanh nghiệp vào `/register` (chọn vai trò, năm bước, OTP email đăng
 admin xét hồ sơ và từng năng lực, sau đó kích hoạt sử dụng tạm riêng; doanh nghiệp
 theo dõi ở `/enterprise/service`. Luồng này không tạo hóa đơn, thanh toán hoặc
 subscription giả. Quyền ghi truy xuất vẫn yêu cầu binding và quyền chuỗi hợp lệ.
-Khi operator chủ động bật thanh toán, doanh nghiệp chọn mô hình peer/gói dịch vụ,
-xem hợp đồng ở `/enterprise/service/contract` và thanh toán mô phỏng local ở
-`/enterprise/service/payment`; luồng mô phỏng chỉ ghi `PAID_SIMULATED` và xếp hàng
-email hợp đồng, không thu tiền thật. Kích hoạt dịch vụ vẫn là quyết định riêng
-trước khi cấp quyền nghiệp vụ hoặc yêu cầu peer tại `/enterprise/connections`. Hợp đồng và kết
-quả xét duyệt gửi bằng Worker mail; SMTP dùng file private, test dùng Mailpit.
-Chưa tích hợp thu tiền NAPAS/QR hoặc chữ ký số hợp đồng có chứng thư.
+Khi operator chủ động bật thanh toán, chủ chuỗi chọn gói, xem hợp đồng ở
+`/enterprise/service/contract` và thanh toán tại `/enterprise/service/payment`.
+Tích hợp [SePay](docs/sepay.md) mặc định tắt: webhook xác thực giao dịch khớp hóa
+đơn rồi cập nhật thuê bao và tự kích hoạt nếu hồ sơ/năng lực đã được duyệt.
+Test mode chỉ ghi `SIMULATION`/`PAID_SIMULATED`, không thu tiền thật; Live ghi
+`SEPAY`/`PAID` và cần nghiệm thu riêng. Hợp đồng và kết quả xét duyệt gửi bằng
+Worker mail; [Gmail SMTP](docs/email.md) dùng file private, Mailpit chỉ dùng khi
+chủ động test offline. Hợp đồng mới gửi kèm đúng PDF đã xác nhận; hợp đồng HTML
+cũ giữ lịch sử. Chữ ký số có chứng thư là công việc riêng. Không cấu hình
+peer riêng cho doanh nghiệp; chuỗi dùng hạ tầng chung.
 Quản trị xét duyệt tại `/admin/enterprises`. API và Worker mặc định đóng admission
 (`ENTERPRISE_ONBOARDING_ENABLED=false`). Demo cách ly bật `true` ở cả hai process;
-xem [kế hoạch v1](docs/plans/enterprise-onboarding.md) và
+xem [quy tắc đăng ký](docs/core-business-rules.md#enterprise-workspace-and-source-preserving-distribution) và
 [hướng dẫn kết nối](docs/hybrid-fabric-runbook.md#12-đăng-ký-và-kết-nối-doanh-nghiệp-v1).
 Xem [frontend và bố cục mobile](docs/frontend.md) để kiểm tra giao diện.
 
@@ -140,6 +145,11 @@ chạy:
 ```bash
 docker compose --env-file .env.docker up --build
 ```
+
+Worker local dùng SMTP: điền Gmail và App Password vào `.env.docker` theo
+[hướng dẫn email](docs/email.md). Mailpit là profile test tùy chọn; dùng
+`MAIL_TRANSPORT=mailpit docker compose --env-file .env.docker --profile mailpit up --build`
+khi cần hộp thư offline tại `http://localhost:8025`.
 
 PostgreSQL 18 dùng volume tại `/var/lib/postgresql`. Volume đã khởi tạo bằng
 PostgreSQL 16 cần quy trình chuyển dữ liệu hoặc tạo mới có ủy quyền; thay tag image
@@ -164,7 +174,7 @@ schema-3 controller, project `agritrace-prod`, PostgreSQL `agri_trace_prod` và 
 hosted mới sau encrypted backup + isolated restore. Dữ liệu trước đó đều là test,
 được giữ trong bản lưu; không backfill account/history/proof/QR vào production mới.
 Ngoại lệ cài lại được chủ dự án chọn ngày 24/10/2026 bỏ dataset cũ không backup,
-gom ba Org về VPS nền tảng và gỡ Fabric cũ trên VPS doanh nghiệp. Operation
+dựng mạng nền tảng hai MSP trên VPS AgriTrace. Source hiện hành yêu cầu cài mới database và Fabric; thay đổi source không xác nhận VPS đã chuyển đổi. Operation
 `reinstall` cần target rỗng và root receipt đúng SHA/manifest/generation; xem
 [quy trình cài lại](docs/production-runbook.md#cài-lại-có-chủ-đích-không-giữ-dữ-liệu-trước-đó).
 
@@ -174,8 +184,7 @@ cycle cần ACTIVE binding; không tạo legacy fallback. Domain/journal/trace/o
 và quyền/version/idempotency vẫn cùng transaction. Admin/Auditor không ghi thay
 business actors.
 
-API không có signing key. Worker nhận technical identity read-only; owner MSP
-chỉ dùng trong one-off operator. Production bootstrap chỉ dùng cấu hình riêng tư. Sau
+API không có signing key. Worker mount technical relayer/controller/registry admin của AgritraceMSP readonly; khóa ký doanh nghiệp ở bên ký. Production bootstrap chỉ dùng cấu hình riêng tư. Sau
 build, operator chạy `node dist/operator/ledger-operator.js`, signer độc lập chạy
 `node dist/operator/org-signer.js`, và restore checker chạy
 `node dist/operator/verify-evidence.js` từ `apps/api`.
@@ -190,33 +199,72 @@ Khi triển khai được duyệt, giữ smoke thực trên VPS theo runbook. Kh
 maintenance deadline 2 giờ, canary riêng, collector/systemd timer hoặc quan sát
 liên tục 24 giờ; sự cố sau bàn giao do chủ dự án vận hành.
 
-## Seed đầy đủ trên database local hiện tại
+## Seed đầy đủ trên Fabric local
 
-Quy trình tại [kế hoạch seed](docs/plans/full-current-database-seed-2026-10-20.md)
-chỉ dành cho stack local `agri-trace-demo-local`, database `agri_trace` cổng 5433.
-Nó **thay toàn bộ dữ liệu** sau backup; không tạo database khác. Các tài khoản,
-khóa ký demo, khóa mã hóa local, checkpoint và backup nằm trong `.codex/`, không
-commit hoặc gửi chúng ra ngoài. Ảnh chụp kèm nguồn và giấy phép nằm trong
-`scripts/demo/assets/manifest.json`; giấy tờ có nhãn DEMO, không có giá trị pháp lý.
+`scripts/demo/local-fabric-operator.mjs` dành riêng cho stack local
+`agri-trace-demo-local`, PostgreSQL 18 ở cổng 5433, API 8080 và Web 3000.
+Quy trình này **xóa dữ liệu ứng dụng cũ, không backup**, chỉ dùng khi chủ dự án
+đã cho phép rõ phạm vi đó. Nó kiểm tra quyền sở hữu container/volume, từ chối
+ledger cũ có proof bên ngoài và yêu cầu pilot có giao dịch Fabric `VALID` trước
+khi xóa. Không dùng helper này với production hoặc các database test khác.
+
+Bộ dữ liệu gồm 20 doanh nghiệp, 232 sản phẩm, 8 chuỗi, 100 vụ, 240 lô thu hoạch
+và 60 lô chế biến, 2.000 nhật ký chăm sóc, 75 lệnh chế biến và 94 tài khoản.
+316 ảnh từ năm thư mục nguồn được kiểm SHA-256, giữ nguyên bản gốc; mỗi logo và
+ảnh sản phẩm dùng cho một hồ sơ tương ứng, ảnh hoạt động và kho được tái sử dụng.
+Giao diện không thêm nhãn DEMO. Đây vẫn là dữ liệu tổng hợp do bộ seed tạo;
+việc commit Fabric chứng minh nội dung đã ghi, không xác nhận tính pháp lý của hồ sơ.
+Ngày nghiệp vụ trải 12 tháng, còn thời điểm block là thời điểm thực sự commit.
+
+Chuẩn bị Node dependencies, API/Gateway đã build, Docker Desktop và Docker trong
+WSL Ubuntu; Fabric binaries nằm trong `blockchain/.fabric/fabric-samples`.
+Desktop chạy ứng dụng, Docker WSL chạy peer/orderer/CA/chaincode riêng của generation.
+Các cổng Fabric của pilot và ứng dụng được tách riêng.
 
 ```powershell
-# Chuẩn bị: build API/Gateway theo hướng dẫn kiểm tra bên dưới; stack local đang chạy.
-python scripts/demo/prepare-assets.py
-# Tạo tài liệu demo theo prepare-documents.py (cần reportlab, pypdf và pdftoppm).
-./scripts/demo/seed-current.ps1                    # Chỉ xác minh target
-./scripts/demo/seed-current.ps1 -ReplaceCurrentData # Backup rồi thay dữ liệu một lần
-./scripts/demo/seed-current.ps1 -Resume             # Tiếp tục checkpoint, không reset lại
-./scripts/demo/seed-current.ps1 -Verify             # Kiểm DB, quyền và đăng nhập thật
-node scripts/demo/verify-browser.mjs
+node scripts/demo/prepare-comprehensive-assets.mjs "--source=C:\Users\kieup\Desktop\Data (1)"
+node scripts/demo/local-fabric-operator.mjs prepare
+node scripts/demo/local-fabric-operator.mjs build
+node scripts/demo/local-fabric-operator.mjs prepare --pilot
+node scripts/demo/local-fabric-operator.mjs pilot-images --pilot
+# Chạy lần lượt với --pilot trước; chỉ bỏ --pilot sau khi pilot verify đạt.
+node scripts/demo/local-fabric-operator.mjs network up --pilot
+node scripts/demo/local-fabric-operator.mjs network deploy --pilot
+node scripts/demo/local-fabric-operator.mjs network tune --pilot
+node scripts/demo/local-fabric-operator.mjs network export --pilot
+node scripts/demo/local-fabric-operator.mjs start --pilot
+node scripts/demo/local-fabric-operator.mjs seed --pilot
+node scripts/demo/local-fabric-operator.mjs verify --pilot
+node scripts/demo/local-fabric-operator.mjs network up
+node scripts/demo/local-fabric-operator.mjs network deploy
+node scripts/demo/local-fabric-operator.mjs network tune
+node scripts/demo/local-fabric-operator.mjs network export
+node scripts/demo/local-fabric-operator.mjs reset
+node scripts/demo/local-fabric-operator.mjs start
+node scripts/demo/local-fabric-operator.mjs seed
+node scripts/demo/local-fabric-operator.mjs verify
+node scripts/demo/local-fabric-operator.mjs browser
 ```
 
-Seed giữ nguyên schema/guard từ snapshot trong chính DB này, giữ catalog hệ thống
-và migration catalog; không tắt trigger. Để dùng dữ liệu quyền riêng tư, helper
-tạo khóa mã hóa local và Compose override riêng, pin đúng API image đang chạy.
-Khi kiểm tra đạt, khởi động lại Web/Worker đã dừng. Credential nằm ở
-`.codex/seed-current/accounts.json`; receipt và đường dẫn backup ở cùng thư mục.
-`-Restore` kiểm checksum và phục hồi snapshot trước seed vào chính DB đó sau khi
-dừng writer. Không coi backup DB local là bằng chứng khôi phục production/Fabric.
+`seed` tiếp tục checkpoint của cùng generation; không chạy `reset` lần nữa khi
+có lỗi. Giữ nguyên actor, body, khóa idempotency và chữ ký nếu kết quả chưa rõ;
+đối soát journal/domain/proof trước mọi lần sửa yêu cầu đã gửi. Không sửa trace,
+hash, số lượng hoặc lịch sử để làm bộ kiểm tra đạt. Seed dùng API nghiệp vụ và
+Worker thực; API không nhận Fabric private key. Bootstrap danh tính, media hồ sơ
+và cấu hình local được nhập theo giao dịch operator có audit, không tắt SQL guard.
+
+Credential, khóa ký, cấu hình riêng và checkpoint nằm trong `.codex/local-fabric/`;
+tài khoản ở `run/accounts.json`, nghiệm thu ở `run/verification.json`. Không
+commit hoặc công khai các file này. `verify` kiểm DB, toàn bộ QR, proof đọc từ peer
+và mã xác thực QSCC, đăng nhập và phạm vi quyền. `browser` dùng Chromium thật để
+đăng nhập các nhóm vai trò, kiểm ảnh, trang dữ liệu và QR ở viewport desktop/mobile;
+kết quả ở `run/browser-verification.json`, ảnh trong `run/ui/` cần được xem trực tiếp.
+Chỉ kết luận có Fabric thật khi các giao dịch được đọc lại với trạng thái `VALID`.
+
+Sau khi khởi động lại máy, mở Docker Desktop rồi chạy `local-fabric-operator.mjs
+start`. Lệnh khởi động lại đúng container Fabric đã có trong WSL, giữ WSL hoạt
+động và cập nhật endpoint riêng của Worker nếu IP WSL đổi; không tạo lại ledger.
+Không chạy `network up/deploy`, `reset` hoặc xuất lại khóa để khởi động hằng ngày.
 
 ## Kiểm tra toàn bộ
 
@@ -264,10 +312,10 @@ bằng chứng của đúng SHA. Xem [chính sách CI](docs/ci.md) và
 
 Mạng Fabric local cần thêm Docker; xem script trong `blockchain/network`.
 
-Mô hình dữ liệu core hiện tại tách rõ `ProductionCycle`, `HarvestEvent`, `Lot`
-và `Shipment`. Tài liệu `docs/archive/business-specification-v1.2.md` chỉ còn là baseline
-lịch sử; Prisma schema được đồng bộ với database PostgreSQL `agri_traceDB` tại
-`apps/api/prisma/schema.prisma`.
+Mô hình core là `ProductionCycle → HarvestEvent → Lot → Shipment`; chế biến và
+distribution mở rộng theo [business rules](docs/core-business-rules.md). Đối chiếu
+`apps/api/prisma/schema.prisma`, migration/SQL guards và Swagger sinh từ NestJS.
+Đặc tả Batch/plan đã thay thế được tra qua Git, không dùng làm contract hiện hành.
 
 ## Audit dependency
 

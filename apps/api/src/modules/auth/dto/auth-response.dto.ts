@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ROLE_CODES } from '../role-codes.js';
+import { BUSINESS_ROLES, ROLE_CODES } from '../role-codes.js';
 
 class AuthRoleDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
@@ -20,6 +20,13 @@ export class AuthUserDto {
   @ApiProperty({ type: AuthOrganizationDto, nullable: true })
   organization!: AuthOrganizationDto | null;
   @ApiProperty({ type: AuthRoleDto }) role!: AuthRoleDto;
+  @ApiProperty({
+    enum: BUSINESS_ROLES,
+    nullable: true,
+    description:
+      'Vai nghiệp vụ tài khoản hành động; nhân viên doanh nghiệp lấy theo loại tổ chức',
+  })
+  businessRole!: string | null;
   @ApiProperty() accountStatus!: string;
   @ApiProperty({ type: Boolean, description: 'Bắt buộc đổi mật khẩu trước khi dùng các chức năng khác' })
   mustChangePassword!: boolean;

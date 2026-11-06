@@ -22,6 +22,8 @@ import { SUPPLY_STAGES } from './dto.js';
 import { normalizeExpiryDate } from '../../common/expiry-date.js';
 import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
+import { assertPartnerSlot, partnerHasWork } from './chain-membership-rules.js';
+import { createPartnerInvitation, listPartnerInvitations, type PartnerInvitationInput } from './partner-invitations.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -30,6 +32,9 @@ import {
   requestLedgerGrant,
   requestLedgerRevoke,
 } from '../ledger/ledger-permissions.js';
+
+/** Chain roles the member permission groups own (enterprise-workspace assign). */
+const MEMBER_GROUP_ROLES: string[] = ['FARM_STAFF', 'TRANSPORTER', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'];
 
 @Injectable()
 export class SupplyChainsService {
@@ -217,6 +222,7 @@ export class SupplyChainsService {
       include: { activeBinding: { include: { state: true } } },
     });
     const binding = profile?.activeBinding ?? null;
+    const provisioning = await this.prisma.ledgerProvisioningJob.findUnique({ where: { chainId } });
     const empty = {
       permissions: { active: 0, pending: 0, revoking: 0, held: 0 },
       delivery: {
@@ -232,6 +238,7 @@ export class SupplyChainsService {
       return {
         chainId,
         profile: 'UNBOUND',
+        preparationStatus: provisioning?.lastError ? 'NEEDS_ATTENTION' : 'PREPARING',
         bindingStatus: null,
         channelId: null,
         ...empty,
@@ -306,6 +313,7 @@ export class SupplyChainsService {
     return {
       chainId,
       profile: binding.profile,
+      preparationStatus: binding.state?.status === 'ACTIVE' && !syncs.some(s => s.state !== 'ACTIVE' && s.state !== 'REVOKED') ? 'READY' : 'PREPARING',
       bindingStatus: binding.state?.status ?? null,
       channelId: binding.channelId,
       permissions: {
@@ -525,8 +533,18 @@ export class SupplyChainsService {
       return result;
     });
   }
+  invitations(actor: CommandActor, chainId: string) {
+    return listPartnerInvitations(this.prisma, actor, chainId);
+  }
+  inviteByLink(actor: CommandActor, chainId: string, input: PartnerInvitationInput) {
+    return this.transaction((tx) => createPartnerInvitation(tx, actor, chainId, input));
+  }
   invite(actor: CommandActor, chainId: string, organizationId: string) {
     return this.transaction(async (tx) => {
+      // The free farm ledger has no owner rights: partners join it only by
+      // accepting a handover of one of its lots (ADR-005).
+      if ((await tx.supplyChain.findUniqueOrThrow({ where: { id: chainId } })).personal)
+        throw new ForbiddenException('Sổ ghi nông trại không mời đối tác; đối tác vào sổ khi nhận bàn giao lô');
       await this.activeOrganization(tx, organizationId);
       if (
         await tx.chainMembership.findUnique({
@@ -556,6 +574,7 @@ export class SupplyChainsService {
     organizationId: string,
     version: number,
     status: ChangeMemberDto['status'] | 'ACTIVE',
+    mode: 'OWNER' | 'LEAVE' = 'OWNER',
   ) {
     return this.transaction(async (tx) => {
       const chain = await tx.supplyChain.findUniqueOrThrow({
@@ -571,6 +590,27 @@ export class SupplyChainsService {
       if (!member) throw new NotFoundException('Không tìm thấy thành viên');
       if (member.version !== version)
         throw new ConflictException('Version thành viên đã thay đổi');
+      if (status === 'ACTIVE') await assertPartnerSlot(tx, chainId, organizationId);
+      // ADR-005: a partner still holding goods or open handovers is not cut
+      // off. The owner marks it closing (no new handover); leaving waits.
+      if (
+        member.status === 'ACTIVE' &&
+        status !== 'ACTIVE' &&
+        status !== 'INVITED' &&
+        (await partnerHasWork(tx, chainId, organizationId))
+      ) {
+        if (mode === 'LEAVE')
+          throw new ConflictException(
+            'Doanh nghiệp còn giữ hàng hoặc giao nhận chưa xong trong chuỗi; bàn giao hết trước khi rời',
+          );
+        if (member.closingAt) return member;
+        const closing = await tx.chainMembership.update({
+          where: { id: member.id },
+          data: { closingAt: new Date(), version: { increment: 1 }, updatedAt: new Date() },
+        });
+        await this.audit(tx, actor, 'MEMBER_CLOSING', member.id, closing.version, chainId);
+        return closing;
+      }
       const allowed =
         status === 'ACTIVE'
           ? member.status === 'INVITED'
@@ -667,6 +707,10 @@ export class SupplyChainsService {
         });
         if (member?.status !== 'ACTIVE')
           throw new ForbiddenException('Tổ chức chưa là thành viên hoạt động');
+        // Business roles follow the member's permission groups, which rebuild
+        // them on every save; a direct grant would be silently dropped.
+        if (MEMBER_GROUP_ROLES.includes(input.role))
+          throw new ForbiddenException('Vai trò nghiệp vụ được cấp qua nhóm quyền của thành viên');
         const capability =
           BUSINESS_CAPABILITIES[
             input.role as keyof typeof BUSINESS_CAPABILITIES
@@ -743,13 +787,6 @@ export class SupplyChainsService {
         grant.chainId !== (chainId ?? null)
       )
         throw new NotFoundException('Không tìm thấy quyền');
-      if (
-        actor.role !== 'SYSTEM_ADMIN' &&
-        !['FARM_STAFF', 'TRANSPORTER', 'RETAILER'].includes(grant.role)
-      )
-        throw new ForbiddenException(
-          'Org admin không thu hồi quyền nền tảng cấp',
-        );
       if (grant.revision !== version || grant.revokedAt)
         throw new ConflictException('Quyền đã thay đổi');
       const result = await tx.scopedRoleGrant.update({

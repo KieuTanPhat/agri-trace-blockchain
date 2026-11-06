@@ -53,7 +53,7 @@ export class ComplianceAssignmentsController {
 
   @ApiDataResponse(AssignmentListDto, 200, true)
   @Get()
-  @Roles('SYSTEM_ADMIN', 'COMPLIANCE_REVIEWER')
+  @Roles('SYSTEM_ADMIN', 'AUDITOR')
   list(@Req() req: AuthenticatedRequest) {
     return this.service.list(req.user);
   }

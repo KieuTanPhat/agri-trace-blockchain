@@ -18,12 +18,11 @@ import {
   IsDefined,
   IsUrl,
 } from 'class-validator';
-import { HOSTING_MODES } from '../../enterprise-onboarding/dto.js';
 import { RegistrationEmailProof } from '../../enterprise-onboarding/registration-otp.dto.js';
 import {
   BUSINESS_ACTIVITIES,
   LEGAL_FORMS,
-  PARTICIPATION_MODELS,
+  PARTICIPATION_STATUSES,
   RegistrationProfileExtension,
 } from '../../enterprise-onboarding/registration-profile.dto.js';
 
@@ -76,7 +75,7 @@ export class EnterpriseRegistrationDetails extends RegistrationProfileExtension 
     enum: BUSINESS_ACTIVITIES,
     isArray: true,
     description:
-      'SINGLE participation registers exactly one activity; SUPPLY_CHAIN_ENTERPRISE registers two or more. Each activity is reviewed separately.',
+      'Any number of activities; each is reviewed separately. A chain owner needs at least one goods-owning activity (not only TRANSPORTER).',
   })
   @IsArray()
   @ArrayUnique()
@@ -140,30 +139,36 @@ export class RegisterDto {
   @MaxLength(255)
   organizationName!: string;
   @ApiProperty({
-    required: false,
     description:
-      'Tax identifier when applicable. Registered entities require it; producer households/individuals may omit it. Operator verification remains required.',
-    pattern: '^(?:[0-9]{10}(?:-?[0-9]{3})?|[0-9]{12})$',
+      'Enterprise or cooperative tax identifier. Operator verification remains required.',
+    pattern: '^[0-9]{10}(?:-?[0-9]{3})?$',
   })
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
-  @IsOptional()
   @IsString()
-  @Matches(/^(?:\d{10}(?:-?\d{3})?|\d{12})$/)
-  businessId?: string;
+  @Matches(/^\d{10}(?:-?\d{3})?$/)
+  businessId!: string;
   @ApiProperty({ enum: BUSINESS_ACTIVITIES })
   @IsIn(BUSINESS_ACTIVITIES)
   organizationType!: (typeof BUSINESS_ACTIVITIES)[number];
   @ApiProperty({
-    enum: PARTICIPATION_MODELS,
-    required: false,
+    enum: PARTICIPATION_STATUSES,
     description:
-      'Defaults to SINGLE for one activity and SUPPLY_CHAIN_ENTERPRISE for several.',
+      'MEMBER takes part free of charge; CHAIN_OWNER buys a plan and may own chains. A member may upgrade later.',
+  })
+  @IsIn(PARTICIPATION_STATUSES)
+  participationStatus!: (typeof PARTICIPATION_STATUSES)[number];
+  @ApiProperty({
+    required: false,
+    description: 'Partner invitation token received by email; joins the inviting chain after activation.',
+    maxLength: 200,
   })
   @IsOptional()
-  @IsIn(PARTICIPATION_MODELS)
-  participationModel?: (typeof PARTICIPATION_MODELS)[number];
+  @IsString()
+  @MinLength(20)
+  @MaxLength(200)
+  invitationToken?: string;
   @ApiProperty({
     type: EnterpriseRegistrationDetails,
     description:
@@ -173,7 +178,4 @@ export class RegisterDto {
   @ValidateNested()
   @Type(() => EnterpriseRegistrationDetails)
   details!: EnterpriseRegistrationDetails;
-  @ApiProperty({ enum: HOSTING_MODES })
-  @IsIn(HOSTING_MODES)
-  hostingMode!: (typeof HOSTING_MODES)[number];
 }

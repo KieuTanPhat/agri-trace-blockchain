@@ -21,13 +21,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-export const LEGAL_FORMS = [
-  'ENTERPRISE',
-  'COOPERATIVE',
-  'HOUSEHOLD_BUSINESS',
-  'PRODUCER_HOUSEHOLD',
-  'INDIVIDUAL_PRODUCER',
-] as const;
+/** Only enterprises and cooperatives register (ADR-005). */
+export const LEGAL_FORMS = ['ENTERPRISE', 'COOPERATIVE'] as const;
 export const BUSINESS_ACTIVITIES = [
   'FARM',
   'TRANSPORTER',
@@ -35,15 +30,20 @@ export const BUSINESS_ACTIVITIES = [
   'DISTRIBUTOR',
   'RETAILER',
 ] as const;
-export const PARTICIPATION_MODELS = [
-  'SINGLE',
-  'SUPPLY_CHAIN_ENTERPRISE',
+/** MEMBER takes part free; CHAIN_OWNER buys a plan and may own chains. */
+export const PARTICIPATION_STATUSES = ['MEMBER', 'CHAIN_OWNER'] as const;
+/** Capabilities under which an organization owns the goods it handles. */
+const GOODS_OWNING = ['FARM', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] as const;
+export const mayOwnChains = (activities: readonly string[]) =>
+  activities.some((a) => (GOODS_OWNING as readonly string[]).includes(a));
+export const chainOwner = (status: string | null | undefined) =>
+  status === 'CHAIN_OWNER';
+const SERVICE_PLAN_CODES = [
+  'OWNER_START',
+  'OWNER_GROWTH',
+  'OWNER_SCALE',
+  'OWNER_ENTERPRISE',
 ] as const;
-/** Participation models that buy a service plan and may own supply chains. */
-export const payingParticipant = (
-  model: string,
-  activities: readonly string[],
-) => model === 'SUPPLY_CHAIN_ENTERPRISE' || activities.includes('FARM');
 export const PROCESSING_TYPES = [
   'PRELIMINARY',
   'PACKING',
@@ -54,11 +54,7 @@ export const PROCESSING_TYPES = [
   'FERMENTING',
   'OTHER',
 ] as const;
-export const REGISTERED_FORMS = [
-  'ENTERPRISE',
-  'COOPERATIVE',
-  'HOUSEHOLD_BUSINESS',
-];
+export const REGISTERED_FORMS: readonly string[] = LEGAL_FORMS;
 export const DOCUMENT_KINDS = [
   'LOGO',
   'LEGAL_REGISTRATION',
@@ -156,9 +152,9 @@ export class RegistrationServicePreferences {
   @ArrayContains(['TRACEABILITY'])
   @IsIn(['TRACEABILITY', 'QR_LABELS'], { each: true })
   interests!: string[];
-  @ApiPropertyOptional({ enum: ['TRACE_5', 'TRACE_10', 'TRACE_20', 'CHAIN_PRO'] })
+  @ApiPropertyOptional({ enum: SERVICE_PLAN_CODES, description: 'Chain owners only' })
   @IsOptional()
-  @IsIn(['TRACE_5', 'TRACE_10', 'TRACE_20', 'CHAIN_PRO'])
+  @IsIn(SERVICE_PLAN_CODES)
   planCode?: string;
   @ApiProperty({ enum: ['UP_TO_10', 'UP_TO_100', 'OVER_100', 'UNDECIDED'] })
   @IsIn(['UP_TO_10', 'UP_TO_100', 'OVER_100', 'UNDECIDED'])

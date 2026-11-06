@@ -29,7 +29,7 @@ import { appendPlatformAudit, lockPlatformAudit } from './platform-audit.js';
  * writes lot state, quantity, custody or recall: those commands stay with the
  * owning enterprise (FARM_STAFF/TRANSPORTER/RETAILER). */
 const OPEN_FOR_RESPONSE = ['ASSIGNED', 'ACKNOWLEDGED', 'ESCALATED'] as const;
-const PLATFORM_ROLES = ['SYSTEM_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER'];
+const PLATFORM_ROLES = ['SYSTEM_ADMIN', 'AUDITOR'];
 
 type CaseRow = Prisma.PlatformCaseGetPayload<{
   include: {

@@ -44,16 +44,16 @@ async function login(page, origin, user, password) {
   options.results?.push(result);
 }
 
-/** The chain route opens its detail sheet; its section link marks the current view. */
+/** The chain detail is its own page; the tab link marks the current view and
+ * the tab content is the region named after the chain. */
 async function selectChain(page, options, section) {
   await page.goto(`${options.origin}/supply-chains/${options.fixture.chainId}/${section}`, {
     waitUntil: "domcontentloaded",
   });
-  const sheet = page.getByRole("dialog", { name: options.fixture.chainName, exact: true });
-  await sheet
+  await page
     .locator(`a[href="/supply-chains/${options.fixture.chainId}/${section}"][aria-current="page"]`)
     .waitFor({ state: "visible", timeout });
-  return sheet;
+  return page.getByRole("region", { name: options.fixture.chainName, exact: true });
 }
 
 /** Reconcile one journaled command from the shell banner. Detail sheets are modal,
@@ -79,13 +79,22 @@ function signingReview(page, title) {
 }
 
 async function signOut(page) {
-  await page.getByRole("button", { name: "Tài khoản", exact: true }).filter({ visible: true }).first().click();
+  // The switched account may have no access to the current business route.
+  // Its account page remains available without granting any business permission.
+  // Let the previous page finish restoring its session: leaving mid-refresh drops the rotated cookie.
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  await page.goto(new URL('/account/password', page.url()).href, { waitUntil: 'domcontentloaded' });
+  const account = page.getByRole("button", { name: "Tài khoản", exact: true }).filter({ visible: true }).first();
+  try {
+    await account.waitFor({ timeout: 30_000 });
+  } catch (error) {
+    // Record where the shell actually landed (redirect, gate or overlay).
+    const text = await page.locator("body").innerText().catch(() => "");
+    console.error(JSON.stringify({ signOut: "account-menu-missing", url: page.url(), viewport: page.viewportSize(), text: text.replace(/\s+/g, " ").slice(0, 600) }));
+    throw error;
+  }
+  await account.click();
   await page.getByRole("menuitem", { name: "Đăng xuất", exact: true }).click();
-  // Signing out asks once in the shared confirmation dialog.
-  await page
-    .getByRole("dialog", { name: "Đăng xuất", exact: true })
-    .getByRole("button", { name: "Đăng xuất", exact: true })
-    .click();
   await page.waitForURL((url) => url.pathname === "/login", { timeout });
 }
 
@@ -389,7 +398,7 @@ async function enrollKey(options, session, party, label, loseResponse = false) {
     { present: true, extractable: false, algorithm: "Ed25519" },
     "Browser stores a non-extractable device key",
   );
-  await options.activateKey(keyRef);
+  await options.waitForKey(keyRef);
   await until(
     async () =>
       (await options.db.signingKey.findUnique({ where: { keyRef } }))
@@ -401,6 +410,8 @@ async function enrollKey(options, session, party, label, loseResponse = false) {
 
 async function ensureKeys(options, session) {
   if (session.keys.farm) return;
+  // The chain owner registers the first key on a standard chain; dual signing
+  // needs an ACTIVE key, and only then do the other members see their signing tab.
   session.keys.farm = await enrollKey(
     options,
     session,
@@ -408,6 +419,7 @@ async function ensureKeys(options, session) {
     `${options.variant} farm`,
     true,
   );
+  await options.setHandoverMode("DUAL_SIGNED");
   session.keys.transporter = await enrollKey(
     options,
     session,
@@ -420,7 +432,6 @@ async function ensureKeys(options, session) {
     "retailer",
     `${options.variant} retailer`,
   );
-  await options.setHandoverMode("DUAL_SIGNED");
   session.groups.push({
     name: "device-key-enrollment-lost-response-reload-real-registry",
     passed: true,

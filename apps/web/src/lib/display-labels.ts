@@ -1,27 +1,3 @@
-import type { ProofStatus, Role } from "./types";
-
-const stateLabels: Record<string, string> = {
-  CREATED: "Mới tạo",
-  PLANTED: "Đang trồng",
-  GROWING: "Đang sinh trưởng",
-  COMPLETED: "Đã kết thúc vụ",
-  HARVESTED: "Đã thu hoạch",
-  CONSUMED: "Đã dùng hết cho chế biến",
-  IN_TRANSPORT: "Đang vận chuyển",
-  ARRIVED: "Đã đến điểm nhận",
-  RETAIL_RECEIVED: "Cửa hàng đã nhận",
-  FOR_SALE: "Đang bán",
-  SOLD: "Đã bán",
-  RECALLED: "Đã thu hồi",
-  EXPIRED: "Đã hết hạn",
-  CANCELLED: "Đã hủy",
-  DAMAGED: "Bị hỏng",
-  REJECTED: "Bị từ chối",
-  VERIFIED: "Đã xác minh",
-  PENDING: "Chờ xác minh",
-  INTEGRITY_WARNING: "Cảnh báo toàn vẹn",
-  BLOCKCHAIN_UNAVAILABLE: "Blockchain tạm không khả dụng",
-};
 
 const eventLabels: Record<string, string> = {
   PRODUCTION_CYCLE_CREATED: "Khởi tạo vụ trồng",
@@ -60,44 +36,7 @@ const eventLabels: Record<string, string> = {
   LOT_EXPIRED: "Lô hết hạn",
 };
 
-const roleLabels: Record<Role, string> = {
-  DISTRIBUTOR: "Nhà phân phối",
-  PROCESSOR: "Nhà chế biến",
-  SYSTEM_ADMIN: "Quản trị hệ thống",
-  PLATFORM_OPERATOR: "Vận hành nền tảng",
-  PLATFORM_CASE_MANAGER: "Điều phối sự cố",
-  PLATFORM_PRIVACY_OFFICER: "Phụ trách dữ liệu cá nhân",
-  FARM_STAFF: "Nhân viên trang trại",
-  IOT_DEVICE: "Thiết bị cảm biến",
-  TRANSPORTER: "Đơn vị vận chuyển",
-  RETAILER: "Nhà bán lẻ",
-  AUDITOR: "Kiểm tra viên",
-  COMPLIANCE_REVIEWER: "Người duyệt tuân thủ",
-  SYSTEM_ACTOR: "Tác vụ hệ thống",
-};
-
-const proofLabels: Record<ProofStatus, string> = {
-  VERIFIED: "Đã khớp bằng chứng",
-  PENDING: "Đang chờ ghi nhận",
-  INTEGRITY_WARNING: "Dữ liệu không khớp",
-  BLOCKCHAIN_UNAVAILABLE: "Không truy vấn được blockchain",
-};
-
-export function labelForState(state: string, originType?: string) {
-  // A processed lot starts in the same initial state as a harvested one.
-  if (state === "HARVESTED" && originType === "TRANSFORMATION")
-    return "Mới chế biến";
-  return stateLabels[state] ?? state;
-}
-
 export function labelForEvent(eventType: string) {
   return eventLabels[eventType] ?? eventType;
 }
 
-export function labelForRole(role: Role) {
-  return roleLabels[role] ?? role;
-}
-
-export function labelForProof(status: ProofStatus) {
-  return proofLabels[status] ?? status;
-}

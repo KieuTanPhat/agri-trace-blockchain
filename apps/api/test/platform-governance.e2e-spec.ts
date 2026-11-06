@@ -187,7 +187,7 @@ describe('Platform governance (real PostgreSQL)', () => {
 
   describe('P0-1 append-only audit log', () => {
     it('writes the audit entry in the same transaction as a status change', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       const key = randomUUID();
       const before = await auditCount();
       const response = await patch(
@@ -213,7 +213,7 @@ describe('Platform governance (real PostgreSQL)', () => {
     });
 
     it('rejects a missing/short reason and a missing Idempotency-Key without writing', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       const before = await auditCount();
       await patch(admin, `users/${target.id}/status`, {
         accountStatus: 'LOCKED',
@@ -238,7 +238,7 @@ describe('Platform governance (real PostgreSQL)', () => {
     });
 
     it('replays the same idempotency key once and rejects a changed payload', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       const key = randomUUID();
       const body = { accountStatus: 'INACTIVE', version: 0, reason: REASON };
       const first = await patch(admin, `users/${target.id}/status`, body, key);
@@ -256,7 +256,7 @@ describe('Platform governance (real PostgreSQL)', () => {
     });
 
     it('does not leave an audit entry when the write is rejected (stale version)', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       await patch(admin, `users/${target.id}/status`, {
         accountStatus: 'LOCKED',
         version: 0,
@@ -309,7 +309,7 @@ describe('Platform governance (real PostgreSQL)', () => {
     });
 
     it('exports a bounded CSV and neutralizes spreadsheet formulas', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       await patch(admin, `users/${target.id}/status`, {
         accountStatus: 'LOCKED',
         version: 0,
@@ -395,7 +395,7 @@ describe('Platform governance (real PostgreSQL)', () => {
     });
 
     it('never stores credentials in audit details', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       await post(admin, `users/${target.id}/reset-password`, {
         temporaryPassword: 'Tam-Thoi-Rat-Dai-9!',
         version: 0,
@@ -414,7 +414,7 @@ describe('Platform governance (real PostgreSQL)', () => {
 
   describe('P0-2 account and organization status', () => {
     it('revokes every session when an account is locked', async () => {
-      const target = await bearer('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await bearer('AUDITOR', 'AUDITOR');
       await get(target, 'auth/me').expect(200);
       await patch(admin, `users/${target.id}/status`, {
         accountStatus: 'LOCKED',
@@ -469,7 +469,7 @@ describe('Platform governance (real PostgreSQL)', () => {
     });
 
     it('forces a session logout of one platform user without locking them', async () => {
-      const target = await bearer('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await bearer('AUDITOR', 'AUDITOR');
       await get(target, 'auth/me').expect(200);
       const response = await post(admin, `users/${target.id}/revoke-sessions`, {
         reason: REASON,
@@ -484,7 +484,7 @@ describe('Platform governance (real PostgreSQL)', () => {
 
   describe('P0-4 passwords, forced change and temporary lockout', () => {
     it('gives unknown, wrong-password and locked accounts the same error', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       const unknown = await login(`nobody-${randomUUID()}@example.test`);
       const wrong = await login(target.email, {}, 'Wrong-Password-123');
       expect(unknown.status).toBe(401);
@@ -529,7 +529,7 @@ describe('Platform governance (real PostgreSQL)', () => {
     });
 
     it('resets a password to a temporary one that must be changed at first login', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       const reset = await post(admin, `users/${target.id}/reset-password`, {
         temporaryPassword: 'Mat-Khau-Tam-Thoi-77',
         version: 0,
@@ -586,7 +586,7 @@ describe('Platform governance (real PostgreSQL)', () => {
     });
 
     it('lets a user sign out of every session', async () => {
-      const target = await makeUser('COMPLIANCE_REVIEWER', 'AUDITOR');
+      const target = await makeUser('AUDITOR', 'AUDITOR');
       const a = await login(target.email).expect(201);
       const b = await login(target.email).expect(201);
       // A second login on the same browser would revoke the first; both are
@@ -730,7 +730,7 @@ describe('Platform governance (real PostgreSQL)', () => {
       const b = await bearer('SYSTEM_ADMIN');
       const reviewers = await Promise.all(
         Array.from({ length: 4 }, () =>
-          makeUser('COMPLIANCE_REVIEWER', 'AUDITOR'),
+          makeUser('AUDITOR', 'AUDITOR'),
         ),
       );
       const orgs = await Promise.all(

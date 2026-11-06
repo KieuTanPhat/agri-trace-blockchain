@@ -15,7 +15,7 @@ def hosted_config(base, env, **extra):
         "accounts": str(base / "accounts.json"), "ingress": "agritrace-prod-ingress",
         "postgres_volume": "agritrace-prod_postgres-data", "origin": "https://agritrace.dev", "branch": "main",
         "repository": "KieuTanPhat/agri-trace-blockchain", "backup_certificate": str(base / "shared/config/backup.pem"),
-        "hosted": {"network": "hosted_test", "channel": "hybrid-b", "chaincode": "agritrace",
+        "hosted": {"network": "hosted_test", "channel": "agritrace", "chaincode": "agritrace",
                    "containers": ["peer-a", "peer-b", "orderer-a"], "volumes": ["ledger-a", "ledger-b"],
                    "backup_paths": ["/opt/agri-trace/hosted/production/identities"], "peers": {}},
     }

@@ -12,7 +12,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-export const RIGHTS = [
+const RIGHTS = [
   'ACCESS',
   'CORRECTION',
   'DELETION',

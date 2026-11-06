@@ -12,7 +12,7 @@ const numeric = (value: unknown, min: number, max: number): number | null => {
     throw new Error('Invalid weather data');
   return value;
 };
-export const vietnamDate = (time: number) =>
+const vietnamDate = (time: number) =>
   new Date(time + 7 * 3600000).toISOString().slice(0, 10);
 export function projectWeather(
   raw: unknown,

@@ -3,7 +3,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 
 /** Units a plot area may be recorded in, with their size in square metres. */
 export const AREA_UNITS = { m2: 1, ha: 10_000 } as const;
-export type AreaUnit = keyof typeof AREA_UNITS;
+type AreaUnit = keyof typeof AREA_UNITS;
 
 /** Area in m², or null when the unit is a legacy free-text value. */
 export function areaInM2(

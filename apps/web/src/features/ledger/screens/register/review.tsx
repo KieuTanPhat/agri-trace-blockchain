@@ -5,11 +5,10 @@ import type {
   RegistrationFiles,
 } from "@/lib/registration-form";
 const labels: Partial<Record<keyof RegistrationDraft, string>> = {
-  registrationRole: "Vai trò đăng ký",
-  organizationName: "Tên tổ chức / chủ thể",
-  legalForm: "Loại chủ thể",
-  participationModel: "Mô hình tham gia",
-  organizationType: "Loại tổ chức",
+  participationStatus: "Tư cách tham gia",
+  organizationName: "Tên tổ chức",
+  legalForm: "Loại hình tổ chức",
+  organizationType: "Hoạt động chính",
   activities: "Năng lực yêu cầu",
   businessId: "Mã số thuế",
   registrationNumber: "Số giấy đăng ký",
@@ -37,7 +36,6 @@ const labels: Partial<Record<keyof RegistrationDraft, string>> = {
   processingFacilityCode: "Mã cơ sở chế biến",
   dailyCapacityKg: "Công suất (kg/ngày)",
   processingCertifications: "Chứng nhận chế biến",
-  hostingMode: "Mô hình peer quan tâm",
   interests: "Dịch vụ quan tâm",
   planCode: "Gói quan tâm",
   expectedProducts: "Số sản phẩm dự kiến",

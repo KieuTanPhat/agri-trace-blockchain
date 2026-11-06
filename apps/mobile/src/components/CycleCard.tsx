@@ -1,31 +1,54 @@
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import type { Schemas } from '../api/client';
+import { DirectoryPhoto } from './DirectoryCards';
 import { CYCLE_STATE } from '../lib/labels';
-import { color } from '../theme/tokens';
-import { Icon } from './Icon';
-import { Card, IconTile, Pill, T } from './ui';
+import { Icon } from './staff/Icon';
+import { Pill, T } from './staff/ui';
+import { color, radius, shadow, space } from '../theme/staff';
 
-export function CycleCard({ cycle, mine }: { cycle: Schemas['CycleListDto']; mine?: boolean }) {
+/** One cycle row; employees only ever receive the cycles they are assigned. */
+export function CycleCard({ cycle, first }: { cycle: Schemas['CycleListDto']; first?: boolean }) {
   const state = CYCLE_STATE[cycle.currentState] ?? { label: cycle.currentState, t: 'blue' as const };
   return (
-    <Pressable accessibilityRole="button" onPress={() => router.push(`/staff/cycle/${cycle.id}`)}>
-      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 }}>
-        <IconTile name="leaf" t="green" size={56} glyph={30} />
-        <View style={{ flex: 1, gap: 3 }}>
-          <T size={16} weight="heavy" numberOfLines={1}>
-            {cycle.product.productName}
-          </T>
-          <T size={13.5} c={color.muted} numberOfLines={1}>
-            {[cycle.farm.name, cycle.plot?.name].filter(Boolean).join(' · ')}
-          </T>
-          <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-            <Pill label={state.label} t={state.t} />
-            {mine && <Pill label="Bạn được giao" t="orange" />}
-          </View>
-        </View>
-        <Icon name="chevron" color={color.faint} />
-      </Card>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Mở mùa vụ ${cycle.product.productName}, ${state.label}`}
+      onPress={() => router.push(`/staff/cycle/${cycle.id}`)}
+      style={({ pressed }) => [
+        shadow.card,
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space.md,
+          padding: space.md,
+          borderRadius: radius.xl,
+          borderWidth: 1,
+          borderColor: color.line,
+          backgroundColor: color.surface,
+          opacity: pressed ? 0.78 : 1,
+          marginTop: first ? 0 : space.sm,
+        },
+      ]}
+    >
+      <View style={{ width: 68, height: 68, borderRadius: 16, overflow: 'hidden', backgroundColor: color.greenTint }}>
+        <DirectoryPhoto url={`/public/products/${cycle.product.id}/image`} label={cycle.product.productName} fit="cover" />
+      </View>
+      <View style={{ flex: 1, gap: 5 }}>
+        <T size={14.5} weight="bold" numberOfLines={1}>
+          {cycle.product.productName}
+        </T>
+        <T size={12} c={color.inkSoft} numberOfLines={1}>
+          {cycle.farm.name}{cycle.plot?.name ? ` · ${cycle.plot.name}` : ''}
+        </T>
+        <T size={11.5} c={color.muted} numberOfLines={1}>
+          {cycle.cycleCode}
+        </T>
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 7 }}>
+        <Pill label={state.label} t={state.t} />
+        <Icon name="chevron" size={17} color={color.faint} />
+      </View>
     </Pressable>
   );
 }

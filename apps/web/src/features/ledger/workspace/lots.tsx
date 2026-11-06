@@ -71,7 +71,7 @@ export default function LotsPage({route}:{route:import("@/lib/ledger/route-input
 function Lots({route}:{route:import("@/lib/ledger/route-input").LedgerRouteInput}) {
   const { can } = useWorkspaceAccess();
   const {user:actor}=useSession();
-  const readable=can("trace.read")||!!actor&&["SYSTEM_ADMIN","AUDITOR","PLATFORM_OPERATOR","PLATFORM_CASE_MANAGER"].includes(actor.role.code);
+  const readable=can("trace.read")||!!actor&&["SYSTEM_ADMIN","AUDITOR"].includes(actor.role.code);
   const params = useSearchParams();
   const router = useRouter();
 
@@ -211,6 +211,7 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                   <table className="w-full text-[12.5px]">
                     <thead className="text-left text-ink-2">
                       <tr>
+                        <th className="w-10 py-1 pr-2 text-right font-medium">{tr("STT")}</th>
                         <th className="py-1 font-medium">{tr("Loại")}</th>
                         <th className="py-1 text-right font-medium">{tr("Trước")}</th>
                         <th className="py-1 text-right font-medium">{tr("Thay đổi")}</th>
@@ -219,8 +220,9 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                       </tr>
                     </thead>
                     <tbody className="font-mono">
-                      {l.quantityMovements.map((m) => (
+                      {l.quantityMovements.map((m, i) => (
                         <tr key={m.id} className="border-t border-line/70">
+                          <td className="w-10 py-1 pr-2 text-right text-ink-2">{i + 1}</td>
                           <td className="py-1 font-sans">{MOVEMENT_LABEL[m.type] ?? m.type}</td>
                           <td className="py-1 text-right">{fmtNumber(m.beforeQty)}</td>
                           <td className={cn("py-1 text-right", m.delta < 0 ? "text-danger" : "text-ok")}>{m.delta > 0 ? "+" : ""}{fmtNumber(m.delta)}</td>

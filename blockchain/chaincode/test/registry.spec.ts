@@ -51,15 +51,13 @@ const record = (net: Network, who: Who, e: BindingEventInput, generation = "0") 
   net.contract.RecordBindingEvent(net.ctx(who), JSON.stringify(e), JSON.stringify({ generation }));
 
 describe("Registry governance", () => {
-  it("requires every governed MSP admin to approve before a channel bootstrap executes", async () => {
+  it("requires the platform MSP admin to approve before a channel bootstrap executes", async () => {
     const net = new Network();
-    const payload = { channelId: "hybrid-b", strictB: true, allowLegacyV3Writes: false };
+    const payload = { channelId: "agritrace", strictB: true, allowLegacyV3Writes: false };
     const id = await net.propose("CHANNEL_BOOTSTRAP", payload);
     await expect(net.execute(id)).rejects.toThrow("APPROVALS_MISSING");
     await net.approve(id, "admin1");
-    await expect(net.execute(id)).rejects.toThrow("APPROVALS_MISSING");
     await expect(net.approve(id, "admin3")).rejects.toThrow("UNAUTHORIZED_CONTROL");
-    await net.approve(id, "admin2");
     const executed = JSON.parse(await net.execute(id));
     expect(executed).toMatchObject({ status: "EXECUTED", executedTxId: expect.any(String) });
     await expect(net.execute(id)).rejects.toThrow("PROPOSAL_NOT_OPEN");
@@ -71,28 +69,27 @@ describe("Registry governance", () => {
     const net = new Network();
     const request = JSON.stringify({
       kind: "CHANNEL_BOOTSTRAP",
-      payload: { channelId: "hybrid-b", strictB: true, allowLegacyV3Writes: false },
+      payload: { channelId: "agritrace", strictB: true, allowLegacyV3Writes: false },
       expectedRevision: "0",
       nonce: u(1),
     });
     for (const who of ["admin1", "relayer"] as const)
       await expect(net.contract.ProposeRegistryChange(net.ctx(who), request)).rejects.toThrow("UNAUTHORIZED_CONTROL");
     const id = await net.propose("CHANNEL_BOOTSTRAP", {
-      channelId: "hybrid-b",
+      channelId: "agritrace",
       strictB: true,
       allowLegacyV3Writes: false,
     });
     await expect(net.contract.ApproveRegistryChange(net.ctx("controller"), id)).rejects.toThrow("UNAUTHORIZED_CONTROL");
     await expect(net.contract.ApproveRegistryChange(net.ctx("relayer"), id)).rejects.toThrow("UNAUTHORIZED_CONTROL");
     await net.approve(id, "admin1");
-    await net.approve(id, "admin2");
     await expect(net.execute(id, "admin1")).rejects.toThrow("UNAUTHORIZED_CONTROL");
   });
 
   it("fails closed on a channel without a reviewed governance descriptor", async () => {
-    const net = new Network("agritrace");
+    const net = new Network("unreviewed-channel");
     await expect(
-      net.propose("CHANNEL_BOOTSTRAP", { channelId: "agritrace", strictB: true, allowLegacyV3Writes: false }),
+      net.propose("CHANNEL_BOOTSTRAP", { channelId: "unreviewed-channel", strictB: true, allowLegacyV3Writes: false }),
     ).rejects.toThrow("GOVERNANCE_UNDEFINED");
   });
 
@@ -122,7 +119,7 @@ describe("Registry governance", () => {
       { permissionRef: u(5), bindingDigest: DIGEST, epoch: "1", entityTypes: ["CARE"] },
     );
     await expect(net.approve(grantId, "admin2")).rejects.toThrow("UNAUTHORIZED_CONTROL");
-    await net.change("PERMISSION_EMERGENCY_REVOKE", { permissionRef: u(4), epoch: "1" }, ["admin2"], "1");
+    await net.change("PERMISSION_EMERGENCY_REVOKE", { permissionRef: u(4), epoch: "1" }, ["admin1"], "1");
     expect(JSON.parse(await permission())).toMatchObject({ status: "REVOKED", reviewRequired: true, revision: 2 });
   });
 
@@ -147,7 +144,7 @@ describe("Registry governance", () => {
 
   it("is idempotent for a repeated proposal and keeps the nonce in the identity", async () => {
     const net = new Network();
-    const payload = { channelId: "hybrid-b", strictB: true, allowLegacyV3Writes: false };
+    const payload = { channelId: "agritrace", strictB: true, allowLegacyV3Writes: false };
     const first = await net.propose("CHANNEL_BOOTSTRAP", payload, "0", u(1));
     expect(await net.propose("CHANNEL_BOOTSTRAP", payload, "0", u(1))).toBe(first);
     expect(await net.propose("CHANNEL_BOOTSTRAP", payload, "0", u(2))).not.toBe(first);
@@ -201,7 +198,7 @@ describe("RecordBindingEvent", () => {
     await net.change(
       "CREDENTIAL_REVOKE",
       { bindingDigest: DIGEST, authority: AUTHORITY, certFingerprint: RELAYER_FP },
-      ["admin2"],
+      ["admin1"],
       "1",
     );
     await expect(record(net, "relayer", event())).rejects.toThrow("not an approved credential");
@@ -277,7 +274,7 @@ describe("RecordBindingEvent", () => {
     const bare = new Network();
     await expect(record(bare, "relayer", event())).rejects.toThrow("CHANNEL_NOT_BOOTSTRAPPED");
     const bootstrapped = new Network();
-    await bootstrapped.change("CHANNEL_BOOTSTRAP", { channelId: "hybrid-b", strictB: true, allowLegacyV3Writes: false }, ["admin1", "admin2"]);
+    await bootstrapped.change("CHANNEL_BOOTSTRAP", { channelId: "agritrace", strictB: true, allowLegacyV3Writes: false }, ["admin1"]);
     await expect(record(bootstrapped, "relayer", event())).rejects.toThrow("BINDING_UNKNOWN");
     const net = await readyNetwork();
     await expect(
@@ -286,9 +283,9 @@ describe("RecordBindingEvent", () => {
   });
 
   it("refuses a channel bootstrap that claims release-A writes", async () => {
-    const net = new Network("hybrid-self");
+    const net = new Network("agritrace");
     await expect(
-      net.propose("CHANNEL_BOOTSTRAP", { channelId: "hybrid-self", strictB: true, allowLegacyV3Writes: true }),
+      net.propose("CHANNEL_BOOTSTRAP", { channelId: "agritrace", strictB: true, allowLegacyV3Writes: true }),
     ).rejects.toThrow("INVALID_INPUT");
   });
 

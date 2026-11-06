@@ -19,7 +19,7 @@ class HostedNetworkAdmission(unittest.TestCase):
         self.spec = {'protocol': 'agritrace-hosted-network/1', 'instance': 'agritrace-rehearsal-test',
                      'root': str(self.root), 'bind': '127.0.0.1', 'port_offset': 30000,
                      'images': {name: name + '@sha256:' + 'a' * 64 for name in ['ca', 'peer', 'orderer', 'chaincode']},
-                     'channels': {'hybrid-b': [1, 2], 'hybrid-self': [1, 3]}, 'writer_authority': 'agritrace-relayer-b',
+                     'channels': {'agritrace': [1]}, 'writer_authority': 'agritrace-relayer-b',
                      'chaincode_fingerprint': 'b' * 64, 'governance_digest': 'c' * 64, 'tools_source': str(self.root / 'tools')}
 
     def test_mutable_image_or_public_administrative_port_is_rejected(self):

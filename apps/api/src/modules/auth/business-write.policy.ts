@@ -5,8 +5,14 @@ export const TRANSPORT_WRITE_ROLES = ['TRANSPORTER'] as const;
 export const RETAIL_WRITE_ROLES = ['RETAILER'] as const;
 export const CUSTODY_WRITE_ROLES = ['TRANSPORTER', 'RETAILER'] as const;
 
-// Admin manages assignments; only the assigned reviewer writes compliance.
-export const COMPLIANCE_REVIEW_ROLES = ['COMPLIANCE_REVIEWER'] as const;
+// Admin manages assignments; only an assigned inspector writes compliance.
+// Routes admit the inspector account role. Inside a command the actor carries
+// the chain-scoped COMPLIANCE_REVIEWER grant instead when the lot has a chain.
+export const COMPLIANCE_REVIEW_ROLES = ['AUDITOR'] as const;
+export const COMPLIANCE_REVIEW_COMMAND_ROLES = [
+  'AUDITOR',
+  'COMPLIANCE_REVIEWER',
+] as const;
 
 export type BusinessActor = { role: string; organizationId: string | null };
 

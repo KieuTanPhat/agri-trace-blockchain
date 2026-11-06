@@ -9,7 +9,7 @@ const EXEMPT_ROLES = ['IOT_DEVICE', 'SYSTEM_ACTOR', 'CONSUMER'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Maximum password age; PASSWORD_MAX_AGE_DAYS=0 disables rotation. */
-export function passwordMaxAgeDays() {
+function passwordMaxAgeDays() {
   const days = Number(process.env.PASSWORD_MAX_AGE_DAYS ?? 30);
   return Number.isFinite(days) && days > 0 ? days : 0;
 }

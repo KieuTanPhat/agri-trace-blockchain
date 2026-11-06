@@ -16,8 +16,8 @@ import {
   type FixtureState,
 } from "./scenarios";
 type S = components["schemas"];
-export const enrollmentId = "11111111-1111-4111-8111-111111111111";
-export const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
+const enrollmentId = "11111111-1111-4111-8111-111111111111";
+const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
   paymentsEnabled: true,
   id: enrollmentId,
   organizationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -26,9 +26,7 @@ export const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
   businessId: "0123456789",
   representativeName: "Nguyễn An",
   representativeEmail: "owner@example.invalid",
-  participationModel: "SINGLE",
-  payingParticipant: true,
-  hostingMode: "MANAGED_ORG",
+  participationStatus: "MEMBER",
   status: "PENDING_REVIEW",
   onboardingStage: "PENDING_REVIEW",
   version: 3,
@@ -37,7 +35,6 @@ export const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
   serviceActivatedAt: null,
   serviceActivationReason: null,
   capabilityRequests: [],
-  connections: [],
   documents: [],
   details: null,
 };
@@ -74,8 +71,8 @@ function governance(
       data: [
         {
           id: enrollmentId,
-          code: "PLATFORM_OPERATOR",
-          name: "Vận hành nền tảng",
+          code: "SYSTEM_ADMIN",
+          name: "Quản trị nền tảng",
           description: null,
         } satisfies S["RoleRecordDto"],
       ],
@@ -123,7 +120,7 @@ function governance(
           type: "FARM",
           status: "ACTIVE",
           version: 1,
-          participationModel: "SINGLE",
+          participationStatus: "MEMBER",
           createdAt: pendingEnrollment.createdAt,
           billing: { subscription: null },
         },
@@ -159,9 +156,9 @@ function governance(
 }
 const governanceAccount: S["UserListDto"] = {
   id: "55555555-5555-4555-8555-555555555555",
-  email: "operator@example.invalid",
-  fullName: "Người vận hành kiểm thử",
-  role: { code: "PLATFORM_OPERATOR", name: "Vận hành nền tảng" },
+  email: "second-admin@example.invalid",
+  fullName: "Quản trị viên kiểm thử",
+  role: { code: "SYSTEM_ADMIN", name: "Quản trị nền tảng" },
   organization: null,
   accountStatus: "ACTIVE",
   mustChangePassword: false,
@@ -255,7 +252,6 @@ const inbox: LedgerInbox = {
     CAPABILITY: 0,
     AMENDMENT: 0,
     CONNECTION: 0,
-    TICKET: 0,
     CONSUMER_REPORT: 0,
     CASE: 0,
     INVOICE_OVERDUE: 0,
@@ -268,7 +264,7 @@ const dashboard: LedgerDashboard = {
   organizations: {
     byType: { FARM: 1 },
     byStatus: { ACTIVE: 1 },
-    byModel: { SINGLE: 1 },
+    byParticipation: { MEMBER: 1 },
     capabilities: { FARM: 1 },
   },
   pending: inbox.summary,
@@ -347,7 +343,7 @@ const reviewer: S["UserListDto"] = {
   ...governanceAccount,
   id: "77777777-7777-4777-8777-777777777777",
   fullName: "Người kiểm định kiểm thử",
-  role: { code: "COMPLIANCE_REVIEWER", name: "Người kiểm định" },
+  role: { code: "AUDITOR", name: "Kiểm định" },
   organization: { id: auditorOrg.id, name: auditorOrg.name, type: "AUDITOR" },
 };
 const assignment: S["AssignmentListDto"] = {
@@ -398,7 +394,7 @@ const organization: OrganizationDetail = {
   type: "FARM",
   status: "ACTIVE",
   version: 1,
-  participationModel: "SINGLE",
+  participationStatus: "MEMBER",
   createdAt: pendingEnrollment.createdAt,
   profile: null,
   capabilities: [],
@@ -407,9 +403,7 @@ const organization: OrganizationDetail = {
     id: enrollmentId,
     status: "PENDING_REVIEW",
     stage: "PENDING_REVIEW",
-    hostingMode: "MANAGED_ORG",
     createdAt: pendingEnrollment.createdAt,
-    connections: [],
   },
   billing: {
     applies: true,
@@ -425,7 +419,6 @@ const organization: OrganizationDetail = {
   members: [],
   activity: { lots: 0, processingRuns: 0 },
   cases: [],
-  tickets: [],
   audit: [],
 };
 const directory: DirectoryItem = {
@@ -434,7 +427,7 @@ const directory: DirectoryItem = {
   type: organization.type,
   status: organization.status,
   version: 1,
-  participationModel: "SINGLE",
+  participationStatus: "MEMBER",
   capabilities: [],
   pendingCapabilities: [],
   enrollmentId,
@@ -518,11 +511,10 @@ registerScenario("governance.registry", {
       return {
         data: state.values.get("enrollment") ?? {
           ...pendingEnrollment,
-          connections: [connection],
         },
       };
     if (r.path === "/enterprise-enrollments" && r.method === "GET")
-      return { data: [{ ...pendingEnrollment, connections: [connection] }] };
+      return { data: [{ ...pendingEnrollment, }] };
     if (pathname === "/enterprise-profile-amendments" && r.method === "GET")
       return {
         data: {
@@ -557,25 +549,6 @@ registerScenario("governance.registry", {
         },
       });
       return { data: { record: state.values.get("amendment") } };
-    }
-    if (
-      r.path === `/enterprise-connections/${connection.id}/review` &&
-      r.method === "POST"
-    ) {
-      const input = JSON.parse(r.body ?? "{}") as S["ReviewEnterpriseDto"];
-      if (input.version !== 5 || !r.idempotencyKey)
-        throw new Error("Connection version/key missing");
-      const changed = {
-        ...connection,
-        status: input.decision === "APPROVE" ? "APPROVED" : "REJECTED",
-        version: 6,
-        reviewNote: input.note,
-      };
-      state.values.set("enrollment", {
-        ...pendingEnrollment,
-        connections: [changed],
-      });
-      return { data: changed };
     }
     if (
       r.path === `/organizations/${organization.id}/scoped-users` &&
@@ -790,20 +763,6 @@ registerScenario("governance.registry", {
     return governance(r, state);
   },
 });
-const connection: S["EnterpriseConnectionViewDto"] = {
-  id: "88888888-8888-4888-8888-888888888888",
-  chainId: enrollmentId,
-  hostingMode: "ORG_PEER",
-  publicConfig: { mspId: "FixtureMSP", peer: "peer.example.invalid" },
-  status: "PENDING_REVIEW",
-  version: 5,
-  createdAt: pendingEnrollment.createdAt,
-  checkedAt: null,
-  errorCode: null,
-  evidence: null,
-  txId: null,
-  reviewNote: null,
-};
 const amendment: S["ProfileAmendmentDetailDto"] = {
   organization: { id: organization.id, name: organization.name, version: 1 },
   profile: null,
@@ -864,7 +823,6 @@ const product: S["ProductRecordDto"] = {
   description: "Sản phẩm hồ sơ tổ chức",
   evidenceComplete: false,
   ingredients: null,
-  price: null,
   storageConditions: null,
   usageInstructions: null,
   variety: null,
@@ -877,7 +835,6 @@ registerScenario("governance.ready-activation", {
       status: "APPROVED",
       onboardingStage: "AWAITING_ACTIVATION",
       version: 4,
-      payingParticipant: true,
       capabilityRequests: [],
     }),
   handle: (r, state) => readScenario("governance.registry").handle(r, state),

@@ -7,7 +7,7 @@ import { Prisma } from '../../generated/prisma/client.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { commandTransaction, commandResponseJson } from '../../common/idempotency/command-transaction.js';
 import { canonicalSha256 } from '../../common/crypto/rfc8785.js';
-import { enterpriseAuthority, profileAuthority } from './enterprise-policy.js';
+import { enterpriseAuthority, evidencePermission, profileAuthority } from './enterprise-policy.js';
 import { evidenceSubject } from './evidence-policy.js';
 import { assertProductRefs, assertSiteStaff } from '../catalog/product-refs.js';
 import { ProductInput, type ProductRevisionInput, type MaterialInput, type MaterialRevisionInput, type ProductImportInput, type EvidenceInput } from './resources.dto.js';
@@ -19,16 +19,16 @@ export type EvidenceFile = { buffer: Buffer; originalname: string; mimetype: str
 const safeFileName = (name: string) => [...name].map(c => { const code = c.charCodeAt(0); return code < 32 || code === 127 || c === '/' || c === '\\' ? '_' : c; }).join('').slice(0, 180);
 const evidenceKinds: Record<string, readonly string[]> = {
   CHAIN: ['OTHER', 'CHAIN_IMAGE'],
-  MATERIAL_RECEIPT: ['OTHER', 'RECEIPT_DOCUMENT', 'INSPECTION_IMAGE', 'CERTIFICATE_IMAGE'],
+  MATERIAL_RECEIPT: ['OTHER', 'RECEIPT_DOCUMENT', 'INVOICE', 'PURCHASE_LIST', 'WEIGHING_SLIP', 'LAB_TEST', 'INSPECTION_IMAGE', 'CERTIFICATE_IMAGE'],
   PROCESSING_LOG: ['OTHER', 'PROCESSING_IMAGE'],
   SITE_TRANSFER: ['OTHER', 'TRANSFER_IMAGE'],
   QUARANTINE: ['OTHER', 'QUARANTINE_IMAGE', 'INSPECTION_IMAGE', 'CERTIFICATE_IMAGE'],
-  PRODUCT: ['OTHER', 'PRODUCT_IMAGE', 'INSPECTION_IMAGE'],
+  PRODUCT: ['OTHER', 'PRODUCT_IMAGE', 'INSPECTION_IMAGE', 'PRODUCT_DECLARATION', 'QUALITY_CERTIFICATE'],
   FARM: ['OTHER', 'LAND_CERTIFICATE'],
   SITE: ['OTHER', 'SITE_IMAGE', 'BUSINESS_LICENSE', 'QUALITY_CERTIFICATE', 'INSPECTION_IMAGE'],
   CYCLE: ['OTHER', 'CYCLE_IMAGE', 'CARE_IMAGE', 'HARVEST_IMAGE', 'LOT_IMAGE', 'CERTIFICATE_IMAGE'],
   CYCLE_DRAFT: ['OTHER', 'CYCLE_IMAGE', 'CERTIFICATE_IMAGE'],
-  LOT: ['OTHER', 'LOT_IMAGE', 'LOT_DOCUMENT', 'INSPECTION_IMAGE'],
+  LOT: ['OTHER', 'LOT_IMAGE', 'LOT_DOCUMENT', 'INSPECTION_IMAGE', 'DAMAGE_IMAGE'],
   TRANSFER: ['OTHER', 'TRANSFER_IMAGE', 'INSPECTION_IMAGE'],
   MATERIAL: ['OTHER', 'MATERIAL_IMAGE', 'SEED_IMAGE', 'CERTIFICATE_IMAGE', 'INSPECTION_IMAGE'],
   PROFILE: ['OTHER', 'BUSINESS_LICENSE', 'CERTIFICATE_IMAGE'],
@@ -43,6 +43,7 @@ const imageOnlyKinds = new Set([
   'MEMBER_AVATAR',
   'CHAIN_IMAGE',
   'QUARANTINE_IMAGE',
+  'DAMAGE_IMAGE',
   'PROCESSING_IMAGE',
 ]);
 @Injectable()
@@ -174,8 +175,9 @@ export class EnterpriseResourcesService {
  }
  uploadEvidence(actor:CommandActor,input:EvidenceInput,file:EvidenceFile) {
    return commandTransaction(this.db,async tx=>{
-     if(input.entityType==='PROFILE')await profileAuthority(tx,actor,true);else await enterpriseAuthority(tx,actor,'evidence.manage',undefined,undefined,true);
-     const context=await evidenceSubject(tx,actor,input.entityType,input.entityId,'evidence.manage',input.siteId);
+     const permission=evidencePermission(input.entityType,input.kind);
+     if(input.entityType==='PROFILE')await profileAuthority(tx,actor,true);else await enterpriseAuthority(tx,actor,permission,undefined,undefined,true);
+     const context=await evidenceSubject(tx,actor,input.entityType,input.entityId,permission,input.siteId);
      if(input.entityType==='CYCLE_DRAFT'){
        // Lock the draft so linking either sees this photo or runs after it has
        // been refused; linking records EVIDENCE_ATTACHED for the photos it sees.

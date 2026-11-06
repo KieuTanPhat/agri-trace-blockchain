@@ -28,6 +28,15 @@ export class PlanLimitsInput {
   @Min(0)
   @Max(1000)
   chains!: number;
+  @ApiProperty({
+    minimum: 0,
+    maximum: 100000,
+    description: 'Distinct partner organizations active in the owner chains',
+  })
+  @IsInt()
+  @Min(0)
+  @Max(100000)
+  partners!: number;
   @ApiProperty({ minimum: 1, maximum: 100000 })
   @IsInt()
   @Min(1)
@@ -63,6 +72,27 @@ export class PlanVersionDraftInput {
   note!: string;
 }
 
+export class CreateServicePlanInput extends PlanVersionDraftInput {
+  @ApiProperty({ pattern: '^[A-Z][A-Z0-9_]{1,29}$' })
+  @Transform(trim)
+  @Matches(/^[A-Z][A-Z0-9_]{1,29}$/)
+  code!: string;
+
+  @ApiProperty({ minLength: 1, maxLength: 120 })
+  @Transform(trim)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  name!: string;
+
+  @ApiPropertyOptional({ maxLength: 1000 })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+}
+
 export class BillingReasonInput {
   @ApiProperty({ minLength: 10, maxLength: 1000 })
   @Transform(trim)
@@ -70,6 +100,20 @@ export class BillingReasonInput {
   @MinLength(10)
   @MaxLength(1000)
   reason!: string;
+}
+
+export class ServicePlanStatusInput extends BillingReasonInput {
+  @ApiProperty({ enum: ['ACTIVE', 'RETIRED'] })
+  @IsIn(['ACTIVE', 'RETIRED'])
+  status!: 'ACTIVE' | 'RETIRED';
+
+  @ApiProperty({
+    enum: ['ACTIVE', 'RETIRED'],
+    description:
+      'Current plan status displayed to the operator; rejects stale changes',
+  })
+  @IsIn(['ACTIVE', 'RETIRED'])
+  expectedStatus!: 'ACTIVE' | 'RETIRED';
 }
 
 export class InvoiceVersionInput extends BillingReasonInput {
@@ -123,10 +167,24 @@ export class InvoiceQuery {
 
 export class SubscriptionQuery {
   @ApiPropertyOptional({
-    enum: ['ACTIVE', 'GRACE', 'RESTRICTED', 'PENDING_PAYMENT', 'CANCELLED', 'EXPIRING'],
+    enum: [
+      'ACTIVE',
+      'GRACE',
+      'RESTRICTED',
+      'PENDING_PAYMENT',
+      'CANCELLED',
+      'EXPIRING',
+    ],
   })
   @IsOptional()
-  @IsIn(['ACTIVE', 'GRACE', 'RESTRICTED', 'PENDING_PAYMENT', 'CANCELLED', 'EXPIRING'])
+  @IsIn([
+    'ACTIVE',
+    'GRACE',
+    'RESTRICTED',
+    'PENDING_PAYMENT',
+    'CANCELLED',
+    'EXPIRING',
+  ])
   status?: string;
 }
 
@@ -152,14 +210,31 @@ export class EnterpriseBillingDto {
   @ApiProperty() applies!: boolean;
   @ApiProperty() paying!: boolean;
   @ApiProperty({
-    enum: ['UNRESTRICTED', 'PARTICIPANT', 'NONE', 'ACTIVE', 'GRACE', 'RESTRICTED', 'PENDING_PAYMENT', 'CANCELLED'],
+    enum: [
+      'UNRESTRICTED',
+      'PARTICIPANT',
+      'NONE',
+      'ACTIVE',
+      'GRACE',
+      'RESTRICTED',
+      'PENDING_PAYMENT',
+      'CANCELLED',
+    ],
   })
   status!: string;
-  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    nullable: true,
+  })
   limits!: Record<string, number> | null;
   @ApiProperty({ type: 'object', additionalProperties: true })
   usage!: Record<string, number>;
-  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    nullable: true,
+  })
   subscription!: Record<string, unknown> | null;
   @ApiProperty({ type: 'object', additionalProperties: true, isArray: true })
   invoices!: Record<string, unknown>[];

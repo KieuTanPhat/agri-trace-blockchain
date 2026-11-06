@@ -16,6 +16,7 @@ import { ApiResponseInterceptor } from '../src/common/api/api-response.intercept
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { requestLedgerGrant } from '../src/modules/ledger/ledger-permissions.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -48,6 +49,13 @@ function role(actor: string, target: string, code: string, chain?: string) {
     role: code,
     ...(chain ? { chainId: chain } : {}),
   });
+}
+/** The chain role a member permission group would create (enterprise-workspace assign). */
+async function memberGroupRole(target: string, code: string, chainId: string) {
+  const grant = await prisma.scopedRoleGrant.create({
+    data: { userId: actors[target].id, organizationId: actors[target].org!, chainId, scope: 'CHAIN', role: code as never },
+  });
+  await requestLedgerGrant(prisma, grant);
 }
 
 describe('Chain management with real PostgreSQL authorization and command journal', () => {
@@ -161,7 +169,9 @@ describe('Chain management with real PostgreSQL authorization and command journa
       ownerKey,
     ).expect(201);
     chainId = created.body.data.id;
-    await role('owner', 'owner', 'FARM_STAFF', chainId).expect(201);
+    // Business chain roles come from member permission groups, never a direct grant.
+    await role('owner', 'owner', 'FARM_STAFF', chainId).expect(403);
+    await memberGroupRole('owner', 'FARM_STAFF', chainId);
     const replay = await post(
       'owner',
       'supply-chains',
@@ -249,7 +259,8 @@ describe('Chain management with real PostgreSQL authorization and command journa
     ).expect(200);
     expect(members.body.data).toHaveLength(1);
     expect(members.body.data[0].organizationId).toBe(actors.partner.org);
-    await role('partner', 'partner', 'TRANSPORTER', chainId).expect(201);
+    await role('partner', 'partner', 'TRANSPORTER', chainId).expect(403);
+    await memberGroupRole('partner', 'TRANSPORTER', chainId);
     await role('partner', 'partner', 'RETAILER', chainId).expect(403);
     await role('partner', 'partner', 'CHAIN_MANAGER', chainId).expect(403);
 

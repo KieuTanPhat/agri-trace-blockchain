@@ -24,6 +24,7 @@ import { TraceService } from '../src/modules/trace/trace.service.js';
 import { LotHarvestService } from '../src/modules/lots/lot-harvest.service.js';
 import { IdempotencyService } from '../src/common/idempotency/idempotency.service.js';
 import { canonicalSha256 } from '../src/common/crypto/rfc8785.js';
+import { handoverPhotosDigest } from '../src/modules/distribution/handover-photos.js';
 import { privateTraceEvidenceMatches } from '../src/modules/trace/trace-evidence.js';
 import { provisionChain } from './support/chain-scope.js';
 import { confirmSimulatedPermissions } from '../src/modules/ledger/simulated-ledger.js';
@@ -91,7 +92,7 @@ const prisma = new PrismaClient({
         ['retailer', 'RETAILER', retailer.id],
         ['admin', 'SYSTEM_ADMIN', null],
         ['auditor', 'AUDITOR', reviewerOrg.id],
-        ['reviewer', 'COMPLIANCE_REVIEWER', reviewerOrg.id],
+        ['reviewer', 'AUDITOR', reviewerOrg.id],
         ['unscoped', 'FARM_STAFF', null],
       ] as const) {
         const role = await prisma.role.upsert({
@@ -211,6 +212,16 @@ const prisma = new PrismaClient({
 
     function bearer(user: string) {
       return 'Bearer ' + jwt.sign({ sub: users[user], sid: sessionIds[user] });
+    }
+
+    /** A personal device key; it signs as soon as it is registered. */
+    async function deviceKey(user: string, organizationId: string, label: string) {
+      const pair = generateKeyPairSync('ed25519');
+      const keyRef = randomUUID();
+      const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
+      const popSignature = sign(null, Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`), pair.privateKey).toString('base64url');
+      await post('/distribution/device-keys', { id: keyRef, label, publicKey, popSignature }, user).expect(201);
+      return { keyRef, privateKey: pair.privateKey };
     }
 
     function get(path: string, user = 'farm') {
@@ -562,28 +573,7 @@ const prisma = new PrismaClient({
           lines: [{ lotId: lot.id, quantity: '0.500', unit: 'kg' }],
         }).expect(201)
       ).body.data.record;
-      const pair = generateKeyPairSync('ed25519');
-      const keyRef = randomUUID();
-      const publicKey = pair.publicKey
-        .export({ type: 'spki', format: 'der' })
-        .toString('base64url');
-      const keyBody = { id: keyRef, organizationId: processor.id, publicKey };
-      await post(
-        '/distribution/keys',
-        {
-          id: keyRef,
-          label: 'Isolated processor regression key',
-          publicKey,
-          popSignature: sign(
-            null,
-            Buffer.from(
-              `agritrace:distribution-key:1\0${canonicalize(keyBody)}`,
-            ),
-            pair.privateKey,
-          ).toString('base64url'),
-        },
-        'processor',
-      ).expect(201);
+      const { keyRef, privateKey: processorKey } = await deviceKey('processor', processor.id, 'Isolated processor regression key');
       const challenge = (
         await get(
           `/distribution/transfers/${transfer.id}/challenge`,
@@ -604,7 +594,7 @@ const prisma = new PrismaClient({
       const signature = sign(
         null,
         Buffer.from(`${challenge.domain}\0${canonicalize(body)}`),
-        pair.privateKey,
+        processorKey,
       ).toString('base64url');
       const input = {
         version: transfer.version,
@@ -720,10 +710,56 @@ const prisma = new PrismaClient({
       const [senderSite, receiverSite] = await Promise.all(
         [farmOrgId, receiver.id].map((organizationId) =>
           prisma.enterpriseSite.create({
-            data: { organizationId, name: 'Self delivery depot', kind: 'WAREHOUSE', address: 'Isolated test depot' },
+            data: { organizationId, name: 'Self delivery depot', kind: 'WAREHOUSE', address: 'Isolated test depot', region: 'Lâm Đồng' },
           }),
         ),
       );
+      // ADR-006: the self-delivering sender tracks its own vehicle with a signed GPS device.
+      await prisma.enterpriseSite.update({ where: { id: receiverSite.id }, data: { latitude: 10.86, longitude: 106.77 } });
+      const vehicle = await prisma.enterpriseVehicle.create({
+        data: { organizationId: farmOrgId, registration: `51C-${randomUUID().slice(0, 6)}`, kind: 'Xe tải nhỏ' },
+      });
+      const gps = generateKeyPairSync('ed25519');
+      const deviceCode = `SIM-GPS-${randomUUID().slice(0, 8)}`;
+      const gpsDevice = (
+        await post('/iot/v2/devices', {
+          kind: 'GPS_TRACKER',
+          deviceCode,
+          name: 'GPS xe nông trại',
+          publicKey: gps.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+          simulated: true,
+          vehicleId: vehicle.id,
+        }).expect(201)
+      ).body.data.record;
+      expect(gpsDevice).toMatchObject({ type: 'GPS_TRACKER', vehicleId: vehicle.id, simulated: true });
+      const readAssignment = (privateKey = gps.privateKey, sentAt = new Date().toISOString()) => {
+        const body = { deviceCode, sentAt };
+        const signature = sign(
+          null,
+          Buffer.concat([Buffer.from('agritrace:iot-device:1'), Buffer.from([0]), Buffer.from(canonicalize(body))]),
+          privateKey,
+        ).toString('base64url');
+        return request(app.getHttpServer()).post('/api/iot/v2/device/assignment').set('x-device-signature', signature).send(body);
+      };
+      expect((await readAssignment().expect(200)).body.data).toMatchObject({ device: { active: true }, vehicle: { registration: vehicle.registration }, trip: null });
+      await readAssignment(generateKeyPairSync('ed25519').privateKey).expect(401);
+      await readAssignment(gps.privateKey, new Date(Date.now() - 10 * 60_000).toISOString()).expect(401);
+      const sendPositions = (
+        positions: { sequence: number; recordedAt: string; latitude: number; longitude: number; accuracyM?: number }[],
+        privateKey = gps.privateKey,
+      ) => {
+        const body = { deviceCode, sentAt: new Date().toISOString(), positions };
+        const signature = sign(
+          null,
+          Buffer.concat([Buffer.from('agritrace:iot-device:1'), Buffer.from([0]), Buffer.from(canonicalize(body))]),
+          privateKey,
+        ).toString('base64url');
+        return request(app.getHttpServer()).post('/api/iot/v2/ingest/positions').set('x-device-signature', signature).send(body);
+      };
+      // Before any transit window the position is not stored (driver privacy).
+      const parked = await sendPositions([{ sequence: 1, recordedAt: new Date().toISOString(), latitude: 10.8, longitude: 106.7 }]);
+      expect(parked.status, JSON.stringify(parked.body)).toBe(200);
+      expect(parked.body.data).toMatchObject({ accepted: 0, ignored: 1 });
       const { lot } = await harvestedLot(1, selfChainId);
       await post('/distribution/allocations', {
         lotId: lot.id,
@@ -746,10 +782,41 @@ const prisma = new PrismaClient({
         plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
         lines: [{ lotId: lot.id, quantity: '0.600', unit: 'kg' }],
       }).expect(422);
+      // Self delivery names an employee with the Lái xe permission as driver.
+      const staffRole = await prisma.role.upsert({ where: { code: 'ENTERPRISE_STAFF' }, create: { code: 'ENTERPRISE_STAFF', name: 'ENTERPRISE_STAFF' }, update: {} });
+      const makeStaff = async (name: string, permissions: string[]) => {
+        const user = await prisma.user.create({
+          data: { fullName: name, email: `workflow-${randomUUID()}@example.test`, roleId: staffRole.id, organizationId: farmOrgId, passwordHash: 'not-a-login-fixture', enterpriseTier: 3, supervisorId: users.farm, phone: '0901234567' },
+        });
+        const group = await prisma.enterpriseRole.create({ data: { organizationId: farmOrgId, name: `${name} ${randomUUID().slice(0, 6)}`, permissions } });
+        await prisma.enterpriseMemberRole.create({ data: { userId: user.id, organizationId: farmOrgId, roleId: group.id, chainIds: [selfChainId], siteIds: [senderSite.id] } });
+        return user;
+      };
+      const driver = await makeStaff('Tài xế nông trại', ['profile.read', 'distribution.read', 'distribution.sign', 'distribution.drive']);
+      const signerOnly = await makeStaff('Thủ kho ký', ['profile.read', 'distribution.read', 'distribution.sign']);
+      const selfInput = {
+        transportMode: 'SELF_DELIVERY',
+        transportDetails: { registration: '51C-123.45' },
+        vehicleId: vehicle.id,
+        receiverId: receiver.id,
+        senderSiteId: senderSite.id,
+        receiverSiteId: receiverSite.id,
+        origin: 'Self delivery farm',
+        destination: 'Self delivery receiver',
+        plannedPickupAt: new Date(Date.now() + 3_600_000).toISOString(),
+        lines: [{ lotId: lot.id, quantity: '0.600', unit: 'kg' }],
+      };
+      await post('/distribution/transfers', selfInput).expect(422);
+      await post('/distribution/transfers', { ...selfInput, driverUserId: signerOnly.id }).expect(422);
+      const options = (await get('/distribution/options').expect(200)).body.data;
+      expect(options.drivers).toEqual([expect.objectContaining({ id: driver.id, chainIds: [selfChainId], siteIds: [senderSite.id] })]);
       let transfer = (
         await post('/distribution/transfers', {
+          ...selfInput,
+          driverUserId: driver.id,
           transportMode: 'SELF_DELIVERY',
-          transportDetails: { registration: '51C-123.45', driverName: 'Tài xế nông trại' },
+          transportDetails: { registration: '51C-123.45' },
+          vehicleId: vehicle.id,
           receiverId: receiver.id,
           senderSiteId: senderSite.id,
           receiverSiteId: receiverSite.id,
@@ -764,6 +831,8 @@ const prisma = new PrismaClient({
         carrierId: farmOrgId,
         carrierSiteId: senderSite.id,
         transportMode: 'SELF_DELIVERY',
+        driverUserId: driver.id,
+        transportDetails: { driverName: 'Tài xế nông trại', driverPhone: '0901234567' },
       });
       expect(
         await prisma.chainMembership.findUniqueOrThrow({
@@ -772,25 +841,14 @@ const prisma = new PrismaClient({
       ).toMatchObject({ status: 'INVITED' });
 
       const keys: Record<string, { keyRef: string; privateKey: ReturnType<typeof generateKeyPairSync>['privateKey'] }> = {};
-      for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
+      keys.farm = await deviceKey('farm', farmOrgId, 'Isolated self delivery key');
+      {
         const pair = generateKeyPairSync('ed25519');
         const keyRef = randomUUID();
         const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
-        await post(
-          '/distribution/keys',
-          {
-            id: keyRef,
-            label: 'Isolated self delivery key',
-            publicKey,
-            popSignature: sign(
-              null,
-              Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId, publicKey })}`),
-              pair.privateKey,
-            ).toString('base64url'),
-          },
-          actor,
-        ).expect(201);
-        keys[actor] = { keyRef, privateKey: pair.privateKey };
+        const popSignature = sign(null, Buffer.from(`agritrace:distribution-key:1\0${canonicalize({ id: keyRef, organizationId: receiver.id, publicKey })}`), pair.privateKey).toString('base64url');
+        await post('/distribution/device-keys', { id: keyRef, label: 'Isolated self delivery key', publicKey, popSignature }, 'selfReceiver').expect(201);
+        keys.selfReceiver = { keyRef, privateKey: pair.privateKey };
       }
       const signPhase = async (actor: 'farm' | 'selfReceiver', organizationId: string, phase: string) => {
         const challengeResponse = await get(`/distribution/transfers/${transfer.id}/challenge`, actor);
@@ -824,6 +882,8 @@ const prisma = new PrismaClient({
       ).toBe(1);
       await confirmSimulatedPermissions(prisma, { guard: false });
 
+      // A personal key is active as soon as it is registered.
+      expect((await prisma.distributionKey.findUniqueOrThrow({ where: { id: keys.selfReceiver.keyRef } })).status).toBe('ACTIVE');
       for (const [actor, organizationId] of [['selfReceiver', receiver.id], ['farm', farmOrgId]] as const) {
         const consent = await signPhase(actor, organizationId, 'CONSENT');
         expect(consent.status, JSON.stringify(consent.body)).toBe(201);
@@ -835,36 +895,152 @@ const prisma = new PrismaClient({
       expect(pickup.status, JSON.stringify(pickup.body)).toBe(201);
       transfer = pickup.body.data.record;
       expect(transfer.status).toBe('IN_TRANSIT');
+      const assigned = (await readAssignment().expect(200)).body.data;
+      expect(assigned.trip).toMatchObject({ transferId: transfer.id, origin: { source: 'PROVINCE' }, destination: { source: 'SITE' }, planned: { estimated: true } });
+      expect(assigned.trip.planned.distanceM).toBeGreaterThan(0);
+      expect(Object.keys(assigned.trip).sort()).toEqual(['destination', 'inTransitAt', 'origin', 'planned', 'transferId']);
+      // Neither removing nor moving the GPS can interrupt a trip in progress.
+      await post(`/iot/v2/devices/${gpsDevice.id}/binding`, { version: gpsDevice.authorityRevision }).expect(409);
+      const otherVehicle = await prisma.enterpriseVehicle.create({ data: { organizationId: farmOrgId, registration: `GPS-${randomUUID().slice(0, 6)}`, kind: 'Xe tải' } });
+      await post(`/iot/v2/devices/${gpsDevice.id}/binding`, { version: gpsDevice.authorityRevision, vehicleId: otherVehicle.id }).expect(409);
+      const deviceOptions = (await get('/iot/v2/device-options').expect(200)).body.data;
+      expect(deviceOptions.vehicles.find((v: { id: string }) => v.id === vehicle.id)).toMatchObject({ inTransit: true, trackerId: gpsDevice.id });
       const sent = await prisma.lotHolding.findUniqueOrThrow({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: farmOrgId } },
       });
       expect(sent.quantity.toFixed(3)).toBe('0.400');
+      // Synthetic fixes a few milliseconds after pickup stay inside the transit window.
+      const t0 = (await prisma.distributionTransfer.findUniqueOrThrow({ where: { id: transfer.id } })).inTransitAt!.getTime();
+      const at = (ms: number) => new Date(t0 + ms).toISOString();
+      const moving = await sendPositions([
+        { sequence: 10, recordedAt: at(1), latitude: 10.8, longitude: 106.7, accuracyM: 6 },
+        { sequence: 11, recordedAt: at(2), latitude: 10.8005, longitude: 106.7, accuracyM: 6 },
+        // 50 km in a millisecond: a spoofed fix is kept as ANOMALY, not used for distance.
+        { sequence: 12, recordedAt: at(3), latitude: 11.25, longitude: 106.7, accuracyM: 6 },
+        { sequence: 13, recordedAt: at(4), latitude: 10.801, longitude: 106.7, accuracyM: 6 },
+      ]);
+      expect(moving.status, JSON.stringify(moving.body)).toBe(200);
+      expect(moving.body.data).toMatchObject({ accepted: 4, anomalies: 1, duplicates: 0 });
+      // Replaying a sequence never writes it twice; a foreign key is refused.
+      const replay = await sendPositions([{ sequence: 11, recordedAt: at(2), latitude: 10.8005, longitude: 106.7 }]);
+      expect(replay.body.data).toMatchObject({ accepted: 0, duplicates: 1 });
+      const forged = await sendPositions([{ sequence: 14, recordedAt: at(5), latitude: 10.802, longitude: 106.7 }], generateKeyPairSync('ed25519').privateKey);
+      expect(forged.status).toBe(401);
+      const route = (await get(`/distribution/transfers/${transfer.id}/route`, 'selfReceiver').expect(200)).body.data.record;
+      expect(route).toMatchObject({ trackable: true, source: 'SIMULATED', summary: { pointCount: 3, anomalyCount: 1 } });
+      // Handover photos: a short receipt needs the receiver's photo, a photo of
+      // another organization is refused, and delivery photos enter the snapshot
+      // every delivery signature covers.
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jp3sAAAAASUVORK5CYII=', 'base64');
+      const photo = async (actor: 'farm' | 'selfReceiver') =>
+        (await request(app.getHttpServer())
+          .post('/api/enterprise-workspace/evidence')
+          .set('Authorization', bearer(actor))
+          .set('Idempotency-Key', randomUUID())
+          .field('entityType', 'TRANSFER')
+          .field('entityId', transfer.id)
+          .field('kind', 'TRANSFER_IMAGE')
+          .field('description', 'Ảnh giao nhận trong kiểm thử')
+          .attach('file', png, { filename: 'handover.png', contentType: 'image/png' })
+          .expect(201)).body.data.record as { id: string; sha256: string };
+      await post(`/distribution/transfers/${transfer.id}/receipt`, {
+        version: transfer.version,
+        reason: 'Thiếu một phần hàng khi dỡ xuống kho',
+        lines: [{ lotId: lot.id, received: '0.500', rejected: '0', quarantined: '0' }],
+      }, 'selfReceiver').expect(422);
+      const carrierPhoto = await photo('farm');
+      await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [carrierPhoto.id] }, 'selfReceiver').expect(422);
+      const deliveryPhoto = await photo('selfReceiver');
+      transfer = { ...transfer, ...(await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [deliveryPhoto.id] }, 'selfReceiver').expect(201)).body.data.record };
       await post(`/distribution/transfers/${transfer.id}/receipt`, {
         version: transfer.version,
         reason: 'Đã kiểm đếm đủ lượng giao tại kho nhận',
         lines: [{ lotId: lot.id, received: '0.600', rejected: '0', quarantined: '0' }],
       }, 'selfReceiver').expect(201);
       transfer = (await get(`/distribution/transfers/${transfer.id}`, 'selfReceiver').expect(200)).body.data.record;
+      expect(transfer.photos).toEqual([expect.objectContaining({ phase: 'DELIVERY', evidenceId: deliveryPhoto.id, sha256: deliveryPhoto.sha256 })]);
+      expect(transfer.photosDigest).toBe(handoverPhotosDigest(transfer.id, [{ phase: 'DELIVERY', evidenceId: deliveryPhoto.id, sha256: deliveryPhoto.sha256 }]));
+      const challenge = (await get(`/distribution/transfers/${transfer.id}/challenge`, 'selfReceiver').expect(200)).body.data;
+      expect(challenge.snapshot.photosDigest).toBe(transfer.photosDigest);
       for (const [actor, organizationId] of [['farm', farmOrgId], ['selfReceiver', receiver.id]] as const) {
         const delivery = await signPhase(actor, organizationId, 'DELIVERY');
         expect(delivery.status, JSON.stringify(delivery.body)).toBe(201);
         transfer = delivery.body.data.record;
+        if (actor === 'farm') {
+          // Once one party signed, the photos are fixed in the API and the database.
+          const late = await photo('selfReceiver');
+          await post(`/distribution/transfers/${transfer.id}/photos`, { version: transfer.version, phase: 'DELIVERY', photos: [late.id] }, 'selfReceiver').expect(409);
+          await expect(prisma.distributionHandoverPhoto.create({ data: { transferId: transfer.id, phase: 'DELIVERY', evidenceId: late.id, sha256: late.sha256, organizationId: receiver.id, createdBy: users.selfReceiver } })).rejects.toThrow(/fixed once the phase is signed/);
+          await expect(prisma.distributionTransfer.update({ where: { id: transfer.id }, data: { photosDigest: 'f'.repeat(64), version: { increment: 1 } } })).rejects.toThrow(/photo digest/);
+        }
       }
       expect(transfer.status).toBe('DELIVERED');
+      expect((await readAssignment().expect(200)).body.data.trip).toBeNull();
+      const seal = await prisma.distributionRouteSeal.findUniqueOrThrow({ where: { transferId: transfer.id } });
+      expect(seal).toMatchObject({ source: 'SIMULATED', pointCount: 3, anomalyCount: 1 });
+      const delivered = await prisma.traceEvent.findFirstOrThrow({
+        where: { lotId: lot.id, eventType: 'DISTRIBUTION_DELIVERED' },
+      });
+      expect((delivered.businessData as { routeSeal?: { digestHash: string } }).routeSeal?.digestHash).toBe(seal.digestHash);
+      // A buffered fix arriving after the seal is kept as LATE and does not change it.
+      const late = await sendPositions([{ sequence: 15, recordedAt: at(6), latitude: 10.803, longitude: 106.7 }]);
+      expect(late.body.data).toMatchObject({ late: 1, accepted: 0 });
+      await expect(prisma.$executeRaw`DELETE FROM distribution_position WHERE transfer_id = ${transfer.id}::uuid`).rejects.toThrow();
       const received = await prisma.lotHolding.findUniqueOrThrow({
         where: { lotId_organizationId: { lotId: lot.id, organizationId: receiver.id } },
       });
       expect(received.quantity.toFixed(3)).toBe('0.600');
+
+      // Private label: the receiver, a retailer, brands goods it received. The
+      // label names the received product as its source and is packed from that
+      // lot only; the branded lot keeps the source lot in its lineage.
+      await prisma.organizationCapability.create({ data: { organizationId: receiver.id, code: 'RETAILER' } });
+      // Products belong to the business that makes them (ADR-005).
+      await prisma.product.update({ where: { id: lot.productId }, data: { organizationId: farmOrgId } });
+      const label = (fields: object) => post('/catalog/products', {
+        productName: 'Xoài nhãn riêng', defaultUnit: 'kg', category: 'Trái cây', storageConditions: 'Mát', ingredients: 'Xoài', usageInstructions: 'Ăn tươi', ...fields,
+      }, 'selfReceiver');
+      await label({ privateLabelSourceIds: [randomUUID()] }).expect(422);
+      const brand = (await label({ privateLabelSourceIds: [lot.productId] }).expect(201)).body.data;
+      expect(brand).toMatchObject({ privateLabel: true, originFarmId: null, organizationId: receiver.id });
+      await prisma.product.update({ where: { id: brand.id }, data: { status: 'ACTIVE', evidenceComplete: true } });
+      const packing = { chainId: selfChainId, siteId: receiverSite.id, productId: brand.id, baseUnit: 'kg', inputs: [{ lotId: lot.id, quantity: '0.500' }], externalInputs: [] };
+      await post('/processing-runs', { ...packing, processType: 'DRYING' }, 'selfReceiver').expect(422);
+      const packRun = (await post('/processing-runs', { ...packing, processType: 'PACKING' }, 'selfReceiver').expect(201)).body.data.record;
+      await post(`/processing-runs/${packRun.id}/start`, { version: packRun.version }, 'selfReceiver').expect(201);
+      await post(`/processing-runs/${packRun.id}/complete`, { version: packRun.version + 1, output: { quantity: '0.500', unit: 'kg', packageCount: 1, packaging: 'Túi 500 g' }, byProducts: [], losses: [] }, 'selfReceiver').expect(201);
+      const packed = await prisma.lot.findFirstOrThrow({ where: { processingRunId: packRun.id } });
+      expect(packed).toMatchObject({ productId: brand.id, farmOrgId: receiver.id });
+      expect(await prisma.processingInput.findMany({ where: { runId: packRun.id }, select: { lotId: true } })).toEqual([{ lotId: lot.id }]);
+      // Outside goods: the farm sends part of its lot outside AgriTrace; the
+      // retailer records it back from the supplier's documents. The lot code on
+      // the documents links the new lot to the farm lot; no document, no use.
+      const farmLot = await prisma.lot.findUniqueOrThrow({ where: { id: lot.id } });
+      await post('/distribution/quantities', { lotId: lot.id, siteId: senderSite.id, unit: 'kg', quantity: '0.100', version: farmLot.version, kind: 'EXTERNAL_DISPATCH', reason: 'Bán cho nhà phân phối ngoài hệ thống', recipientName: 'Nhà phân phối ngoài', documentNo: 'PX-001' }, 'farm').expect(201);
+      const supplier = await prisma.enterpriseExternalPartner.create({ data: { organizationId: receiver.id, businessId: 'NPP-' + randomUUID().slice(0, 8), name: 'Nhà phân phối ngoài', kind: 'DISTRIBUTOR', address: 'Ngoài hệ thống' } });
+      const outsideGoods = (await label({ productName: 'Xoài nhập ngoài', externalGoods: true }).expect(201)).body.data;
+      expect(outsideGoods).toMatchObject({ externalGoods: true, status: 'ACTIVE' });
+      const receipt = (await post('/processing-runs/receipts', { siteId: receiverSite.id, materialName: 'Xoài', supplierId: supplier.id, documentNo: 'HD-001', supplierLotCode: lot.lotCode.toLowerCase(), receivedAt: new Date().toISOString(), quantity: '0.100', unit: 'kg' }, 'selfReceiver').expect(201)).body.data.record;
+      expect((await prisma.materialReceipt.findUniqueOrThrow({ where: { id: receipt.id } })).matchedLotId).toBe(lot.id);
+      const intake = { chainId: selfChainId, siteId: receiverSite.id, productId: outsideGoods.id, processType: 'PACKING', baseUnit: 'kg', inputs: [], externalInputs: [{ receiptId: receipt.id, quantity: '0.100' }] };
+      await post('/processing-runs', intake, 'selfReceiver').expect(409);
+      await request(app.getHttpServer()).post('/api/enterprise-workspace/evidence').set('Authorization', bearer('selfReceiver')).set('Idempotency-Key', randomUUID())
+        .field('entityType', 'MATERIAL_RECEIPT').field('entityId', receipt.id).field('kind', 'INVOICE').field('description', 'Hóa đơn nhà phân phối')
+        .attach('file', png, { filename: 'invoice.png', contentType: 'image/png' }).expect(201);
+      await post('/processing-runs', { ...intake, inputs: [{ lotId: lot.id, quantity: '0.010' }] }, 'selfReceiver').expect(422);
+      const intakeRun = (await post('/processing-runs', intake, 'selfReceiver').expect(201)).body.data.record;
+      await post(`/processing-runs/${intakeRun.id}/start`, { version: intakeRun.version }, 'selfReceiver').expect(201);
+      await post(`/processing-runs/${intakeRun.id}/complete`, { version: intakeRun.version + 1, output: { quantity: '0.100', unit: 'kg' }, byProducts: [], losses: [] }, 'selfReceiver').expect(201);
+      const intakeLot = await prisma.lot.findFirstOrThrow({ where: { processingRunId: intakeRun.id }, include: { traceQr: true } });
+      const page = (await request(app.getHttpServer()).get(`/api/public/trace/${intakeLot.traceQr!.traceToken}`).expect(200)).body.data;
+      expect(page.processing.externalInputs[0]).toMatchObject({ supplierName: 'Nhà phân phối ngoài', trust: 'EVIDENCED', matchedOrigin: { lotCode: lot.lotCode } });
+      // The shared fixture product goes back to the shared catalog for later tests.
+      await prisma.product.update({ where: { id: lot.productId }, data: { organizationId: null } });
       expect(
         await prisma.distributionAttestation.count({ where: { transferId: transfer.id } }),
       ).toBe(5);
 
-      // The receiver asks to collect more; the sender turns one request into a
-      // pickup transfer and declines the other. Requests never reserve stock.
-      const ask = (note: string) =>
-        post('/distribution/pickup-requests', { senderId: farmOrgId, note }, 'selfReceiver').expect(201);
-      const wanted = (await ask('Lấy thêm 0,2 kg xoài')).body.data.record;
-      const extra = (await ask('Lấy thêm hàng tuần sau')).body.data.record;
+      // Receiver pickup is retired; the receiver may still hire an external carrier.
       const base = {
         receiverId: receiver.id,
         senderSiteId: senderSite.id,
@@ -875,18 +1051,7 @@ const prisma = new PrismaClient({
         lines: [{ lotId: lot.id, quantity: '0.200', unit: 'kg' }],
       };
       await post('/distribution/transfers', { ...base, transportMode: 'EXTERNAL_CARRIER', externalHirer: 'RECEIVER' }).expect(422);
-      await post('/distribution/transfers', { ...base, transportMode: 'SELF_DELIVERY', pickupRequestId: wanted.id }).expect(409);
-      const collected = (
-        await post('/distribution/transfers', { ...base, transportMode: 'RECEIVER_PICKUP', pickupRequestId: wanted.id }).expect(201)
-      ).body.data.record;
-      expect(collected).toMatchObject({ carrierId: receiver.id, carrierSiteId: receiverSite.id, transportMode: 'RECEIVER_PICKUP' });
-      expect(await prisma.distributionPickupRequest.findUniqueOrThrow({ where: { id: wanted.id } })).toMatchObject({
-        status: 'ACCEPTED',
-        transferId: collected.id,
-      });
-      await post(`/distribution/pickup-requests/${extra.id}/decline`, { version: extra.version }, 'selfReceiver').expect(404);
-      await post(`/distribution/pickup-requests/${extra.id}/decline`, { version: extra.version, note: 'Hết hàng tuần sau' }).expect(201);
-      expect(await prisma.distributionPickupRequest.findUniqueOrThrow({ where: { id: extra.id } })).toMatchObject({ status: 'DECLINED' });
+      await post('/distribution/transfers', { ...base, transportMode: 'RECEIVER_PICKUP' }).expect(400);
       const hired = (
         await post('/distribution/transfers', {
           ...base,
@@ -897,6 +1062,87 @@ const prisma = new PrismaClient({
         }).expect(201)
       ).body.data.record;
       expect(hired).toMatchObject({ carrierId: receiver.id, transportDetails: { carrierName: 'Xe tải Minh Phát' } });
+    });
+
+    it('records signed plot sensor readings into the running cycle and seals them at harvest (ADR-006)', async () => {
+      const cycle = await plantedCycle(1);
+      const plot = await prisma.plot.create({ data: { farmId, name: `Thửa IoT ${randomUUID().slice(0, 8)}` } });
+      await prisma.productionCycle.update({ where: { id: cycle.id }, data: { plotId: plot.id } });
+      const pair = generateKeyPairSync('ed25519');
+      const deviceCode = `SIM-FIELD-${randomUUID().slice(0, 8)}`;
+      await post('/iot/v2/devices', {
+        kind: 'FIELD_SENSOR',
+        deviceCode,
+        name: 'Cảm biến thửa',
+        publicKey: pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+        simulated: true,
+        plotId: plot.id,
+      }).expect(201);
+      // A field sensor cannot be attached to a vehicle.
+      await post('/iot/v2/devices', {
+        kind: 'FIELD_SENSOR',
+        deviceCode: `${deviceCode}-B`,
+        name: 'Sai loại',
+        publicKey: generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+        simulated: true,
+        vehicleId: randomUUID(),
+      }).expect(422);
+      const send = (readings: { sequence: number; sensorType: string; value: number; unit: string; recordedAt: string }[]) => {
+        const body = { deviceCode, sentAt: new Date().toISOString(), readings };
+        const signature = sign(
+          null,
+          Buffer.concat([Buffer.from('agritrace:iot-device:1'), Buffer.from([0]), Buffer.from(canonicalize(body))]),
+          pair.privateKey,
+        ).toString('base64url');
+        return request(app.getHttpServer()).post('/api/iot/v2/ingest/readings').set('x-device-signature', signature).send(body);
+      };
+      const first = await send([
+        { sequence: 1, sensorType: 'TEMPERATURE', value: 27.4, unit: '°C', recordedAt: '2026-09-25T06:00:00.000Z' },
+        { sequence: 2, sensorType: 'HUMIDITY', value: 71.2, unit: '%', recordedAt: '2026-09-25T06:00:00.000Z' },
+        { sequence: 3, sensorType: 'SOIL_MOISTURE', value: 38.5, unit: '%', recordedAt: '2026-09-25T06:00:00.000Z' },
+        // Before planting: refused, nothing written.
+        { sequence: 4, sensorType: 'TEMPERATURE', value: 24, unit: '°C', recordedAt: '2026-09-24T06:00:00.000Z' },
+      ]);
+      expect(first.status, JSON.stringify(first.body)).toBe(200);
+      expect(first.body.data).toMatchObject({ accepted: 3, rejected: 1 });
+      const again = await send([{ sequence: 1, sensorType: 'TEMPERATURE', value: 27.4, unit: '°C', recordedAt: '2026-09-25T06:00:00.000Z' }]);
+      expect(again.body.data).toMatchObject({ accepted: 0, duplicates: 1 });
+      // Signed readings carry a bigint sequence; the cycle detail must still serialize.
+      const detail = (await get(`/production-cycles/${cycle.id}`).expect(200)).body.data;
+      expect(detail.sensorReadings[0].deviceSequence).toEqual(expect.any(String));
+      const view = (await get(`/iot/v2/cycles/${cycle.id}/readings`).expect(200)).body.data;
+      expect(view).toMatchObject({ readingCount: 3, simulated: true });
+      expect(view.series.map((x: { sensorType: string }) => x.sensorType).sort()).toEqual(['HUMIDITY', 'SOIL_MOISTURE', 'TEMPERATURE']);
+      const harvest = await post(`/production-cycles/${cycle.id}/harvests`, { quantity: 1, unit: 'kg', harvestTime: '2026-09-26T00:00:00.000Z' });
+      expect(harvest.status, JSON.stringify(harvest.body)).toBe(201);
+      const window = await prisma.harvestSensorWindow.findFirstOrThrow({ where: { cycleId: cycle.id } });
+      expect(window.readingCount).toBe(3);
+      const sensorLot = harvest.body.data.lot;
+      expect((await get(`/lots/${sensorLot.id}`).expect(200)).body.data.sensorEvidence).toMatchObject({ simulated: true, status: 'FINALIZED', digestHash: window.digestHash });
+      const sensorQr = await prisma.traceQr.findUniqueOrThrow({ where: { lotId: sensorLot.id } });
+      expect((await request(app.getHttpServer()).get(`/api/public/trace/${sensorQr.traceToken}`).expect(200)).body.data.sensorEvidence).toMatchObject({ simulated: true, status: 'FINALIZED', digestHash: window.digestHash });
+
+      // Rename keeps the signing identity; removing a device with data hides it
+      // and keeps its readings, while a device without data is deleted.
+      const sensor = await prisma.iotDevice.findUniqueOrThrow({ where: { deviceCode } });
+      await post(`/iot/v2/devices/${sensor.id}/profile`, { version: sensor.authorityRevision, name: 'Cảm biến thửa A' }).expect(201);
+      expect((await prisma.iotDevice.findUniqueOrThrow({ where: { id: sensor.id } })).authorityRevision).toBe(sensor.authorityRevision);
+      const removed = (await post(`/iot/v2/devices/${sensor.id}/delete`, { version: sensor.authorityRevision }).expect(201)).body.data.record;
+      expect(removed).toMatchObject({ deleted: false, archived: true });
+      expect(await prisma.iotDevice.findUniqueOrThrow({ where: { id: sensor.id } })).toMatchObject({ status: 'INACTIVE', plotId: null, archivedAt: expect.any(Date) });
+      expect(await prisma.sensorReading.count({ where: { deviceId: sensor.id } })).toBe(3);
+      expect((await get('/iot/v2/devices').expect(200)).body.data.items.some((d: { id: string }) => d.id === sensor.id)).toBe(false);
+      const unused = (await post('/iot/v2/devices', {
+        kind: 'FIELD_SENSOR',
+        deviceCode: `${deviceCode}-C`,
+        name: 'Chưa dùng',
+        publicKey: generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+        simulated: true,
+        plotId: plot.id,
+      }).expect(201)).body.data.record;
+      await post(`/iot/v2/devices/${unused.id}/delete`, { version: unused.authorityRevision + 1 }).expect(409);
+      expect((await post(`/iot/v2/devices/${unused.id}/delete`, { version: unused.authorityRevision }).expect(201)).body.data.record).toMatchObject({ deleted: true });
+      expect(await prisma.iotDevice.findUnique({ where: { id: unused.id } })).toBeNull();
     });
 
     it('keeps a linear hash chain when business timestamps are backdated or tied', async () => {
@@ -1684,7 +1930,6 @@ const prisma = new PrismaClient({
             (action) => `/shipments/${shipment.id}/${action}`,
           ),
           '/certificates',
-          '/inspections',
           '/iot/readings',
           ...['telemetry', 'devices', 'telemetry-digests'].map(
             (action) => `/iot/shipments/${shipment.id}/${action}`,
@@ -1714,11 +1959,18 @@ const prisma = new PrismaClient({
         });
         const before = await snapshot();
         for (const path of routes) await post(path, {}, user).expect(403);
+        // An inspector passes the route guard, so send a valid body: the denial
+        // must come from the missing chain grant and farm assignment.
+        await post(
+          '/inspections',
+          { lotId: lot.id, result: 'PASS', inspectedAt: '2026-09-27T00:00:00.000Z' },
+          user,
+        ).expect(403);
         await request(app.getHttpServer())
           .patch(`/api/certificates/${certificate.id}/review`)
           .set('Authorization', bearer(user))
           .set('Idempotency-Key', randomUUID())
-          .send({ status: 'APPROVED' })
+          .send({ version: certificate.version, status: 'APPROVED' })
           .expect(403);
         expect(await snapshot()).toEqual(before);
         for (const path of [
@@ -2704,10 +2956,7 @@ const prisma = new PrismaClient({
       expect(
         roles.body.data.map((role: { code: string }) => role.code),
       ).toEqual([
-        'COMPLIANCE_REVIEWER',
-        'PLATFORM_CASE_MANAGER',
-        'PLATFORM_OPERATOR',
-        'PLATFORM_PRIVACY_OFFICER',
+        'AUDITOR',
         'SYSTEM_ADMIN',
       ]);
       const auditor = await post(
@@ -2723,7 +2972,7 @@ const prisma = new PrismaClient({
         {
           email: `independent-reviewer-${randomUUID()}@example.test`,
           fullName: 'Independent reviewer',
-          roleCode: 'COMPLIANCE_REVIEWER',
+          roleCode: 'AUDITOR',
           organizationId: auditor.body.data.id,
         },
         'admin',

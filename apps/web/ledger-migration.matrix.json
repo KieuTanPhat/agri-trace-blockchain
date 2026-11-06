@@ -1503,12 +1503,11 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/[id]/screen.tsx",
       "exampleUrl": "/admin/cases/11111111-1111-4111-8111-111111111111",
-      "actorKey": "case-manager",
+      "actorKey": "platform-admin",
       "scenarioId": "cases.detail",
       "readyHeading": "#17 Hồ sơ cần xác minh nguồn hàng",
       "roles": [
         "SYSTEM_ADMIN",
-        "PLATFORM_CASE_MANAGER",
         "AUDITOR"
       ],
       "capability": "baseline server authority",
@@ -1754,7 +1753,7 @@
       "status": "verified",
       "authorization": {
         "status": "verified",
-        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
+        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; platform-admin writes and auditor read-only browser contract coverage."
       },
       "baselineLogicSources": [
         "apps/web/src/lib/api-client.ts",
@@ -1785,12 +1784,11 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/new/screen.tsx",
       "exampleUrl": "/admin/cases/new",
-      "actorKey": "case-manager",
+      "actorKey": "platform-admin",
       "scenarioId": "cases.create",
       "readyHeading": "Tạo hồ sơ sự cố",
       "roles": [
-        "SYSTEM_ADMIN",
-        "PLATFORM_CASE_MANAGER"
+        "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
@@ -1888,7 +1886,7 @@
       "status": "verified",
       "authorization": {
         "status": "verified",
-        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
+        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; platform-admin writes and auditor read-only browser contract coverage."
       },
       "baselineLogicSources": [
         "apps/web/src/lib/api-client.ts",
@@ -1919,12 +1917,11 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/cases/screen.tsx",
       "exampleUrl": "/admin/cases",
-      "actorKey": "case-manager",
+      "actorKey": "platform-admin",
       "scenarioId": "cases.assigned",
       "readyHeading": "Hồ sơ sự cố",
       "roles": [
         "SYSTEM_ADMIN",
-        "PLATFORM_CASE_MANAGER",
         "AUDITOR"
       ],
       "capability": "baseline server authority",
@@ -1990,7 +1987,7 @@
       "status": "verified",
       "authorization": {
         "status": "verified",
-        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; case-manager writes and auditor read-only browser contract coverage."
+        "source": "Baseline permissions.ts + generated platform-case DTOs and API case.dto.ts; platform-admin writes and auditor read-only browser contract coverage."
       },
       "baselineLogicSources": [
         "apps/web/src/lib/api-client.ts",
@@ -2756,124 +2753,6 @@
       ]
     },
     {
-      "route": "/admin/enterprises/[id]/connections/[connectionId]",
-      "sourceFile": "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx",
-      "task": 6,
-      "targetScreen": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
-      "exampleUrl": "/admin/enterprises/11111111-1111-4111-8111-111111111111/connections/88888888-8888-4888-8888-888888888888",
-      "actorKey": "platform-admin",
-      "scenarioId": "governance.registry",
-      "readyHeading": "Xét kết nối blockchain",
-      "roles": [
-        "SYSTEM_ADMIN"
-      ],
-      "capability": "baseline server authority",
-      "scope": "current authorization scope; server filtered",
-      "retainedLogic": [
-        "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/permissions.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/command-recovery.ts"
-      ],
-      "actions": [
-        {
-          "id": "view",
-          "endpoint": "/admin/enterprises/[id]/connections/[connectionId]",
-          "method": "NAVIGATE",
-          "requestType": null,
-          "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/auth-store.tsx",
-            "apps/web/src/lib/permissions.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [
-            "tests/ledger/platform-governance-routes.spec.ts"
-          ],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx"
-          ]
-        },
-        {
-          "id": "GET `/enterprise-enrollments/${id}`",
-          "endpoint": "`/enterprise-enrollments/${id}`",
-          "method": "GET",
-          "requestType": [],
-          "responseType": "Enrollment",
-          "retainedLogic": [
-            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/auth-store.tsx",
-            "apps/web/src/lib/permissions.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [
-            "tests/ledger/platform-governance.spec.ts",
-            "tests/ledger/platform-governance-workflows.spec.ts"
-          ],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/app/admin/enterprises/[id]/connections/[connectionId]/page.tsx"
-          ]
-        },
-        {
-          "id": "POST `/${kind}/${id}/review`",
-          "endpoint": "`/${kind}/${id}/review`",
-          "method": "POST",
-          "requestType": [
-            "$input"
-          ],
-          "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/auth-store.tsx",
-            "apps/web/src/lib/permissions.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [
-            "tests/ledger/platform-governance.spec.ts",
-            "tests/ledger/platform-governance-workflows.spec.ts"
-          ],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/lib/enterprise-onboarding.ts"
-          ]
-        }
-      ],
-      "tests": [
-        "tests/ledger/platform-governance.spec.ts",
-        "tests/ledger/platform-governance-routes.spec.ts",
-        "tests/ledger/platform-governance-workflows.spec.ts",
-        "tests/ledger/platform-governance-visual.spec.ts",
-        "src/lib/ledger/platform-approval-input.spec.ts"
-      ],
-      "status": "verified",
-      "authorization": {
-        "status": "verified",
-        "source": "Baseline canAccessManagementRoute + baseline API guards; auditor denial, maker/checker separation, MFA and scoped read/write assertions in governance browser tests. API remains authoritative."
-      },
-      "baselineLogicSources": [
-        "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/auth-store.tsx",
-        "apps/web/src/lib/permissions.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/command-recovery.ts"
-      ],
-      "verification": {
-        "method": "test",
-        "implementation": "apps/web/src/features/ledger/screens/admin/enterprises/[id]/connections/[connectionId]/screen.tsx",
-        "result": "Canonical wrapper and Ledger consumer reconciled to pinned baseline APIs/roles/scope; runtime fixture coverage is representative, not live API/Fabric acceptance."
-      }
-    },
-    {
       "route": "/admin/enterprises/[id]",
       "sourceFile": "apps/web/src/app/admin/enterprises/[id]/page.tsx",
       "task": 6,
@@ -3451,8 +3330,7 @@
       "scenarioId": "governance.registry",
       "readyHeading": "Hàng đợi quyết định",
       "roles": [
-        "SYSTEM_ADMIN",
-        "PLATFORM_CASE_MANAGER"
+        "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
@@ -4281,7 +4159,7 @@
       "task": 8,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/operations/screen.tsx",
       "exampleUrl": "/admin/operations",
-      "actorKey": "platform-operator",
+      "actorKey": "platform-admin",
       "scenarioId": "operations.scoped",
       "readyHeading": "Tình trạng hệ thống",
       "roles": [
@@ -4789,12 +4667,11 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/privacy/screen.tsx",
       "exampleUrl": "/admin/privacy",
-      "actorKey": "privacy-officer",
+      "actorKey": "platform-admin",
       "scenarioId": "privacy.scoped",
       "readyHeading": "Quyền dữ liệu cá nhân",
       "roles": [
-        "SYSTEM_ADMIN",
-        "PLATFORM_PRIVACY_OFFICER"
+        "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
       "scope": "platform privacy officers; server-filtered private records",
@@ -5366,13 +5243,11 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/recall/screen.tsx",
       "exampleUrl": "/admin/recall?lotId=11111111-1111-4111-8111-111111111111",
-      "actorKey": "case-manager",
+      "actorKey": "platform-admin",
       "scenarioId": "recall.snapshot",
       "readyHeading": "Diễn tập thu hồi",
       "roles": [
         "SYSTEM_ADMIN",
-        "PLATFORM_OPERATOR",
-        "PLATFORM_CASE_MANAGER",
         "AUDITOR"
       ],
       "capability": "baseline server authority",
@@ -5648,12 +5523,11 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/reports/screen.tsx",
       "exampleUrl": "/admin/reports",
-      "actorKey": "case-manager",
+      "actorKey": "platform-admin",
       "scenarioId": "reports.new",
       "readyHeading": "Báo cáo người tiêu dùng",
       "roles": [
-        "SYSTEM_ADMIN",
-        "PLATFORM_CASE_MANAGER"
+        "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
       "scope": "Baseline management route authority and server-filtered records; no preview permission engine",
@@ -5964,10 +5838,7 @@
       "scenarioId": "governance.registry",
       "readyHeading": "Xác thực hai yếu tố",
       "roles": [
-        "SYSTEM_ADMIN",
-        "PLATFORM_OPERATOR",
-        "PLATFORM_CASE_MANAGER",
-        "PLATFORM_PRIVACY_OFFICER"
+        "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
       "scope": "current authorization scope; server filtered",
@@ -6379,12 +6250,11 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/support/[id]/screen.tsx",
       "exampleUrl": "/admin/support/11111111-1111-4111-8111-111111111111",
-      "actorKey": "case-manager",
+      "actorKey": "platform-admin",
       "scenarioId": "support.open",
       "readyHeading": "Yêu cầu hỗ trợ",
       "roles": [
-        "SYSTEM_ADMIN",
-        "PLATFORM_CASE_MANAGER"
+        "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
       "scope": "baseline management route scope; auditor server reads do not grant an otherwise denied frontend route",
@@ -6586,12 +6456,11 @@
       "task": 7,
       "targetScreen": "apps/web/src/features/ledger/screens/admin/support/screen.tsx",
       "exampleUrl": "/admin/support",
-      "actorKey": "case-manager",
+      "actorKey": "platform-admin",
       "scenarioId": "support.open",
       "readyHeading": "Yêu cầu hỗ trợ",
       "roles": [
-        "SYSTEM_ADMIN",
-        "PLATFORM_CASE_MANAGER"
+        "SYSTEM_ADMIN"
       ],
       "capability": "baseline server authority",
       "scope": "baseline management route scope; auditor server reads do not grant an otherwise denied frontend route",
@@ -9706,175 +9575,6 @@
       ]
     },
     {
-      "route": "/enterprise/connections",
-      "sourceFile": "apps/web/src/app/enterprise/connections/page.tsx",
-      "task": 12,
-      "targetScreen": "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx",
-      "exampleUrl": "/enterprise/connections",
-      "actorKey": "org-owner",
-      "scenarioId": "",
-      "readyHeading": "",
-      "roles": [],
-      "capability": "baseline server authority",
-      "scope": "Baseline owner/stage/permission and server organization scope; original command body/key, version and contract digest.",
-      "retainedLogic": [
-        "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/enterprise-access.ts",
-        "apps/web/src/lib/enterprise-onboarding.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/command-recovery.ts"
-      ],
-      "actions": [
-        {
-          "id": "view",
-          "endpoint": "/enterprise/connections",
-          "method": "NAVIGATE",
-          "requestType": null,
-          "responseType": "LedgerScreen",
-          "retainedLogic": [
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/enterprise-access.ts",
-            "apps/web/src/lib/enterprise-onboarding.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/app/enterprise/connections/page.tsx",
-            "apps/web/src/app/enterprise/connections/page.tsx"
-          ],
-          "implementation": [
-            "apps/web/src/features/ledger/workspace/connections.tsx",
-            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
-          ],
-          "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
-            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
-          }
-        },
-        {
-          "id": "GET /enterprise-enrollments/mine",
-          "endpoint": "/enterprise-enrollments/mine",
-          "method": "GET",
-          "requestType": [],
-          "responseType": "Enrollment",
-          "retainedLogic": [
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/enterprise-access.ts",
-            "apps/web/src/lib/enterprise-onboarding.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/app/enterprise/connections/page.tsx",
-            "apps/web/src/lib/enterprise-onboarding.ts"
-          ],
-          "implementation": [
-            "apps/web/src/features/ledger/workspace/connections.tsx",
-            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
-          ],
-          "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
-            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
-          }
-        },
-        {
-          "id": "GET /supply-chains",
-          "endpoint": "/supply-chains",
-          "method": "GET",
-          "requestType": [],
-          "responseType": "typeof chains",
-          "retainedLogic": [
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/enterprise-access.ts",
-            "apps/web/src/lib/enterprise-onboarding.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/app/enterprise/connections/page.tsx",
-            "apps/web/src/app/enterprise/connections/page.tsx"
-          ],
-          "implementation": [
-            "apps/web/src/features/ledger/workspace/connections.tsx",
-            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
-          ],
-          "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
-            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
-          }
-        },
-        {
-          "id": "POST /enterprise-connections",
-          "endpoint": "/enterprise-connections",
-          "method": "POST",
-          "requestType": [
-            "$input"
-          ],
-          "responseType": "Connection",
-          "retainedLogic": [
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/enterprise-access.ts",
-            "apps/web/src/lib/enterprise-onboarding.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/app/enterprise/connections/page.tsx",
-            "apps/web/src/lib/enterprise-onboarding.ts"
-          ],
-          "implementation": [
-            "apps/web/src/features/ledger/workspace/connections.tsx",
-            "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
-          ],
-          "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
-            "result": "Exact endpoint and business-only baseline metadata reconciled with Ledger consumer. Representative route tests do not claim every action was browser exercised."
-          }
-        }
-      ],
-      "tests": [],
-      "status": "verified",
-      "authorization": {
-        "status": "source-review",
-        "source": "baseline API guards + apps/web/src/lib/enterprise-access.ts; navigation is not authority",
-        "boundary": [
-          "apps/web/src/components/ledger/auth-route-gate.tsx",
-          "apps/web/src/lib/permissions.ts",
-          "apps/web/src/lib/enterprise-access.ts"
-        ],
-        "note": "API authority retained; browser role/scope tests are representative."
-      },
-      "implementation": [
-        "apps/web/src/features/ledger/screens/enterprise/connections/screen.tsx",
-        "apps/web/src/features/ledger/workspace/connections.tsx",
-        "apps/web/src/lib/ledger/enterprise-coordination-api.ts"
-      ],
-      "verification": {
-        "method": "source-review",
-        "implementation": "apps/web/src/features/ledger/workspace/connections.tsx",
-        "result": "Task12 canonical baseline consumer/DTO/controller reconciliation; representative partner and service browser contracts. Fixture evidence only."
-      },
-      "baselineLogicSources": [
-        "apps/web/src/lib/api-client.ts",
-        "apps/web/src/lib/enterprise-access.ts",
-        "apps/web/src/lib/enterprise-onboarding.ts",
-        "apps/web/src/lib/command-request.ts",
-        "apps/web/src/lib/command-recovery.ts"
-      ]
-    },
-    {
       "route": "/enterprise/help",
       "sourceFile": "apps/web/src/app/enterprise/help/page.tsx",
       "task": 12,
@@ -12055,38 +11755,6 @@
           "baselineLogicSources": [
             "apps/web/src/app/enterprise/members/[id]/page.tsx",
             "apps/web/src/components/workspace/image-gallery.tsx"
-          ],
-          "implementation": [
-            "apps/web/src/features/ledger/workspace/members.tsx",
-            "apps/web/src/lib/ledger/workspace-api.ts"
-          ],
-          "verification": {
-            "method": "source-review",
-            "implementation": "apps/web/src/features/ledger/workspace/members.tsx",
-            "result": "Reconciled baseline non-rendering metadata/DTO/service with Ledger consumer; no dedicated browser claim."
-          }
-        },
-        {
-          "id": "POST `/enterprise-workspace/members/${member.id}/supervisor`",
-          "endpoint": "`/enterprise-workspace/members/${member.id}/supervisor`",
-          "method": "POST",
-          "requestType": [
-            "supervisorId",
-            "version"
-          ],
-          "responseType": "unknown",
-          "retainedLogic": [
-            "apps/web/src/lib/api-client.ts",
-            "apps/web/src/lib/enterprise-access.ts",
-            "apps/web/src/lib/auth-scope.ts",
-            "apps/web/src/lib/command-request.ts",
-            "apps/web/src/lib/command-recovery.ts"
-          ],
-          "tests": [],
-          "status": "verified",
-          "baselineLogicSources": [
-            "apps/web/src/app/enterprise/members/[id]/page.tsx",
-            "apps/web/src/components/workspace/member-form.tsx"
           ],
           "implementation": [
             "apps/web/src/features/ledger/workspace/members.tsx",

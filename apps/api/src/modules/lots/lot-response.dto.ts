@@ -15,7 +15,7 @@ import {
   HarvestSensorWindowRecordDto,
 } from '../../common/api/record.dto.js';
 
-export const PROOF_STATUSES = [
+const PROOF_STATUSES = [
   'VERIFIED',
   'PENDING',
   'INTEGRITY_WARNING',
@@ -39,14 +39,14 @@ export class OrganizationSummaryDto {
   @ApiProperty() name!: string;
   @ApiProperty({ enum: OrganizationType }) type!: string;
 }
-export class CycleSummaryDto {
+class CycleSummaryDto {
   @ApiProperty({ format: 'uuid' }) cycleId!: string;
   @ApiProperty() cycleCode!: string;
   @ApiProperty({ enum: ProductionCycleState }) currentState!: string;
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   startDate!: string | null;
 }
-export class SensorEvidenceDto {
+class SensorEvidenceDto {
   @ApiProperty({
     enum: ['FINALIZED', 'NO_DATA', 'INTEGRITY_WARNING', 'NOT_APPLICABLE'],
     description: 'NOT_APPLICABLE for lots created by processing',
@@ -61,8 +61,10 @@ export class SensorEvidenceDto {
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   finalizedAt!: string | null;
   @ApiProperty() lateReadingCount!: number;
+  @ApiProperty({ description: 'Readings come from a virtual (simulated) device (ADR-006)' })
+  simulated!: boolean;
 }
-export class LotProofDto {
+class LotProofDto {
   @ApiProperty() network!: string;
   @ApiProperty({ type: String, nullable: true }) txId!: string | null;
   @ApiProperty() dataHash!: string;
@@ -162,7 +164,7 @@ export class ProcessingInputSummaryDto {
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   harvestTime!: string | null;
 }
-export class ProcessingProvenanceDto {
+class ProcessingProvenanceDto {
   @ApiProperty({ type: String, format: 'uuid', required: false }) runId?: string;
   @ApiProperty() code!: string;
   @ApiProperty() processType!: string;
@@ -179,7 +181,7 @@ export class ProcessingProvenanceDto {
     type: 'object',
     additionalProperties: true,
     isArray: true,
-    description: 'Nguyên liệu nhập ngoài AgriTrace, doanh nghiệp tự khai (selfDeclared = true)',
+    description: 'Hàng hoặc nguyên liệu nhập ngoài AgriTrace, bên nhận khai từ chứng từ (selfDeclared = true); trust: SUPPLIER_CONFIRMED | EVIDENCED; matchedOrigin: lô AgriTrace mà mã lô nhà cung cấp khớp, hoặc null',
   })
   externalInputs!: Record<string, unknown>[];
   @ApiProperty({
@@ -268,7 +270,22 @@ export class PublicTraceNoticeDto {
   @ApiProperty() message!: string;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
 }
+export class PublicBrandDto {
+  @ApiProperty() organizationName!: string;
+  @ApiProperty() productName!: string;
+  @ApiProperty({ type: String, nullable: true }) story!: string | null;
+}
+export class PublicSourceTrustDto {
+  @ApiProperty({ description: 'AgriTrace lots recorded by the supplier itself' }) selfRecorded!: number;
+  @ApiProperty() supplierConfirmed!: number;
+  @ApiProperty() evidenced!: number;
+  @ApiProperty() declared!: number;
+}
 export class PublicLotDto extends LotBaseDto {
+  @ApiProperty({ type: PublicBrandDto, nullable: true, required: false, description: 'Chain-owner brand, only for an approved product (ADR-005)' })
+  brand?: PublicBrandDto | null;
+  @ApiProperty({ type: PublicSourceTrustDto, nullable: true, required: false, description: 'Trust levels of the material sources of a processed lot' })
+  sourceTrust?: PublicSourceTrustDto | null;
   @ApiProperty({type:[PublicJourneyGroupDto]}) journey!:PublicJourneyGroupDto[];
   @ApiProperty() imageUrl!:string;
   @ApiProperty({type:String,isArray:true,required:false,description:'Advisory based on declared production journal, not a certification'}) productionWarnings?:string[];

@@ -1,0 +1,55 @@
+TITLE: Quét mã QR trên nông sản: người mua nên đọc gì để không bị đánh lừa
+SUMMARY: Một chiếc tem QR không tự nói lên chất lượng sản phẩm. Bài viết hướng dẫn người tiêu dùng cách đọc trang truy xuất, nhận ra thông tin có giá trị và những dấu hiệu nên cảnh giác.
+COVER: AnhSanPham/SanPham/cachua28.jpg
+BODY:
+Đứng trước kệ rau trong siêu thị, nhiều người đã quen với việc nhìn thấy một ô vuông đen trắng trên bao bì. Quét thử, điện thoại mở ra một trang với logo công ty, vài bức ảnh đồng ruộng và dòng chữ sản phẩm an toàn. Người mua gật đầu, bỏ vào giỏ. Nhưng trang vừa mở thực sự đã cho biết điều gì về bó rau trong tay?
+
+Một mã QR chỉ là một cách để mở một đường dẫn. Bản thân nó không chứng nhận gì cả. Giá trị của nó nằm ở nội dung phía sau, và nội dung đó có thể rất khác nhau, từ một bài quảng cáo đến một hồ sơ lô hàng thật sự. Biết đọc đúng vài chi tiết sẽ giúp người mua phân biệt được.
+
+Mã của sản phẩm hay mã của lô
+
+Điều đầu tiên nên xem là trang đang nói về sản phẩm chung hay về đúng lô hàng trên tay. Nếu trang chỉ giới thiệu công ty và loại sản phẩm, không có ngày thu hoạch, không có mã lô, thì đó chỉ là thông tin quảng bá. Một trang truy xuất thực sự thường có mã lô, ngày thu hoạch hoặc ngày sản xuất, hạn sử dụng và số lượng của lô.
+
+Có thể tự kiểm tra rất đơn giản: quét hai sản phẩm cùng loại nhưng có ngày sản xuất khác nhau. Nếu cả hai hiện ra cùng một nội dung, nhiều khả năng đó là mã tĩnh. Thông tin chung không hẳn là sai, nhưng nó không giúp ích gì khi cần biết về một lô hàng cụ thể.
+
+Hành trình có liền mạch không
+
+Một trang tốt sẽ cho thấy các bước hàng đã đi qua: vùng trồng hoặc nơi sản xuất, thu hoạch, sơ chế, vận chuyển, nhận hàng tại điểm bán. Hãy chú ý đến thứ tự thời gian và tính hợp lý. Rau lá thường được thu hoạch rất gần ngày bán. Một lô rau tươi có ngày thu hoạch từ nhiều tuần trước là điều nên đặt dấu hỏi.
+
+Các bước càng có tên đơn vị cụ thể càng đáng tin. Dòng chữ đã vận chuyển an toàn không có giá trị bằng một bản ghi cho biết đơn vị nào đã nhận hàng, ở đâu và vào lúc nào. Với sản phẩm chế biến, hãy xem có liên kết về lô nguyên liệu không. Một gói trái cây sấy mà có thể lần về lô trái cây tươi và vùng trồng cho thấy chuỗi dữ liệu được nối đến tận đầu nguồn.
+
+Cũng cần chấp nhận rằng không phải bước nào cũng công khai. Giá mua bán, tên nhân viên, chữ ký và thông tin riêng của đối tác thường được giữ kín, và điều đó hợp lý. Tính minh bạch không có nghĩa là công bố mọi thứ, mà là công bố đúng những gì người mua cần để ra quyết định.
+
+Ai nói điều đó
+
+Một chi tiết hay bị bỏ qua là nguồn của thông tin. Trên một trang truy xuất có thể có ba loại nội dung khác nhau. Loại thứ nhất là tự khai, do chính người sản xuất ghi lại. Loại thứ hai là có bằng chứng kèm theo, như ảnh tại hiện trường hoặc số đo từ cảm biến. Loại thứ ba là được bên thứ ba xác nhận, chẳng hạn chứng nhận từ tổ chức đánh giá, kết quả từ phòng kiểm nghiệm.
+
+Cả ba đều có giá trị, nhưng không ngang nhau. Một hệ thống trung thực sẽ cho người xem biết thông tin thuộc loại nào, thay vì gộp tất cả vào một dòng chữ đã được xác minh. Khi thấy chứng nhận, hãy xem tên tổ chức cấp, phạm vi áp dụng và thời hạn. Chứng nhận đã hết hạn, hoặc cấp cho một sản phẩm khác, không có ý nghĩa gì với món hàng trước mặt.
+
+Hiểu đúng về chữ blockchain
+
+Nhiều tem ngày nay ghi đã lưu trên blockchain. Dòng này cho biết bản ghi được bảo vệ để khó bị sửa sau thời điểm neo. Nó không có nghĩa là sản phẩm đã được kiểm định, cũng không chứng minh mọi thông tin là đúng sự thật. Nếu một trang nói rằng nhờ blockchain mà sản phẩm an toàn tuyệt đối, đó là một lời quảng cáo quá đà.
+
+Một hệ thống cẩn thận thường hiển thị rõ trạng thái bằng chứng cho từng sự kiện: đã neo, đang chờ, hoặc chưa có. Việc có một vài bước đang chờ không phải là dấu hiệu xấu. Ngược lại, một hệ thống dám hiện trạng thái chưa hoàn tất thường đáng tin hơn một trang toàn dấu tích xanh.
+
+Những dấu hiệu nên cảnh giác
+
+Có một vài dấu hiệu khiến người mua nên thận trọng. Một là tên miền lạ, không liên quan đến nhà sản xuất hay một đơn vị truy xuất rõ ràng. Nếu mã QR dẫn tới một trang yêu cầu đăng nhập, cài ứng dụng lạ hoặc nhập thông tin cá nhân, hãy dừng lại, vì đây có thể là mã giả được dán đè lên tem thật.
+
+Hai là thông tin quá chung chung, chỉ toàn tính từ như sạch, tự nhiên, cao cấp, mà không có ngày, địa điểm hay tên đơn vị cụ thể. Ba là mốc thời gian không hợp lý, chẳng hạn ngày đóng gói trước ngày thu hoạch. Bốn là không có cách liên hệ hay phản hồi khi có vấn đề.
+
+Thông tin nào quan trọng nhất
+
+Nếu chỉ có vài giây trước kệ hàng, hãy ưu tiên ba thứ. Trước hết là cảnh báo, ví dụ lô đã bị thu hồi hoặc đã quá hạn. Những cảnh báo này cần được hiển thị nổi bật và phải được đọc trước tất cả các thông tin khác. Tiếp theo là hạn sử dụng và ngày thu hoạch để đánh giá độ tươi. Cuối cùng là nguồn gốc cụ thể đến vùng trồng, cùng đơn vị chịu trách nhiệm.
+
+Sau khi mua, nên giữ lại bao bì đến khi dùng hết. Khi gặp vấn đề, mã lô giúp nhà sản xuất và cơ quan chức năng xác định phạm vi nhanh chóng. Một phản ánh có mã lô cụ thể sẽ được xử lý hiệu quả hơn nhiều so với một lời nhận xét chung chung.
+
+Việc đọc không thay thế cảm quan
+
+Mã QR là thêm một nguồn thông tin, không thay thế con mắt của người mua. Rau héo, trái dập, bao bì phồng thì không có trang web nào làm cho chúng tốt lên được. Hãy kết hợp những gì đọc được với những gì nhìn, ngửi và cảm nhận, đồng thời bảo quản và chế biến đúng cách theo hướng dẫn.
+
+Người tiêu dùng có sức ảnh hưởng lớn hơn họ nghĩ. Mỗi lần ai đó quét mã và đặt câu hỏi, nhà sản xuất có thêm lý do để làm dữ liệu tốt hơn. Sự minh bạch trong chuỗi thực phẩm không chỉ đến từ quy định, mà còn đến từ chính những người mua hàng biết hỏi đúng câu hỏi.
+
+Nguồn tham khảo:
+Thông tư 02/2024/TT-BKHCN về quản lý truy xuất nguồn gốc sản phẩm, hàng hóa: https://thuvienphapluat.vn/van-ban/Thuong-mai/Circular-02-2024-TT-BKHCN-management-of-product-origin-tracing-605560.aspx
+VnEconomy, Truy xuất nguồn gốc - yêu cầu bắt buộc kiến tạo thị trường minh bạch: https://vneconomy.vn/truy-xuat-nguon-goc-yeu-cau-bat-buoc-kien-tao-thi-truong-minh-bach.htm

@@ -1,5 +1,6 @@
 "use client";
 
+import { CycleSensors } from "@/components/ledger/workspace/cycle-sensors";
 import { useState } from "react";
 import Link from "next/link";
 import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
@@ -132,7 +133,7 @@ function cultivationLimit(options: Options, farmId: string, plotId: string) {
 export default function CyclesPage({cycleId,view="list"}:{cycleId?:string;view?:string}) {
  const router=useRouter();
   const {user}=useSession();
-  const independent=user?.role.code==="AUDITOR"||user?.role.code==="COMPLIANCE_REVIEWER";
+  const independent=user?.role.code==="AUDITOR";
   const { can } = useWorkspaceAccess();
   const [tab, setTab] = useState<"cycles" | "drafts">(view==="draft"?"drafts":"cycles");
   const [openId, setOpenId] = useState<string | null>(cycleId && view!=="draft"?cycleId:null);
@@ -294,7 +295,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
   const close = useDialog();
   const cancel = useDialog();
   const staffEdit = useDialog();
-  const { tier } = useWorkspaceAccess();
+  const { primary } = useWorkspaceAccess();
   const c = q.data;
   const staff = c?.staffUserIds ?? [];
   // The API accepts an assignee as representative; the signed-in user when assigned.
@@ -304,6 +305,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
   const invalidate = [["ws-cycle", id], ["ws-cycles"], ["ws-lots"]];
   const active = c && ["PLANTED", "GROWING"].includes(c.currentState);
   const evidenceAccess=useWorkspaceAccess(),canEvidence=evidenceAccess.can("evidence.manage");
+  const [openCare, setOpenCare] = useState<string | null>(null);
   const nowLocal = isoToLocal(new Date(now).toISOString());
   return (
     <Sheet open={!!id} onOpenChange={(o) => !o && onClose()}>
@@ -330,7 +332,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                   {active && <Button size="sm" onClick={() => care.open(true)}>{tr("Ghi nhật ký chăm sóc")}</Button>}
                   {active && <Button size="sm" variant="outline" onClick={() => harvest.open(true)}>{tr("Thu hoạch")}</Button>}
                   {active && <Button size="sm" variant="outline" onClick={() => close.open(true)}>{tr("Kết thúc vụ")}</Button>}
-                  {tier !== 3 && <Button size="sm" variant="outline" onClick={() => staffEdit.open(true)}>{tr("Đổi nhân viên")}</Button>}
+                  {primary && <Button size="sm" variant="outline" onClick={() => staffEdit.open(true)}>{tr("Đổi nhân viên")}</Button>}
                   <Button size="sm" variant="ghost" className="text-danger" onClick={() => cancel.open(true)}>{tr("Hủy vụ")}</Button>
                 </div>
               )}
@@ -359,9 +361,11 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                 <h3 className="text-[13px] font-semibold">{tr("Nhật ký chăm sóc")} <span className="font-mono text-[11.5px] font-normal text-ink-2">{c.careRecords.length}</span></h3>
                 {c.careRecords.length ? (
                   <ol className="flex flex-col gap-2">
-                    {c.careRecords.map((r) => (
-                      <li key={r.id} className="rounded-md border border-line px-3 py-2 text-[13px]">
-                        <div className="flex flex-wrap items-center gap-2">
+                    {/* Newest first; each entry opens to show its photos. */}
+                    {[...c.careRecords].sort((a, b) => b.eventTime.localeCompare(a.eventTime)).map((r) => (
+                      <li key={r.id} className="rounded-md border border-line text-[13px]">
+                        <button type="button" aria-expanded={openCare === r.id} onClick={() => setOpenCare(openCare === r.id ? null : r.id)} className="flex w-full flex-col px-3 py-2 text-left hover:bg-row-alt">
+                        <div className="flex w-full flex-wrap items-center gap-2">
                           <span className="font-medium">{r.name}</span>
                           <Badge tone="neutral" dot={false}>{CARE_TYPE_LABEL[r.careType] ?? r.careType}</Badge>
                           <span className="ml-auto font-mono text-[11.5px] text-ink-2">{fmtDateTime(r.eventTime)}</span>
@@ -369,7 +373,17 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                         <p className="mt-1 text-[12.5px] text-ink-2">
                           {[r.materialName, r.quantity && `${fmtNumber(r.quantity)} ${r.unit ?? ""}`, r.applicationArea, r.withdrawalPeriod !== null && tr("cách ly {p0} ngày", { p0: r.withdrawalPeriod }), r.cropCondition].filter(Boolean).join(" · ")}
                         </p>
-                        <p className="font-mono text-[11px] text-ink-2">{r.journalCode} · {r.evidenceIds.length} {tr("ảnh")}</p>
+                        <p className="font-mono text-[11px] text-ink-2">{r.journalCode} · {r.evidenceIds.length} {tr("ảnh")} · <span className="font-sans text-brand-ink">{openCare === r.id ? tr("Ẩn ảnh") : tr("Xem ảnh")}</span></p>
+                        </button>
+                        {openCare === r.id && (
+                          <div className="border-t border-line px-3 py-2">
+                            {r.evidenceIds.length ? (
+                              <EvidencePanel entityType="CYCLE" entityId={c.id} onlyIds={r.evidenceIds} canManage={!!c.canWriteProduction && canEvidence && c.currentState !== "CANCELLED"} title={tr("Ảnh nhật ký")} />
+                            ) : (
+                              <p className="text-[12px] text-ink-2">{tr("Nhật ký này không có ảnh")}</p>
+                            )}
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ol>
@@ -398,6 +412,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                   <EmptyState title={tr("Chưa thu hoạch")} />
                 )}
               </section>
+              <CycleSensors cycleId={c.id} />
               <section className="flex flex-col gap-2"><h3 className="text-sm font-semibold">{tr("Cửa sổ cảm biến")}</h3>{c.harvestEvents.map(h=><Callout key={h.id} tone="info">{h.harvestCode} · {h.sensorWindow?`${fmtDateTime(h.sensorWindow.periodStart)} → ${fmtDateTime(h.sensorWindow.periodEnd)}`:tr("Chưa có cửa sổ")}</Callout>)}<p className="text-xs text-ink-2">{c.sensorReadings.length} {tr("bản ghi")}</p></section>
               {evidenceAccess.can("evidence.read")&&<EvidencePanel entityType="CYCLE" entityId={c.id} canManage={!!c.canWriteProduction && canEvidence && c.currentState !== "CANCELLED"} title={tr("Ảnh vụ sản xuất")} />}
             </div>

@@ -7,7 +7,7 @@ import {api,type Schemas} from '../../../api/client';
 import {DirectoryPhoto,DirectoryEnterpriseCard,DirectoryProductCard} from '../../../components/DirectoryCards';
 import {Icon} from '../../../components/Icon';
 import {Empty,GreenHeader,Loading,Notice,T} from '../../../components/ui';
-import {directoryColor as dc,money,loadDirectory,type DirectoryProduct} from '../../../lib/directory';
+import {directoryColor as dc,loadDirectory,type DirectoryProduct} from '../../../lib/directory';
 import {date} from '../../../lib/format';
 import {useLoad,useReloadOnFocus} from '../../../lib/useApi';
 import {LOT_STATE} from '../../../lib/labels';
@@ -23,9 +23,9 @@ export default function Product(){
 function ProductDetail({id}:{id:string}){
   const insets=useSafeAreaInsets();
   const [expanded,setExpanded]=useState(false),[moreLots,setMoreLots]=useState<Schemas['PublicTraceLinkDto'][]>([]),[loadingMore,setLoadingMore]=useState(false),[nextCursor,setNextCursor]=useState<string|null|undefined>(undefined);
-  const {data,error,loading,reload}=useLoad(()=>api<Schemas['PublicProductDetailDto']>(`/public/products/${encodeURIComponent(id??'')}?limit=20`),[id]);
-  useReloadOnFocus(reload);
-  const related=useLoad(()=>loadDirectory<DirectoryProduct>('products'));
+  const {data,error,loading,reloadIfStale}=useLoad(()=>api<Schemas['PublicProductDetailDto']>(`/public/products/${encodeURIComponent(id??'')}?limit=20`),[id],{key:`public:product:${id}`,staleTimeMs:30_000});
+  useReloadOnFocus(reloadIfStale);
+  const related=useLoad(()=>loadDirectory<DirectoryProduct>('products'),[],{key:'public:directory:products',staleTimeMs:60_000});
   if(!data||data.id!==id)return <View style={{flex:1,backgroundColor:dc.bg}}><GreenHeader title="Sản phẩm" back/>{loading?<Loading/>:<View style={{padding:16}}><Notice kind="error" title={error??'Không tìm thấy sản phẩm'}/></View>}</View>;
   const lots=[...data.lots.items,...moreLots],firstLot=data.lots.items[0],recommendations=(related.data??[]).filter(p=>p.id!==id&&p.category===data.category).slice(0,6);
   const cursor=nextCursor===undefined?data.lots.nextCursor:nextCursor;
@@ -39,7 +39,7 @@ function ProductDetail({id}:{id:string}){
       <T size={21} weight="bold" c={dc.ink}>{data.productName}</T>
       <T size={14} weight="bold" c={data.saleStatus==='SELLING'?'#38894c':'#8c969d'}>{data.saleStatus==='SELLING'?'Đang bán':'Chưa bán'}</T>
       {data.category&&<T size={14} c="#66717a">Danh mục: <T size={14} c={dc.blue}>{data.category}</T></T>}
-      <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'baseline',gap:10}}><T size={24} weight="bold" c={dc.red}>{money(data.price)}{data.price&&<T size={14} c="#8a959d"> / {data.defaultUnit??'đơn vị'}</T>}</T><T size={12.5} c="#7b858c">{data.traceCount} lô truy xuất</T></View>
+      <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'baseline',gap:10}}><T size={12.5} c="#7b858c">{data.traceCount} lô truy xuất</T></View>
       <T size={11.5} c="#8a959d">Giá tham khảo theo đơn vị sản phẩm</T>
       <View style={{flexDirection:'row',alignItems:'center',gap:6,paddingTop:7,borderTopWidth:1,borderColor:dc.line}}><Icon name="location" size={15} color={dc.blue}/><T size={13} c="#71808b">{data.province??'Nguồn gốc theo từng lô hàng'}</T></View>
     </View>

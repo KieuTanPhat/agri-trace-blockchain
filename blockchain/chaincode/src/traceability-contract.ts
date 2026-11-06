@@ -30,7 +30,6 @@ import {
   proposeChange,
 } from "./registry";
 import { SIGNING_PROTOCOL } from "./signing";
-import { recordConnectionProbe, readConnectionProbe } from './connection-probes';
 import { requireEntityType, requireHash, requireName, requireUuid } from "./binding";
 import { toLedgerBytes } from "./ledger";
 import type { HealthResult } from "./types";
@@ -202,18 +201,6 @@ export class AgriTraceContract extends Contract {
       callerRole: callerRole(ctx),
     };
     return this.stringify(result);
-  }
-
-  @Transaction()
-  @Returns('string')
-  public async RecordConnectionProbe(ctx:Context,bindingDigest:string,challenge:string,organizationRef:string):Promise<string> {
-    return this.stringify(await recordConnectionProbe(ctx,bindingDigest,challenge,organizationRef));
-  }
-
-  @Transaction(false)
-  @Returns('string')
-  public async GetConnectionProbe(ctx:Context,bindingDigest:string,challenge:string):Promise<string> {
-    return this.stringify(await readConnectionProbe(ctx,bindingDigest,challenge));
   }
 
   private stringify(value: unknown): string {

@@ -60,7 +60,7 @@ async function registerKey(
   net: Network,
   signer = SIGNER,
   keyRef = KEY_REF,
-  approvers: Who[] = ["admin1", "admin2"],
+  approvers: Who[] = ["admin1"],
 ) {
   const fields = {
     bindingDigest: DIGEST,
@@ -252,7 +252,7 @@ describe("Release C commitment vectors (ledger side)", () => {
 });
 
 describe("Signing key registry", () => {
-  it("registers a key only after proof of possession and the owner and writer approvals", async () => {
+  it("registers a key only after proof of possession and the platform registry approval", async () => {
     const net = await readySigningNetwork();
     const fields = {
       bindingDigest: DIGEST,
@@ -281,8 +281,6 @@ describe("Signing key registry", () => {
       popSignature: SIGNER.sign(keyPopMessage(fields)),
     });
     await net.approve(id, "admin1");
-    await expect(net.execute(id)).rejects.toThrow("APPROVALS_MISSING");
-    await net.approve(id, "admin2");
     const executed = JSON.parse(await net.execute(id));
     expect(executed.result).toMatchObject({ keyRef: KEY_REF, orgRef: ORG_REF, status: "ACTIVE" });
     const key = JSON.parse(
@@ -295,7 +293,7 @@ describe("Signing key registry", () => {
     const net = await readySigningNetwork();
     await registerKey(net);
     await expect(registerKey(net)).rejects.toThrow("REVISION_CONFLICT");
-    await net.change("SIGNING_KEY_REVOKE", { bindingDigest: DIGEST, keyRef: KEY_REF }, ["admin2"], "1");
+    await net.change("SIGNING_KEY_REVOKE", { bindingDigest: DIGEST, keyRef: KEY_REF }, ["admin1"], "1");
     const revoked = JSON.parse(
       await net.contract.GetRegistrySigningKey(net.ctx("relayer"), DIGEST, KEY_REF),
     );
@@ -318,7 +316,6 @@ describe("Signing key registry", () => {
       popSignature: SIGNER.sign(keyPopMessage(fields)),
     });
     await net.approve(id, "admin1");
-    await net.approve(id, "admin2");
     await expect(net.execute(id)).rejects.toThrow("NOT_FOUND");
   });
 });

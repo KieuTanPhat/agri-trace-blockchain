@@ -1,11 +1,11 @@
 import {t as tr} from './i18n';
-export type LedgerNavItem={href:string;label:string;readOnly?:boolean;keywords?:string;count?:string[];badge?:string};
+type LedgerNavItem={href:string;label:string;readOnly?:boolean;keywords?:string;count?:string[];badge?:string};
 export type LedgerNavGroup={label:string;items:LedgerNavItem[]};
 export const PLATFORM_NAV: LedgerNavGroup[] = [
     {
         get label() { return tr("Bàn làm việc"); },
         items: [
-            { href: "/admin/inbox", get label() { return tr("Hàng đợi quyết định"); }, count: ["ENROLLMENT", "CAPABILITY", "AMENDMENT", "CONNECTION", "TICKET", "CONSUMER_REPORT", "CASE", "INVOICE_OVERDUE"], get keywords() { return tr("inbox việc chờ"); } },
+            { href: "/admin/inbox", get label() { return tr("Hàng đợi quyết định"); }, count: ["ENROLLMENT", "CAPABILITY", "AMENDMENT", "CONNECTION", "CONSUMER_REPORT", "CASE", "INVOICE_OVERDUE"], get keywords() { return tr("inbox việc chờ"); } },
             { href: "/admin", get label() { return tr("Tổng quan nền tảng"); }, readOnly: true, get keywords() { return tr("dashboard thống kê"); } },
         ]
     },
@@ -21,7 +21,7 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
     {
         get label() { return tr("Kiểm soát"); },
         items: [
-            { href: "/admin/users", get label() { return tr("Tài khoản nền tảng"); }, get keywords() { return tr("user người dùng khóa mở"); } },
+            { href: "/admin/users", get label() { return tr("Quản lý tài khoản người dùng"); }, get keywords() { return tr("user người dùng khóa mở"); } },
             { href: "/admin/inspectors", get label() { return tr("Kiểm định độc lập"); }, get keywords() { return tr("kiểm định auditor compliance reviewer phân công vùng sản xuất"); } },
             { href: "/admin/audit-log", get label() { return tr("Nhật ký kiểm toán"); }, readOnly: true, get keywords() { return tr("audit log chuỗi băm"); } },
             { href: "/admin/security", get label() { return tr("Cảnh báo bảo mật"); }, readOnly: true, get keywords() { return tr("security mfa khóa"); } },
@@ -32,7 +32,6 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
         items: [
             { href: "/admin/cases", get label() { return tr("Hồ sơ sự cố"); }, count: ["CASE"], get keywords() { return tr("case khiếu nại"); } },
             { href: "/admin/reports", get label() { return tr("Báo cáo người tiêu dùng"); }, count: ["CONSUMER_REPORT"], get keywords() { return tr("consumer report phản ánh"); } },
-            { href: "/admin/support", get label() { return tr("Yêu cầu hỗ trợ"); }, count: ["TICKET"], keywords: "ticket support" },
             { href: "/admin/privacy", get label() { return tr("Quyền dữ liệu cá nhân"); }, get keywords() { return tr("privacy vi phạm breach"); } },
         ]
     },
@@ -75,31 +74,36 @@ export const WORKSPACE_NAV: LedgerNavGroup[] = [
         items: [
             { href: "/enterprise", get label() { return tr("Tổng quan"); } },
             { href: "/enterprise/profile", get label() { return tr("Hồ sơ doanh nghiệp"); } },
-            { href: "/enterprise/members", get label() { return tr("Thành viên"); } },
-            { href: "/enterprise/roles", get label() { return tr("Nhóm quyền"); } },
+            { href: "/enterprise/members", get label() { return tr("Quản lý thành viên"); } },
+            { href: "/enterprise/audit-log", get label() { return tr("Hoạt động nhân viên"); }, readOnly: true, keywords: "audit lịch sử nhân viên" },
+            { href: "/enterprise/roles", get label() { return tr("Quản lý nhóm quyền"); } },
         ]
     },
     {
         get label() { return tr("Tài nguyên"); },
         items: [
-            { href: "/enterprise/sites", get label() { return tr("Cơ sở"); } },
+            { href: "/enterprise/sites", get label() { return tr("Quản lý cơ sở"); } },
             { href: "/enterprise/vehicles", get label() { return tr("Phương tiện"); } },
-            { href: "/enterprise/areas", get label() { return tr("Vùng sản xuất"); } },
-            { href: "/enterprise/products", get label() { return tr("Sản phẩm"); } },
-            { href: "/enterprise/materials", get label() { return tr("Giống & vật tư"); } },
-            { href: "/supply-chains", get label() { return tr("Chuỗi cung ứng"); } },
-            { href: "/enterprise/partners", get label() { return tr("Đối tác"); } },
+            { href: "/enterprise/devices", get label() { return tr("Thiết bị IoT"); }, keywords: "iot gps sensor cảm biến định vị" },
+            { href: "/enterprise/areas", get label() { return tr("Quản lý vùng sản xuất"); } },
+            { href: "/enterprise/products", get label() { return tr("Quản lý sản phẩm"); } },
+            { href: "/enterprise/materials", get label() { return tr("Quản lý giống & vật tư"); } },
+            { href: "/supply-chains", get label() { return tr("Quản lý chuỗi cung ứng"); } },
+            { href: "/enterprise/partners", get label() { return tr("Quản lý đối tác"); } },
         ]
     },
     {
         get label() { return tr("Tác nghiệp"); },
         items: [
-            { href: "/production-cycles", get label() { return tr("Vụ sản xuất"); } },
-            { href: "/lots", get label() { return tr("Lô hàng"); } },
-            { href: "/distribution", get label() { return tr("Giao nhận"); } },
-            { href: "/enterprise/inventory", get label() { return tr("Tồn kho"); } },
-            { href: "/enterprise/qr", get label() { return tr("Kho QR"); } },
+            { href: "/enterprise/inbound", get label() { return tr("Hàng chờ nhận"); }, keywords: "inbound receive nhận hàng" },
+            { href: "/production-cycles", get label() { return tr("Quản lý vụ sản xuất"); } },
+            { href: "/lots", get label() { return tr("Quản lý lô hàng"); } },
+            { href: "/distribution", get label() { return tr("Quản lý giao nhận"); } },
+            { href: "/enterprise/inventory", get label() { return tr("Quản lý tồn kho"); } },
+            { href: "/enterprise/qr", get label() { return tr("Quản lý kho QR"); } },
             { href: "/enterprise/processing", get label() { return tr("Chế biến"); } },
+            { href: "/enterprise/sales", get label() { return tr("Bán hàng"); }, keywords: "sale retail ghi bán" },
+            { href: "/enterprise/notices", get label() { return tr("Thu hồi & cảnh báo"); }, keywords: "recall notice thu hồi" },
         ]
     },
     {
@@ -107,11 +111,10 @@ export const WORKSPACE_NAV: LedgerNavGroup[] = [
         items: [
             { href: "/enterprise/inbox", get label() { return tr("Sự cố được giao"); }, badge: "cases" },
             { href: "/enterprise/messages", get label() { return tr("Thông báo nội bộ"); }, badge: "messages" },
-            { href: "/enterprise/support", get label() { return tr("Hỗ trợ từ nền tảng"); } },
             { href: "/enterprise/billing", get label() { return tr("Gói dịch vụ & hóa đơn"); } },
         ]
     },
 ];
 
-export const canonicalNavigationUrls = new Set(["/account/password","/account/privacy","/admin/audit-log","/admin/backup","/admin/billing/invoices","/admin/billing","/admin/billing/revenue","/admin/billing/subscriptions","/admin/cases/[id]","/admin/cases/new","/admin/cases","/admin/chains","/admin/compliance-assignments/[id]","/admin/compliance-assignments/new","/admin/compliance-assignments","/admin/directory/[id]","/admin/directory","/admin/enterprises/[id]/connections/[connectionId]","/admin/enterprises/[id]","/admin/enterprises/amendments/[id]","/admin/enterprises/amendments","/admin/enterprises","/admin/inbox","/admin/inspectors","/admin/ledger","/admin/lots","/admin/monitoring","/admin/notices","/admin/notifications","/admin/operations","/admin/organizations/new","/admin/organizations","/admin","/admin/privacy","/admin/products/[organizationId]","/admin/products","/admin/qr","/admin/recall","/admin/reference-data","/admin/reports","/admin/roles","/admin/security-alerts","/admin/security","/admin/settings","/admin/statistics","/admin/support/[id]","/admin/support","/admin/trace-report","/admin/users/[id]","/admin/users/new","/admin/users","/compliance","/dashboard","/distribution/[id]/journal","/distribution/[id]","/distribution/new","/distribution","/enterprise/areas/[id]","/enterprise/areas/new","/enterprise/areas","/enterprise/areas/plots/new","/enterprise/billing","/enterprise/connections","/enterprise/help","/enterprise/inbox","/enterprise/inventory","/enterprise/materials/[id]","/enterprise/materials/new","/enterprise/materials","/enterprise/members/[id]/edit","/enterprise/members/[id]","/enterprise/members/invitations","/enterprise/members/new","/enterprise/members","/enterprise/messages","/enterprise/notices","/enterprise/notifications","/enterprise/onboarding","/enterprise","/enterprise/partners/external/[id]","/enterprise/partners/new","/enterprise/partners","/enterprise/processing/[id]","/enterprise/processing/conversions","/enterprise/processing/new","/enterprise/processing","/enterprise/products/[id]/edit","/enterprise/products/[id]","/enterprise/products/import","/enterprise/products/new","/enterprise/products","/enterprise/profile","/enterprise/qr","/enterprise/reports/adjust","/enterprise/reports","/enterprise/roles/[id]","/enterprise/roles/new","/enterprise/roles","/enterprise/service/contract","/enterprise/service","/enterprise/service/payment","/enterprise/settings","/enterprise/signing","/enterprise/sites/[id]","/enterprise/sites/new","/enterprise/sites","/enterprise/support/[id]","/enterprise/support/new","/enterprise/support","/enterprise/vehicles/[id]","/enterprise/vehicles/new","/enterprise/vehicles","/iot-simulator","/join-organization","/login","/lots/[lotId]","/lots","/","/privacy","/production-cycles/[id]/harvest/new","/production-cycles/[id]/harvest","/production-cycles/[id]/journal/new","/production-cycles/[id]/journal","/production-cycles/[id]","/production-cycles/[id]/plant","/production-cycles/drafts/[id]","/production-cycles/new","/production-cycles","/register","/scan","/supply-chains/[id]/business","/supply-chains/[id]/ledger","/supply-chains/[id]/members","/supply-chains/[id]","/supply-chains/[id]/plans","/supply-chains/[id]/roles","/supply-chains/[id]/signing","/supply-chains/new","/supply-chains","/terms","/trace/[lotId]"]);
+export const canonicalNavigationUrls = new Set(["/account/password","/account/privacy","/admin/audit-log","/admin/backup","/admin/billing/invoices","/admin/billing","/admin/billing/revenue","/admin/billing/subscriptions","/admin/cases/[id]","/admin/cases/new","/admin/cases","/admin/chains","/admin/compliance-assignments/[id]","/admin/compliance-assignments/new","/admin/compliance-assignments","/admin/directory/[id]","/admin/directory","/admin/enterprises/[id]","/admin/enterprises/amendments/[id]","/admin/enterprises/amendments","/admin/enterprises","/admin/inbox","/admin/inspectors","/admin/ledger","/admin/lots","/admin/monitoring","/admin/notices","/admin/notifications","/admin/operations","/admin/organizations/new","/admin/organizations","/admin","/admin/privacy","/admin/products/[organizationId]","/admin/products","/admin/qr","/admin/recall","/admin/reference-data","/admin/reports","/admin/roles","/admin/security-alerts","/admin/security","/admin/settings","/admin/statistics","/admin/trace-report","/admin/users/[id]","/admin/users/new","/admin/users","/compliance","/dashboard","/distribution/[id]/journal","/distribution/[id]","/distribution/new","/distribution","/enterprise/audit-log","/enterprise/areas/[id]","/enterprise/areas/new","/enterprise/areas","/enterprise/areas/plots/new","/enterprise/billing","/supply-chains","/enterprise/help","/enterprise/inbound","/enterprise/inbox","/enterprise/inventory","/enterprise/materials/[id]","/enterprise/materials/new","/enterprise/materials","/enterprise/members/[id]/edit","/enterprise/members/[id]","/enterprise/members/invitations","/enterprise/members/new","/enterprise/members","/enterprise/messages","/enterprise/notices","/enterprise/notifications","/enterprise/onboarding","/enterprise","/enterprise/partners/external/[id]","/enterprise/partners/new","/enterprise/partners","/enterprise/processing/[id]","/enterprise/processing/conversions","/enterprise/processing/new","/enterprise/processing","/enterprise/products/[id]/edit","/enterprise/products/[id]","/enterprise/products/import","/enterprise/products/new","/enterprise/products","/enterprise/profile","/enterprise/qr","/enterprise/reports/adjust","/enterprise/sales","/enterprise/reports","/enterprise/roles/[id]","/enterprise/roles/new","/enterprise/roles","/enterprise/service/contract","/enterprise/service","/enterprise/service/payment","/enterprise/settings","/enterprise/signing","/enterprise/sites/[id]","/enterprise/sites/new","/enterprise/sites","/enterprise/vehicles/[id]","/enterprise/vehicles/new","/enterprise/vehicles","/enterprise/devices","/iot-simulator","/join-organization","/login","/lots/[lotId]","/lots","/","/privacy","/production-cycles/[id]/harvest/new","/production-cycles/[id]/harvest","/production-cycles/[id]/journal/new","/production-cycles/[id]/journal","/production-cycles/[id]","/production-cycles/[id]/plant","/production-cycles/drafts/[id]","/production-cycles/new","/production-cycles","/register","/scan","/supply-chains/[id]/business","/supply-chains/[id]/ledger","/supply-chains/[id]/members","/supply-chains/[id]","/supply-chains/[id]/plans","/supply-chains/[id]/roles","/supply-chains/[id]/signing","/supply-chains/new","/supply-chains","/terms","/trace/[lotId]"]);
 canonicalNavigationUrls.add("/admin/news");

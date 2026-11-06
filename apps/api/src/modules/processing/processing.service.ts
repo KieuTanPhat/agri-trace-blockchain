@@ -16,8 +16,11 @@ import { TraceService } from '../trace/trace.service.js';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { activeSite } from '../distribution/distribution-inventory.js';
 import { settingNumber } from '../billing/billing-core.js';
-import { lotChainId } from '../lots/lot-origin.js';
+import { LOT_ORIGIN_INCLUDE, lotChainId } from '../lots/lot-origin.js';
+import { assertPackable, isSeller, matchSupplierLot } from '../catalog/private-label.js';
 import { activeChainBindingDigest } from '../ledger/ledger-permissions.js';
+import { assertChainCreatesWork } from '../billing/billing-core.js';
+import { RECEIPT_EVIDENCE_KINDS, createSupplierConfirmation, receiptConfirmed, trustLevel } from './supplier-confirmations.js';
 import { downstreamLots, upstreamLots } from './processing-lineage.js';
 import type {
   AddProcessingInputsInput,
@@ -71,7 +74,7 @@ type RunRow = Prisma.ProcessingRunGetPayload<{ include: typeof RUN_INCLUDE }>;
 const num = (d: Prisma.Decimal | null) => (d === null ? null : d.toFixed(3));
 /** `held` is what the run's own organization still holds of each input at the
  * run site; other holders' stock is never shown to the processor. */
-export const runView = (r: RunRow, held?: Map<string, string>) => ({
+const runView = (r: RunRow, held?: Map<string, string>) => ({
   id: r.id,
   code: r.code,
   chainId: r.chainId,
@@ -139,7 +142,7 @@ export const runView = (r: RunRow, held?: Map<string, string>) => ({
 });
 
 type LogRow = { id: string; step: string; occurredAt: Date; note: string; correctsId: string | null; recordedBy: string; createdAt: Date };
-export const logView = (l: LogRow) => ({
+const logView = (l: LogRow) => ({
   id: l.id,
   step: l.step,
   occurredAt: l.occurredAt.toISOString(),
@@ -151,9 +154,9 @@ export const logView = (l: LogRow) => ({
 
 type ReceiptRow = Prisma.MaterialReceiptGetPayload<object>;
 /** External stock left on a receipt (AgriTrace receipts hold none of their own). */
-export const receiptAvailable = (r: Pick<ReceiptRow, 'source' | 'quantity' | 'reserved' | 'consumed'>) =>
+const receiptAvailable = (r: Pick<ReceiptRow, 'source' | 'quantity' | 'reserved' | 'consumed'>) =>
   r.source === 'EXTERNAL' ? r.quantity.sub(r.reserved).sub(r.consumed) : new Prisma.Decimal(0);
-const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolean) => ({
+const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolean, confirmed: boolean) => ({
   id: r.id,
   code: r.code,
   source: r.source,
@@ -163,6 +166,8 @@ const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolea
   lotId: r.lotId,
   materialName: r.materialName,
   supplierName: r.supplierName,
+  supplierId: r.supplierId,
+  growingAreaCode: r.growingAreaCode,
   documentNo: r.documentNo,
   receivedAt: r.receivedAt.toISOString(),
   quantity: r.quantity.toFixed(3),
@@ -173,6 +178,7 @@ const receiptView = (r: ReceiptRow, siteName: string | null, hasEvidence: boolea
   expiryDate: r.expiryDate?.toISOString().slice(0, 10) ?? null,
   note: r.note,
   hasEvidence,
+  trustLevel: trustLevel({ source: r.source, hasEvidence, confirmed }),
   createdAt: r.createdAt.toISOString(),
 });
 
@@ -190,7 +196,7 @@ const sameUnit = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 /** Base quantity of an output: the quantity itself in the base unit, otherwise
  * the quantity times the product's declared factor. The DB recomputes the same
  * value on insert, so a client cannot claim an arbitrary weight. */
-export function outputBaseQuantity(
+function outputBaseQuantity(
   output: { productId: string; quantity: Prisma.Decimal; unit: string },
   baseUnit: string,
   conversions: Conversion[],
@@ -225,7 +231,7 @@ const conversionView = (c: {
 
 /** Inputs must equal outputs (in base unit) plus losses within the configured
  * tolerance. Returns the totals recorded on the run. */
-export async function massBalance(
+async function massBalance(
   db: Tx,
   inputs: Prisma.Decimal[],
   outputs: Prisma.Decimal[],
@@ -353,7 +359,7 @@ export class ProcessingService {
   async lineage(actor: CommandActor, lotId: string) {
     const lot = await this.db.lot.findUnique({ where: { id: lotId } });
     if (!lot) throw new NotFoundException('Không tìm thấy lô');
-    const admin = ['SYSTEM_ADMIN', 'AUDITOR', 'PLATFORM_OPERATOR', 'PLATFORM_CASE_MANAGER'].includes(actor.role);
+    const admin = ['SYSTEM_ADMIN', 'AUDITOR'].includes(actor.role);
     if (!admin) {
       await enterpriseAuthority(this.db, actor, 'trace.read');
       const holds = await this.db.lotHolding.findUnique({
@@ -398,17 +404,31 @@ export class ProcessingService {
     });
     const originCycles: string[] = [];
     const bindings: string[] = [];
+    const crossChain: string[] = [];
     for (const line of lines.inputs) {
       const lot = lots.find((l) => l.id === line.lotId);
       if (!lot) throw new NotFoundException('Không tìm thấy lô nguyên liệu');
-      if (lotChainId(lot) !== run.chainId)
-        throw new UnprocessableEntityException(`Lô ${lot.lotCode} không thuộc chuỗi của lệnh`);
+      const sourceChain = lotChainId(lot);
+      if (sourceChain !== run.chainId) {
+        // ADR-005: a lot of another chain is a cross-chain input when the
+        // processor is an ACTIVE member there; its consumption event stays on
+        // the source chain and the run keeps its own pinned binding.
+        const member = sourceChain
+          ? await tx.chainMembership.findUnique({
+              where: { chainId_organizationId: { chainId: sourceChain, organizationId: run.organizationId } },
+            })
+          : null;
+        if (member?.status !== 'ACTIVE')
+          throw new UnprocessableEntityException(`Lô ${lot.lotCode} thuộc chuỗi khác mà doanh nghiệp chưa tham gia`);
+        crossChain.push(lot.id);
+      }
       if (lot.unit !== run.baseUnit)
         throw new UnprocessableEntityException(`Lô ${lot.lotCode} dùng đơn vị ${lot.unit}, khác đơn vị cơ sở ${run.baseUnit}`);
       if (BLOCKED_STATES.includes(lot.currentState) || isPastExpiry(lot.expiryDate))
         throw new ConflictException(`Lô ${lot.lotCode} đã hết hạn, bị thu hồi hoặc không còn dùng được`);
       await this.requireStock(tx, lot.id, run.organizationId, run.siteId, quantity(line.quantity));
       const origin = lot.harvest?.cycleId ?? lot.processingRun?.originCycleId;
+      if (sourceChain !== run.chainId) continue;
       if (origin) originCycles.push(origin);
       else if (lot.processingRun?.bindingDigest) bindings.push(lot.processingRun.bindingDigest);
       else if (!lot.processingRun) throw new ConflictException(`Lô ${lot.lotCode} chưa xác định được vụ gốc`);
@@ -425,16 +445,16 @@ export class ProcessingService {
       if (isPastExpiry(receipt.expiryDate))
         throw new ConflictException(`Nguyên liệu phiếu ${receipt.code} đã hết hạn`);
       if (!(await this.receiptHasEvidence(tx, receipt.id)))
-        throw new ConflictException(`Phiếu ${receipt.code} chưa có ảnh chứng từ; tải ảnh hóa đơn hoặc giấy kiểm nghiệm trước`);
+        throw new ConflictException(`Phiếu ${receipt.code} chưa có ảnh chứng từ; tải hóa đơn, bảng kê thu mua, phiếu cân hoặc giấy kiểm nghiệm trước`);
       if (receiptAvailable(receipt).lt(quantity(line.quantity)))
         throw new ConflictException(`Phiếu ${receipt.code} không còn đủ lượng khả dụng`);
     }
-    return { originCycles, bindings, receipts };
+    return { originCycles, bindings, receipts, crossChain };
   }
 
   private receiptHasEvidence(tx: Tx, receiptId: string) {
     return tx.traceEvidence
-      .count({ where: { entityType: 'MATERIAL_RECEIPT', entityId: receiptId, withdrawal: { is: null } } })
+      .count({ where: { entityType: 'MATERIAL_RECEIPT', entityId: receiptId, kind: { in: [...RECEIPT_EVIDENCE_KINDS] }, withdrawal: { is: null } } })
       .then((n) => n > 0);
   }
 
@@ -508,25 +528,63 @@ export class ProcessingService {
       throw new ForbiddenException('Tổ chức chưa được duyệt hoặc không còn năng lực chế biến');
   }
 
+  /**
+   * Who may run a lệnh: a processor, or a retailer/distributor packing its own
+   * private label (PACKING only, from lots of the label's source products,
+   * no outside materials). Returns whether it is a private-label packing.
+   */
+  private async requireRunner(tx: Tx, organizationId: string, productId: string | null, processType: string): Promise<'PROCESSOR' | 'LABEL' | 'EXTERNAL'> {
+    const product = productId ? await tx.product.findUnique({ where: { id: productId }, select: { privateLabel: true, externalGoods: true, organizationId: true } }) : null;
+    if ((product?.privateLabel || product?.externalGoods) && product.organizationId === organizationId) {
+      if (processType !== 'PACKING') throw new UnprocessableEntityException('Bên bán chỉ đóng gói, không chế biến biến đổi hàng');
+      if (!(await isSeller(tx, organizationId)))
+        throw new ForbiddenException('Chỉ doanh nghiệp bán lẻ hoặc phân phối đóng gói nhãn riêng hay hàng nhập ngoài');
+      return product.privateLabel ? 'LABEL' : 'EXTERNAL';
+    }
+    await this.requireProcessor(tx, organizationId);
+    return 'PROCESSOR';
+  }
+
+  /** A label packs received AgriTrace lots; outside goods pack documented receipts only. */
+  private async assertSellerMaterials(tx: Tx, kind: 'PROCESSOR' | 'LABEL' | 'EXTERNAL', productId: string, lines: { inputs: { lotId: string }[]; externalInputs: unknown[] }) {
+    if (kind === 'LABEL') {
+      if (lines.externalInputs.length) throw new UnprocessableEntityException('Nhãn riêng chỉ đóng gói từ lô đã nhận trên AgriTrace');
+      await assertPackable(tx, productId, lines.inputs.map((i) => i.lotId));
+    }
+    if (kind === 'EXTERNAL' && lines.inputs.length)
+      throw new UnprocessableEntityException('Hàng nhập ngoài chỉ lấy từ phiếu nhập hàng ngoài');
+  }
+
   /** Lập kế hoạch: main product, site and materials. Nothing is reserved yet. */
   create(actor: CommandActor, input: CreateProcessingRunInput) {
     return commandTransaction(this.db, async (tx) => {
       await enterpriseAuthority(tx, actor, 'processing.write', input.chainId, input.siteId, true);
       const organizationId = actor.organizationId!;
-      await this.requireProcessor(tx, organizationId);
+      const runner = await this.requireRunner(tx, organizationId, input.productId, input.processType);
       const site = await activeSite(tx, organizationId, input.siteId);
-      if (!['PROCESSING', 'PACKING'].includes(site.kind))
+      // A seller packs at its own store or warehouse.
+      if (runner === 'PROCESSOR' && !['PROCESSING', 'PACKING'].includes(site.kind))
         throw new UnprocessableEntityException('Chọn cơ sở loại chế biến hoặc đóng gói');
+      await this.assertSellerMaterials(tx, runner, input.productId, input);
       if (!input.inputs.length && !input.externalInputs.length)
         throw new UnprocessableEntityException('Chọn ít nhất một nguyên liệu');
-      const product = await tx.product.findFirst({ where: { id: input.productId, organizationId, status: 'ACTIVE' } });
-      if (!product) throw new UnprocessableEntityException('Sản phẩm chính phải là sản phẩm đang hoạt động của doanh nghiệp');
+      await assertChainCreatesWork(tx, input.chainId, 'runs');
+      const chain = await tx.supplyChain.findUniqueOrThrow({ where: { id: input.chainId }, select: { ownerOrganizationId: true } });
+      // The finished product belongs to the processor or, for toll processing,
+      // to the chain owner whose brand it carries (ADR-005).
+      const product = await tx.product.findFirst({
+        where: { id: input.productId, organizationId: { in: [organizationId, chain.ownerOrganizationId] }, status: 'ACTIVE' },
+      });
+      if (!product) throw new UnprocessableEntityException('Sản phẩm chính phải là sản phẩm đang hoạt động của doanh nghiệp hoặc của chủ chuỗi');
       const runLike = { organizationId, chainId: input.chainId, siteId: input.siteId, baseUnit: input.baseUnit };
-      const { originCycles, bindings } = await this.checkMaterials(tx, runLike, input);
-      await this.assertOneBinding(tx, originCycles, bindings);
-      const bindingDigest = originCycles.length ? null : bindings[0] ?? (await activeChainBindingDigest(tx, input.chainId));
-      if (!originCycles.length && !bindingDigest)
-        throw new ConflictException('Chuỗi cần binding Fabric hoạt động để chế biến nguyên liệu ngoài');
+      const { originCycles, bindings, crossChain } = await this.checkMaterials(tx, runLike, input);
+      const pinned = crossChain.length > 0;
+      if (!pinned) await this.assertOneBinding(tx, originCycles, bindings);
+      const bindingDigest = pinned
+        ? await activeChainBindingDigest(tx, input.chainId)
+        : originCycles.length ? null : bindings[0] ?? (await activeChainBindingDigest(tx, input.chainId));
+      if ((pinned || !originCycles.length) && !bindingDigest)
+        throw new ConflictException('Chuỗi cần binding Fabric hoạt động để chế biến nguyên liệu ngoài hoặc liên chuỗi');
       const run = await tx.processingRun.create({
         data: {
           code: code('PR'),
@@ -538,7 +596,7 @@ export class ProcessingService {
           baseUnit: input.baseUnit,
           recipe: input.recipe || null,
           note: input.note || null,
-          originCycleId: [...originCycles].sort()[0] ?? null,
+          originCycleId: pinned ? null : [...originCycles].sort()[0] ?? null,
           bindingDigest,
           createdBy: actor.sub!,
         },
@@ -560,7 +618,7 @@ export class ProcessingService {
     return commandTransaction(this.db, async (tx) => {
       const run = await this.lockRun(tx, actor, id, input.version, ['DRAFT']);
       if (!run.productId) throw new ConflictException('Lệnh nháp cũ không theo vòng đời mới; hủy và lập lệnh mới');
-      await this.requireProcessor(tx, run.organizationId);
+      await this.assertSellerMaterials(tx, await this.requireRunner(tx, run.organizationId, run.productId, run.processType), run.productId, run);
       await activeSite(tx, run.organizationId, run.siteId);
       await this.checkMaterials(
         tx,
@@ -586,11 +644,16 @@ export class ProcessingService {
       if (!run.productId) throw new ConflictException('Lệnh nháp cũ không bổ sung được nguyên liệu');
       if (!input.inputs.length && !input.externalInputs.length)
         throw new UnprocessableEntityException('Chọn ít nhất một nguyên liệu');
-      const { originCycles, bindings } = await this.checkMaterials(tx, run, input, {
+      await this.assertSellerMaterials(tx, await this.requireRunner(tx, run.organizationId, run.productId, run.processType), run.productId, input);
+      const { originCycles, bindings, crossChain } = await this.checkMaterials(tx, run, input, {
         lotIds: run.inputs.map((i) => i.lotId),
         receiptIds: run.externalInputs.map((i) => i.receiptId),
       });
-      await this.assertOneBinding(tx, [...originCycles, ...(run.originCycleId ? [run.originCycleId] : [])], [...bindings, run.bindingDigest]);
+      if (crossChain.length && run.originCycleId)
+        throw new ConflictException('Lệnh đã gắn vụ gốc của chuỗi; lập lệnh mới cho nguyên liệu liên chuỗi');
+      // A pinned run (external or cross-chain material) keeps its binding.
+      if (run.originCycleId || !run.bindingDigest)
+        await this.assertOneBinding(tx, [...originCycles, ...(run.originCycleId ? [run.originCycleId] : [])], [...bindings, run.bindingDigest]);
       const lotLines = input.inputs.map((i) => ({ runId: run.id, lotId: i.lotId, quantity: quantity(i.quantity), unit: run.baseUnit }));
       const externalLines = input.externalInputs.map((i) => ({ runId: run.id, receiptId: i.receiptId, quantity: quantity(i.quantity), unit: run.baseUnit }));
       if (lotLines.length) await tx.processingInput.createMany({ data: lotLines });
@@ -600,7 +663,7 @@ export class ProcessingService {
         where: { id },
         data: {
           version: { increment: 1 },
-          ...(!run.originCycleId && originCycles.length ? { originCycleId: [...originCycles].sort()[0] } : {}),
+          ...(!run.originCycleId && !run.bindingDigest && originCycles.length ? { originCycleId: [...originCycles].sort()[0] } : {}),
         },
       });
       return { record: runView(await tx.processingRun.findUniqueOrThrow({ where: { id }, include: RUN_INCLUDE })) };
@@ -643,16 +706,18 @@ export class ProcessingService {
   complete(actor: CommandActor, id: string, input: CompleteProcessingInput) {
     return commandTransaction(this.db, async (tx) => {
       const run = await this.lockRun(tx, actor, id, input.version, ['IN_PROGRESS']);
-      await this.requireProcessor(tx, run.organizationId);
+      const runner = await this.requireRunner(tx, run.organizationId, run.productId, run.processType);
       const site = await activeSite(tx, run.organizationId, run.siteId);
+      if (runner !== 'PROCESSOR' && input.byProducts.length) throw new UnprocessableEntityException('Bên bán đóng gói không có phụ phẩm');
       if (input.byProducts.some((o) => o.kind !== 'BY_PRODUCT'))
         throw new UnprocessableEntityException('Dòng phụ phẩm phải có kind = BY_PRODUCT');
       const lines = [
         { ...input.output, productId: run.productId!, kind: 'PRODUCT' },
         ...input.byProducts,
       ];
+      const owner = await tx.supplyChain.findUniqueOrThrow({ where: { id: run.chainId }, select: { ownerOrganizationId: true } });
       const products = await tx.product.findMany({
-        where: { id: { in: lines.map((o) => o.productId) }, organizationId: run.organizationId, status: 'ACTIVE' },
+        where: { id: { in: lines.map((o) => o.productId) }, organizationId: { in: [run.organizationId, owner.ownerOrganizationId] }, status: 'ACTIVE' },
       });
       const conversions = await tx.productUnitConversion.findMany({
         where: { productId: { in: products.map((p) => p.id) }, revokedAt: null },
@@ -691,10 +756,10 @@ export class ProcessingService {
         await tx.processingLoss.createMany({
           data: input.losses.map((l) => ({ runId: run.id, reason: l.reason, quantity: quantity(l.quantity), note: l.note || null })),
         });
-      const consumed: Array<{ lotId: string; lotCode: string; quantity: string; unit: string; eventId: string }> = [];
+      const consumed: Array<{ lotId: string; lotCode: string; quantity: string; unit: string; eventId: string; dataHash: string; sourceChainId: string | null }> = [];
       for (const line of [...run.inputs].sort((a, b) => a.lotId.localeCompare(b.lotId))) {
         await tx.$queryRaw`SELECT lot_id FROM lot WHERE lot_id=${line.lotId}::uuid FOR UPDATE`;
-        const lot = await tx.lot.findUniqueOrThrow({ where: { id: line.lotId } });
+        const lot = await tx.lot.findUniqueOrThrow({ where: { id: line.lotId }, include: LOT_ORIGIN_INCLUDE });
         if (BLOCKED_STATES.includes(lot.currentState) || isPastExpiry(lot.expiryDate) ||
             (await tx.traceNotice.findFirst({ where: { lotId: lot.id, kind: 'RECALL' } })))
           throw new ConflictException(`Lô ${lot.lotCode} đã hết hạn, bị thu hồi hoặc không còn dùng được`);
@@ -736,7 +801,14 @@ export class ProcessingService {
         await tx.quantityMovement.create({
           data: { lotId: lot.id, eventId: event.id, type: 'PROCESSING_OUT', quantity: line.quantity, unit: lot.unit, beforeQty: lot.availableQuantity, delta: line.quantity.negated(), afterQty: after },
         });
-        consumed.push({ lotId: lot.id, lotCode: lot.lotCode, quantity: line.quantity.toFixed(3), unit: lot.unit, eventId: event.id });
+        const sourceChainId = lotChainId(lot) ?? null;
+        if (sourceChainId && sourceChainId !== run.chainId) {
+          const binding = await tx.eventBindingContext.findUniqueOrThrow({ where: { eventId: event.id } });
+          await tx.processingCrossChainInput.create({
+            data: { runId: run.id, lotId: lot.id, sourceChainId, eventId: event.id, dataHash: event.dataHash, bindingDigest: binding.bindingDigest },
+          });
+        }
+        consumed.push({ lotId: lot.id, lotCode: lot.lotCode, quantity: line.quantity.toFixed(3), unit: lot.unit, eventId: event.id, dataHash: event.dataHash, sourceChainId });
       }
       const external: Array<{ receiptCode: string; materialName: string; supplierName: string; documentNo: string | null; quantity: string; unit: string; selfDeclared: true }> = [];
       for (const line of [...run.externalInputs].sort((a, b) => a.receiptId.localeCompare(b.receiptId))) {
@@ -867,12 +939,23 @@ export class ProcessingService {
     });
     const evidence = await this.db.traceEvidence.groupBy({
       by: ['entityId'],
-      where: { entityType: 'MATERIAL_RECEIPT', entityId: { in: rows.map((r) => r.id) }, withdrawal: { is: null } },
+      where: { entityType: 'MATERIAL_RECEIPT', entityId: { in: rows.map((r) => r.id) }, kind: { in: [...RECEIPT_EVIDENCE_KINDS] }, withdrawal: { is: null } },
       _count: { _all: true },
+    });
+    const confirmed = await this.db.supplierConfirmation.findMany({
+      where: { receiptId: { in: rows.map((r) => r.id) }, status: 'CONFIRMED' },
+      select: { receiptId: true },
     });
     const sites = await this.db.enterpriseSite.findMany({ where: { id: { in: rows.map((r) => r.siteId) } }, select: { id: true, name: true } });
     return {
-      items: rows.map((r) => receiptView(r, sites.find((s) => s.id === r.siteId)?.name ?? null, evidence.some((e) => e.entityId === r.id))),
+      items: rows.map((r) =>
+        receiptView(
+          r,
+          sites.find((s) => s.id === r.siteId)?.name ?? null,
+          evidence.some((e) => e.entityId === r.id),
+          confirmed.some((c) => c.receiptId === r.id),
+        ),
+      ),
     };
   }
 
@@ -887,7 +970,12 @@ export class ProcessingService {
     });
     return {
       record: {
-        ...receiptView(row, site?.name ?? null, await this.receiptHasEvidence(this.db as unknown as Tx, id)),
+        ...receiptView(
+          row,
+          site?.name ?? null,
+          await this.receiptHasEvidence(this.db as unknown as Tx, id),
+          await receiptConfirmed(this.db as unknown as Tx, id),
+        ),
         uses: uses.map((u) => ({ runId: u.run.id, runCode: u.run.code, status: u.run.status, quantity: u.quantity.toFixed(3) })),
       },
     };
@@ -897,13 +985,19 @@ export class ProcessingService {
   createReceipt(actor: CommandActor, input: CreateMaterialReceiptInput) {
     return commandTransaction(this.db, async (tx) => {
       await enterpriseAuthority(tx, actor, 'processing.write', undefined, input.siteId, true);
-      await this.requireProcessor(tx, actor.organizationId!);
+      // Retailers and distributors record outside goods at their store or warehouse.
+      const seller = await isSeller(tx, actor.organizationId!);
+      if (!seller) await this.requireProcessor(tx, actor.organizationId!);
       const site = await activeSite(tx, actor.organizationId!, input.siteId);
-      if (!['PROCESSING', 'PACKING'].includes(site.kind))
+      if (!seller && !['PROCESSING', 'PACKING'].includes(site.kind))
         throw new UnprocessableEntityException('Chọn cơ sở loại chế biến hoặc đóng gói');
       const receivedAt = new Date(input.receivedAt);
       if (receivedAt.getTime() > Date.now() + 5 * 60_000)
         throw new UnprocessableEntityException('Ngày nhập không được ở tương lai');
+      const supplier = await tx.enterpriseExternalPartner.findFirst({
+        where: { id: input.supplierId, organizationId: actor.organizationId! },
+      });
+      if (!supplier) throw new UnprocessableEntityException('Chọn nhà cung cấp trong danh bạ của doanh nghiệp');
       const row = await tx.materialReceipt.create({
         data: {
           code: code('PN'),
@@ -911,8 +1005,12 @@ export class ProcessingService {
           siteId: site.id,
           source: 'EXTERNAL',
           materialName: input.materialName,
-          supplierName: input.supplierName,
+          supplierName: supplier.name,
+          supplierId: supplier.id,
+          growingAreaCode: input.growingAreaCode || null,
           documentNo: input.documentNo,
+          supplierLotCode: input.supplierLotCode?.trim() || null,
+          matchedLotId: await matchSupplierLot(tx, input.supplierLotCode),
           receivedAt,
           quantity: quantity(input.quantity),
           unit: input.unit,
@@ -921,7 +1019,17 @@ export class ProcessingService {
           createdBy: actor.sub!,
         },
       });
-      return { record: receiptView(row, site.name, false) };
+      return { record: receiptView(row, site.name, false, false) };
+    });
+  }
+
+  /** Prints a one-time QR link the supplier scans to confirm the receipt. */
+  confirmReceipt(actor: CommandActor, id: string) {
+    return commandTransaction(this.db, async (tx) => {
+      const row = await tx.materialReceipt.findFirst({ where: { id, organizationId: actor.organizationId! } });
+      if (!row) throw new NotFoundException('Không tìm thấy phiếu nhập');
+      await enterpriseAuthority(tx, actor, 'processing.write', undefined, row.siteId, true);
+      return { record: await createSupplierConfirmation(tx, row, actor.sub!) };
     });
   }
 

@@ -1,3 +1,4 @@
+import { PlatformProvisioningWorker } from '../ledger/platform-provisioning.worker.js';
 import {
   Injectable,
   Logger,
@@ -9,7 +10,6 @@ import { ConfigService } from '@nestjs/config';
 import { BindingDeliveryService } from '../ledger/binding-delivery.service.js';
 import { LedgerControlService } from '../ledger/ledger-control.service.js';
 import { HandoverExpiryService } from '../shipments/handover-expiry.service.js';
-import { EnterpriseConnectionWorker } from '../enterprise-onboarding/enterprise-connection.worker.js';
 import { EnterpriseMailWorker } from '../enterprise-onboarding/enterprise-mail.worker.js';
 
 export type WorkerRuntimeState = {
@@ -43,8 +43,8 @@ export class BlockchainWorkerRunner
     private readonly config: ConfigService,
     @Optional() private readonly bindings?: BindingDeliveryService,
     @Optional() private readonly control?: LedgerControlService,
+    @Optional() private readonly provisioning?: PlatformProvisioningWorker,
     @Optional() private readonly expiry?: HandoverExpiryService,
-    @Optional() private readonly enterprise?: EnterpriseConnectionWorker,
     @Optional() private readonly mail?: EnterpriseMailWorker,
   ) {}
 
@@ -87,15 +87,12 @@ export class BlockchainWorkerRunner
       // failing never stalls the other.
       const steps: Array<[string, () => Promise<unknown>]> = [];
       const fabricEnabled = this.state.fabricEnabled;
+      if (fabricEnabled && this.provisioning)
+        steps.push(['platform-provisioning', () => this.provisioning!.processAll()]);
       if (fabricEnabled && this.control)
         steps.push(['ledger-control', () => this.control!.processAll()]);
       if (fabricEnabled && this.bindings)
         steps.push(['binding-delivery', () => this.bindings!.processAll()]);
-      if (fabricEnabled && this.enterprise)
-        steps.push([
-          'enterprise-connections',
-          () => this.enterprise!.processAll(),
-        ]);
       if (this.mail?.enabled)
         steps.push(['enterprise-mail', () => this.mail!.processAll()]);
       if (

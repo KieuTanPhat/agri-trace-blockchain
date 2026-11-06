@@ -1,0 +1,51 @@
+TITLE: Blockchain trong chuỗi thực phẩm: làm được gì và không làm được gì
+SUMMARY: Bài học từ thí nghiệm truy xuất xoài của Walmart thường được nhắc tới như minh chứng cho blockchain trong thực phẩm. Bài viết nhìn lại câu chuyện đó một cách tỉnh táo và giải thích công nghệ này thực sự giải quyết vấn đề nào.
+COVER: AnhSanPham/SanPham/xoai3.jpg
+BODY:
+Khi nhắc đến ứng dụng của blockchain trong thực phẩm, câu chuyện được kể nhiều nhất có lẽ là về một trái xoài. Trong một dự án thử nghiệm với IBM, Walmart đo thời gian truy ngược nguồn gốc một lô xoài cắt sẵn. Theo các nghiên cứu điển hình do các bên tham gia công bố, cách làm thông thường dựa trên giấy tờ và nhiều hệ thống rời rạc mất gần bảy ngày, còn hệ thống mới chỉ cần khoảng 2,2 giây. Con số ấy nhanh chóng trở thành một biểu tượng.
+
+Câu chuyện đáng để hiểu kỹ, vì nó cho thấy cả sức mạnh lẫn giới hạn của công nghệ. Cần lưu ý rằng con số trên đến từ các tài liệu của chính những bên thực hiện, không phải từ một kiểm toán độc lập. Điều đáng học không phải là con số 2,2 giây, mà là lý do vì sao việc tìm kiếm trước đó lại mất cả tuần.
+
+Vì sao truy xuất lại chậm đến vậy
+
+Một trái xoài đi từ vườn đến kệ siêu thị có thể đi qua người trồng, nhà thu gom, cơ sở đóng gói, đơn vị vận chuyển, nhà nhập khẩu, trung tâm phân phối và cửa hàng. Mỗi bên giữ hồ sơ riêng, theo định dạng riêng, trong hệ thống riêng. Khi có sự cố, người phụ trách phải gọi lần lượt từng bên, chờ họ lục hồ sơ rồi trả lời, và mọi thứ lại tiếp tục ở mắt xích kế tiếp.
+
+Như vậy, vấn đề gốc không nằm ở tốc độ máy tính. Vấn đề là không có một nơi chung để các bên ghi lại những gì đã xảy ra, trong khi không bên nào muốn giao toàn bộ dữ liệu của mình cho một bên khác kiểm soát. Đây chính là loại bài toán mà sổ cái phân tán được thiết kế để giải quyết.
+
+Blockchain thực sự làm gì
+
+Hiểu đơn giản, blockchain là một cuốn sổ được nhiều bên cùng giữ. Mỗi bản ghi mới được nối vào chuỗi bản ghi trước đó bằng các phép băm. Nếu ai đó sửa một bản ghi cũ, dấu vân tay số của nó sẽ thay đổi và các bên khác phát hiện ra sự không khớp. Không một bên đơn lẻ nào có thể lặng lẽ viết lại lịch sử.
+
+Trong thực phẩm, các nền tảng doanh nghiệp thường dùng mạng có cấp phép thay vì mạng công khai như các đồng tiền mã hóa. Hyperledger Fabric, nền tảng được Walmart chọn sau khi đánh giá các lựa chọn khác, là một ví dụ. Với mạng có cấp phép, chỉ những tổ chức được xác định mới tham gia. Không cần đào coin, không có token, và dữ liệu nhạy cảm có thể được giữ riêng.
+
+Một thiết kế phổ biến là không đưa toàn bộ dữ liệu lên sổ cái. Dữ liệu chi tiết như ảnh, số lượng, tên người thực hiện vẫn nằm trong cơ sở dữ liệu của hệ thống. Sổ cái chỉ lưu dấu vân tay của các bản ghi đó. Cách làm này có hai lợi ích. Sổ cái nhẹ hơn và không chứa dữ liệu cá nhân. Đồng thời, nếu dữ liệu trong cơ sở dữ liệu bị thay đổi sau đó, dấu vân tay tính lại sẽ không khớp với bản đã neo. Người kiểm tra có thể biết dữ liệu còn nguyên vẹn mà không cần đọc toàn bộ nội dung trên sổ cái.
+
+Những gì blockchain không làm được
+
+Đây là phần thường bị bỏ qua trong các bài quảng cáo. Blockchain chứng minh rằng một bản ghi không bị sửa kể từ thời điểm neo. Nó không chứng minh rằng bản ghi đó đúng sự thật.
+
+Nếu một nhân viên khai rằng lô hàng được thu hoạch sáng nay trong khi thực tế là tuần trước, thì blockchain sẽ lưu trung thành lời khai ấy. Nếu một vùng trồng dùng mã của vùng khác, sổ cái cũng không tự phát hiện được. Giới chuyên môn gọi đây là vấn đề về đầu vào: rác vào thì rác ra, chỉ khác là rác được niêm phong rất chắc.
+
+Vì vậy, một hệ thống đáng tin không thể chỉ có blockchain. Nó cần thêm các lớp khác. Lớp đầu tiên là ràng buộc nghiệp vụ, ví dụ sản lượng của lô không được vượt sản lượng của vụ, hàng đã giao đi không thể giao lại lần nữa. Lớp thứ hai là xác nhận của nhiều bên độc lập, ví dụ bên giao và bên nhận cùng ký về số lượng. Lớp thứ ba là bằng chứng hiện trường như ảnh chụp, số đo cảm biến. Lớp thứ tư là kiểm tra thực tế của tổ chức đánh giá và cơ quan quản lý. Blockchain làm cho các lớp này khó bị sửa về sau, nhưng không thay thế chúng.
+
+Khi nào nên dùng, khi nào không
+
+Blockchain không phải lúc nào cũng cần thiết. Nếu chỉ có một doanh nghiệp quản lý toàn bộ từ vườn đến cửa hàng, một cơ sở dữ liệu thông thường có nhật ký kiểm toán tốt có thể đã đủ. Sổ cái phân tán phát huy giá trị khi có nhiều tổ chức độc lập, lợi ích không hoàn toàn trùng nhau, và cần một nguồn sự thật chung mà không bên nào độc quyền kiểm soát.
+
+Chuỗi nông sản Việt Nam có nhiều đặc điểm phù hợp: sản xuất phân tán, nhiều bên trung gian, yêu cầu chứng minh ngày càng cao từ thị trường. Nhưng chi phí vận hành một mạng lưới, kỹ năng của người dùng và sự sẵn sàng chia sẻ dữ liệu là những rào cản thực tế. Một dự án có thể thất bại không vì công nghệ, mà vì không ai duy trì việc nhập liệu sau giai đoạn thí điểm.
+
+Bài học từ các dự án quốc tế cho thấy thành công phụ thuộc lớn vào việc có một bên đủ sức kéo cả chuỗi tham gia. Sau thí nghiệm với xoài và thịt heo, Walmart mở rộng ra nhiều mặt hàng và yêu cầu các nhà cung cấp rau lá xanh dùng hệ thống. Nếu chỉ dừng ở lời khuyến khích, tỷ lệ tham gia hẳn sẽ khác.
+
+Câu hỏi nên đặt ra cho một hệ thống truy xuất
+
+Với người mua hàng hoặc đối tác đang đánh giá một hệ thống có gắn nhãn blockchain, có vài câu hỏi hữu ích. Dữ liệu trên đó được ghi bởi ai và có bị ràng buộc bởi quy tắc nghiệp vụ không? Có bao nhiêu tổ chức độc lập cùng giữ sổ cái? Khi dữ liệu bị sửa, người xem có nhận ra không, và có thể tự kiểm tra bằng chứng hay không? Hệ thống có phân biệt rõ bằng chứng đã neo và dữ liệu chỉ mới ghi nhận không? Có hiển thị cảnh báo khi có sự cố hay chỉ trình bày phần đẹp?
+
+Một hệ thống trung thực thường cẩn trọng trong lời nói. Nó không nói sản phẩm được đảm bảo an toàn nhờ blockchain, mà nói rõ hồ sơ này chưa bị thay đổi kể từ thời điểm nào, do ai ghi nhận và được xác nhận bởi ai.
+
+Công nghệ phục vụ niềm tin
+
+Câu chuyện trái xoài đẹp không phải vì một con số kỷ lục, mà vì nó cho thấy khi thông tin được chia sẻ đúng cách, người ta có thể phản ứng nhanh hơn trước rủi ro. Blockchain là một công cụ để bảo vệ tính toàn vẹn của thông tin. Niềm tin thật sự vẫn phải được xây bằng con người làm đúng, ghi đúng và chịu trách nhiệm về những gì mình ghi.
+
+Nguồn tham khảo:
+LF Decentralized Trust, Walmart case study: https://lfdecentralizedtrust.org/case-studies/walmart-case-study
+The JBBA, Food Traceability on Blockchain: Walmart's Pork and Mango Pilots with IBM: https://jbba.scholasticahq.com/article/3712-food-traceability-on-blockchain-walmart-s-pork-and-mango-pilots-with-ibm/attachment/20459.pdf

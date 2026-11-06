@@ -3,7 +3,7 @@ import {registerScenario,readScenario} from "./scenarios";
 import {organizationId,siteId,memberId} from "./enterprise-membership";
 import "./enterprise-products";
 type S=components["schemas"];
-const site:S["EnterpriseSiteRecordDto"]={id:siteId,name:"Kho Ledger",organizationId,address:"Địa chỉ cơ sở Ledger",kind:"WAREHOUSE",status:"ACTIVE",version:7,areaM2:"100.00",capacityKg:"9000.000",coldAreaM2:null,email:null,evidenceComplete:true,expectedOutputTons:null,farmId:null,manager:null,otherInfo:null,phone:null,region:"Long An",representative:null,staffUserId:memberId,ward:"Phường Bến Lức"};
+const site:S["EnterpriseSiteRecordDto"]={id:siteId,name:"Kho Ledger",organizationId,address:"Địa chỉ cơ sở Ledger",kind:"WAREHOUSE",status:"ACTIVE",version:7,areaM2:"100.00",capacityKg:"9000.000",coldAreaM2:null,latitude:null,longitude:null,email:null,evidenceComplete:true,expectedOutputTons:null,farmId:null,manager:null,otherInfo:null,phone:null,region:"Long An",representative:null,staffUserId:memberId,ward:"Phường Bến Lức"};
 for(const name of ["resources.baseline","resources.evidence","resources.stock","resources.vehicles"])registerScenario(name,{handle(r,state){
  const path=new URL("http://fixture"+r.path).pathname;
  if(path==="/enterprise-access"&&r.method==="GET")return {data:{stage:"ACTIVE",capabilities:name==="resources.vehicles"?["TRANSPORTER"]:["FARM"],owner:state.actor==="org-owner",primary:state.actor==="org-owner",tier:state.actor==="org-owner"?1:3,permissions:state.actor==="org-owner"?["catalog.read","catalog.manage","members.read","materials.read","materials.manage","sites.read","sites.manage","vehicles.read","vehicles.manage","evidence.read","evidence.manage"]:["sites.read","vehicles.read"]}};

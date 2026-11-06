@@ -28,7 +28,6 @@ export const wapi = {
   catalog: () => ledgerRequest<S["CatalogDto"]>("/catalog"),
   createMember: (input: Omit<S["EnterpriseMemberInput"], "roles"> & { roles: V.RoleGrant[] }, cmd: LedgerCommandContext) => post<{ record: Pick<V.Member, "id" | "email" | "memberCode"> }>(root + "/members", { ...input, roles: nonEmptyRoles(input.roles) }, cmd),
   updateMember: (id: string, input: MemberUpdate, cmd: LedgerCommandContext) => post(root + "/members/" + encodeURIComponent(id), input, cmd),
-  changeSupervisor: (id: string, input: { version: number; supervisorId: string | null }, cmd: LedgerCommandContext) => post(root + "/members/" + encodeURIComponent(id) + "/supervisor", input, cmd),
   invitations: () => items<V.Invitation>(root + "/member-invitations"),
   invite: (input: Omit<S["MemberInvitationInput"], "roles"> & { roles: V.RoleGrant[] }, cmd: LedgerCommandContext) => post(root + "/member-invitations", { ...input, roles: nonEmptyRoles(input.roles) }, cmd),
   revokeInvitation: (id: string, cmd: LedgerCommandContext) => post(root + "/member-invitations/" + encodeURIComponent(id) + "/revoke", {}, cmd),
@@ -44,7 +43,7 @@ export const wapi = {
   withdrawAmendment: (id: string, input: S["ProfileVersionInput"], cmd: LedgerCommandContext) => post(root + "/profile/amendments/" + encodeURIComponent(id) + "/withdraw", input, cmd),
   evidence: (subject: { entityType: string; entityId: string; siteId?: string }) => items<V.Evidence>(root + "/evidence?" + new URLSearchParams(Object.entries(subject).filter(([, value]) => !!value))),
   evidenceContent: (id: string) => ledgerRequest<S["EvidenceContentDto"]>(root + "/evidence/" + encodeURIComponent(id) + "/content"),
-  uploadEvidence: (input: { file: File; entityType: string; entityId: string; kind: string; description: string; supersedesId?: string }, cmd: LedgerCommandContext) => {
+  uploadEvidence: (input: { file: File; entityType: string; entityId: string; kind: string; description: string; supersedesId?: string; siteId?: string }, cmd: LedgerCommandContext) => {
     const body = new FormData();
     body.set("file", input.file);
     for (const [key, value] of Object.entries(input)) if (key !== "file" && typeof value === "string" && value) body.set(key, value);

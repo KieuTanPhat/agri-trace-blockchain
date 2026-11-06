@@ -101,10 +101,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Check that the export acceptance fails closed
         run: node --import tsx --test blockchain/network/hybrid/acceptance/export-check.test.mts
-      - name: Real three-organization ledger and Worker acceptance
+      - name: Real shared-platform ledger and Worker acceptance
         run: node scripts/ci/hybrid-fabric.mjs
-      - name: Enterprise-owned peer lifecycle and approvals on separated Docker networks
-        run: node scripts/ci/enterprise-peer.mjs
       - name: Desktop and mobile viewport browser with real API DB Worker
         run: |
           npx --no-install playwright install --with-deps chromium

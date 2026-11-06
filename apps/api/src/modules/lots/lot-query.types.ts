@@ -7,12 +7,13 @@ import {
 
 const SENSOR_WINDOW = {
   include: {
-    readings: { include: { reading: true } },
+    // ADR-006: the device flag labels simulated sensor evidence everywhere.
+    readings: { include: { reading: { include: { device: { select: { simulated: true } } } } } },
     harvest: { select: { cycleId: true, harvestTime: true } },
   },
 } satisfies Prisma.HarvestSensorWindowDefaultArgs;
 
-export const LOT_TRACE_INCLUDE = {
+const LOT_TRACE_INCLUDE = {
   ledgerRoute: EVENT_LEDGER_ROUTE_INCLUDE,
   bindingContext: EVENT_BINDING_CONTEXT_INCLUDE,
   blockchainProof: true,
@@ -43,7 +44,24 @@ const PROCESSING_PROVENANCE = {
     },
     losses: true,
     externalInputs: {
-      include: { receipt: { select: { materialName: true, supplierName: true, documentNo: true, receivedAt: true } } },
+      include: {
+        receipt: {
+          select: {
+            materialName: true, supplierName: true, documentNo: true, receivedAt: true, supplierLotCode: true,
+            confirmations: { where: { status: 'CONFIRMED' }, select: { id: true } },
+            // A supplier lot code that matched a lot which left AgriTrace.
+            matchedLot: {
+              select: {
+                lotCode: true,
+                product: { select: { productName: true } },
+                organization: { select: { name: true } },
+                harvest: { select: { harvestTime: true, cycle: { select: { farm: { select: { privacy: true } } } } } },
+                traceQr: { select: { traceToken: true } },
+              },
+            },
+          },
+        },
+      },
     },
     logs: { orderBy: { occurredAt: 'asc' } },
   },

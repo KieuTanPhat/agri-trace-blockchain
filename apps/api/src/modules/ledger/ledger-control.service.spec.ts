@@ -11,7 +11,7 @@ type Job = Prisma.LedgerControlJobGetPayload<{ include: { binding: true } }>;
 function fixture(operation: Job['operation'] = 'PERMISSION_GRANT') {
   const job = { id: randomUUID(), leaseToken: randomUUID(), operation, epoch: 1,
     permissionRef: randomUUID(), bindingDigest: 'a'.repeat(64), nonce: randomUUID(), attemptCount: 1,
-    expectedRevision: 0, binding: { writerMspId: 'Org1MSP' } } as Job;
+    expectedRevision: 0, binding: { writerMspId: 'AgritraceMSP' } } as Job;
   let sync = { permissionRef: job.permissionRef!, requestedEpoch: 1, confirmedEpoch: null,
     state: 'PENDING_LEDGER' as LedgerPermissionState, version: 1, barrierOrdinal: 0n,
     nextOrdinal: 1n, lastTxId: null, updatedAt: new Date() };

@@ -1,34 +1,55 @@
-import {test,expect} from "./fixtures";
-import {cycleId} from "./fixtures/production-harvest";
-test("IoT diagnostics copy the exact original accepted request and response",async({page,api,context})=>{
- await context.grantPermissions(["clipboard-read","clipboard-write"]);await api.useActor("org-owner");await api.scenario("iot.accepted");await page.goto("/iot-simulator");
- await page.getByRole("combobox",{name:"Vụ sản xuất",exact:true}).click();await page.getByRole("option",{name:"VU-001",exact:true}).click();await page.getByLabel("Mã thiết bị",{exact:true}).fill("device-diagnostic");await page.getByLabel("Giá trị",{exact:true}).fill("27.5");await page.getByRole("button",{name:"Gửi bản ghi",exact:true}).click();
- await expect(page.getByTestId("ledger-iot-diagnostic")).toBeVisible();const body=JSON.parse(api.requests().find(r=>r.method==="POST"&&r.path==="/iot/readings")!.body!);await page.getByRole("button",{name:"Sao chép JSON",exact:true}).click();await expect(page.getByText("Đã sao chép JSON",{exact:true})).toBeVisible();
- expect(JSON.parse(await page.evaluate(()=>navigator.clipboard.readText()))).toEqual({request:body,response:{status:"accepted",readingId:"original-reading"}});
+import type { Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
+import "./fixtures/enterprise-membership";
+
+const id = "55555555-5555-4555-8555-555555555555";
+const vehicleId = "66666666-6666-4666-8666-666666666666";
+const movingDevice = {
+  id, deviceCode: "SIM-GPS-TEST", name: "GPS trên xe đang chở", type: "GPS_TRACKER",
+  status: "ACTIVE", simulated: true, authorityRevision: 1, online: true,
+  lastSeenAt: "2026-11-04T06:00:00Z", createdAt: "2026-11-04T05:00:00Z",
+  plotId: null, plot: null, publicKey: null, runningCycles: [], vehicleId,
+  vehicle: { id: vehicleId, registration: "51C-TEST", kind: "Xe tải" },
+  activeTransfer: { id: "trip-test", origin: "Lâm Đồng", destination: "Hồ Chí Minh" },
+};
+async function devices(page: Page) {
+  await page.route("**/api/iot/v2/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const data = path.endsWith("/device-options")
+      ? { plots: [], vehicles: [{ ...movingDevice.vehicle, inTransit: true, trackerId: id, trackerName: movingDevice.name }] }
+      : path.endsWith(`/devices/${id}`)
+        ? { ...movingDevice, keyFingerprint: null, recordsLast24h: 3, recent: [], latestPosition: { recordedAt: "2026-11-04T06:00:00Z", latitude: 10.8, longitude: 106.7, speedKmh: 32, heading: 90, battery: 95 } }
+        : { items: [movingDevice] };
+    await route.fulfill({ json: { success: true, data, timestamp: "2026-11-04T06:00:00Z", requestId: "isolated-iot-ui" } });
+  });
+}
+
+test("the old simulator address opens device management without the legacy ingest form", async ({ page, api }) => {
+  await api.useActor("org-owner");
+  await api.scenario("membership.baseline");
+  await devices(page);
+  await page.goto("/iot-simulator");
+  await expect(page).toHaveURL(/\/enterprise\/devices$/);
+  await expect(page.getByText("51C-TEST", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Gửi bản ghi", exact: true })).toHaveCount(0);
+  expect(api.requests().some((request) => request.path === "/iot/readings")).toBe(false);
 });
-test("IoT sensor changes use percent for humidity and Celsius for temperature",async({page,api})=>{
- await api.useActor("org-owner");await api.scenario("iot.unknown");await page.goto("/iot-simulator");
- const sensor=page.getByRole("combobox",{name:"Loại cảm biến",exact:true}),unit=page.getByLabel("Đơn vị",{exact:true});
- await expect(unit).toHaveValue("°C");
- for(const name of ["HUMIDITY","SOIL_MOISTURE","TEMPERATURE"]){await sensor.click();await page.getByRole("option",{name,exact:true}).click();await expect(unit).toHaveValue(name==="TEMPERATURE"?"°C":"%");}
-});
-test("IoT unknown response retries the exact original reading and key",async({page,api})=>{
- await api.useActor("org-owner");await api.scenario("iot.unknown");await page.goto("/iot-simulator");
- await page.getByRole("combobox",{name:"Vụ sản xuất",exact:true}).click();await page.getByRole("option",{name:"VU-001",exact:true}).click();
- await page.getByLabel("Mã thiết bị",{exact:true}).fill("device-1");await page.getByLabel("Giá trị",{exact:true}).fill("27.5");
- await page.getByRole("button",{name:"Gửi bản ghi",exact:true}).click();await expect(page.getByTestId("ledger-command-pending")).toBeVisible();
- const first=api.requests().find(r=>r.method==="POST"&&r.path==="/iot/readings")!;expect(JSON.parse(first.body!)).toMatchObject({cycleId,value:27.5,deviceId:"device-1"});
- await page.getByTestId("ledger-command-pending").getByRole("button",{name:"Đối soát",exact:true}).click();
- await expect(page.getByTestId("ledger-command-pending")).toHaveCount(0);
- const sent=api.requests().filter(r=>r.method==="POST"&&r.path==="/iot/readings");expect(sent).toHaveLength(2);expect(sent[1]).toEqual(first);
-});
-test("IoT validation rejection settles after journal inspection and preserves editable values",async({page,api})=>{
- await api.useActor("org-owner");await api.scenario("iot.rejected");await page.goto("/iot-simulator");
- await page.getByRole("combobox",{name:"Vụ sản xuất",exact:true}).click();await page.getByRole("option",{name:"VU-001",exact:true}).click();
- await page.getByLabel("Mã thiết bị",{exact:true}).fill("device-1");await page.getByLabel("Giá trị",{exact:true}).fill("27.5");
- await page.getByRole("button",{name:"Gửi bản ghi",exact:true}).click();await expect(page.getByText("Chu kỳ không ở trạng thái nhận dữ liệu cảm biến",{exact:true})).toBeVisible();
- await expect(page.getByTestId("ledger-command-pending")).toBeVisible();
- await page.getByTestId("ledger-command-pending").getByRole("button",{name:"Đối soát",exact:true}).click();
- await expect(page.getByTestId("ledger-command-pending")).toHaveCount(0);await expect(page.getByLabel("Giá trị",{exact:true})).toHaveValue("27.5");
- expect(api.requests().filter(r=>r.method==="POST"&&r.path==="/iot/readings")).toHaveLength(1);
+
+test("a moving vehicle shows its assignment and readings while GPS rebinding is disabled", async ({ page, api }) => {
+  await api.useActor("org-owner");
+  await api.scenario("membership.baseline");
+  await devices(page);
+  await page.goto("/enterprise/devices");
+  await expect(page.getByText("51C-TEST", { exact: true })).toBeVisible();
+  await expect(page.getByText("Lâm Đồng → Hồ Chí Minh", { exact: true })).toBeVisible();
+  // The list only opens the detail; device actions live there.
+  await expect(page.getByRole("button", { name: "Gắn", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Chi tiết", exact: true }).click();
+  const detail = page.getByTestId("device-detail");
+  await expect(detail).toBeVisible();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("button", { name: "Gắn", exact: true })).toBeDisabled();
+  await expect(sheet.getByRole("button", { name: "Xóa", exact: true })).toBeDisabled();
+  await expect(sheet.getByRole("button", { name: "Sửa", exact: true })).toBeEnabled();
+  await expect(sheet.getByText("Mô phỏng", { exact: true })).toHaveCount(0);
 });

@@ -134,22 +134,13 @@ export async function authorizeChainCommand(
       input.operation,
     )
   ) {
-    permission = await organizationGrant(db, actor, 'ORG_ADMIN');
-    if (payload.organizationId !== actor.organizationId)
-      throw new ForbiddenException('Ngoài phạm vi tổ chức');
-    if (input.operation === 'HYB_SET_CAPABILITY')
-      throw new ForbiddenException(
-        'Năng lực doanh nghiệp cần được nền tảng xét duyệt',
-      );
-    if (
-      input.operation === 'HYB_GRANT_ROLE' &&
-      !['FARM_STAFF', 'TRANSPORTER', 'RETAILER', 'DISTRIBUTOR'].includes(
-        String(payload.role),
-      )
-    )
-      throw new ForbiddenException(
-        'Org admin chỉ cấp vai trò thực hiện nghiệp vụ',
-      );
+    // Enterprises give chain roles through member permission groups; direct
+    // grants, revocations and capabilities belong to the platform.
+    throw new ForbiddenException(
+      input.operation === 'HYB_SET_CAPABILITY'
+        ? 'Năng lực doanh nghiệp cần được nền tảng xét duyệt'
+        : 'Vai trò theo chuỗi được cấp qua nhóm quyền khi tạo hoặc sửa thành viên',
+    );
   } else {
     if (!chainId) throw new ForbiddenException('Thiếu phạm vi chuỗi');
     const access = await chainAccess(db, actor, chainId);
@@ -160,9 +151,18 @@ export async function authorizeChainCommand(
       if (!['INVITED', 'ACTIVE'].includes(access.membership.status))
         throw new ForbiddenException('Lời mời không còn hiệu lực');
       permission = access.admin;
+    } else if (input.operation === 'HYB_LEAVE_MEMBERSHIP') {
+      if (payload.organizationId !== actor.organizationId)
+        throw new ForbiddenException('Chỉ đối tác tự rời chuỗi của mình');
+      if (access.chain.ownerOrganizationId === actor.organizationId)
+        throw new ForbiddenException('Chủ chuỗi không rời chuỗi của mình');
+      if (access.membership.status !== 'ACTIVE')
+        throw new ForbiddenException('Doanh nghiệp không còn hoạt động trong chuỗi');
+      permission = access.admin;
     } else if (
       [
         'HYB_INVITE_MEMBERSHIP',
+        'HYB_INVITE_BY_LINK',
         'HYB_CHANGE_MEMBERSHIP',
         'HYB_ACTIVATE_BUSINESS_PROFILE',
         'HYB_SUSPEND_BUSINESS_PROFILE',

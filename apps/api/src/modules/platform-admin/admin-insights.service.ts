@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { isPlatformAdminRole } from '../auth/role-codes.js';
 import {
   effectiveSubscriptionStatus,
   entitlementFor,
@@ -66,7 +65,7 @@ export class AdminInsightsService {
     ] = await Promise.all([
       this.db.organization.groupBy({ by: ['type'], _count: { _all: true } }),
       this.db.organization.groupBy({ by: ['status'], _count: { _all: true } }),
-      this.db.organization.groupBy({ by: ['participationModel'], _count: { _all: true } }),
+      this.db.organization.groupBy({ by: ['participationStatus'], _count: { _all: true } }),
       this.db.organizationCapability.groupBy({ by: ['code'], where: { revokedAt: null }, _count: { _all: true } }),
       this.inbox(),
       this.db.lot.count(),
@@ -88,7 +87,7 @@ export class AdminInsightsService {
     const effective = subs.map((s) => ({ s, status: effectiveSubscriptionStatus(s, graceDays) }));
     const monthPaid = await this.db.invoice.findMany({ where: { status: 'PAID', paidAt: { gte: monthStart } }, select: { amount: true, simulated: true } });
     const outstanding = await this.db.invoice.aggregate({ where: { status: 'ISSUED' }, _sum: { amount: true } });
-    const admins = await this.db.user.findMany({ where: { accountStatus: 'ACTIVE', role: { code: { in: ['SYSTEM_ADMIN', 'PLATFORM_OPERATOR', 'PLATFORM_CASE_MANAGER', 'PLATFORM_PRIVACY_OFFICER'] } } }, include: { platformMfa: true } });
+    const admins = await this.db.user.findMany({ where: { accountStatus: 'ACTIVE', role: { code: 'SYSTEM_ADMIN' } }, include: { platformMfa: true } });
     const count = <T extends { _count: { _all: number } }>(rows: T[], key: keyof T) =>
       Object.fromEntries(rows.map((r) => [String(r[key]), r._count._all]));
     return {
@@ -96,7 +95,7 @@ export class AdminInsightsService {
       organizations: {
         byType: count(orgByType, 'type'),
         byStatus: count(orgByStatus, 'status'),
-        byModel: count(orgByModel, 'participationModel'),
+        byParticipation: count(orgByModel, 'participationStatus'),
         capabilities: count(capabilities, 'code'),
       },
       pending: inbox.summary,
@@ -148,13 +147,12 @@ export class AdminInsightsService {
   async inbox() {
     const now = Date.now();
     const enrollmentSla = await settingNumber(this.db, 'enrollment.reviewSlaHours', 48);
-    const supportSla = await settingNumber(this.db, 'support.reviewSlaHours', 24);
-    const [enrollments, capabilities, amendments, connections, tickets, reports, cases, invoices] = await Promise.all([
+    // The setting key predates the removed support desk; it now times consumer reports.
+    const reportSla = await settingNumber(this.db, 'support.reviewSlaHours', 24);
+    const [enrollments, capabilities, amendments, reports, cases, invoices] = await Promise.all([
       this.db.enterpriseEnrollment.findMany({ where: { status: 'PENDING_REVIEW' }, include: { organization: { select: { name: true } } }, take: 200 }),
       this.db.capabilityRequest.findMany({ where: { status: 'PENDING' }, include: { organization: { select: { name: true, enterpriseEnrollment: { select: { id: true } } } } }, take: 200 }),
       this.db.enterpriseProfileAmendment.findMany({ where: { status: 'PENDING' }, take: 200 }),
-      this.db.enterpriseConnection.findMany({ where: { status: 'PENDING_REVIEW' }, include: { enrollment: { include: { organization: { select: { name: true } } } } }, take: 200 }),
-      this.db.supportTicket.findMany({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }, include: { organization: { select: { name: true } } }, take: 200 }),
       this.db.consumerReport.findMany({ where: { status: 'NEW' }, take: 200 }),
       this.db.platformCase.findMany({ where: { status: { in: ['OPEN', 'ESCALATED'] } }, include: { owner: { select: { name: true } } }, take: 200 }),
       this.db.invoice.findMany({ where: { status: 'ISSUED', dueAt: { lt: new Date() } }, include: { organization: { select: { name: true } } }, take: 200 }),
@@ -177,14 +175,12 @@ export class AdminInsightsService {
       ...enrollments.map((e) => item('ENROLLMENT', e.id, 'Hồ sơ đăng ký doanh nghiệp', e.organization.name, e.createdAt, new Date(e.createdAt.getTime() + enrollmentSla * HOUR), `/admin/enterprises/${e.id}`)),
       ...capabilities.map((c) => item('CAPABILITY', c.id, `Năng lực ${c.code}`, c.organization.name, c.createdAt, new Date(c.createdAt.getTime() + enrollmentSla * HOUR), c.organization.enterpriseEnrollment ? `/admin/enterprises/${c.organization.enterpriseEnrollment.id}` : '/admin/enterprises')),
       ...amendments.map((a) => item('AMENDMENT', a.id, 'Điều chỉnh hồ sơ', orgNames.get(a.organizationId) ?? null, a.createdAt, new Date(a.createdAt.getTime() + enrollmentSla * HOUR), `/admin/enterprises/amendments/${a.id}`)),
-      ...connections.map((c) => item('CONNECTION', c.id, 'Kết nối blockchain', c.enrollment.organization.name, c.createdAt, new Date(c.createdAt.getTime() + enrollmentSla * HOUR), `/admin/enterprises/${c.enrollmentId}/connections/${c.id}`)),
-      ...tickets.map((t) => item('TICKET', t.id, `${t.code}: ${t.subject}`, t.organization.name, t.createdAt, t.dueAt, `/admin/support/${t.id}`)),
-      ...reports.map((r) => item('CONSUMER_REPORT', r.id, `Báo cáo từ người tiêu dùng (${r.category})`, null, r.createdAt, new Date(r.createdAt.getTime() + supportSla * HOUR), '/admin/reports')),
+      ...reports.map((r) => item('CONSUMER_REPORT', r.id, `Báo cáo từ người tiêu dùng (${r.category})`, null, r.createdAt, new Date(r.createdAt.getTime() + reportSla * HOUR), '/admin/reports')),
       ...cases.map((c) => item('CASE', c.id, `Sự cố #${c.caseNumber}: ${c.title}`, c.owner?.name ?? null, c.createdAt, c.responseDueAt, `/admin/cases/${c.id}`)),
       ...invoices.map((i) => item('INVOICE_OVERDUE', i.id, `Hóa đơn quá hạn ${i.number}`, i.organization.name, i.issuedAt, i.dueAt, '/admin/billing/invoices')),
     ].sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.createdAt.localeCompare(b.createdAt));
     const summary = Object.fromEntries(
-      ['ENROLLMENT', 'CAPABILITY', 'AMENDMENT', 'CONNECTION', 'TICKET', 'CONSUMER_REPORT', 'CASE', 'INVOICE_OVERDUE'].map((k) => [k, items.filter((i) => i.kind === k).length]),
+      ['ENROLLMENT', 'CAPABILITY', 'AMENDMENT', 'CONNECTION', 'CONSUMER_REPORT', 'CASE', 'INVOICE_OVERDUE'].map((k) => [k, items.filter((i) => i.kind === k).length]),
     );
     return { items, summary: { ...summary, total: items.length, overdue: items.filter((i) => i.overdue).length } };
   }
@@ -194,7 +190,7 @@ export class AdminInsightsService {
       type: { not: 'AUDITOR' },
       ...(query.q ? { name: { contains: query.q, mode: 'insensitive' } } : {}),
       ...(query.status ? { status: query.status as 'ACTIVE' | 'INACTIVE' } : {}),
-      ...(query.model ? { participationModel: query.model } : {}),
+      ...(query.participation ? { participationStatus: query.participation } : {}),
       ...(query.capability ? { capabilities: { some: { code: query.capability as never, revokedAt: null } } } : {}),
     };
     const orgs = await this.db.organization.findMany({
@@ -222,7 +218,7 @@ export class AdminInsightsService {
         type: o.type,
         status: o.status,
         version: o.version,
-        participationModel: o.participationModel,
+        participationStatus: o.participationStatus,
         capabilities: o.capabilities.map((c) => c.code),
         pendingCapabilities: o.capabilityRequests.map((c) => c.code),
         enrollmentId: o.enterpriseEnrollment?.id ?? null,
@@ -250,19 +246,18 @@ export class AdminInsightsService {
         profile: true,
         capabilities: true,
         capabilityRequests: { orderBy: { createdAt: 'asc' } },
-        enterpriseEnrollment: { include: { serviceOrder: true, connections: { orderBy: { createdAt: 'desc' }, take: 20 } } },
+        enterpriseEnrollment: { include: { serviceOrder: true } },
         ownedChains: { select: { id: true, name: true, code: true, businessProfile: { select: { state: true } } } },
         chainMemberships: { include: { chain: { select: { id: true, name: true, code: true } } } },
         enterpriseSites: { select: { id: true, name: true, kind: true, status: true } },
       },
     });
     if (!org) throw new NotFoundException('Không tìm thấy tổ chức');
-    const [members, entitlement, invoices, cases, tickets, audit, runs, lots] = await Promise.all([
+    const [members, entitlement, invoices, cases, audit, runs, lots] = await Promise.all([
       this.db.user.findMany({ where: { organizationId: id }, select: { id: true, fullName: true, email: true, accountStatus: true, enterpriseTier: true, createdAt: true, role: { select: { code: true } } }, orderBy: { createdAt: 'asc' }, take: 200 }),
       entitlementFor(this.db, id),
       this.db.invoice.findMany({ where: { organizationId: id }, orderBy: { issuedAt: 'desc' }, take: 50 }),
       this.db.platformCase.findMany({ where: { ownerOrganizationId: id }, orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, caseNumber: true, title: true, status: true, severity: true, createdAt: true } }),
-      this.db.supportTicket.findMany({ where: { organizationId: id }, orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, code: true, subject: true, status: true, priority: true, createdAt: true } }),
       this.db.platformAudit.findMany({ where: { organizationId: id }, orderBy: { sequence: 'desc' }, take: 30 }),
       this.db.processingRun.count({ where: { organizationId: id, status: 'COMPLETED' } }),
       this.db.lot.count({ where: { farmOrgId: id } }),
@@ -273,7 +268,7 @@ export class AdminInsightsService {
       type: org.type,
       status: org.status,
       version: org.version,
-      participationModel: org.participationModel,
+      participationStatus: org.participationStatus,
       createdAt: org.createdAt.toISOString(),
       profile: org.profile,
       capabilities: org.capabilities.map((c) => ({ code: c.code, revokedAt: iso(c.revokedAt), revision: c.revision, createdAt: c.createdAt.toISOString() })),
@@ -283,9 +278,7 @@ export class AdminInsightsService {
             id: org.enterpriseEnrollment.id,
             status: org.enterpriseEnrollment.status,
             stage: serviceStage(org.enterpriseEnrollment),
-            hostingMode: org.enterpriseEnrollment.hostingMode,
             createdAt: org.enterpriseEnrollment.createdAt.toISOString(),
-            connections: org.enterpriseEnrollment.connections.map((c) => ({ id: c.id, chainId: c.chainId, status: c.status, createdAt: c.createdAt.toISOString() })),
           }
         : null,
       billing: {
@@ -305,7 +298,6 @@ export class AdminInsightsService {
       members: members.map((m) => ({ ...m, role: m.role.code, createdAt: m.createdAt.toISOString() })),
       activity: { lots, processingRuns: runs },
       cases: cases.map((c) => ({ ...c, caseNumber: Number(c.caseNumber), createdAt: c.createdAt.toISOString() })),
-      tickets: tickets.map((t) => ({ ...t, createdAt: t.createdAt.toISOString() })),
       audit: audit.map((a) => ({ sequence: Number(a.sequence), occurredAt: a.occurredAt.toISOString(), action: a.action, actorRole: a.actorRole, reason: a.reason, outcome: a.outcome })),
     };
   }
@@ -483,7 +475,7 @@ export class AdminInsightsService {
   }
 
   async ledgerOverview() {
-    const [routes, bindings, outbox, proofs, holds, jobs, lastConfirmed, lastFailed] = await Promise.all([
+    const [routes, bindings, outbox, proofs, holds, jobs, lastConfirmed, lastFailed, provisioning, provisioningCounts] = await Promise.all([
       this.db.ledgerRouteDefinition.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }),
       this.db.fabricNetworkBinding.findMany({ include: { state: true, workerHealth: true }, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.db.blockchainOutbox.groupBy({ by: ['status'], _count: { _all: true } }),
@@ -492,6 +484,8 @@ export class AdminInsightsService {
       this.db.ledgerControlJob.groupBy({ by: ['status'], _count: { _all: true } }),
       this.db.blockchainProof.findFirst({ where: { transactionStatus: 'CONFIRMED' }, orderBy: { recordedAt: 'desc' }, select: { recordedAt: true, txId: true } }),
       this.db.blockchainOutbox.findFirst({ where: { status: { in: ['RETRY', 'DEAD_LETTER'] } }, orderBy: { updatedAt: 'desc' }, select: { lastError: true, updatedAt: true, status: true } }),
+      this.db.ledgerProvisioningJob.findMany({ where: { status: { not: 'COMPLETED' } }, include: { chain: { select: { name: true } } }, orderBy: { createdAt: 'asc' }, take: 50 }),
+      this.db.ledgerProvisioningJob.groupBy({ by: ['status'], _count: { _all: true } }),
     ]);
     const chainNames = new Map(
       (await this.db.supplyChain.findMany({ where: { id: { in: bindings.map((b) => b.chainId) } }, select: { id: true, name: true } })).map((c) => [c.id, c.name]),
@@ -515,6 +509,7 @@ export class AdminInsightsService {
       })),
       outbox: Object.fromEntries(outbox.map((o) => [o.status, o._count._all])),
       proofs: Object.fromEntries(proofs.map((p) => [p.transactionStatus, p._count._all])),
+      preparation: { counts: Object.fromEntries(provisioningCounts.map(j => [j.status, j._count._all])), jobs: provisioning.map(j => ({ chainId: j.chainId, chainName: j.chain.name, status: j.lastError ? 'NEEDS_ATTENTION' : 'PREPARING', attempts: j.attempts, createdAt: j.createdAt.toISOString(), message: j.lastError })) },
       controlJobs: Object.fromEntries(jobs.map((j) => [j.status, j._count._all])),
       unresolvedHolds: holds,
       oldestPendingAgeMinutes: oldest ? Math.floor((Date.now() - oldest.createdAt.getTime()) / 60000) : 0,
@@ -557,11 +552,10 @@ export class AdminInsightsService {
   async statistics() {
     const months = lastMonths(12);
     const since = new Date(months[0] + '-01T00:00:00Z');
-    const [orgs, lots, runs, tickets, scans, invoices] = await Promise.all([
+    const [orgs, lots, runs, scans, invoices] = await Promise.all([
       this.db.organization.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true, type: true } }),
       this.db.lot.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
       this.db.processingRun.findMany({ where: { completedAt: { gte: since } }, select: { completedAt: true } }),
-      this.db.supportTicket.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
       this.db.traceScanDaily.findMany({ where: { day: { gte: since } }, select: { day: true, scans: true } }),
       this.db.invoice.findMany({ where: { status: 'PAID', paidAt: { gte: since } }, select: { paidAt: true, amount: true, simulated: true } }),
     ]);
@@ -571,7 +565,6 @@ export class AdminInsightsService {
         organizations: orgs.filter((o) => monthKey(o.createdAt) === m).length,
         lots: lots.filter((l) => monthKey(l.createdAt) === m).length,
         processingRuns: runs.filter((r) => r.completedAt && monthKey(r.completedAt) === m).length,
-        tickets: tickets.filter((t) => monthKey(t.createdAt) === m).length,
         scans: scans.filter((s) => monthKey(s.day) === m).reduce((a, s) => a + s.scans, 0),
         revenue: invoices.filter((i) => !i.simulated && monthKey(i.paidAt!) === m).reduce((a, i) => a + Number(i.amount), 0),
         simulatedRevenue: invoices.filter((i) => i.simulated && monthKey(i.paidAt!) === m).reduce((a, i) => a + Number(i.amount), 0),
@@ -647,7 +640,7 @@ export class AdminInsightsService {
     return {
       lockedAccounts: locked.map((u) => ({ ...u, lockedUntil: iso(u.lockedUntil) })),
       repeatedFailures: risky,
-      adminsWithoutMfa: admins.filter((u) => isPlatformAdminRole(u.role.code) && u.platformMfa?.status !== 'ENABLED').map((u) => ({ id: u.id, email: u.email, role: u.role.code })),
+      adminsWithoutMfa: admins.filter((u) => u.platformMfa?.status !== 'ENABLED').map((u) => ({ id: u.id, email: u.email, role: u.role.code })),
       deniedActions: denied.map(audit),
       sensitiveActions: sensitive.map(audit),
     };

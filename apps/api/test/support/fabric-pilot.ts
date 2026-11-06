@@ -12,20 +12,18 @@ import {
 } from '@agri-trace/fabric-gateway';
 
 /** Linux and optional Windows/WSL pilot; never assumes a user's home/UNC path. */
-export const PILOT_ROOT =
+const PILOT_ROOT =
   process.env.FABRIC_ROOT ?? path.join(homedir(), 'agritrace-fabric');
 export const CHAINCODE = 'agritrace';
 export const CONTRACT = 'AgriTraceContract';
 export const WRITER_AUTHORITY = 'agritrace-relayer-b';
 
-export type Org = 'org1' | 'org2' | 'org3';
+type Org = 'org1';
 const offset = Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? '0');
 if (!Number.isInteger(offset) || offset < 0 || offset > 50000)
   throw new Error('Invalid Fabric test port offset');
 const ORGS = {
-  org1: { dir: 'net', msp: 'Org1MSP', endpoint: `localhost:${7051 + offset}` },
-  org2: { dir: 'net', msp: 'Org2MSP', endpoint: `localhost:${9051 + offset}` },
-  org3: { dir: 'self', msp: 'Org3MSP', endpoint: `localhost:${11051 + offset}` },
+  org1: { dir: 'net', msp: 'AgritraceMSP', endpoint: `localhost:${7051 + offset}` },
 } as const;
 
 const orgDir = (org: Org) =>
@@ -36,9 +34,9 @@ const orgDir = (org: Org) =>
     'peerOrganizations',
     `${org}.example.com`,
   );
-export const userMsp = (org: Org, user: string) =>
+const userMsp = (org: Org, user: string) =>
   path.join(orgDir(org), 'users', `${user}@${org}.example.com`, 'msp');
-export const peerCa = (org: Org) =>
+const peerCa = (org: Org) =>
   path.join(orgDir(org), 'peers', `peer0.${org}.example.com`, 'tls', 'ca.crt');
 
 const open: GatewayConnection[] = [];
@@ -84,20 +82,18 @@ export function closePilotConnections() {
  * governed MSPs (the harness plays the owner's operator for Org2/Org3). */
 export async function pilotOperator(
   channel: string,
-  ownerOrg: 'org2' | 'org3',
+  _ownerOrg: 'org1',
 ) {
   const controller = await pilotClient('org1', 'controller', channel);
   const admin1 = await pilotClient('org1', 'Admin', channel);
-  const owner = await pilotClient(ownerOrg, 'Admin', channel);
   const relayer = await pilotClient('org1', 'relayer', channel);
   return {
     reader: relayer.client,
     relayerFingerprint: relayer.fingerprint,
     operator: new RegistryOperator(controller.client, {
-      Org1MSP: admin1.client,
-      [ORGS[ownerOrg].msp]: owner.client,
+      AgritraceMSP: admin1.client,
     }),
-    approvers: ['Org1MSP', ORGS[ownerOrg].msp],
+    approvers: ['AgritraceMSP'],
   };
 }
 
@@ -121,7 +117,7 @@ export function writeBindingsConfig(digests: string[]): string {
         peerEndpoint: ORGS.org1.endpoint,
         peerHostAlias: 'peer0.org1.example.com',
         tlsCertPath: peerCa('org1'),
-        mspId: 'Org1MSP',
+        mspId: 'AgritraceMSP',
         relayer: identity('relayer'),
         controller: identity('controller'),
         admin: identity('Admin'),

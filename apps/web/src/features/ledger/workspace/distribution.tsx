@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
-import { useFieldArray, useWatch, type Control } from "react-hook-form";
+import { useFieldArray, useWatch, type Control, type UseFormSetValue } from "react-hook-form";
 import { z } from "zod";
 import { Plus, Trash2 } from "lucide-react";
 import {usePathname,useRouter} from "next/navigation";
 import DistributionSigningPage from "./chain-signing";
 import {DistributionSignature} from "./distribution-signing";
+import { PhotoInput, usePhotoUploads } from "./handover-photos";
 
 import { distApi } from "@/lib/ledger/dist-api";
-import type {Phase, PickupRequest, Transfer, TransferAction, TransferDetail, TransportMode } from "@/lib/ledger/dist-types";
+import type {Phase, Transfer, TransferAction, TransferDetail, TransportMode } from "@/lib/ledger/dist-types";
 import { wapi } from "@/lib/ledger/enterprise-coordination-api";
 import {useAuth as useSession} from "@/lib/auth-store";
 import { fmtDateTime, fmtNumber } from "@/lib/ledger/format";
@@ -18,6 +19,7 @@ import { localized, t as tr } from "@/lib/ledger/i18n";
 import { isoToLocal, localToIso } from "@/lib/ledger/ops-dates";
 
 import { useNow } from "@/lib/ledger/use-now";
+import { checkQuantityLimits, maxQuantityHint } from "@/lib/ledger/quantity-limit";
 import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
 
@@ -26,10 +28,11 @@ import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
+import { TransferRouteSection } from "@/components/ledger/workspace/transfer-route";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
-export const TRANSFER_STATUS_LABEL: Record<string, string> = localized({ PROPOSED: "Chờ đồng thuận", READY: "Sẵn sàng lấy hàng", IN_TRANSIT: "Đang vận chuyển", DELIVERED: "Đã giao", CANCELLED: "Đã hủy" });
+const TRANSFER_STATUS_LABEL: Record<string, string> = localized({ PROPOSED: "Chờ đồng thuận", READY: "Sẵn sàng lấy hàng", IN_TRANSIT: "Đang vận chuyển", DELIVERED: "Đã giao", CANCELLED: "Đã hủy" });
 const TRANSFER_TONE: Record<string, "info" | "brand" | "ok" | "neutral" | "warn"> = { PROPOSED: "info", READY: "warn", IN_TRANSIT: "brand", DELIVERED: "ok", CANCELLED: "neutral" };
 const ACTION_LABEL: Record<string, string> = localized({
   CONSENT: "Ký đồng thuận",
@@ -37,6 +40,8 @@ const ACTION_LABEL: Record<string, string> = localized({
   PICKUP: "Ký lấy hàng",
   DELIVERY: "Ký giao hàng",
   ACTUAL_RECEIPT: "Lập biên bản thực nhận",
+  PHOTOS_PICKUP: "Chụp ảnh lấy hàng",
+  PHOTOS_DELIVERY: "Chụp ảnh giao hàng",
   CANCEL: "Hủy chặng",
   OBSERVE: "Ghi nhật ký vận chuyển",
   RETURN: "Đề nghị trả hàng",
@@ -45,13 +50,13 @@ const ACTION_LABEL: Record<string, string> = localized({
   RECONCILE_REMAINDER: "Đối soát phần còn lại",
 });
 const ROLE_LABEL: Record<string, string> = localized({ SENDER: "Bên giao", CARRIER: "Bên vận chuyển", RECEIVER: "Bên nhận" });
+const PHASE_STEP: Record<Phase, string> = localized({ CONSENT: "Đồng thuận", PICKUP: "Lấy hàng", DELIVERY: "Giao hàng" });
 const PHASE_LABEL: Record<Phase, string> = localized({ CONSENT: "Đồng thuận các bên", PICKUP: "Lấy hàng (giao + người chở)", DELIVERY: "Giao hàng (người chở + nhận)" });
-export const TRANSPORT_MODE_LABEL: Record<TransportMode, string> = localized({ PLATFORM_CARRIER: "Đơn vị vận chuyển trên AgriTrace", EXTERNAL_CARRIER: "Thuê đơn vị vận chuyển ngoài", SELF_DELIVERY: "Bên giao tự chở", RECEIVER_PICKUP: "Bên nhận tự đến lấy" });
+const TRANSPORT_MODE_LABEL: Record<TransportMode, string> = localized({ PLATFORM_CARRIER: "Đơn vị vận chuyển trên AgriTrace", EXTERNAL_CARRIER: "Thuê đơn vị vận chuyển ngoài", SELF_DELIVERY: "Bên giao tự chở" });
 const TRANSPORT_MODE_HINT: Record<TransportMode, string> = localized({
-  PLATFORM_CARRIER: "Ba bên ký: giao + vận chuyển ký lấy hàng, vận chuyển + nhận ký giao hàng. Đơn vị vận chuyển ghi được nhiệt độ trên đường.",
+  PLATFORM_CARRIER: "Ba bên ký: giao + vận chuyển ký lấy hàng, vận chuyển + nhận ký giao hàng. Xe đã khai có GPS thì vị trí được ghi tự động từ lúc ký lấy hàng đến lúc ký nhận.",
   EXTERNAL_CARRIER: "Bên thuê xe giữ trách nhiệm hàng trên đường. Bên giao thuê: bên giao + nhận ký khi giao. Bên nhận thuê: hai bên ký lúc xe lấy hàng.",
-  SELF_DELIVERY: "Bên giao giữ hàng tới nơi; bên giao + nhận ký khi giao hàng.",
-  RECEIVER_PICKUP: "Bên giao + nhận ký tại điểm lấy hàng; quyền giữ hàng chuyển sang bên nhận ngay.",
+  SELF_DELIVERY: "Bên giao giữ hàng tới nơi. Chọn tài xế là nhân viên có quyền Lái xe ở cơ sở giao: chỉ tài xế đó (hoặc chủ doanh nghiệp) ký lấy hàng và giao hàng trên app AgriTrace. Chọn xe đã khai có GPS để ghi hành trình.",
 });
 const DEC = /^\d{1,11}(\.\d{1,3})?$/;
 const dec = (msg = () => tr("Số không âm, tối đa 3 chữ số thập phân")) => z.string().regex(DEC, { error: msg });
@@ -60,8 +65,7 @@ const reason10 = z.string().trim().min(10, { error: () => tr("Tối thiểu 10 k
 export default function DistributionPage({route}:{route:import("@/lib/ledger/route-input").LedgerRouteInput}) {
  const pathname=usePathname(),router=useRouter(),routeId=typeof route.params.id==="string"?route.params.id:undefined,isNew=pathname==="/distribution/new";
   const { can } = useWorkspaceAccess();
-  const [tab, setTab] = useState<"transfers" | "tasks" | "requests" | "keys">("transfers");
-  const [fromRequest, setFromRequest] = useState<PickupRequest | null>(null);
+  const [tab, setTab] = useState<"transfers" | "tasks" | "keys">("transfers");
   const [openId, setOpenId] = useState<string | null>(routeId??null);
   const transfers = useQuery({ queryKey: ["dist-transfers"], queryFn: distApi.transfers, enabled: can("distribution.read") });
   const create = useDialog();
@@ -78,14 +82,14 @@ export default function DistributionPage({route}:{route:import("@/lib/ledger/rou
     <>
       <PageHeader
         title={tr("Giao nhận")}
-        description={tr("Giao hàng giữa hai doanh nghiệp đã liên kết đối tác. Chở hàng bằng đơn vị vận chuyển trên AgriTrace, thuê xe ngoài, bên giao tự chở hoặc bên nhận tự đến lấy. Phiếu tự đi theo chuỗi của lô; bên nhận chưa ở chuỗi được thêm vào khi đồng thuận. Mỗi lần hàng đổi người giữ đều có hai bên ký; tồn kho chỉ dịch chuyển khi đủ chữ ký.")}
+        description={tr("Giao hàng giữa hai doanh nghiệp đã liên kết đối tác. Chở hàng bằng đơn vị vận chuyển trên AgriTrace, thuê xe ngoài hoặc bên giao tự chở bằng tài xế của mình. Phiếu tự đi theo chuỗi của lô; bên nhận chưa ở chuỗi được thêm vào khi đồng thuận. Mỗi lần hàng đổi người giữ đều có hai bên ký; tồn kho chỉ dịch chuyển khi đủ chữ ký.")}
         actions={can("distribution.write") && <Button size="sm" onClick={() => router.push("/distribution/new")}><Plus /> {tr("Tạo chặng giao nhận")}</Button>}
       />
       <PageBody>
         <div role="tablist" className="flex gap-1">
-          {(["transfers", "tasks", "requests", "keys"] as const).map((k) => (
+          {(["transfers", "tasks", "keys"] as const).map((k) => (
             <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)} className={cn("h-8 rounded-md border px-3 text-[12.5px] font-medium", tab === k ? "border-ink bg-ink text-canvas" : "border-line bg-card")}>
-              {{ transfers: tr("Chặng giao nhận"), tasks: tr("Việc chờ"), requests: tr("Yêu cầu lấy hàng"), keys: tr("Khóa ký") }[k]}
+              {{ transfers: tr("Chặng giao nhận"), tasks: tr("Việc chờ"), keys: tr("Khóa ký") }[k]}
             </button>
           ))}
         </div>
@@ -95,11 +99,10 @@ export default function DistributionPage({route}:{route:import("@/lib/ledger/rou
           </div>
         )}
         {tab === "tasks" && <Tasks onOpen={setOpenId} />}
-        {tab === "requests" && <PickupRequests onCreate={(r) => { setFromRequest(r); create.open(true); }} />}
         {tab === "keys" && <DistributionSigningPage/>}
       </PageBody>
       <TransferSheet id={openId} view={pathname.endsWith("/journal")?"journal":"detail"} onClose={() => {setOpenId(null);router.push("/distribution");}}/>
-      {(create.target||isNew)&&can("distribution.write")&&<CreateTransfer request={fromRequest} props={{open:true,onOpenChange:o=>{if(!o){create.close();setFromRequest(null);if(isNew)router.push("/distribution");}}}}/>}
+      {(create.target||isNew)&&can("distribution.write")&&<CreateTransfer props={{open:true,onOpenChange:o=>{if(!o){create.close();if(isNew)router.push("/distribution");}}}}/>}
     </>
   );
 }
@@ -150,7 +153,7 @@ function Tasks({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ---------------------------------------------------------------------------
-const TRANSPORT_MODES = ["PLATFORM_CARRIER", "EXTERNAL_CARRIER", "SELF_DELIVERY", "RECEIVER_PICKUP"] as const;
+const TRANSPORT_MODES = ["PLATFORM_CARRIER", "EXTERNAL_CARRIER", "SELF_DELIVERY"] as const;
 const optText = (min: number, max: number) => z.union([z.literal(""), z.string().trim().min(min, { error: () => tr("Tối thiểu {p0} ký tự", { p0: min }) }).max(max)]).optional();
 const createSchema = z
   .object({
@@ -162,6 +165,7 @@ const createSchema = z
     carrierSiteId: z.string().optional(),
     receiverSiteId: z.string().min(1, { error: () => tr("Chọn cơ sở nhận") }),
     vehicleId: z.string().optional(),
+    driverUserId: z.string().optional(),
     carrierName: optText(2, 255),
     registration: optText(3, 40),
     driverName: optText(2, 255),
@@ -175,20 +179,22 @@ const createSchema = z
   })
   .refine((v) => v.transportMode !== "PLATFORM_CARRIER" || !!v.carrierId, { path: ["carrierId"], error: () => tr("Chọn đơn vị vận chuyển") })
   .refine((v) => v.transportMode !== "PLATFORM_CARRIER" || !!v.carrierSiteId, { path: ["carrierSiteId"], error: () => tr("Chọn cơ sở của đơn vị vận chuyển") })
+  .refine((v) => v.transportMode !== "SELF_DELIVERY" || !!v.driverUserId, { path: ["driverUserId"], error: () => tr("Chọn tài xế") })
   .refine((v) => v.transportMode !== "EXTERNAL_CARRIER" || !!v.carrierName, { path: ["carrierName"], error: () => tr("Nhập tên đơn vị vận chuyển") })
   .refine((v) => !v.plannedDeliveryAt || v.plannedDeliveryAt >= v.plannedPickupAt, { path: ["plannedDeliveryAt"], error: () => tr("Dự kiến giao không trước dự kiến lấy hàng") })
   .refine((v) => new Set(v.lines.map((l) => l.lotId)).size === v.lines.length, { path: ["lines"], error: () => tr("Không lặp lô trong cùng giao nhận") });
 
-function transportSummary(t: Pick<Transfer, "transportMode" | "transportDetails" | "carrierName" | "carrierId" | "senderId">) {
+function transportSummary(t: Pick<Transfer, "transportMode" | "transportDetails" | "carrierName" | "carrierId" | "senderId"> & { senderName?: string | null; receiverName?: string | null }) {
   const mode = t.transportMode ?? "PLATFORM_CARRIER";
   if (mode === "PLATFORM_CARRIER") return t.carrierName ?? "";
   const plate = t.transportDetails?.registration ? ` · ${t.transportDetails.registration}` : "";
   if (mode === "EXTERNAL_CARRIER")
     return `${t.transportDetails?.carrierName ?? ""} (${t.carrierId === t.senderId ? tr("bên giao thuê") : tr("bên nhận thuê")})${plate}`;
-  return `${TRANSPORT_MODE_LABEL[mode]}${plate}`;
+  // Self delivery: the sender carries the goods itself.
+  return `${t.senderName ?? TRANSPORT_MODE_LABEL[mode]}${plate}`;
 }
 
-function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChange: (o: boolean) => void }; request?: PickupRequest | null }) {
+function CreateTransfer({ props }: { props: { open: boolean; onOpenChange: (o: boolean) => void } }) {
   const { user } = useSession();
   const now = useNow();
   const options = useQuery({ queryKey: ["dist-options"], queryFn: distApi.options });
@@ -199,26 +205,38 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
   return (
     <CommandDialog
       {...props}
-      title={request ? tr("Lập phiếu từ yêu cầu lấy hàng") : tr("Tạo chặng giao nhận")}
+      title={tr("Tạo chặng giao nhận")}
       endpoint="POST /distribution/transfers"
       description={tr("Lượng giao được giữ chỗ tại cơ sở giao cho tới khi lấy hàng hoặc hủy. Bên nhận là chế biến, phân phối hoặc bán lẻ đã liên kết đối tác với bạn; phiếu đi theo chuỗi của lô.")}
-      schema={createSchema}
-      defaultValues={{ transportMode: request ? "RECEIVER_PICKUP" : "PLATFORM_CARRIER", externalHirer: "SENDER", carrierId: "", receiverId: request?.receiverId ?? "", senderSiteId: "", carrierSiteId: "", receiverSiteId: "", vehicleId: "", carrierName: "", registration: "", driverName: "", driverPhone: "", origin: "", destination: "", plannedPickupAt: isoToLocal(request?.preferredPickupAt ?? new Date(now + 3600_000).toISOString()), plannedDeliveryAt: "", note: request?.note ?? "", lines: [{ lotId: "", quantity: "" }] }}
+      schema={createSchema.superRefine((v, ctx) => {
+        const lots = stock.data?.lots ?? [];
+        checkQuantityLimits(ctx, v.lines.map((l, i) => {
+          const lot = lots.find((x) => x.lotId === l.lotId);
+          return { path: ["lines", i, "quantity"], value: l.quantity, max: lot?.siteHoldings.find((h) => h.siteId === v.senderSiteId)?.available, unit: lot?.unit };
+        }));
+      })}
+      defaultValues={{ transportMode: "PLATFORM_CARRIER", externalHirer: "SENDER", carrierId: "", receiverId: "", senderSiteId: "", carrierSiteId: "", receiverSiteId: "", vehicleId: "", driverUserId: "", carrierName: "", registration: "", driverName: "", driverPhone: "", origin: "", destination: "", plannedPickupAt: isoToLocal(new Date(now + 3600_000).toISOString()), plannedDeliveryAt: "", note: "", lines: [{ lotId: "", quantity: "" }] }}
       submitLabel={tr("Tạo chặng")}
-      invalidate={[["dist-transfers"], ["dist-report"], ["dist-tasks"], ["dist-pickups"]]}
+      invalidate={[["dist-transfers"], ["dist-report"], ["dist-tasks"]]}
       wide
       run={(v, cmd) => {
         const platform = v.transportMode === "PLATFORM_CARRIER";
-        const details = { carrierName: v.transportMode === "EXTERNAL_CARRIER" ? v.carrierName || undefined : undefined, registration: v.registration || undefined, driverName: v.driverName || undefined, driverPhone: v.driverPhone || undefined };
+        const vehicleOrganization = v.transportMode === "PLATFORM_CARRIER" ? v.carrierId : v.transportMode === "SELF_DELIVERY" ? me : undefined;
+        const declaredVehicle = vehicleOrganization ? options.data?.vehicles.find((vehicle) => vehicle.id === v.vehicleId && vehicle.organizationId === vehicleOrganization) : undefined;
+        const self = v.transportMode === "SELF_DELIVERY";
+        const registration = self && v.vehicleId ? declaredVehicle?.registration : v.registration;
+        // Self delivery: the API fills the driver's name and phone from the chosen member.
+        const details = { carrierName: v.transportMode === "EXTERNAL_CARRIER" ? v.carrierName || undefined : undefined, registration: registration || undefined, driverName: self ? undefined : v.driverName || undefined, driverPhone: self ? undefined : v.driverPhone || undefined };
         return distApi.create(
           {
             transportMode: v.transportMode,
             externalHirer: v.transportMode === "EXTERNAL_CARRIER" ? v.externalHirer : undefined,
             carrierId: platform ? v.carrierId : undefined,
             carrierSiteId: platform ? v.carrierSiteId : undefined,
-            vehicleId: platform ? v.vehicleId || undefined : undefined,
+            // ADR-006: the carrying party may pick its own declared vehicle (GPS tracking).
+            vehicleId: v.transportMode !== "EXTERNAL_CARRIER" ? v.vehicleId || undefined : undefined,
             transportDetails: platform ? undefined : details,
-            pickupRequestId: request?.id,
+            driverUserId: self ? v.driverUserId : undefined,
             receiverId: v.receiverId,
             senderSiteId: v.senderSiteId,
             receiverSiteId: v.receiverSiteId,
@@ -237,14 +255,13 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
         const c = f.control as unknown as Control<z.infer<typeof createSchema>>;
         return (
           <>
-            <TransportFields control={c} request={!!request} carriers={partyOrgs.filter((o) => o.type === "TRANSPORTER")} sites={options.data?.items ?? []} vehicles={options.data?.vehicles ?? []} />
+            <TransportFields control={c} setValue={f.setValue} me={me} carriers={partyOrgs.filter((o) => o.type === "TRANSPORTER")} sites={options.data?.items ?? []} vehicles={options.data?.vehicles ?? []} drivers={options.data?.drivers ?? []} />
             <div className="grid gap-3 sm:grid-cols-2">
               <SelectField control={c} name="senderSiteId" label={tr("Cơ sở giao (của bạn)")} options={(options.data?.items ?? []).filter((s) => s.organizationId === me).map((s) => ({ value: s.id, label: s.name }))} />
-              <SelectField control={c} name="receiverId" label={tr("Bên nhận")} options={partyOrgs.filter((o) => ["PROCESSOR", "DISTRIBUTOR", "RETAILER"].includes(o.type) && (!request || o.id === request.receiverId)).map((o) => ({ value: o.id, label: o.name }))} />
+              <SelectField control={c} name="receiverId" label={tr("Bên nhận")} options={partyOrgs.filter((o) => ["PROCESSOR", "DISTRIBUTOR", "RETAILER"].includes(o.type)).map((o) => ({ value: o.id, label: o.name }))} />
               <PartySite control={c} party="receiverId" name="receiverSiteId" label={tr("Cơ sở nhận")} sites={options.data?.items ?? []} />
               <TextField control={c} name="plannedPickupAt" label={tr("Dự kiến lấy hàng")} type="datetime-local" />
-              <TextField control={c} name="origin" label={tr("Nơi lấy hàng")} />
-              <TextField control={c} name="destination" label={tr("Nơi giao")} />
+              <LinkedPlaceFields control={c} setValue={f.setValue} sites={options.data?.items ?? []} />
               <TextField control={c} name="plannedDeliveryAt" label={tr("Dự kiến giao")} type="datetime-local" />
             </div>
             <LinesField control={c} lots={(stock.data?.lots ?? []).filter((l) => !l.blocked)} />
@@ -255,19 +272,42 @@ function CreateTransfer({ props, request }: { props: { open: boolean; onOpenChan
     </CommandDialog>
   );
 }
-function TransportFields({ control, request, carriers, sites, vehicles }: { control: Control<CreateValues>; request: boolean; carriers: { id: string; name: string }[]; sites: { id: string; organizationId: string; name: string }[]; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
+type DriverOption = { id: string; fullName: string; phone?: string | null; siteIds: string[] };
+function TransportFields({ control, setValue, me, carriers, sites, vehicles, drivers }: { control: Control<CreateValues>; setValue: UseFormSetValue<CreateValues>; me: string; carriers: { id: string; name: string }[]; sites: { id: string; organizationId: string; name: string }[]; vehicles: { id: string; organizationId: string; registration: string; kind: string }[]; drivers: DriverOption[] }) {
   const mode = useWatch({ control, name: "transportMode" });
+  const carrierId = useWatch({ control, name: "carrierId" });
+  const vehicleId = useWatch({ control, name: "vehicleId" });
+  const senderSiteId = useWatch({ control, name: "senderSiteId" });
+  const driverUserId = useWatch({ control, name: "driverUserId" });
+  // Drivers assigned to the sender site; the API re-checks drive and sign scope on the lot's chain.
+  const siteDrivers = drivers.filter((d) => !senderSiteId || d.siteIds.includes(senderSiteId));
+  const vehicleOrganization = mode === "PLATFORM_CARRIER" ? carrierId : mode === "SELF_DELIVERY" ? me : undefined;
+  const selectedVehicle = vehicleOrganization ? vehicles.find((vehicle) => vehicle.id === vehicleId && vehicle.organizationId === vehicleOrganization) : undefined;
+  useEffect(() => {
+    if (mode === "EXTERNAL_CARRIER") {
+      if (vehicleId) setValue("vehicleId", "");
+      setValue("registration", "");
+      return;
+    }
+    if (vehicleId && !selectedVehicle) setValue("vehicleId", "");
+    const autoPlate = selectedVehicle?.registration ?? "";
+    setValue("registration", autoPlate, { shouldValidate: true });
+  }, [mode, selectedVehicle, setValue, vehicleId]);
+  useEffect(() => {
+    if (driverUserId && (mode !== "SELF_DELIVERY" || !siteDrivers.some((d) => d.id === driverUserId))) setValue("driverUserId", "");
+  }, [mode, driverUserId, siteDrivers, setValue]);
   return (
     <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
       <legend className="px-1 text-[13px] font-medium">{tr("Cách vận chuyển")}</legend>
-      <SelectField control={control} name="transportMode" label={tr("Ai chở hàng")} options={TRANSPORT_MODES.filter((m) => !request || m === "RECEIVER_PICKUP" || m === "EXTERNAL_CARRIER").map((m) => ({ value: m, label: TRANSPORT_MODE_LABEL[m] }))} />
+      <SelectField control={control} name="transportMode" label={tr("Ai chở hàng")} options={TRANSPORT_MODES.map((m) => ({ value: m, label: TRANSPORT_MODE_LABEL[m] }))} />
       <p className="text-[12px] text-ink-2">{TRANSPORT_MODE_HINT[mode]}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {mode === "PLATFORM_CARRIER" ? (
           <>
             <SelectField control={control} name="carrierId" label={tr("Đơn vị vận chuyển")} options={carriers.map((o) => ({ value: o.id, label: o.name }))} />
             <PartySite control={control} party="carrierId" name="carrierSiteId" label={tr("Cơ sở vận chuyển")} sites={sites} />
-            <PartyVehicle control={control} vehicles={vehicles} />
+            <PartyVehicle control={control} vehicles={vehicles} party="carrierId" />
+            <VehiclePlateValue registration={selectedVehicle?.registration} />
           </>
         ) : (
           <>
@@ -277,9 +317,24 @@ function TransportFields({ control, request, carriers, sites, vehicles }: { cont
                 <TextField control={control} name="carrierName" label={tr("Tên đơn vị vận chuyển")} max={255} />
               </>
             )}
-            <TextField control={control} name="registration" label={tr("Biển số xe")} max={40} />
-            <TextField control={control} name="driverName" label={tr("Tài xế / người nhận hàng")} max={255} />
-            <TextField control={control} name="driverPhone" label={tr("Số điện thoại")} inputMode="tel" />
+            {mode === "SELF_DELIVERY" && <PartyVehicle control={control} vehicles={vehicles} party={me} label={tr("Xe đã khai (tùy chọn, để theo dõi GPS)")} />}
+            {mode === "EXTERNAL_CARRIER" || (!selectedVehicle && mode === "SELF_DELIVERY") ? (
+              <TextField control={control} name="registration" label={tr("Biển số xe")} hint={mode === "EXTERNAL_CARRIER" ? tr("Nhập biển số do đơn vị vận chuyển ngoài cung cấp.") : tr("Chọn xe đã khai để tự liên kết hoặc nhập biển số thủ công.")} autoComplete="off" max={40} />
+            ) : <VehiclePlateValue registration={selectedVehicle?.registration} />}
+            {mode === "SELF_DELIVERY" ? (
+              <SelectField
+                control={control}
+                name="driverUserId"
+                label={tr("Tài xế")}
+                hint={senderSiteId ? siteDrivers.length ? tr("Nhân viên có quyền Lái xe ở cơ sở giao; người này ký lấy hàng và giao hàng.") : tr("Chưa có nhân viên có quyền Lái xe ở cơ sở giao. Gán nhóm quyền Tài xế giao hàng cho thành viên trước.") : tr("Chọn cơ sở giao để thấy tài xế.")}
+                options={siteDrivers.map((d) => ({ value: d.id, label: d.phone ? `${d.fullName} · ${d.phone}` : d.fullName }))}
+              />
+            ) : (
+              <>
+                <TextField control={control} name="driverName" label={tr("Tài xế")} max={255} />
+                <TextField control={control} name="driverPhone" label={tr("Số điện thoại")} inputMode="tel" />
+              </>
+            )}
           </>
         )}
       </div>
@@ -287,110 +342,70 @@ function TransportFields({ control, request, carriers, sites, vehicles }: { cont
   );
 }
 
-function PickupRequests({ onCreate }: { onCreate: (r: PickupRequest) => void }) {
-  const { can } = useWorkspaceAccess();
-  const { user } = useSession();
-  const q = useQuery({ queryKey: ["dist-pickups"], queryFn: distApi.pickupRequests });
-  const partners = useQuery({ queryKey: ["ws-partners"], queryFn: wapi.partners });
-  const ask = useDialog();
-  const resolve = useDialog<{ r: PickupRequest; action: "decline" | "cancel" }>();
-  const me = user?.organizationId ?? "";
-  const senders = (partners.data ?? []).filter((p) => p.status === "ACTIVE").flatMap((p) => (p.inviterId === me ? p.invitee : p.inviter) ?? []);
-  const STATUS: Record<PickupRequest["status"], string> = localized({ OPEN: "Đang chờ", ACCEPTED: "Đã lập phiếu", DECLINED: "Bị từ chối", CANCELLED: "Đã rút" });
+type CreateValues = z.infer<typeof createSchema>;
+function LinkedPlaceFields({ control, setValue, sites }: { control: Control<CreateValues>; setValue: UseFormSetValue<CreateValues>; sites: { id: string; organizationId: string; name: string }[] }) {
+  const senderSiteId = useWatch({ control, name: "senderSiteId" });
+  const receiverSiteId = useWatch({ control, name: "receiverSiteId" });
+  const senderSiteName = sites.find((site) => site.id === senderSiteId)?.name;
+  const receiverSiteName = sites.find((site) => site.id === receiverSiteId)?.name;
+  useEffect(() => {
+    setValue("origin", senderSiteName ?? "", { shouldValidate: !!senderSiteName });
+  }, [senderSiteId, senderSiteName, setValue]);
+  useEffect(() => {
+    setValue("destination", receiverSiteName ?? "", { shouldValidate: !!receiverSiteName });
+  }, [receiverSiteId, receiverSiteName, setValue]);
+  return <>
+    <LinkedPlaceValue label={tr("Nơi lấy hàng")} value={senderSiteName} empty={tr("Chọn cơ sở giao để tự điền")} />
+    <LinkedPlaceValue label={tr("Nơi giao")} value={receiverSiteName} empty={tr("Chọn cơ sở nhận để tự điền")} />
+  </>;
+}
+function LinkedPlaceValue({ label, value, empty }: { label: string; value?: string; empty: string }) {
+  const id = useId();
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="min-w-0 flex-1 text-[12.5px] text-ink-2">{tr("Bên nhận gửi yêu cầu tự đến lấy hàng; bên giao chọn lô, số lượng và lập phiếu từ yêu cầu.")}</p>
-        {can("distribution.write") && <Button size="sm" variant="outline" onClick={() => ask.open(true)}><Plus /> {tr("Yêu cầu lấy hàng")}</Button>}
-      </div>
-      <div className="overflow-hidden rounded-md border border-line bg-card">
-        <DataTable
-          rows={q.data}
-          loading={q.isLoading}
-          error={q.error}
-          onRetry={() => q.refetch()}
-          rowKey={(r) => r.id}
-          empty={<EmptyState title={tr("Chưa có yêu cầu lấy hàng")} />}
-          columns={[
-            { key: "who", header: tr("Bên giao → bên nhận"), cell: (r) => <span className="flex flex-col text-[12.5px]"><span>{r.senderName} → {r.receiverName}</span><span className="text-[11.5px] text-ink-2">{r.direction === "INCOMING" ? tr("Gửi tới bạn") : tr("Bạn gửi")}</span></span> },
-            { key: "note", header: tr("Nội dung"), cell: (r) => <span className="line-clamp-2 text-[12.5px]">{r.note}</span> },
-            { key: "at", header: tr("Muốn lấy lúc"), hideBelow: "md", cell: (r) => <span className="font-mono text-[12px]">{fmtDateTime(r.preferredPickupAt)}</span> },
-            { key: "status", header: tr("Trạng thái"), cell: (r) => <Badge tone={r.status === "OPEN" ? "info" : r.status === "ACCEPTED" ? "ok" : "neutral"}>{STATUS[r.status]}</Badge> },
-            { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (r) => r.status === "OPEN" && can("distribution.write") ? (
-              <span className="flex gap-1.5">
-                {r.direction === "INCOMING" ? (
-                  <>
-                    <Button size="xs" onClick={() => onCreate(r)}>{tr("Lập phiếu")}</Button>
-                    <Button size="xs" variant="outline" onClick={() => resolve.open({ r, action: "decline" })}>{tr("Từ chối")}</Button>
-                  </>
-                ) : (
-                  <Button size="xs" variant="outline" onClick={() => resolve.open({ r, action: "cancel" })}>{tr("Rút yêu cầu")}</Button>
-                )}
-              </span>
-            ) : null },
-          ]}
-        />
-      </div>
-      <CommandDialog
-        {...ask.props}
-        title={tr("Yêu cầu tự đến lấy hàng")}
-        endpoint="POST /distribution/pickup-requests"
-        description={tr("Bên giao nhận được yêu cầu và lập phiếu từ tồn kho của họ. Yêu cầu không giữ chỗ hàng.")}
-        schema={z.object({ senderId: z.string().min(1, { error: () => tr("Chọn bên giao") }), preferredPickupAt: z.string().optional(), note: z.string().trim().min(5, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 5 }) }).max(1000) })}
-        defaultValues={{ senderId: "", preferredPickupAt: "", note: "" }}
-        submitLabel={tr("Gửi yêu cầu")}
-        invalidate={[["dist-pickups"]]}
-        run={(v, cmd) => distApi.requestPickup({ senderId: v.senderId, preferredPickupAt: localToIso(v.preferredPickupAt), note: v.note }, cmd)}
-      >
-        {(f) => (
-          <>
-            <SelectField control={f.control} name="senderId" label={tr("Bên giao")} options={senders.map((o) => ({ value: o.id, label: o.name }))} />
-            <TextField control={f.control} name="preferredPickupAt" label={tr("Muốn lấy lúc")} type="datetime-local" />
-            <TextAreaField control={f.control} name="note" label={tr("Sản phẩm, số lượng, ghi chú")} max={1000} />
-          </>
-        )}
-      </CommandDialog>
-      {resolve.target && (
-        <CommandDialog
-          {...resolve.props}
-          title={resolve.target.action === "decline" ? tr("Từ chối yêu cầu lấy hàng") : tr("Rút yêu cầu lấy hàng")}
-          endpoint={`POST /distribution/pickup-requests/:id/${resolve.target.action}`}
-          schema={z.object({ note: z.string().max(1000).optional() })}
-          defaultValues={{ note: "" }}
-          version={resolve.target.r.version}
-          tone="danger"
-          submitLabel={resolve.target.action === "decline" ? tr("Từ chối") : tr("Rút yêu cầu")}
-          invalidate={[["dist-pickups"]]}
-          run={(v, cmd) => distApi.resolvePickup(resolve.target!.r.id, resolve.target!.action, { version: resolve.target!.r.version, note: v.note || undefined }, cmd)}
-        >
-          {(f) => <TextAreaField control={f.control} name="note" label={tr("Lý do")} max={1000} />}
-        </CommandDialog>
-      )}
-    </section>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span id={`${id}-label`} className="text-[13px] font-medium">{label}<span aria-hidden className="ml-0.5 text-danger after:content-['*']" /></span>
+      <output aria-labelledby={`${id}-label`} aria-live="polite" className="flex h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-line bg-sunken px-2.5 text-sm">
+        <span className={value ? "truncate font-medium" : "truncate text-ink-2"}>{value ?? empty}</span>
+        {value && <span className="shrink-0 text-[11px] text-ink-2">{tr("Theo cơ sở")}</span>}
+      </output>
+    </div>
   );
 }
-type CreateValues = z.infer<typeof createSchema>;
+function VehiclePlateValue({ registration }: { registration?: string }) {
+  const id = useId();
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span id={`${id}-label`} className="text-[13px] font-medium">{tr("Biển số xe")}</span>
+      <output aria-labelledby={`${id}-label`} aria-live="polite" className="flex h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-line bg-sunken px-2.5 text-sm">
+        <span className={registration ? "truncate font-medium" : "truncate text-ink-2"}>{registration ?? tr("Chọn xe để tự liên kết biển số")}</span>
+        {registration && <span className="shrink-0 text-[11px] text-ink-2">{tr("Tự liên kết")}</span>}
+      </output>
+    </div>
+  );
+}
 function PartySite({ control, party, name, label, sites }: { control: Control<CreateValues>; party: "carrierId" | "receiverId"; name: "carrierSiteId" | "receiverSiteId"; label: string; sites: { id: string; organizationId: string; name: string }[] }) {
   const org = useWatch({ control, name: party });
   return <SelectField control={control} name={name} label={label} options={sites.filter((s) => s.organizationId === org).map((s) => ({ value: s.id, label: s.name }))} />;
 }
-function PartyVehicle({ control, vehicles }: { control: Control<CreateValues>; vehicles: { id: string; organizationId: string; registration: string; kind: string }[] }) {
-  const org = useWatch({ control, name: "carrierId" });
-  return <SelectField control={control} name="vehicleId" label={tr("Phương tiện")} options={vehicles.filter((v) => v.organizationId === org).map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }))} />;
+function PartyVehicle({ control, vehicles, party, label }: { control: Control<CreateValues>; vehicles: { id: string; organizationId: string; registration: string; kind: string }[]; party: string; label?: string }) {
+  const watched = useWatch({ control, name: party === "receiverId" ? "receiverId" : "carrierId" });
+  const org = party === "receiverId" || party === "carrierId" ? watched : party;
+  return <SelectField control={control} name="vehicleId" label={label ?? tr("Phương tiện")} options={vehicles.filter((v) => v.organizationId === org).map((v) => ({ value: v.id, label: `${v.registration} · ${v.kind}` }))} />;
 }
 function LinesField({ control, lots }: { control: Control<CreateValues>; lots: { lotId: string; lotCode: string; productName: string; available: string; unit: string; siteHoldings: { siteId: string; available: string }[] }[] }) {
   const { fields, append, remove } = useFieldArray({ control, name: "lines" });
   const site = useWatch({ control, name: "senderSiteId" });
+  const lines = useWatch({ control, name: "lines" });
   const pickable = lots.filter((l) => l.siteHoldings.some((s) => s.siteId === site && Number(s.available) > 0));
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-1 text-[13px] font-medium">{tr("Dòng lô (tối đa 30)")}</legend>
       {!site && <p className="text-[12.5px] text-ink-2">{tr("Chọn cơ sở giao để thấy lô còn khả dụng tại cơ sở.")}</p>}
       {fields.map((f, i) => (
-        <div key={f.id} className="grid grid-cols-[minmax(0,1fr)_120px_auto] items-end gap-2">
-          <SelectField control={control} name={`lines.${i}.lotId`} label={tr("Lô {p0}", { p0: i + 1 })} options={pickable.map((l) => ({ value: l.lotId, label: `${l.lotCode} · ${l.productName} · ${tr("khả dụng")} ${fmtNumber(l.siteHoldings.find((s) => s.siteId === site)?.available)} ${l.unit}` }))} />
-          <TextField control={control} name={`lines.${i}.quantity`} label={tr("Số lượng")} inputMode="decimal" />
-          <Button type="button" variant="ghost" size="icon-sm" aria-label={tr("Bỏ dòng này")} onClick={() => remove(i)} disabled={fields.length === 1}><Trash2 /></Button>
+        <div key={f.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_auto]">
+          <SelectField control={control} name={`lines.${i}.lotId`} label={tr("Lô {p0}", { p0: i + 1 })} className="min-w-0" options={pickable.map((l) => ({ value: l.lotId, label: `${l.lotCode} · ${l.productName} · ${tr("khả dụng")} ${fmtNumber(l.siteHoldings.find((s) => s.siteId === site)?.available)} ${l.unit}` }))} />
+          <TextField control={control} name={`lines.${i}.quantity`} label={tr("Số lượng")} inputMode="decimal" hint={(() => { const lot = pickable.find((l) => l.lotId === lines?.[i]?.lotId); return maxQuantityHint(lot?.siteHoldings.find((h) => h.siteId === site)?.available, lot?.unit); })()} className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1" />
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={tr("Bỏ dòng này")} onClick={() => remove(i)} disabled={fields.length === 1} className="col-start-2 row-start-1 mt-6 sm:col-start-3"><Trash2 /></Button>
         </div>
       ))}
       <Button type="button" size="xs" variant="outline" className="self-start" onClick={() => append({ lotId: "", quantity: "" })} disabled={fields.length >= 30}><Plus /> {tr("Thêm dòng lô")}</Button>
@@ -489,24 +504,35 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                 <ul className="flex flex-col gap-1.5">
                   {(["CONSENT", "PICKUP", "DELIVERY"] as const).map((p) => {
                     const signed = t.attestations.filter((a) => a.phase === p && a.epoch === t.attestationEpoch);
-                    const need = p === "CONSENT" ? 3 : 2;
+                    // Same rule as the API (phaseParties): a party that also carries the goods signs once.
+                    const parties = [...new Set(p === "CONSENT" ? [t.senderId, t.carrierId, t.receiverId] : p === "PICKUP" ? [t.senderId, t.carrierId] : [t.carrierId, t.receiverId])];
+                    const name = (id: string) => (id === t.senderId ? t.senderName : id === t.receiverId ? t.receiverName : t.carrierName) ?? "";
+                    const done = parties.filter((id) => signed.some((a) => a.organizationId === id)).length;
                     return (
                       <li key={p} className="flex flex-wrap items-center gap-2 text-[13px]">
-                        <Badge tone={signed.length >= need ? "ok" : signed.length ? "warn" : "neutral"} dot>{signed.length}/{need}</Badge>
-                        <span>{PHASE_LABEL[p]}</span>
-                        <span className="text-[12px] text-ink-2">{signed.map((a) => (a.organizationId === t.senderId ? t.senderName : a.organizationId === t.carrierId ? t.carrierName : t.receiverName)).join(", ")}</span>
+                        <Badge tone={done >= parties.length ? "ok" : done ? "warn" : "neutral"} dot>{done}/{parties.length}</Badge>
+                        <span>{PHASE_STEP[p]}</span>
+                        <span className="text-[12px] text-ink-2">{parties.map((id) => `${signed.some((a) => a.organizationId === id) ? "✓ " : ""}${name(id)}`).join(" · ")}</span>
                       </li>
                     );
                   })}
                 </ul>
               </section>
+              {t.status !== "CANCELLED" && <TransferRouteSection transferId={t.id} status={t.status} />}
+              {(t.photos?.length || t.receipt?.photos?.length) ? (
+                <section className="flex flex-col gap-1 text-[13px]">
+                  <h3 className="text-[13px] font-semibold">{tr("Ảnh xác nhận")}</h3>
+                  {(["PICKUP", "DELIVERY"] as const).map((p) => { const n = t.photos?.filter((x) => x.phase === p).length ?? 0; return n ? <p key={p}>{PHASE_LABEL[p]}: {tr("{p0} ảnh, nằm trong nội dung ký", { p0: n })}</p> : null; })}
+                  {t.receipt?.photos?.length ? <p>{tr("Biên bản thực nhận: {p0} ảnh", { p0: t.receipt.photos.length })}</p> : null}
+                </section>
+              ) : null}
               {t.observations.length > 0 && (
                 <section className="flex flex-col gap-2">
                   <h3 className="text-[13px] font-semibold">{tr("Nhật ký vận chuyển")}</h3>
                   <ol className="flex flex-col gap-1 border-l-2 border-line pl-3 text-[13px]">
                     {t.observations.map((o) => (
                       <li key={o.id}>
-                        <span className="font-mono text-[11.5px] text-ink-2">{fmtDateTime(o.eventTime)}</span> {o.note}{o.temperature ? ` · ${o.temperature} °C` : ""}
+                        <span className="font-mono text-[11.5px] text-ink-2">{fmtDateTime(o.eventTime)}</span> {o.note}
                       </li>
                     ))}
                   </ol>
@@ -531,6 +557,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
 
             {(act.target==="CONSENT"||act.target==="PICKUP"||act.target==="DELIVERY")&&<DistributionSignature transfer={t} phase={act.target} props={act.props}/>}
             {act.target === "ACTUAL_RECEIPT" && <ReceiptDialog t={t} props={act.props} invalidate={invalidate} />}
+            {(act.target === "PHOTOS_PICKUP" || act.target === "PHOTOS_DELIVERY") && <HandoverPhotosDialog t={t} phase={act.target === "PHOTOS_PICKUP" ? "PICKUP" : "DELIVERY"} props={act.props} invalidate={invalidate} />}
             {act.target === "JOIN_CHAIN" && (
               <CommandDialog {...act.props} title={tr("Chấp nhận vào chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" })} endpoint="POST /distribution/transfers/:id/join-chain" description={t.chainAccess?.ownerIsSender ? tr("Lô thuộc chuỗi của bên giao. Doanh nghiệp bạn trở thành thành viên và tài khoản của bạn được cấp vai trò ký theo năng lực; quyền ký dùng được sau khi đồng bộ sổ cái.") : tr("Doanh nghiệp bạn trở thành thành viên chuỗi của lô. Chủ chuỗi cần cấp vai trò ký cho tài khoản của bạn trước khi ký đồng thuận.")} schema={z.object({})} defaultValues={{}} version={t.version} submitLabel={tr("Chấp nhận")} invalidate={invalidate} run={(_, cmd) => distApi.joinChain(t.id, { version: t.version }, cmd)}>
                 {() => null}
@@ -547,13 +574,10 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
               </CommandDialog>
             )}
             {(act.target === "OBSERVE" || view==="journal") && t.allowedActions.includes("OBSERVE") && (
-              <CommandDialog {...journalProps} title={tr("Ghi nhật ký vận chuyển")} endpoint="POST /distribution/transfers/:id/journal" description={tr("Nhiệt độ ghi tay, không phải dữ liệu thiết bị IoT.")} schema={z.object({ eventTime: z.string().min(1), note: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(1000), temperature: z.union([z.literal(""), z.string().regex(/^-?\d{1,2}(\.\d{1,2})?$/, { error: () => tr("Ví dụ: 4.5 hoặc -18") })]).optional() })} defaultValues={{ eventTime: nowLocal, note: "", temperature: "" }} submitLabel={tr("Ghi nhật ký")} invalidate={invalidate} run={(v, cmd) => distApi.observe(t.id, { eventTime: localToIso(v.eventTime)!, note: v.note, temperature: v.temperature || undefined }, cmd)}>
+              <CommandDialog {...journalProps} title={tr("Ghi nhật ký vận chuyển")} endpoint="POST /distribution/transfers/:id/journal" description={tr("Ghi tay các mốc trên đường (nguồn MANUAL); vị trí tự động do GPS trên xe ghi.")} schema={z.object({ eventTime: z.string().min(1), note: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(1000) })} defaultValues={{ eventTime: nowLocal, note: "" }} submitLabel={tr("Ghi nhật ký")} invalidate={invalidate} run={(v, cmd) => distApi.observe(t.id, { eventTime: localToIso(v.eventTime)!, note: v.note }, cmd)}>
                 {(f) => (
                   <>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <TextField control={f.control} name="eventTime" label={tr("Thời điểm")} type="datetime-local" />
-                      <TextField control={f.control} name="temperature" label={tr("Nhiệt độ (°C)")} />
-                    </div>
+                    <TextField control={f.control} name="eventTime" label={tr("Thời điểm")} type="datetime-local" />
                     <TextAreaField control={f.control} name="note" label={tr("Nội dung")} max={1000} />
                   </>
                 )}
@@ -591,6 +615,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
 }
 
 function ReceiptDialog({ t, props, invalidate }: { t: TransferDetail; props: { open: boolean; onOpenChange: (o: boolean) => void }; invalidate: unknown[][] }) {
+  const photos = usePhotoUploads({ entityType: "TRANSFER", entityId: t.id, kind: "TRANSFER_IMAGE", description: tr("Ảnh thực nhận") });
   const schema = z
     .object({ reason: reason10, lines: z.array(z.object({ lotId: z.string(), received: dec(), rejected: dec(), quarantined: dec() })) })
     .superRefine((v, ctx) =>
@@ -612,10 +637,15 @@ function ReceiptDialog({ t, props, invalidate }: { t: TransferDetail; props: { o
       wide
       submitLabel={tr("Lập biên bản")}
       invalidate={invalidate}
-      run={(v, cmd) => distApi.receipt(t.id, { version: t.version, reason: v.reason, lines: v.lines }, cmd)}
+      run={async (v, cmd) => {
+        const discrepancy = v.lines.some((l) => Number(l.rejected) > 0 || Number(l.quarantined) > 0 || Number(l.received) + Number(l.rejected) < Number(t.lines.find((x) => x.lotId === l.lotId)?.quantity ?? 0));
+        if (discrepancy && !photos.files.length) throw new Error(tr("Chụp ít nhất một ảnh khi nhận thiếu, từ chối hoặc cách ly hàng"));
+        return distApi.receipt(t.id, { version: t.version, reason: v.reason, lines: v.lines, photos: await photos.upload() }, cmd);
+      }}
     >
       {(f) => (
         <>
+          <PhotoInput label={tr("Ảnh hàng thực nhận (bắt buộc khi thiếu, từ chối hoặc cách ly)")} photos={photos} />
           {t.lines.map((l, i) => (
             <fieldset key={l.id} className="grid gap-2 rounded-md border border-line px-3 py-2 sm:grid-cols-3">
               <legend className="px-1 text-[12.5px] font-medium">{l.lotCode} · {tr("giao")} {fmtNumber(l.quantity)} {l.unit}</legend>
@@ -627,6 +657,31 @@ function ReceiptDialog({ t, props, invalidate }: { t: TransferDetail; props: { o
           <TextAreaField control={f.control} name="reason" label={tr("Ghi chú biên bản")} max={1000} />
         </>
       )}
+    </CommandDialog>
+  );
+}
+
+/** Pickup or delivery photos, added before anyone signs that phase so every
+ * signature covers their hashes. */
+function HandoverPhotosDialog({ t, phase, props, invalidate }: { t: TransferDetail; phase: "PICKUP" | "DELIVERY"; props: { open: boolean; onOpenChange: (o: boolean) => void }; invalidate: unknown[][] }) {
+  const photos = usePhotoUploads({ entityType: "TRANSFER", entityId: t.id, kind: "TRANSFER_IMAGE", description: phase === "PICKUP" ? tr("Ảnh lấy hàng") : tr("Ảnh giao hàng") });
+  return (
+    <CommandDialog
+      {...props}
+      title={phase === "PICKUP" ? tr("Ảnh lấy hàng") : tr("Ảnh giao hàng")}
+      endpoint="POST /distribution/transfers/:id/photos"
+      description={tr("Ảnh gắn trước khi ký; sau khi một bên đã ký bước này thì không thêm được nữa.")}
+      schema={z.object({})}
+      defaultValues={{}}
+      version={t.version}
+      submitLabel={tr("Gắn ảnh")}
+      invalidate={invalidate}
+      run={async (_v, cmd) => {
+        if (!photos.files.length) throw new Error(tr("Chọn ít nhất một ảnh"));
+        return distApi.photos(t.id, { version: t.version, phase, photos: await photos.upload() }, cmd);
+      }}
+    >
+      {() => <PhotoInput label={tr("Ảnh hàng hóa")} required photos={photos} />}
     </CommandDialog>
   );
 }

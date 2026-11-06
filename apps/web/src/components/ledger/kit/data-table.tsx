@@ -37,6 +37,8 @@ export function DataTable<R>({
   dense,
   caption,
   footer,
+  numbered = true,
+  rowNumberOffset = 0,
 }: {
   rows: R[] | undefined;
   columns: Column<R>[];
@@ -53,6 +55,10 @@ export function DataTable<R>({
   dense?: boolean;
   caption?: string;
   footer?: React.ReactNode;
+  /** Show an ordinal (STT) column; on by default for every list. */
+  numbered?: boolean;
+  /** Rows skipped by server-side paging before this page. */
+  rowNumberOffset?: number;
 }) {
   const router = useRouter();
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
@@ -91,6 +97,11 @@ export function DataTable<R>({
           {caption && <caption className="sr-only">{caption}</caption>}
           <thead>
             <tr className="border-b border-line bg-sunken text-left">
+              {numbered && (
+                <th scope="col" className="h-9 w-12 pl-4 pr-1 text-right text-[12px] font-semibold whitespace-nowrap text-ink-2">
+                  {tr("STT")}
+                </th>
+              )}
               {columns.map((c) => {
                 const active = sort?.key === c.key;
                 return (
@@ -118,7 +129,7 @@ export function DataTable<R>({
             </tr>
           </thead>
           <tbody>
-            {visible.map((r) => {
+            {visible.map((r, index) => {
               const k = rowKey(r);
               const selected = selectedKey === k;
               return (
@@ -134,6 +145,11 @@ export function DataTable<R>({
                     selected && "bg-brand-weak shadow-[inset_3px_0_0_var(--brand)] hover:bg-brand-weak",
                   )}
                 >
+                  {numbered && (
+                    <td className={cn("w-12 pl-4 pr-1 text-right align-middle font-mono text-[12px] text-ink-2 tabular-nums", dense ? "h-9" : "h-11 py-1.5")}>
+                      {rowNumberOffset + (pageSize ? current * pageSize : 0) + index + 1}
+                    </td>
+                  )}
                   {columns.map((c) => (
                     <td key={c.key} className={cn("px-3 align-middle first:pl-4 last:pr-4", dense ? "h-9" : "h-11 py-1.5", c.hideBelow && hide[c.hideBelow], c.className)}>
                       {c.cell(r)}

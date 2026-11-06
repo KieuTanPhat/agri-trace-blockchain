@@ -1,3 +1,4 @@
+import { effectiveRole } from '../auth/role-codes.js';
 import { assertEntitlement } from '../billing/billing-core.js';
 import { Body, ConflictException, Controller, ForbiddenException, Get, Injectable, NotFoundException, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -15,7 +16,7 @@ import { ApiDataResponse } from '../../common/api/openapi.js';
 import type { CommandActor } from '../../common/idempotency/command-authorization.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
-import { enterpriseAuthority } from './enterprise-policy.js';
+import { enterpriseAuthority, STAFF_TIER } from './enterprise-policy.js';
 import { EnterpriseWorkspaceService } from './enterprise-workspace.service.js';
 import { EnterpriseMemberInput, WorkspaceRecordDto, type MemberRoleInput } from './dto.js';
 import { EnterpriseMemberInvitationListDto } from './workspace-response.dto.js';
@@ -40,7 +41,6 @@ export class MemberInvitationsService {
  create(actor:CommandActor,input:MemberInvitationInput){return commandTransaction(this.db,async tx=>{
   const auth=await this.workspace.validateDelegation(tx,actor,input.roles);
   await this.workspace.validateMemberProfileReferences(tx,actor,input);
-  if(!auth.primary&&input.tier!==3)throw new ForbiddenException('Cấp 2 chỉ mời thành viên cấp 3');
   const email=input.email.trim().toLowerCase();
   if(await tx.user.findFirst({where:{email}}))throw new ConflictException('Email đã có tài khoản');
   const pending=await tx.enterpriseInvitation.findFirst({where:{organizationId:actor.organizationId!,email,status:'PENDING'}});
@@ -48,7 +48,7 @@ export class MemberInvitationsService {
   if(pending)await tx.enterpriseInvitation.update({where:{id:pending.id},data:{status:'EXPIRED',version:{increment:1}}});
   const delegationDigest=await this.delegationDigest(tx,actor.organizationId!,input.roles);
   const memberCode=await nextMemberCode(tx,actor.organizationId!);
-  const row=await tx.enterpriseInvitation.create({data:{memberCode,id:input.id,organizationId:actor.organizationId!,creatorId:actor.sub!,fullName:input.fullName.trim(),email,tier:input.tier,roles:input.roles.map(r=>({...r})),tokenDigest:input.tokenDigest,authorityScope:auth.scope,delegationDigest,expiresAt:new Date(Date.now()+72*3600000),jobTitle:input.jobTitle.trim(),phone:input.phone?.trim(),workSiteId:input.workSiteId,responsibleFarmId:input.responsibleFarmId,contactAddress:input.contactAddress?.trim(),memberNote:input.memberNote?.trim()}});
+  const row=await tx.enterpriseInvitation.create({data:{memberCode,id:input.id,organizationId:actor.organizationId!,creatorId:actor.sub!,fullName:input.fullName.trim(),email,tier:STAFF_TIER,roles:input.roles.map(r=>({...r})),tokenDigest:input.tokenDigest,authorityScope:auth.scope,delegationDigest,expiresAt:new Date(Date.now()+72*3600000),jobTitle:input.jobTitle.trim(),phone:input.phone?.trim(),workSiteId:input.workSiteId,responsibleFarmId:input.responsibleFarmId,contactAddress:input.contactAddress?.trim(),memberNote:input.memberNote?.trim()}});
   return {record:{id:row.id,memberCode:row.memberCode,fullName:row.fullName,email:row.email,phone:row.phone,jobTitle:row.jobTitle,tier:row.tier,expiresAt:row.expiresAt,status:row.status}};
  });}
  async list(actor:CommandActor){const auth=await enterpriseAuthority(this.db,actor,'members.manage');return {items:await this.db.enterpriseInvitation.findMany({where:{organizationId:actor.organizationId!,...(!auth.primary?{creatorId:actor.sub!}:{})},select:{id:true,memberCode:true,email:true,fullName:true,tier:true,status:true,expiresAt:true,version:true,createdAt:true},orderBy:{createdAt:'desc'},take:200})};}
@@ -68,14 +68,16 @@ export class MemberInvitationsService {
     return {record:{activated:true}};
    }
    if(row.status!=='PENDING'||row.expiresAt.getTime()<=Date.now())throw new ConflictException('Lời mời hết hạn hoặc đã thu hồi');
-   const creator=await tx.user.findUniqueOrThrow({where:{id:row.creatorId},include:{role:true}});
-   const actor={sub:creator.id,organizationId:row.organizationId,role:creator.role.code};
+   const creator=await tx.user.findUniqueOrThrow({where:{id:row.creatorId},include:{role:true,organization:{select:{type:true}}}});
+   const actor={sub:creator.id,organizationId:row.organizationId,role:effectiveRole(creator)??''};
    const auth=await this.workspace.validateDelegation(tx,actor,row.roles as unknown as MemberRoleInput[]);
    await this.workspace.validateMemberProfileReferences(tx,actor,row);
    if(auth.scope!==row.authorityScope || await this.delegationDigest(tx,row.organizationId,row.roles as unknown as MemberRoleInput[])!==row.delegationDigest)throw new ForbiddenException('Quyền, nhóm hoặc phạm vi người mời đã đổi; cần lời mời mới');
    await assertEntitlement(tx,row.organizationId,'members');
    const memberCode=row.memberCode??await nextMemberCode(tx,row.organizationId);
-   const user=await tx.user.create({data:{memberCode,organizationId:row.organizationId,roleId:creator.roleId,fullName:row.fullName,email:row.email,passwordHash,enterpriseTier:row.tier,supervisorId:creator.id,jobTitle:row.jobTitle,phone:row.phone,workSiteId:row.workSiteId,responsibleFarmId:row.responsibleFarmId,contactAddress:row.contactAddress,memberNote:row.memberNote}});
+   // Every invited member is an enterprise employee; its business type follows the organization.
+   const staffRole=await tx.role.findUniqueOrThrow({where:{code:'ENTERPRISE_STAFF'}});
+   const user=await tx.user.create({data:{memberCode,organizationId:row.organizationId,roleId:staffRole.id,fullName:row.fullName,email:row.email,passwordHash,enterpriseTier:row.tier,supervisorId:creator.id,jobTitle:row.jobTitle,phone:row.phone,workSiteId:row.workSiteId,responsibleFarmId:row.responsibleFarmId,contactAddress:row.contactAddress,memberNote:row.memberNote}});
    await this.workspace.assign(tx,actor,user.id,row.roles as unknown as MemberRoleInput[]);
    await tx.enterpriseInvitation.update({where:{id:row.id},data:{status:'ACCEPTED',version:{increment:1},acceptedAt:new Date(),acceptedUserId:user.id,acceptanceRequestId:input.requestId,acceptanceDigest:receiptDigest}});
    return {record:{activated:true}};

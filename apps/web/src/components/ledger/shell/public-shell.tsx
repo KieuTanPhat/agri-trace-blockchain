@@ -4,7 +4,7 @@ import { useLayoutEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Menu, ScanLine } from "lucide-react";
+import { ChevronDown, Menu, Phone, ScanLine } from "lucide-react";
 import { businessHref, customerHref } from "@/lib/site-origins";
 import { SITE_CONTACT } from "@/lib/site-contact";
 import { pt } from "@/lib/ledger/public-i18n";
@@ -62,6 +62,8 @@ function DesktopNav({ path }: { path: string }) {
   return (
     <nav aria-label={pt("Điều hướng chính")} className="hidden items-center gap-1 lg:flex">
       {link("/", "Trang chủ")}
+      {link("/products", "Sản phẩm")}
+      {link("/news", "Bảng tin")}
       {link("/about", "Giới thiệu")}
       <div className="group relative">
         <Link
@@ -86,7 +88,18 @@ function DesktopNav({ path }: { path: string }) {
         </div>
       </div>
       {link("/contact", "Liên hệ")}
+      <HotlineLink className="ml-2" />
     </nav>
+  );
+}
+
+/** Số hotline viền xanh, bấm để gọi. */
+function HotlineLink({ className }: { className?: string }) {
+  return (
+    <a href={SITE_CONTACT.hotlineUrl} aria-label={pt("Gọi hotline {p0}", { p0: SITE_CONTACT.hotline })} className={cn("inline-flex h-9 items-center gap-1.5 rounded-md border border-brand px-3 text-[14px] font-semibold whitespace-nowrap text-brand transition-colors hover:bg-brand hover:text-white", className)}>
+      <Phone className="size-4" aria-hidden />
+      {SITE_CONTACT.hotline}
+    </a>
   );
 }
 
@@ -118,12 +131,15 @@ function MobileNav({ path }: { path: string }) {
         </div>
         <nav aria-label={pt("Điều hướng chính")} className="flex flex-col p-3">
           {item(customerHref("/"), "Trang chủ")}
+          {item(customerHref("/products"), "Sản phẩm")}
+          {item(customerHref("/news"), "Bảng tin")}
           {item(customerHref("/about"), "Giới thiệu")}
           {item(customerHref("/solutions"), "Giải pháp")}
           {SOLUTION_LINKS.slice(1).map((l) => item(l.href, l.label, true))}
           {item(customerHref("/contact"), "Liên hệ")}
         </nav>
-        <div className="mt-auto border-t border-line p-4">
+        <div className="mt-auto flex flex-col gap-3 border-t border-line p-4">
+          <HotlineLink className="justify-center" />
           <Button asChild className="w-full">
             <Link href={customerHref("/scan")} onClick={() => setOpen(false)}>
               {pt("Quét mã truy xuất")}
@@ -164,6 +180,8 @@ function Footer() {
       title: "Về AgriTrace",
       links: [
         { href: customerHref("/about"), label: "Giới thiệu" },
+        { href: customerHref("/products"), label: "Sản phẩm" },
+        { href: customerHref("/news"), label: "Bảng tin" },
         { href: customerHref("/contact"), label: "Liên hệ" },
         { href: customerHref("/scan"), label: "Quét mã truy xuất" },
       ],
@@ -192,6 +210,9 @@ function Footer() {
             {pt("Nền tảng truy xuất nguồn gốc nông sản: dữ liệu sản xuất, thu hoạch, lô hàng và giao nhận được ghi nhận và đối chiếu trên sổ cái.")}
           </p>
           <div className="flex flex-col gap-1 text-[14px]">
+            <a href={SITE_CONTACT.hotlineUrl} className="w-fit hover:text-white">
+              {pt("Hotline")} {SITE_CONTACT.hotline}
+            </a>
             <a href={SITE_CONTACT.emailUrl} className="w-fit hover:text-white">
               {SITE_CONTACT.email}
             </a>

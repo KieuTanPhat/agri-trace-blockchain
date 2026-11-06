@@ -1,15 +1,17 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Image } from 'expo-image';
 import { useCallback } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
-import { Icon } from '../../../components/Icon';
-import { Button, Card, GreenHeader, Loading, Notice, Pill, T } from '../../../components/ui';
+import { DirectoryPhoto } from '../../../components/DirectoryCards';
+import { Icon } from '../../../components/staff/Icon';
+import { Button, Card, Header, Loading, Notice, Pill, T } from '../../../components/staff/ui';
 import { dateTime, qty } from '../../../lib/format';
 import { CYCLE_STATE } from '../../../lib/labels';
 import { useLoad } from '../../../lib/useApi';
-import { color } from '../../../theme/tokens';
+import { color } from '../../../theme/staff';
 
 type Cycle = Schemas['CycleDetailDto'];
 
@@ -26,7 +28,7 @@ export default function CycleDetail() {
   if (!cycle)
     return (
       <View style={{ flex: 1 }}>
-        <GreenHeader title="Mùa vụ" back />
+        <Header title="Mùa vụ" back />
         {loading ? <Loading /> : <View style={{ padding: 16 }}><Notice kind="error" title={error ?? 'Không tìm thấy mùa vụ'} /></View>}
       </View>
     );
@@ -37,25 +39,32 @@ export default function CycleDetail() {
   const writable = cycle.canWriteProduction === true && ['PLANTED', 'GROWING'].includes(cycle.currentState);
   const assigned = (cycle.staffUserIds ?? []).length === 0 || (!!user && (cycle.staffUserIds ?? []).includes(user.id));
   const log = [
-    ...cycle.harvestEvents.map((h) => ({ id: h.id, at: h.harvestTime, title: `Thu hoạch ${qty(h.quantity, h.unit)}`, who: h.representative, icon: 'basket' as const, bg: color.orangeTint, fg: color.orange })),
-    ...cycle.careRecords.map((c) => ({ id: c.id, at: c.eventTime, title: [c.careType, c.name].filter(Boolean).join(': '), who: null, icon: 'journal' as const, bg: color.purpleTint, fg: color.purple })),
+    ...cycle.harvestEvents.map((h) => ({ id: h.id, at: h.harvestTime, title: `Thu hoạch ${qty(h.quantity, h.unit)}`, who: h.representative, icon: 'basket' as const, image: require('../../../../assets/icons/harvest.png'), bg: color.orangeTint, fg: color.orange })),
+    ...cycle.careRecords.map((c) => ({ id: c.id, at: c.eventTime, title: [c.careType, c.name].filter(Boolean).join(': '), who: null, icon: 'journal' as const, image: require('../../../../assets/icons/watering.png'), bg: color.purpleTint, fg: color.purple })),
   ].sort((a, b) => b.at.localeCompare(a.at));
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        <GreenHeader title="Mùa vụ" back extraBottom={34} />
-        <Card style={{ marginTop: -30, marginHorizontal: 16, padding: 16, gap: 8 }}>
+        <Header title="Mùa vụ" back />
+        <Card style={{ marginTop: 16, marginHorizontal: 16, padding: 16, gap: 8 }}>
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
             <Pill label={state.label} t={state.t} />
             {user && (cycle.staffUserIds ?? []).includes(user.id) && <Pill label="Bạn được giao" t="orange" />}
           </View>
-          <T size={23} weight="heavy">
-            {cycle.product.productName}
-          </T>
-          <T size={13.5} c={color.muted} style={{ fontFamily: 'monospace' }}>
-            {cycle.cycleCode}
-          </T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 76, height: 76, borderRadius: 17, overflow: 'hidden', backgroundColor: color.greenTint }}>
+              <DirectoryPhoto url={`/public/products/${cycle.product.id}/image`} label={cycle.product.productName} fit="cover" />
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <T size={21} weight="heavy" numberOfLines={2}>
+                {cycle.product.productName}
+              </T>
+              <T size={12.5} c={color.muted} style={{ fontFamily: 'monospace' }}>
+                {cycle.cycleCode}
+              </T>
+            </View>
+          </View>
         </Card>
 
         <View style={{ padding: 16, gap: 12 }}>
@@ -120,7 +129,7 @@ export default function CycleDetail() {
             {log.slice(0, 12).map((e) => (
               <View key={e.id} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: color.line }}>
                 <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: e.bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={e.icon} size={22} color={e.fg} />
+                  <Image source={e.image} style={{ width: 32, height: 32 }} contentFit="contain" accessibilityLabel={e.icon === 'basket' ? 'Thu hoạch' : 'Chăm sóc cây'} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <T size={15.5} weight="heavy">

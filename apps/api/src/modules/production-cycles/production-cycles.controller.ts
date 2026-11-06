@@ -82,7 +82,6 @@ export class ProductionCyclesController {
     'DISTRIBUTOR',
     'RETAILER',
     'AUDITOR',
-    'COMPLIANCE_REVIEWER',
   )
   list(@Req() req: AuthenticatedRequest) {
     return this.service.list(req.user);
@@ -130,7 +129,6 @@ export class ProductionCyclesController {
     'DISTRIBUTOR',
     'RETAILER',
     'AUDITOR',
-    'COMPLIANCE_REVIEWER',
   )
   get(
     @Param('id', ParseUUIDPipe) id: string,

@@ -13,7 +13,6 @@ import { api } from "@/lib/ledger/platform-api";
 import type {
   CapabilityRequest,
   Enrollment,
-  EnterpriseConnection,
 } from "@/lib/ledger/platform-api";
 import { useLedgerSession as useSession } from "@/lib/ledger/platform-access";
 import {
@@ -184,9 +183,8 @@ function EnrollmentDetail() {
         }
         description={
           <>
-            {MODEL_LABEL[e.participationModel]} ·{" "}
-            {e.payingParticipant ? tr("Trả phí") : tr("Miễn phí")}{" "}
-            {tr("· Lưu trữ")} <span className="font-mono">{e.hostingMode}</span>{" "}
+            {MODEL_LABEL[e.participationStatus]} ·{" "}
+            {e.participationStatus === "CHAIN_OWNER" ? tr("Trả phí khi tạo chuỗi") : tr("Miễn phí")}{" "}
             · MST <span className="font-mono">{e.businessId ?? "—"}</span>{" "}
             {tr("· nộp")} {fmtDateTime(e.createdAt)}
           </>
@@ -272,10 +270,6 @@ function EnrollmentDetail() {
                 )}
               </p>
             </Section>
-
-            {e.connections.length > 0 && (
-              <Connections e={e} invalidate={invalidate} />
-            )}
             <EnrollmentProducts organizationId={e.organizationId} />
           </div>
 
@@ -308,20 +302,20 @@ function Stepper({ e }: { e: Enrollment }) {
       current: e.status === "PENDING_REVIEW",
     },
     {
-      label: deferred ? tr("Sử dụng tạm — chưa thu phí") : e.payingParticipant
-        ? tr("Doanh nghiệp chọn gói & hợp đồng")
-        : tr("Không cần gói (miễn phí)"),
+      label: deferred ? tr("Sử dụng tạm — chưa thu phí") : e.participationStatus === "CHAIN_OWNER"
+        ? tr("Chủ chuỗi chọn gói & hợp đồng (quyền tạo chuỗi)")
+        : tr("Thành viên — không cần gói"),
       done:
         e.status === "APPROVED" &&
-        (deferred || !e.payingParticipant || !!e.serviceActivatedAt),
+        (deferred || e.participationStatus !== "CHAIN_OWNER" || !!e.serviceActivatedAt),
       current:
-        !deferred && e.onboardingStage === "AWAITING_ACTIVATION" && e.payingParticipant,
+        !deferred && e.onboardingStage === "AWAITING_ACTIVATION" && e.participationStatus === "CHAIN_OWNER",
     },
     {
       label: deferred ? tr("Thanh toán đang tạm hoãn") : tr("Thanh toán"),
       done:
         deferred || !!e.serviceActivatedAt ||
-        (e.status === "APPROVED" && !e.payingParticipant),
+        (e.status === "APPROVED" && e.participationStatus !== "CHAIN_OWNER"),
       current: false,
     },
     {
@@ -526,93 +520,6 @@ function Capabilities({
   );
 }
 
-export function Connections({
-  e,
-  invalidate,
-}: {
-  e: Enrollment;
-  invalidate: unknown[][];
-}) {
-  const { can } = useSession();
-  const dialog = useDialog<EnterpriseConnection>();
-  return (
-    <Section id="connections" title={tr("Kết nối blockchain (peer)")}>
-      <ul className="divide-y divide-line/70">
-        {e.connections.map((c) => (
-          <li
-            key={c.id}
-            className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-[13px] sm:px-5"
-          >
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="font-mono text-[12px]">
-                {String(c.publicConfig.mspId ?? "")} ·{" "}
-                {String(c.publicConfig.peer ?? "")}
-              </span>
-              <span className="text-[12px] text-ink-2">
-                {c.hostingMode} {tr("· kiểm tra")} {fmtDateTime(c.checkedAt)} ·
-                chain <span className="font-mono">{c.chainId.slice(-8)}</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Status group="connection" value={c.status} />
-              {c.status === "PENDING_REVIEW" && can("enrollment.review") && (
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={() => dialog.open(c)}
-                >
-                  {tr("Xét kết nối")}
-                </Button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-      {dialog.target && (
-        <CommandDialog
-          {...dialog.props}
-          title={tr("Xét kết nối peer")}
-          endpoint="POST /enterprise-connections/:id/review"
-          description={tr(
-            "Chấp nhận kết nối có thể cần gửi đề xuất để một quản trị viên khác phê duyệt.",
-          )}
-          schema={reviewSchema}
-          defaultValues={{ decision: "APPROVE", note: "" }}
-          version={dialog.target.version}
-          submitLabel={tr("Ghi quyết định")}
-          invalidate={invalidate}
-          run={(v, cmd) =>
-            api.enterprises.reviewConnection(
-              dialog.target!.id,
-              { ...v, version: dialog.target!.version },
-              cmd,
-            )
-          }
-        >
-          {(f) => (
-            <>
-              <ChoiceField
-                control={f.control}
-                name="decision"
-                label={tr("Kết quả")}
-                options={[
-                  { value: "APPROVE", label: tr("Chấp nhận kết nối") },
-                  { value: "REJECT", label: tr("Từ chối"), tone: "danger" },
-                ]}
-              />
-              <TextAreaField
-                control={f.control}
-                name="note"
-                label={tr("Ghi chú")}
-              />
-            </>
-          )}
-        </CommandDialog>
-      )}
-    </Section>
-  );
-}
-
 function DecisionPanel({
   e,
   invalidate,
@@ -741,14 +648,16 @@ function ActivatePanel({
       label: tr("Có ít nhất một năng lực được duyệt"),
     },
     {
-      ok: e.paymentsEnabled === false || !caps.length || !e.payingParticipant || subscriptionActive,
-      label: e.paymentsEnabled === false ? tr("Sử dụng tạm — không yêu cầu thanh toán") : !caps.length
-        ? tr("Hồ sơ không có yêu cầu năng lực — không cần gói")
-        : e.payingParticipant
-          ? orgLoaded
-            ? tr("Có gói dịch vụ ACTIVE (tổ chức trả phí)")
-            : tr("Đang kiểm tra gói dịch vụ…")
-          : tr("Tổ chức miễn phí — không cần gói"),
+      // ADR-005: a member needs no plan; a chain owner pays first (its
+      // payment activates it once every capability is reviewed).
+      ok: e.participationStatus !== "CHAIN_OWNER" || e.paymentsEnabled === false || subscriptionActive,
+      label: e.participationStatus !== "CHAIN_OWNER"
+        ? tr("Thành viên — không cần gói")
+        : e.paymentsEnabled === false
+          ? tr("Chủ chuỗi — thu phí tạm hoãn, kích hoạt dùng tạm")
+          : orgLoaded && subscriptionActive
+            ? tr("Chủ chuỗi — gói đã thanh toán")
+            : tr("Chủ chuỗi — chờ doanh nghiệp chọn gói và thanh toán"),
     },
   ];
   const ready = checks.every((c) => c.ok);
@@ -802,7 +711,7 @@ function ActivatePanel({
       ) : (
         <Callout tone="warn">
           {tr("Chưa đủ điều kiện kích hoạt — API sẽ trả 409.")}{" "}
-          {e.paymentsEnabled !== false && e.payingParticipant && !subscriptionActive && (
+          {e.paymentsEnabled !== false && e.participationStatus === "CHAIN_OWNER" && !subscriptionActive && (
             <Link
               className="underline"
               href={`/admin/billing/invoices?organizationId=${e.organizationId}`}

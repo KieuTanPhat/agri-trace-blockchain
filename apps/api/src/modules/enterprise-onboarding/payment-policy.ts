@@ -3,7 +3,6 @@ import type {
   CapabilityRequest,
   Prisma,
 } from '../../generated/prisma/client.js';
-import { payingParticipant } from './registration-profile.dto.js';
 
 /** Collection is deferred unless an operator explicitly enables the billing flow.
  * This never changes invoices, payment history, capabilities or chain authority. */
@@ -22,7 +21,7 @@ export async function assertActivationReady(
   row: {
     organizationId: string;
     organization: {
-      participationModel?: string;
+      participationStatus?: string;
       capabilityRequests?: Pick<CapabilityRequest, 'status' | 'code'>[];
     };
   },
@@ -33,22 +32,11 @@ export async function assertActivationReady(
   const approved = requests.filter((r) => r.status === 'APPROVED');
   if (requests.length && !approved.length)
     throw new ConflictException('Chưa có năng lực nào được phê duyệt');
-  if (
-    !enterprisePaymentsEnabled() ||
-    !requests.length ||
-    !payingParticipant(
-      row.organization.participationModel ?? 'SINGLE',
-      approved.map((r) => r.code),
-    )
-  )
-    return;
-  const subscription = await tx.subscription.findFirst({
-    where: { organizationId: row.organizationId, status: 'ACTIVE' },
-  });
-  if (!subscription)
-    throw new ConflictException(
-      'Tổ chức trả phí cần thanh toán gói dịch vụ trước khi kích hoạt',
-    );
+  // A member is activated on reviewed capabilities alone. A chain owner pays
+  // its plan first while collection is enabled (ADR-005); paying activates it.
+  if (!enterprisePaymentsEnabled() || row.organization.participationStatus !== 'CHAIN_OWNER') return;
+  if (!(await tx.subscription.findFirst({ where: { organizationId: row.organizationId, status: 'ACTIVE' } })))
+    throw new ConflictException('Chủ chuỗi cần thanh toán gói dịch vụ trước khi kích hoạt');
 }
 
 export function serviceWorkspaceStage(base: string) {

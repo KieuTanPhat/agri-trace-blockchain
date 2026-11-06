@@ -14,13 +14,14 @@ describe('Registration email secrets and template', () => {
     expect(() => decryptOtp(bytes.toString('base64'), key)).toThrow();
     expect(() => decryptOtp(a, key + 'wrong')).toThrow();
   });
-  it('renders a small self-contained Vietnamese email with escaped content and CID logo', () => {
+  it('renders a small self-contained Vietnamese email with escaped content and a text header', () => {
     const html = enterpriseMailHtml({
       subject: 'AgriTrace — Xác thực email',
       text: '<script>not markup</script>',
       otp: '001234',
     });
-    expect(html).toContain('cid:agritrace-logo');
+    expect(html).not.toContain('cid:agritrace-logo');
+    expect(html).not.toContain('<img');
     expect(html).toContain('lang="vi"');
     expect(html).toContain('001234');
     expect(html).toContain('&lt;script&gt;');

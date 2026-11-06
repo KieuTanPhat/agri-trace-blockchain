@@ -11,11 +11,15 @@ import { resolve } from 'node:path';
 const variant = process.env.EXPO_PUBLIC_APP_VARIANT;
 
 const VARIANTS = {
-  consumer: { name: 'ACheck', slug: 'acheck', id: 'vn.agritrace.consumer' },
+  consumer: { name: 'ACheck', slug: 'agritrace-mobile', scheme: 'acheck', projectId: '042c1546-e76b-476d-9274-ea70cf376e8e', id: 'vn.agritrace.consumer', icon: './assets/brand/acheck-consumer-icon-v1.png', background: '#EDF8F0' },
   staff: {
     name: 'AgriTrace Nhân viên',
     slug: 'agritrace-staff',
+    scheme: 'agritrace-staff',
+    projectId: 'cb18c0d1-d159-4eba-aa45-fd30279bc31a',
     id: 'vn.agritrace.staff',
+    icon: './assets/brand/agritrace-staff-icon-v1.png',
+    background: '#073F30',
   },
 } as const;
 
@@ -32,10 +36,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: app.name,
     slug: app.slug,
-    scheme: app.slug,
+    scheme: app.scheme,
     version: '0.1.0',
     orientation: 'portrait',
-    icon: './assets/brand/appDaiDien.png',
+    icon: app.icon,
     userInterfaceStyle: 'light',
     ios: { bundleIdentifier: app.id, supportsTablet: false },
     android: {
@@ -44,18 +48,28 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       // Credentials live in SecureStore; never restore them from a backup.
       allowBackup: false,
       adaptiveIcon: {
-        backgroundColor: '#ffffff',
-        foregroundImage: './assets/brand/appDaiDien.png',
+        backgroundColor: app.background,
+        foregroundImage: app.icon,
       },
     },
-    web: { favicon: './assets/brand/appDaiDien.png', bundler: 'metro', output:'single' },
+    web: { favicon: app.icon, bundler: 'metro', output:'single' },
     plugins: [
       'expo-router',
       'expo-dev-client',
       'expo-secure-store',
       'expo-font',
       'expo-image',
-      ...(phoneAuthEnabled ? ['@react-native-firebase/app', '@react-native-firebase/auth'] : []),
+      ['expo-splash-screen', {
+        image: app.icon,
+        backgroundColor: app.background,
+        imageWidth: 160,
+        resizeMode: 'contain',
+      }],
+      ...(phoneAuthEnabled ? [
+        '@react-native-firebase/app',
+        '@react-native-firebase/auth',
+        ['expo-build-properties', { android: { kotlinVersion: '2.4.0' } }],
+      ] as NonNullable<ExpoConfig['plugins']> : []),
       [
         'expo-camera',
         {
@@ -70,9 +84,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...config.extra,
       variant: variant ?? null,
       phoneAuthEnabled,
-      ...(variant === 'staff' ? {
-        eas: { projectId: 'cb18c0d1-d159-4eba-aa45-fd30279bc31a' },
-      } : {}),
+      eas: { projectId: app.projectId },
     },
   };
 };

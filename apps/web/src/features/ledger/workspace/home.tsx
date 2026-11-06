@@ -13,6 +13,8 @@ import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
 import { t as tr } from "@/lib/ledger/i18n";
+import { RoleDesk } from "./role-desk";
+import { DeviceKeyCard } from "./device-key";
 export default function WorkspaceHome() {
   const o = useOverview();
   const { can, primary, access } = useWorkspaceAccess();
@@ -35,11 +37,14 @@ export default function WorkspaceHome() {
         meta={<Badge tone={d.organization.status === "ACTIVE" ? "ok" : "neutral"}>{d.organization.status === "ACTIVE" ? tr("Hoạt động") : tr("Ngừng hoạt động")}</Badge>}
         description={
           <>
-            {tr("Mã AgriTrace")} <span className="font-mono">{d.organization.code}</span> · MST <span className="font-mono">{d.organization.businessId ?? "—"}</span> · {d.organization.participationModel ? MODEL_LABEL[d.organization.participationModel] : "—"}
+            {tr("Mã AgriTrace")} <span className="font-mono">{d.organization.code}</span> · MST <span className="font-mono">{d.organization.businessId ?? "—"}</span> · {d.organization.participationStatus ? MODEL_LABEL[d.organization.participationStatus] : "—"}
           </>
         }
       />
       <PageBody>
+        {/* The personal signing key is created here on first sign-in. */}
+        <DeviceKeyCard quiet />
+        <RoleDesk />
         <StatRow>
           <Stat label={tr("Thành viên bạn quản lý")} value={perms.has("members.read") ? d.counts.members : "—"} href={perms.has("members.read") ? "/enterprise/members" : undefined} />
           <Stat label={tr("Cơ sở trong phạm vi")} value={perms.has("sites.read") ? d.counts.sites : "—"} href={perms.has("sites.read") ? "/enterprise/sites" : undefined} />
@@ -93,7 +98,7 @@ export default function WorkspaceHome() {
                 <Field label={tr("Địa chỉ")}>{d.profile?.address}</Field>
                 <Field label={tr("Liên hệ")}>{d.profile ? `${d.profile.contactEmail} · ${d.profile.phone}` : "—"}</Field>
                 <Field label={tr("Lưu trữ sổ cái")} mono>
-                  {d.organization.hostingMode ?? "—"}
+                  {tr("AgriTrace quản lý")}
                 </Field>
               </Fields>
             </Section>

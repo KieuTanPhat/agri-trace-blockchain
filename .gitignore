@@ -78,3 +78,6 @@ Thumbs.db
 /.codex-remote-attachments/
 /.superpowers/
 /.codegraph/
+
+# Local IoT simulator state (device test keys, queues)
+.iot-simulator/

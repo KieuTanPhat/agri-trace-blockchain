@@ -6,6 +6,8 @@ describe("Web QR to mobile scanner contract", () => {
   afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
   it.each([
     ['http://localhost:3000', 'http://localhost:3000', true],
+    ['http://127.0.0.1:3300', 'http://127.0.0.1:3300', true],
+    ['http://localhost:3000', 'http://127.0.0.1:3300', false],
     ['https://agritrace.dev', 'http://localhost:3000', false],
     ['https://agritrace.dev', 'https://agritrace.dev', true],
     ['https://agritrace.dev/trace', 'https://agritrace.dev', true],

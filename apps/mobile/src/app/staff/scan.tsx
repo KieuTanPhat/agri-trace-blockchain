@@ -3,9 +3,9 @@ import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Field, IconButton, Notice, T } from '../../components/ui';
+import { Button, Field, IconButton, Notice, T } from '../../components/staff/ui';
 import { parseTraceToken } from '../../lib/format';
-import { color } from '../../theme/tokens';
+import { color } from '../../theme/staff';
 
 /** Scan a lot label; the lot view resolves it inside the caller's scope. */
 export default function StaffScan() {
@@ -30,7 +30,7 @@ export default function StaffScan() {
       <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <IconButton name="close" label="Đóng" tint="#fff" bg="rgba(0,0,0,0.35)" onPress={() => (router.canGoBack() ? router.back() : router.replace('/staff'))} />
         <T size={19} weight="heavy" c="#fff">
-          Quét mã lô
+          Quét QR
         </T>
         <View style={{ width: 46 }} />
       </View>

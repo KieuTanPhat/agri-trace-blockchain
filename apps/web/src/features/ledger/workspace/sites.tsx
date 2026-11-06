@@ -19,13 +19,14 @@ import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components
 import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
-import { EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { EvidencePanel, EvidenceCover } from "@/components/ledger/workspace/evidence-panel";
 import { RevisionHistory } from "@/components/ledger/workspace/revision-history";
 import { cn } from "@/lib/ledger/utils";
 
 const KINDS = ["PRODUCTION", "PACKING", "WAREHOUSE", "COLD_STORAGE", "PROCESSING", "DISTRIBUTION", "RETAIL", "OTHER"] as const;
 const optNumber = z.union([z.literal(""), z.coerce.number<number>().positive({ error: () => tr("Phải là số dương") })]).optional();
 const optText = (max: number) => z.string().trim().max(max).optional();
+const optCoord = (limit: number) => z.union([z.literal(""), z.coerce.number<number>().min(-limit).max(limit)]).optional();
 // EnterpriseSiteInput (enterprise-workspace/dto.ts)
 const siteFields = {
   name: z.string().trim().min(2, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 2 }) }).max(255),
@@ -44,8 +45,11 @@ const siteFields = {
   otherInfo: optText(2000),
   staffUserId: z.string().optional(),
   farmId:z.string().optional(),
+  // ADR-006: optional map point used for route display and arrival detection.
+  latitude: optCoord(90),
+  longitude: optCoord(180),
 };
-const siteSchema = z.object(siteFields);
+const siteSchema = z.object(siteFields).refine((v) => (blank(v.latitude) === undefined) === (blank(v.longitude) === undefined), { path: ["longitude"], error: () => tr("Nhập cả vĩ độ và kinh độ") });
 const reviseSchema = z.object({ ...siteFields, status: z.enum(["ACTIVE", "INACTIVE"]), reason: z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000) });
 const vehicleFields = { kind: z.string().trim().min(2, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 2 }) }).max(100), registration: z.string().trim().min(3, { error: () => tr("Tối thiểu {p0} ký tự", { p0: 3 }) }).max(40) };
 const vehicleSchema = z.object(vehicleFields);
@@ -72,6 +76,8 @@ function toInput(v: SiteValues): SiteInput {
     otherInfo: blank(v.otherInfo) as string | undefined,
     staffUserId: blank(v.staffUserId) as string | undefined,
     farmId:typeof v.farmId==="string" && v.farmId?v.farmId:undefined,
+    latitude: blank(v.latitude) as number | undefined,
+    longitude: blank(v.longitude) as number | undefined,
   };
 }
 const fromSite = (s: Site): SiteValues => ({
@@ -90,14 +96,17 @@ const fromSite = (s: Site): SiteValues => ({
   email: s.email ?? "",
   otherInfo: s.otherInfo ?? "",
   staffUserId: s.staffUserId ?? "",farmId:s.farmId ?? "",
+  latitude: s.latitude ? Number(s.latitude) : "",
+  longitude: s.longitude ? Number(s.longitude) : "",
 });
 
 export default function SitesPage({view="list",resourceId,family="sites"}:{view?:"list"|"new"|"detail";resourceId?:string;family?:"sites"|"vehicles"}) {
   const router=useRouter();
   const { can: canPermission, primary, access } = useWorkspaceAccess();
-  // Vehicles belong to transport companies; others type the plate on the transfer.
-  const transporter = !!access?.capabilities.includes("TRANSPORTER");
-  const can = (permission: string) => (permission.startsWith("vehicles.") ? transporter : true) && canPermission(permission);
+  // ADR-006: any carrying party (transporter, self-delivering sender or picking-up
+  // receiver) may declare vehicles to attach a GPS tracker.
+  void access;
+  const can = (permission: string) => canPermission(permission);
   const [picked, setTab] = useState<"sites" | "vehicles" | null>(family);
   const tab = picked ?? (can("sites.read") || !can("vehicles.read") ? "sites" : "vehicles");
   const [openSite, setOpenSite] = useState<string | null>(family==="sites"?resourceId ?? null:null);
@@ -113,7 +122,7 @@ export default function SitesPage({view="list",resourceId,family="sites"}:{view?
     { key: "kind", header: tr("Loại"), cell: (s) => <span className="text-[12px]">{SITE_KIND_LABEL[s.kind] ?? s.kind}</span> },
     { key: "region", header: tr("Khu vực"), hideBelow: "md", cell: (s) => <span className="text-ink-2">{s.region}</span> },
     { key: "size", header: tr("Diện tích / sức chứa"), hideBelow: "lg", cell: (s) => <span className="font-mono text-[12px]">{fmtNumber(s.areaM2)} m²{s.capacityKg ? ` · ${fmtNumber(s.capacityKg)} kg` : ""}</span> },
-    { key: "ev", header: tr("Ảnh chứng cứ"), hideBelow: "md", cell: (s) => (s.evidenceComplete ? <Badge tone="ok">{tr("Đủ")}</Badge> : <Badge tone="warn">{tr("Thiếu")}</Badge>) },
+    { key: "ev", header: tr("Ảnh chứng cứ"), hideBelow: "md", cell: (s) => <span className="flex items-center gap-2"><EvidenceCover entityType="SITE" entityId={s.id} prefer={["SITE_IMAGE"]} />{!s.evidenceComplete && <Badge tone="warn">{tr("Hồ sơ thiếu")}</Badge>}</span> },
     { key: "status", header: tr("Trạng thái"), cell: (s) => <Badge tone={s.status === "ACTIVE" ? "ok" : "neutral"}>{s.status === "ACTIVE" ? tr("Hoạt động") : tr("Ngừng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (s) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/sites/${s.id}`)}>{tr("Chi tiết")}</Button> },
   ];
@@ -250,6 +259,8 @@ function SiteFields({ f, staffOptions }: { f: { control: never }; staffOptions: 
         <TextField control={c} name="representative" label={tr("Người đại diện")} />
         <TextField control={c} name="phone" label={tr("Điện thoại")} />
         <TextField control={c} name="email" label={tr("Email")} />
+        <TextField control={c} name="latitude" label={tr("Vĩ độ (tùy chọn)")} type="number" />
+        <TextField control={c} name="longitude" label={tr("Kinh độ (tùy chọn)")} type="number" />
       </div>
       {staffOptions.length > 0 && <SelectField control={c} name="staffUserId" label={tr("Nhân viên phụ trách")} options={staffOptions} />}
       <TextAreaField control={c} name="otherInfo" label={tr("Thông tin khác")} max={2000} />

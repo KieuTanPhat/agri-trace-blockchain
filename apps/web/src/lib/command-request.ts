@@ -14,14 +14,13 @@ const creates: Record<string, Operation> = {
   '/enterprise-workspace/profile/amendments':'EW_PROFILE_SUBMIT',
   '/production-cycles/drafts':'EW_CREATE_CYCLE_DRAFT',
   "/distribution/transfers": "DIST_CREATE",
-  "/distribution/keys": "EW_REGISTER_DISTRIBUTION_KEY",
+  "/distribution/device-keys": "EW_DEVICE_KEY_REQUEST",
   "/distribution/notices": "EW_TRACE_NOTICE",
   "/distribution/quantities": "EW_DISPOSITION",
   '/distribution/allocations':'EW_ALLOCATE',
   '/distribution/quarantine':'EW_QUARANTINE',
   '/distribution/site-transfers':'EW_SITE_TRANSFER_CREATE',
   '/enterprise-messages':'EW_MESSAGE_SEND',
-  '/distribution/pickup-requests':'EW_PICKUP_REQUEST',
   '/enterprise-workspace/materials':'EW_CREATE_MATERIAL',
   '/enterprise-workspace/products-import/apply':'EW_IMPORT_PRODUCTS',
   "/enterprise-workspace/roles": "EW_CREATE_ROLE",
@@ -29,7 +28,7 @@ const creates: Record<string, Operation> = {
   "/enterprise-workspace/partners": "EW_INVITE_PARTNER",
   "/enterprise-workspace/sites": "EW_CREATE_SITE",
   "/enterprise-workspace/vehicles": "EW_CREATE_VEHICLE",
-  "/enterprise-connections": "ENTERPRISE_CONNECT",
+  "/iot/v2/devices": "EW_DEVICE_REGISTER",
   "/production-cycles": "CREATE_PRODUCTION_CYCLE",
   "/shipments": "CREATE_SHIPMENT",
   "/inspections": "CREATE_INSPECTION",
@@ -59,6 +58,9 @@ export function commandRequest(
     discriminator = "",
   ) => ({ operation, payload: { ...data, ...ids }, discriminator });
   if (method === "POST" && creates[path]) return result(creates[path]);
+  const device = match(path, `/iot/v2/devices/(${uuid})/(binding|key|status|profile|delete)`);
+  if (device && method === "POST")
+    return result(({ binding: "EW_DEVICE_BIND", key: "EW_DEVICE_ROTATE_KEY", status: "EW_DEVICE_STATUS", profile: "EW_DEVICE_UPDATE", delete: "EW_DEVICE_DELETE" } as Record<string, Operation>)[device[2]], { id: device[1] });
   const draftLink = match(path, `/production-cycles/drafts/(${uuid})/link`);
   if (draftLink && method === "POST")
     return result("EW_LINK_CYCLE_DRAFT", { id: draftLink[1] });
@@ -79,8 +81,6 @@ export function commandRequest(
     );
   const message=match(path,`/enterprise-messages/(${uuid})/(replies|read)`);
   if(message&&method==='POST')return result(message[2]==='replies'?'EW_MESSAGE_REPLY':'EW_MESSAGE_READ',{id:message[1]});
-  const pickup=match(path,`/distribution/pickup-requests/(${uuid})/(decline|cancel)`);
-  if(pickup&&method==='POST')return result(pickup[2]==='decline'?'EW_PICKUP_DECLINE':'EW_PICKUP_CANCEL',{id:pickup[1]});
   const siteTransfer=match(path,`/distribution/site-transfers/(${uuid})/(dispatch|receive|resolve|cancel)`);
   if(siteTransfer&&method==='POST')return result(({dispatch:'EW_SITE_TRANSFER_DISPATCH',receive:'EW_SITE_TRANSFER_RECEIVE',resolve:'EW_SITE_TRANSFER_RESOLVE',cancel:'EW_SITE_TRANSFER_CANCEL'} as Record<string,Operation>)[siteTransfer[2]],{id:siteTransfer[1]});
   const returnSign=match(path,`/distribution/transfers/(${uuid})/returns/(${uuid})/sign`);
@@ -96,9 +96,6 @@ export function commandRequest(
   const distributionKey = match(path, `/distribution/keys/(${uuid})/revoke`);
   if (distributionKey && method === "POST")
     return result("EW_REVOKE_DISTRIBUTION_KEY", { id: distributionKey[1] });
-  const supervisor = match(path, `/enterprise-workspace/members/(${uuid})/supervisor`);
-  if (supervisor && method === "POST")
-    return result("EW_CHANGE_MEMBER_SUPERVISOR", { id: supervisor[1] });
   const roleDelete = match(path, `/enterprise-workspace/roles/(${uuid})/delete`);
   if (roleDelete && method === "POST")
     return result("EW_DELETE_ROLE", { id: roleDelete[1] });
@@ -118,13 +115,11 @@ export function commandRequest(
   }
   const enterprise = match(
     path,
-    `/(enterprise-enrollments|enterprise-connections)/(${uuid})/review`,
+    `/(enterprise-enrollments)/(${uuid})/review`,
   );
   if (enterprise && method === "POST")
     return result(
-      enterprise[1] === "enterprise-enrollments"
-        ? "ENTERPRISE_REVIEW"
-        : "ENTERPRISE_CONNECTION_REVIEW",
+      "ENTERPRISE_REVIEW",
       { id: enterprise[2] },
     );
   let signing = match(path, `/shipments/(${uuid})/handover-offers/intent`);

@@ -13,7 +13,8 @@ const STAGE_ROLE: Record<Stage, 'FARM_STAFF' | 'PROCESSOR' | 'TRANSPORTER' | 'DI
   RETAILER: 'RETAILER',
 };
 
-/** Gives a producing enterprise its personal chain (idempotent), inside the
+/** Gives an organization its free own ledger (ADR-005; idempotent): the farm
+ * ledger, or the store ledger of a retailer/distributor for outside goods. Inside the
  * caller's transaction: an ACTIVE business profile and membership, the owner as
  * chain manager plus the business roles of its approved stages. The ledger
  * binding is registered outside the API (operator or local simulator); until
@@ -37,7 +38,7 @@ export async function ensurePersonalChain(
   );
   const chain = await tx.supplyChain.create({
     data: {
-      name: `Chuỗi riêng · ${org.name}`.slice(0, 255),
+      name: `${org.capabilities.some((c) => c.code === 'FARM') ? 'Sổ ghi nông trại' : 'Sổ ghi cửa hàng'} · ${org.name}`.slice(0, 255),
       code: `CH-${randomUUID().slice(0, 12).toUpperCase()}`,
       chainType: 'CROP',
       personal: true,

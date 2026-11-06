@@ -599,7 +599,7 @@ second line`,
     const before = (await get(admin, path).expect(200)).body.data.accounts;
     expect(before.activeSessions).toBe(0);
     const victim = await actorWith(
-      'COMPLIANCE_REVIEWER',
+      'AUDITOR',
       null,
       organization.id,
     );
@@ -608,7 +608,7 @@ second line`,
       data: { lockedUntil: new Date(Date.now() + 600_000) },
     });
     const disabled = await actorWith(
-      'COMPLIANCE_REVIEWER',
+      'AUDITOR',
       null,
       organization.id,
     );

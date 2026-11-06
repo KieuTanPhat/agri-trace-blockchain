@@ -44,7 +44,7 @@ const DEFAULT_OFFER_VALID_MINUTES = 24 * 60;
 type Kind = 'PICKUP' | 'ARRIVAL';
 type Db = Prisma.TransactionClient;
 
-export function handoverView(h: ShipmentHandover) {
+function handoverView(h: ShipmentHandover) {
   return {
     id: h.id,
     shipmentId: h.shipmentId,

@@ -19,6 +19,8 @@ export async function lockPlatformAudit(tx: Prisma.TransactionClient) {
 const AUDITED_OPERATIONS = new Set([
   'PRIVACY_REQUEST_CREATE',
   'ENTERPRISE_SERVICE_PAY',
+  'ENTERPRISE_SERVICE_PREVIEW',
+  'ENTERPRISE_SERVICE_ORDER',
   'CREATE_USERS',
   'CREATE_ORGANIZATIONS',
   'GRANT_COMPLIANCE_ASSIGNMENT',
@@ -26,7 +28,6 @@ const AUDITED_OPERATIONS = new Set([
   'ENTERPRISE_REVIEW',
   'ENTERPRISE_ACTIVATE',
   'ENTERPRISE_PROFILE_REVIEW',
-  'ENTERPRISE_CONNECTION_REVIEW',
   'ENTERPRISE_CAPABILITY_REVIEW',
   'ENTERPRISE_BILLING_PAY_SIMULATION',
 ]);
@@ -45,9 +46,9 @@ export function isAuditedCommand(operation: string, actorRole?: string) {
   );
 }
 
-export type PlatformAuditOutcome = 'SUCCESS' | 'DENIED' | 'FAILED';
+type PlatformAuditOutcome = 'SUCCESS' | 'DENIED' | 'FAILED';
 
-export interface PlatformAuditInput {
+interface PlatformAuditInput {
   /** null records a system-originated event (for example automatic lockout). */
   actor: { sub: string | null; role: string } | null;
   action: string;

@@ -1,46 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { canAccessManagementRoute, canWriteFarm } from "./permissions";
+import { actingRole, canAccessManagementRoute, canWriteFarm } from "./permissions";
 
 describe("Web business permissions", () => {
-  it("keeps specialist platform roles inside their assigned functions", () => {
-    const allowed = {
-      PLATFORM_OPERATOR: ["/admin/operations", "/admin/recall"],
-      PLATFORM_CASE_MANAGER: [
-        "/admin/cases",
-        "/admin/cases/new",
-        "/admin/recall",
-      ],
-      PLATFORM_PRIVACY_OFFICER: ["/admin/privacy"],
-    } as const;
-    for (const role of Object.keys(allowed) as (keyof typeof allowed)[]) {
-      for (const path of allowed[role])
-        expect(canAccessManagementRoute(path, role)).toBe(true);
-      for (const path of [
-        "/admin/users",
-        "/admin/approvals",
-        "/admin/organizations",
-        "/production-cycles",
-        "/lots",
-        "/distribution",
-        "/enterprise",
-        "/iot-simulator",
-      ])
-        expect(canAccessManagementRoute(path, role)).toBe(false);
-      expect(canAccessManagementRoute("/admin/security", role)).toBe(true);
-      expect(canAccessManagementRoute("/account/privacy", role)).toBe(true);
-    }
+  it("lets an enterprise employee act as its organization's business role", () => {
     expect(
-      canAccessManagementRoute("/admin/privacy", "PLATFORM_CASE_MANAGER"),
-    ).toBe(false);
+      actingRole({
+        role: { code: "ENTERPRISE_STAFF", name: "Nhân viên doanh nghiệp" },
+        businessRole: "DISTRIBUTOR",
+      }),
+    ).toBe("DISTRIBUTOR");
     expect(
-      canAccessManagementRoute("/admin/cases/new", "PLATFORM_OPERATOR"),
-    ).toBe(false);
+      actingRole({ role: { code: "AUDITOR", name: "Kiểm định" }, businessRole: null }),
+    ).toBe("AUDITOR");
+    expect(
+      canAccessManagementRoute("/production-cycles", actingRole({
+        role: { code: "ENTERPRISE_STAFF", name: "Nhân viên doanh nghiệp" },
+        businessRole: "FARM_STAFF",
+      })),
+    ).toBe(true);
+  });
+  it("gives the single Admin role every platform function but no business workspace", () => {
+    for (const path of [
+      "/admin/operations",
+      "/admin/recall",
+      "/admin/cases",
+      "/admin/cases/new",
+      "/admin/privacy",
+      "/admin/security",
+      "/admin/users",
+      "/admin/notifications",
+      "/account/privacy",
+    ])
+      expect(canAccessManagementRoute(path, "SYSTEM_ADMIN")).toBe(true);
+    for (const path of ["/enterprise", "/distribution"])
+      expect(canAccessManagementRoute(path, "SYSTEM_ADMIN")).toBe(false);
   });
   it.each(["AUDITOR", "TRANSPORTER", "RETAILER"] as const)(
-    "keeps %s from farmer writes and the user IoT simulator",
+    "keeps %s from farmer writes while IoT follows device-route permissions",
     (role) => {
       expect(canWriteFarm(role)).toBe(false);
-      expect(canAccessManagementRoute("/iot-simulator", role)).toBe(false);
+      expect(canAccessManagementRoute("/iot-simulator", role)).toBe(canAccessManagementRoute("/enterprise/devices", role));
       expect(canAccessManagementRoute("/production-cycles", role)).toBe(true);
     },
   );
@@ -119,13 +118,10 @@ describe("Web business permissions", () => {
       false,
     );
   });
-  it("uses current server production access for the scoped IoT route", () => {
-    expect(
-      canAccessManagementRoute("/iot-simulator", "TRANSPORTER", true),
-    ).toBe(true);
-    expect(
-      canAccessManagementRoute("/iot-simulator", "FARM_STAFF", false),
-    ).toBe(false);
+  it("gives the retired IoT address the same boundary as device management", () => {
+    for (const role of ["FARM_STAFF", "TRANSPORTER", "DISTRIBUTOR", "RETAILER", "AUDITOR", "SYSTEM_ADMIN", "IOT_DEVICE"] as const)
+      for (const production of [true, false])
+        expect(canAccessManagementRoute("/iot-simulator", role, production)).toBe(canAccessManagementRoute("/enterprise/devices", role, production));
     expect(canAccessManagementRoute("/admin", "TRANSPORTER", true)).toBe(false);
   });
 });

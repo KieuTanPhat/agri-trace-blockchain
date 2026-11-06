@@ -22,7 +22,7 @@ import { ChoiceField, SelectField, TextAreaField, TextField } from "@/components
 import { ReferenceSelectField } from "@/components/ledger/kit/reference-select";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
-import { EVIDENCE_KIND_LABEL, EvidencePanel } from "@/components/ledger/workspace/evidence-panel";
+import { EVIDENCE_KIND_LABEL, EvidencePanel, EvidenceCover } from "@/components/ledger/workspace/evidence-panel";
 import { PhotoPicker } from "@/components/ledger/workspace/photo-picker";
 import { newLedgerCommandKey } from "@/lib/ledger/command-context";
 
@@ -82,7 +82,7 @@ export default function AreasPage({view="list",resourceId,farmId}:{view?:"list"|
     { key: "region", header: tr("Khu vực"), hideBelow: "md", cell: (f) => <span className="text-ink-2">{f.region}</span> },
     { key: "area", header: tr("Diện tích / sản lượng"), hideBelow: "lg", cell: (f) => <span className="font-mono text-[12px]">{fmtNumber(f.areaM2)} m² · {fmtNumber(f.expectedOutput)} {f.outputUnit}</span> },
     { key: "plots", header: tr("Lô đất"), hideBelow: "md", cell: (f) => <span className="font-mono text-[12px]">{plots.filter((p) => p.farmId === f.id).length}</span> },
-    { key: "ev", header: tr("Hồ sơ"), cell: (f) => (f.evidenceComplete ? <Badge tone="ok">{tr("Đủ")}</Badge> : <Badge tone="warn">{tr("Thiếu")}</Badge>) },
+    { key: "ev", header: tr("Hồ sơ"), cell: (f) => <span className="flex items-center gap-2"><EvidenceCover entityType="FARM" entityId={f.id} prefer={[]} />{!f.evidenceComplete && <Badge tone="warn">{tr("Hồ sơ thiếu")}</Badge>}</span> },
     { key: "status", header: tr("Trạng thái"), cell: (f) => <Badge tone={f.status === "ACTIVE" ? "ok" : "neutral"}>{f.status === "ACTIVE" ? tr("Hoạt động") : tr("Ngừng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (f) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/areas/${f.id}`)}>{tr("Chi tiết")}</Button> },
   ];

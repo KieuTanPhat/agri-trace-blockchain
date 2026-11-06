@@ -22,10 +22,11 @@ const roleSchema = z.object({ name: z.string().trim().min(2, { error: () => tr("
 
 export default function RolesPage({ roleId }: { roleId?: string }) {
   const router = useRouter();
-  const { can, primary, access, tier } = useWorkspaceAccess();
+  const { can, primary, access } = useWorkspaceAccess();
   const roles = useQuery({ queryKey: ["ws-roles"], queryFn: wapi.roles, enabled: can("members.read") });
   const members = useQuery({ queryKey: ["ws-members"], queryFn: wapi.members, enabled: can("members.read") });
-  const manage = can("roles.manage") && tier !== 3;
+  // Only the enterprise owner edits permission groups.
+  const manage = primary;
   const templates = useQuery({ queryKey: ["ws-templates"], queryFn: wapi.roleTemplates, enabled: manage });
   const edit = useDialog<EnterpriseRole | "new">();
   const del = useDialog<EnterpriseRole>();

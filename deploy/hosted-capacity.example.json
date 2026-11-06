@@ -3,9 +3,9 @@
   "minimumHostReservePercent": 20,
   "appMiB": {"POSTGRES": 512, "API": 512, "WEB": 512, "WORKER": 384},
   "retainedServicesMiB": {"datadog": 768, "edge": 128, "portainer": 128},
-  "hostedNetworkMiB": {"enrollmentCAEach": 96, "tlsCAEach": 96, "caCount": 8, "orderer": 256, "peerEach": 448, "peerCount": 3, "chaincodeEach": 192, "chaincodeCount": 3},
-  "runtimeTotalMiB": 5888,
+  "hostedNetworkMiB": {"enrollmentCAEach": 96, "tlsCAEach": 96, "caCount": 4, "orderer": 256, "peerEach": 448, "peerCount": 1, "chaincodeEach": 192, "chaincodeCount": 1},
+  "runtimeTotalMiB": 3840,
   "temporaryOperatorMiB": 384,
-  "runtimeWithOperatorMiB": 6272,
+  "runtimeWithOperatorMiB": 4224,
   "warning": "Check real host capacity and workload, OOM/restarts and restore evidence. Only one active Fabric network; retired resources remain stopped. Keep quotas and at least 20 percent host reserve."
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const excluded = /^(?:node_modules|\.next|\.git|\.codegraph|\.superpowers|dist|build|coverage|__tests__|__fixtures__|tests?|test-results|playwright-report|artifacts)$/i;
-export const permittedInput = (p) => !p.split(/[\\/]/).some(s => excluded.test(s))
+const permittedInput = (p) => !p.split(/[\\/]/).some(s => excluded.test(s))
   && !/(?:^|\/)[^/]*\.env(?:\.[^/]*)?$|\.(?:spec|test)\.[^/]+$|\.(?:log|trace|pem|key|p12|pfx|map)$/i.test(p);
 export const sha256 = (content) => createHash('sha256').update(content).digest('hex');
 export function walkFiles(root, prefix = '') {
@@ -20,7 +20,7 @@ export function walkFiles(root, prefix = '') {
   }
   return result.sort();
 }
-export function discoverPreviewInputs({sourceRoot,inventory}) {
+function discoverPreviewInputs({sourceRoot,inventory}) {
   const config=inventory.uiSource.discovery;
   const paths=new Set();
   for(const root of config.includeRoots) for(const file of walkFiles(sourceRoot, root.replace(/\/$/,''))) paths.add(file);

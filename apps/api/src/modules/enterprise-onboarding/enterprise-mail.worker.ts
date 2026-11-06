@@ -1,21 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import nodemailer from 'nodemailer';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { decryptOtp } from './registration-otp.service.js';
 import { contractAttachment, enterpriseMailHtml } from './mail-template.js';
+import {
+  assertSmtpAccepted,
+  assertSmtpRecipient,
+  mailConfiguration,
+  safeMailFailure,
+  smtpOptions,
+} from './mail-transport.js';
 
-/** Only Worker sends mail. Reserved test recipients always use the local sink. */
+/** Only Worker sends mail. SMTP never falls back to the local test inbox. */
 @Injectable()
 export class EnterpriseMailWorker {
   private readonly logger = new Logger(EnterpriseMailWorker.name);
   constructor(private readonly db: PrismaService) {}
   get enabled() {
-    return ['mailpit', 'smtp'].includes(process.env.MAIL_TRANSPORT ?? '');
+    const mode = process.env.MAIL_TRANSPORT?.trim().toLowerCase();
+    return !!mode && mode !== 'disabled';
   }
   async processAll() {
-    if (!this.enabled) return;
+    const config = mailConfiguration();
+    if (config.mode === 'disabled') return;
     const candidates = await this.db.enterpriseMail.findMany({
       where: {
         status: 'PENDING',
@@ -48,6 +56,35 @@ export class EnterpriseMailWorker {
         where: { id: candidate.id },
       });
       try {
+        if (config.mode === 'smtp') assertSmtpRecipient(row.recipient);
+        const isStaffReset = row.kind === 'STAFF_PASSWORD_RESET';
+        const staffReset =
+          isStaffReset && row.staffResetId
+            ? await this.db.staffPasswordReset.findUnique({
+                where: { id: row.staffResetId },
+              })
+            : null;
+        if (
+          isStaffReset &&
+          (!staffReset ||
+            staffReset.userId !== row.userId ||
+            staffReset.email !== row.recipient ||
+            staffReset.expiresAt <= new Date() ||
+            staffReset.consumedAt ||
+            staffReset.supersededAt ||
+            staffReset.attempts >= 5)
+        ) {
+          await this.db.enterpriseMail.updateMany({
+            where: { id: row.id, leaseToken: token, status: 'PENDING' },
+            data: {
+              status: 'CANCELLED',
+              otpCiphertext: null,
+              leaseToken: null,
+              leaseExpiresAt: null,
+            },
+          });
+          continue;
+        }
         const verification = row.verificationId
           ? await this.db.registrationEmailVerification.findUnique({
               where: { id: row.verificationId },
@@ -75,13 +112,15 @@ export class EnterpriseMailWorker {
         const sealed = row.otpCiphertext
           ? decryptOtp(row.otpCiphertext)
           : undefined;
-        const otp = row.kind === 'REGISTRATION_OTP' ? sealed : undefined;
-        const password = ['CREDENTIALS', 'ACCOUNT_CREDENTIALS'].includes(row.kind)
+        const otp =
+          row.kind === 'REGISTRATION_OTP' || isStaffReset ? sealed : undefined;
+        const password = ['CREDENTIALS', 'ACCOUNT_CREDENTIALS'].includes(
+          row.kind,
+        )
           ? sealed
           : undefined;
         const links: Record<string, [string, string]> = {
           APPROVED: ['Hoàn thiện dịch vụ', '/enterprise/service'],
-          CONTRACT: ['Xem hợp đồng', '/enterprise/service/contract'],
           CREDENTIALS: ['Đăng nhập theo dõi hồ sơ', '/login'],
           ACCOUNT_CREDENTIALS: ['Đăng nhập AgriTrace', '/login'],
         };
@@ -112,19 +151,21 @@ export class EnterpriseMailWorker {
           (password
             ? `\n\nMật khẩu tạm: ${password}\nĐổi mật khẩu ở lần đăng nhập đầu tiên.`
             : '');
-        const logo = await readFile(
-          new URL('../../../assets/agritrace-logo.png', import.meta.url),
-        );
-        const attachment = row.attachment
-          ? contractAttachment(row.attachment)
-          : null;
+        const attachment =
+          !row.attachmentPdf && row.attachment
+            ? contractAttachment(row.attachment)
+            : null;
         const attachments = [
-          {
-            filename: 'agritrace-logo.png',
-            content: logo,
-            contentType: 'image/png',
-            cid: 'agritrace-logo',
-          },
+          ...(row.attachmentPdf
+            ? [
+                {
+                  filename: 'hop-dong-agritrace.pdf',
+                  content: Buffer.from(row.attachmentPdf),
+                  contentType: 'application/pdf',
+                  cid: undefined,
+                },
+              ]
+            : []),
           ...(attachment
             ? [
                 {
@@ -136,83 +177,41 @@ export class EnterpriseMailWorker {
               ]
             : []),
         ];
-        const reserved =
-          /(?:\.test|@example\.(?:com|org|net)|@localhost)$/i.test(
-            row.recipient,
+        if (config.mode === 'mailpit') {
+          const response = await fetch(
+            new URL('/api/v1/send', config.baseUrl),
+            {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                From: {
+                  Email: config.from,
+                  Name: config.fromName,
+                },
+                To: [{ Email: row.recipient }],
+                Subject: row.subject,
+                Text: text,
+                HTML: html,
+                Headers: { 'Message-ID': `<${row.id}@agritrace.local>` },
+                Attachments: attachments.map((a) => ({
+                  Filename: a.filename,
+                  ContentType: a.contentType,
+                  Content: a.content.toString('base64'),
+                  ...(a.cid ? { ContentID: a.cid } : {}),
+                })),
+              }),
+              signal: AbortSignal.timeout(10_000),
+            },
           );
-        if (process.env.MAIL_TRANSPORT === 'mailpit' || reserved) {
-          if (process.env.NODE_ENV === 'production')
-            throw new Error('Test mail is disabled in production');
-          const base = new URL(
-            process.env.MAILPIT_API_URL ?? 'http://mail:8025',
-          );
-          if (
-            base.protocol !== 'http:' ||
-            !['mail', '127.0.0.1', 'localhost'].includes(base.hostname) ||
-            base.username ||
-            base.password ||
-            base.pathname !== '/' ||
-            base.search ||
-            base.hash
-          )
-            throw new Error('Invalid local mailbox');
-          const response = await fetch(new URL('/api/v1/send', base), {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              From: {
-                Email: process.env.MAIL_FROM ?? 'no-reply@agritrace.local',
-                Name: process.env.MAIL_FROM_NAME ?? 'AgriTrace',
-              },
-              To: [{ Email: row.recipient }],
-              Subject: row.subject,
-              Text: text,
-              HTML: html,
-              Headers: { 'Message-ID': `<${row.id}@agritrace.local>` },
-              Attachments: attachments.map((a) => ({
-                Filename: a.filename,
-                ContentType: a.contentType,
-                Content: a.content.toString('base64'),
-                ...(a.cid ? { ContentID: a.cid } : {}),
-              })),
-            }),
-            signal: AbortSignal.timeout(10_000),
-          });
           if (!response.ok)
             throw new Error('Local mail transport refused the message');
         } else {
-          const host = process.env.SMTP_HOST,
-            port = Number(process.env.SMTP_PORT ?? 587),
-            secure = process.env.SMTP_SECURE === 'true';
-          if (
-            !host ||
-            !process.env.SMTP_USER ||
-            !process.env.SMTP_PASSWORD ||
-            !process.env.MAIL_FROM ||
-            ![465, 587, 2525].includes(port)
-          )
-            throw new Error('SMTP configuration is incomplete');
-          const transport = nodemailer.createTransport({
-            host,
-            port,
-            secure,
-            requireTLS: !secure,
-            auth: {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASSWORD,
-            },
-            connectionTimeout: 10_000,
-            greetingTimeout: 10_000,
-            socketTimeout: 15_000,
-            logger: false,
-            debug: false,
-            tls: { minVersion: 'TLSv1.2' },
-          });
+          const transport = nodemailer.createTransport(smtpOptions(config));
           try {
-            await transport.sendMail({
+            const result = await transport.sendMail({
               from: {
-                address: process.env.MAIL_FROM,
-                name: process.env.MAIL_FROM_NAME ?? 'AgriTrace',
+                address: config.from,
+                name: config.fromName,
               },
               to: row.recipient,
               subject: row.subject,
@@ -223,6 +222,7 @@ export class EnterpriseMailWorker {
               disableFileAccess: true,
               disableUrlAccess: true,
             });
+            assertSmtpAccepted(result, row.recipient);
           } finally {
             transport.close();
           }
@@ -240,7 +240,7 @@ export class EnterpriseMailWorker {
       } catch (cause) {
         // The reason only, never the recipient, password or OTP.
         this.logger.warn(
-          `Mail ${row.id} (${row.kind}) attempt ${row.attempts} failed: ${cause instanceof Error ? cause.message.slice(0, 200) : 'unknown error'}`,
+          `Mail ${row.id} (${row.kind}) attempt ${row.attempts} failed: ${safeMailFailure(cause)}`,
         );
         await this.db.enterpriseMail.updateMany({
           where: { id: row.id, leaseToken: token, status: 'PENDING' },

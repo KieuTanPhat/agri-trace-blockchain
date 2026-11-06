@@ -5,7 +5,7 @@ import type { ClientRequest, IncomingMessage } from 'node:http';
 
 export const NEWS_IMAGE_FETCH = Symbol('NEWS_IMAGE_FETCH');
 export const IMAGE_MAX_BYTES = 384 * 1024;
-export type ImageDownload = { bytes: Buffer; contentType: string };
+type ImageDownload = { bytes: Buffer; contentType: string };
 export type NewsImageFetcher = (url: URL) => Promise<ImageDownload>;
 const blocked = new BlockList();
 for (const [network, prefix] of [

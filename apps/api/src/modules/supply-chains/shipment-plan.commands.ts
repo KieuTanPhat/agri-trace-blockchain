@@ -1,3 +1,4 @@
+import { effectiveRole } from '../auth/role-codes.js';
 import {
   ConflictException,
   ForbiddenException,
@@ -214,14 +215,14 @@ export async function authorizeShipmentPlanCommand(
       await db.$queryRaw`SELECT grant_id FROM scoped_role_grant WHERE grant_id = ${consent.grantId}::uuid FOR SHARE`;
     const user = await db.user.findUniqueOrThrow({
       where: { id: consent.userId },
-      include: { role: true },
+      include: { role: true, organization: { select: { type: true } } },
     });
     const valid = await authorizePlanAcceptance(
       db,
       {
         sub: user.id,
         organizationId: user.organizationId,
-        role: user.role.code,
+        role: effectiveRole(user) ?? '',
       },
       plan!.id,
       consent.party,
@@ -706,14 +707,14 @@ export async function finalizeShipmentPlan(
   for (const consent of initial.current.acceptances) {
     const user = await db.user.findUniqueOrThrow({
       where: { id: consent.userId },
-      include: { role: true },
+      include: { role: true, organization: { select: { type: true } } },
     });
     const current = await authorizePlanAcceptance(
       db,
       {
         sub: user.id,
         organizationId: user.organizationId,
-        role: user.role.code,
+        role: effectiveRole(user) ?? '',
       },
       id,
       consent.party,

@@ -24,21 +24,9 @@ export const CYCLE_STATE: Record<string, { label: string; t: Tone }> = {
   CANCELLED: { label: 'Đã hủy', t: 'red' },
 };
 
-export const TIMELINE: Record<string, { icon: IconName; bg: string }> = {
-  PRODUCTION_CYCLE: { icon: 'leaf', bg: '#239b45' },
-  CARE: { icon: 'journal', bg: '#7c4ddb' },
-  SENSOR: { icon: 'sun', bg: '#14a3b8' },
-  SENSOR_DIGEST: { icon: 'sun', bg: '#14a3b8' },
-  HARVEST: { icon: 'basket', bg: '#f58a00' },
-  LOT: { icon: 'box', bg: '#e8730c' },
-  SHIPMENT: { icon: 'truck', bg: '#2f6fde' },
-  SHIPMENT_TELEMETRY: { icon: 'truck', bg: '#2f6fde' },
-  INSPECTION: { icon: 'check', bg: '#1b7a37' },
-  CERTIFICATE: { icon: 'check', bg: '#1b7a37' },
-};
 
 export const ORG_TYPE: Record<string, { label: string; icon: IconName; t: Tone }> = {
-  FARM: { label: 'Nông hộ / HTX', icon: 'leaf', t: 'green' },
+  FARM: { label: 'Sản xuất (DN/HTX)', icon: 'leaf', t: 'green' },
   TRANSPORTER: { label: 'Vận chuyển', icon: 'truck', t: 'blue' },
   RETAILER: { label: 'Bán lẻ', icon: 'store', t: 'purple' },
   PROCESSOR: { label: 'Chế biến', icon: 'box', t: 'orange' },

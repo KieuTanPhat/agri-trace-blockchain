@@ -8,101 +8,14 @@ import type { components } from "./generated/api";
 export type Row = Record<string, unknown>;
 type Schemas = components["schemas"];
 /** Enterprise workspace reads typed from the generated NestJS contract. */
-export type Overview = Schemas["WorkspaceOverviewDto"];
-export type EnterpriseMember = Schemas["EnterpriseMemberDto"];
-export type EnterpriseRole = Schemas["EnterpriseRoleRecordDto"];
-export type EnterpriseRoleTemplate = Schemas["EnterpriseRoleTemplateDto"];
-export type EnterprisePartner = Schemas["EnterprisePartnerDto"];
-export type EnterpriseSite = Schemas["EnterpriseSiteRecordDto"];
-export type EnterpriseVehicle = Schemas["EnterpriseVehicleRecordDto"];
-export type ProductionMaterial = Schemas["ProductionMaterialRecordDto"];
-export type MemberInvitation = Schemas["EnterpriseMemberInvitationDto"];
-export type EnterpriseRevision = Schemas["EnterpriseRevisionDto"];
 export type TraceEvidence = Schemas["TraceEvidenceRecordDto"];
-export type EnterpriseProfile = Schemas["EnterpriseProfileRecordDto"];
-export type Catalog = Schemas["CatalogDto"];
-export type OwnProfileWorkspace = Schemas["OwnProfileWorkspaceDto"];
-export type ProfileAmendment = Schemas["ProfileAmendmentDto"];
-export type ProfileAmendmentListItem = Schemas["ProfileAmendmentListItemDto"];
-export type ProfileAmendmentDetail = Schemas["ProfileAmendmentDetailDto"];
-export type ProfileEvidenceContent = Schemas["ProfileEvidenceContentDto"];
 export type Items<T> = { items: T[] };
-export type RecordOf<T> = { record: T };
-export const textValue = (value: unknown) =>
-  value === undefined || value === null ? "—" : String(value);
-export const errorMessage = (error: unknown) =>
+const errorMessage = (error: unknown) =>
   error && typeof error === "object" && "message" in error
     ? String(error.message)
     : "Chưa kết nối được. Giữ nguyên yêu cầu và thử lại.";
-export { labels } from "./status-labels";
-export const permissionLabels: Record<string, string> = {
-  "profile.manage": "Sửa hồ sơ và gửi lại xét duyệt",
-  "cases.read": "Xem hồ sơ được giao",
-  "cases.respond": "Tiếp nhận và phản hồi hồ sơ",
-  "inventory.manage": "Phân bổ tồn theo cơ sở",
-  "quarantine.manage": "Cách ly / giải phóng hàng tại cơ sở",
-  "evidence.read": "Xem chứng cứ đính kèm",
-  "evidence.manage": "Bổ sung / đính chính chứng cứ",
-  "materials.read": "Xem giống và vật tư truy xuất",
-  "materials.manage": "Quản lý giống và vật tư truy xuất",
-  "quantity.adjust": "Ghi lượng bán ra / hao hụt theo lô trong chuỗi",
-  "profile.read": "Xem hồ sơ doanh nghiệp",
-  "members.read": "Xem thành viên / nhóm quyền",
-  "members.manage": "Tạo và quản lý nhân viên",
-  "roles.manage": "Tạo nhóm quyền",
-  "partners.read": "Xem đối tác",
-  "partners.manage": "Mời và quản lý liên kết",
-  "catalog.read": "Xem sản phẩm / vùng sản xuất",
-  "catalog.manage": "Tạo sản phẩm / vùng sản xuất",
-  "sites.read": "Xem cơ sở",
-  "sites.manage": "Quản lý cơ sở",
-  "vehicles.read": "Xem phương tiện",
-  "vehicles.manage": "Quản lý phương tiện",
-  "production.read": "Xem vụ và nhật ký",
-  "production.write": "Ghi nhật ký sản xuất / thu hoạch",
-  "distribution.read": "Xem giao nhận",
-  "distribution.write": "Tạo giao nhận / phân bổ",
-  "distribution.sign": "Ký đồng thuận và bàn giao",
-  "trace.read": "Xem hành trình truy xuất",
-  "qr.manage": "Xem kho QR",
-  "reports.read": "Xem báo cáo đối soát",
-  "processing.read": "Xem lệnh chế biến",
-  "processing.write": "Lập và hoàn tất lệnh chế biến",
-};
-/** Permissions shown in business groups so a role is easy to read. */
-export const permissionGroups: { title: string; codes: string[] }[] = [
-  {
-    title: "Hồ sơ & thành viên",
-    codes: ["profile.read", "profile.manage", "members.read", "members.manage", "roles.manage"],
-  },
-  { title: "Đối tác", codes: ["partners.read", "partners.manage"] },
-  {
-    title: "Danh mục, cơ sở & vật tư",
-    codes: ["catalog.read", "catalog.manage", "sites.read", "sites.manage", "vehicles.read", "vehicles.manage", "materials.read", "materials.manage"],
-  },
-  {
-    title: "Sản xuất & chế biến",
-    codes: ["production.read", "production.write", "processing.read", "processing.write"],
-  },
-  {
-    title: "Kho & phân phối",
-    codes: ["inventory.manage", "quarantine.manage", "quantity.adjust", "distribution.read", "distribution.write", "distribution.sign"],
-  },
-  {
-    title: "Truy xuất, chứng cứ & báo cáo",
-    codes: ["trace.read", "qr.manage", "evidence.read", "evidence.manage", "reports.read"],
-  },
-  { title: "Phản ánh & sự cố", codes: ["cases.read", "cases.respond"] },
-];
+export {} from "./status-labels";
 /** Groups holding the given codes; codes outside every group go last. */
-export function groupPermissions(codes: string[]) {
-  const grouped = permissionGroups
-    .map((g) => ({ title: g.title, codes: g.codes.filter((c) => codes.includes(c)) }))
-    .filter((g) => g.codes.length);
-  const known = new Set(permissionGroups.flatMap((g) => g.codes));
-  const rest = codes.filter((c) => !known.has(c));
-  return rest.length ? [...grouped, { title: "Khác", codes: rest }] : grouped;
-}
 export function useWorkspaceData<T>(path: string | null) {
   const auth = useAuth(),
     scope = getAuthorizationScope(auth.user),

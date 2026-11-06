@@ -32,8 +32,8 @@ export class TransferLineInput {
   @MaxLength(30)
   unit!: string;
 }
-export const TRANSPORT_MODES = ['PLATFORM_CARRIER', 'EXTERNAL_CARRIER', 'SELF_DELIVERY', 'RECEIVER_PICKUP'] as const;
-export type TransportMode = (typeof TRANSPORT_MODES)[number];
+const TRANSPORT_MODES = ['PLATFORM_CARRIER', 'EXTERNAL_CARRIER', 'SELF_DELIVERY'] as const;
+type TransportMode = (typeof TRANSPORT_MODES)[number];
 export class TransportDetailsInput {
   @ApiProperty({ required: false, maxLength: 255, description: 'Bắt buộc khi thuê đơn vị vận chuyển ngoài AgriTrace' })
   @IsOptional() @IsString() @MinLength(2) @MaxLength(255) carrierName?: string;
@@ -51,8 +51,8 @@ export class TransferInput {
   @IsOptional() @IsIn(['SENDER', 'RECEIVER']) externalHirer?: 'SENDER' | 'RECEIVER';
   @ApiProperty({ type: TransportDetailsInput, required: false })
   @IsOptional() @ValidateNested() @Type(() => TransportDetailsInput) transportDetails?: TransportDetailsInput;
-  @ApiProperty({ required: false, format: 'uuid', description: 'Yêu cầu lấy hàng của bên nhận được chuyển thành phiếu này' })
-  @IsOptional() @IsUUID() pickupRequestId?: string;
+  @ApiProperty({ required: false, format: 'uuid', description: 'Bên giao tự chở: nhân viên có quyền Lái xe; người này (hoặc chủ doanh nghiệp) ký lấy hàng và giao hàng' })
+  @IsOptional() @IsUUID() driverUserId?: string;
   @ApiProperty({ type: String, format: 'date-time', description: 'Dự kiến lấy hàng; múi giờ bắt buộc' })
   @IsDateString() plannedPickupAt!: string;
   @ApiProperty({ type: String, required: false, format: 'date-time' })
@@ -98,15 +98,6 @@ export class TransferInput {
   @Type(() => TransferLineInput)
   lines!: TransferLineInput[];
 }
-export class PickupRequestInput {
-  @ApiProperty({ format: 'uuid', description: 'Bên giao (đối tác đã liên kết)' }) @IsUUID() senderId!: string;
-  @ApiProperty({ required: false, type: String, format: 'date-time' }) @IsOptional() @IsDateString() preferredPickupAt?: string;
-  @ApiProperty({ maxLength: 1000, description: 'Sản phẩm, lượng và thời gian muốn lấy' }) @IsString() @MinLength(5) @MaxLength(1000) note!: string;
-}
-export class PickupResolveInput {
-  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
-  @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) note?: string;
-}
 export class TransferVersion {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
 }
@@ -118,13 +109,31 @@ export class HoldingDispositionInput extends TransferLineInput {
   @ApiProperty({required:false,format:'uuid',description:'Quarantine slip whose open quantity is consumed'}) @IsOptional() @IsUUID() quarantineCaseId?:string;
   @ApiProperty({ required: false, format: 'uuid' }) @IsOptional() @IsUUID() siteId?: string;
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
-  @ApiProperty({ enum: ['SALE', 'DAMAGE'] }) @IsIn(['SALE', 'DAMAGE']) kind!:
-    'SALE' | 'DAMAGE';
+  @ApiProperty({
+    enum: ['SALE', 'DAMAGE', 'EXTERNAL_DISPATCH'],
+    description: 'SALE to consumers; EXTERNAL_DISPATCH hands goods to an organization outside AgriTrace (ADR-005)',
+  })
+  @IsIn(['SALE', 'DAMAGE', 'EXTERNAL_DISPATCH'])
+  kind!: 'SALE' | 'DAMAGE' | 'EXTERNAL_DISPATCH';
   @ApiProperty({ maxLength: 500 })
   @IsString()
   @MinLength(3)
   @MaxLength(500)
   reason!: string;
+  @ApiProperty({ required: false, maxLength: 255, description: 'Required for EXTERNAL_DISPATCH' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(255)
+  recipientName?: string;
+  @ApiProperty({ required: false, maxLength: 100, description: 'Delivery document number, required for EXTERNAL_DISPATCH' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  documentNo?: string;
+  @ApiProperty({ required: false, type: String, format: 'uuid', isArray: true, description: 'Up to 6 LOT DAMAGE_IMAGE evidence; required for DAMAGE' })
+  @IsOptional() @IsArray() @ArrayMaxSize(6) @IsUUID('4', { each: true }) photos?: string[];
 }
 export class SiteAllocationInput extends TransferLineInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() siteId!: string;
@@ -140,6 +149,8 @@ export class QuarantineInput extends SiteAllocationInput {
   @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) note?: string;
   @ApiProperty({ required: false, format: 'uuid', description: 'Quarantine slip being released' })
   @IsOptional() @IsUUID() quarantineCaseId?: string;
+  @ApiProperty({ required: false, type: String, format: 'uuid', isArray: true, description: 'Up to 6 LOT DAMAGE_IMAGE evidence of the goods put on hold' })
+  @IsOptional() @IsArray() @ArrayMaxSize(6) @IsUUID('4', { each: true }) photos?: string[];
 }
 export class SiteTransferInput extends TransferLineInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() fromSiteId!: string;
@@ -174,6 +185,13 @@ export class ActualReceiptLine {
 export class ActualReceiptInput extends TransferVersion {
   @ApiProperty({ type: ActualReceiptLine, isArray: true }) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => ActualReceiptLine) lines!: ActualReceiptLine[];
   @ApiProperty({ maxLength: 1000 }) @IsString() @MinLength(10) @MaxLength(1000) reason!: string;
+  @ApiProperty({ required: false, type: String, format: 'uuid', isArray: true, description: 'Up to 6 receiver TRANSFER_IMAGE evidence; required when a line is short, rejected or quarantined' })
+  @IsOptional() @IsArray() @ArrayMaxSize(6) @IsUUID('4', { each: true }) photos?: string[];
+}
+export class HandoverPhotosInput extends TransferVersion {
+  @ApiProperty({ enum: ['PICKUP', 'DELIVERY'] }) @IsIn(['PICKUP', 'DELIVERY']) phase!: 'PICKUP' | 'DELIVERY';
+  @ApiProperty({ type: String, format: 'uuid', isArray: true, description: '1 to 6 TRANSFER_IMAGE evidence of the signing party, fixed before the phase is signed' })
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(6) @IsUUID('4', { each: true }) photos!: string[];
 }
 export class ReturnInput extends TransferVersion {
   @ApiProperty({ type: TransferLineInput, isArray: true }) @IsArray() @ArrayMinSize(1) @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => TransferLineInput) lines!: TransferLineInput[];
@@ -199,9 +217,12 @@ export class DistributionC2Submit extends DistributionC2Prepare {
 }
 export class TraceNoticeInput {
   @ApiProperty({ format: 'uuid' }) @IsUUID() lotId!: string;
-  @ApiProperty({ enum: ['WARNING', 'RECALL'] })
-  @IsIn(['WARNING', 'RECALL'])
-  kind!: 'WARNING' | 'RECALL';
+  @ApiProperty({
+    enum: ['WARNING', 'RECALL', 'RECALL_PROPOSAL'],
+    description: 'RECALL by the chain owner; RECALL_PROPOSAL from a partner, private to the chain',
+  })
+  @IsIn(['WARNING', 'RECALL', 'RECALL_PROPOSAL'])
+  kind!: 'WARNING' | 'RECALL' | 'RECALL_PROPOSAL';
   @ApiProperty({
     maxLength: 500,
     description: 'Public consumer notice; do not include private contact data',
@@ -218,13 +239,6 @@ export class TransferObservationInput {
   @MinLength(3)
   @MaxLength(1000)
   note!: string;
-  @ApiProperty({
-    required: false,
-    description: 'Manually observed temperature in °C, not an IoT attestation',
-  })
-  @IsOptional()
-  @Matches(/^-?\d{1,2}(\.\d{1,2})?$/)
-  temperature?: string;
 }
 export class TransferSignature extends TransferVersion {
   @ApiProperty({ enum: ['CONSENT', 'PICKUP', 'DELIVERY'] })
@@ -289,4 +303,10 @@ export class DistributionOptionsDto {
     items: { type: 'object', additionalProperties: true },
   })
   vehicles!: Record<string, unknown>[];
+  @ApiProperty({
+    type: 'array',
+    description: 'Thành viên có quyền Lái xe, kèm chuỗi/cơ sở được giao; chọn làm tài xế khi bên giao tự chở',
+    items: { type: 'object', additionalProperties: true },
+  })
+  drivers!: Record<string, unknown>[];
 }

@@ -33,7 +33,7 @@ const config: GatewayConfig = {
   channelName: "agritrace",
   chaincodeName: "agritrace",
   contractName: "AgriTraceContract",
-  mspId: "Org1MSP",
+  mspId: "AgritraceMSP",
   peerEndpoint: "peer.test:7051",
   peerHostAlias: "peer.test",
   tlsCertPath: "tls.pem",

@@ -80,9 +80,9 @@ export const PUBLIC_PRODUCT_SELECT = {
   variety: true,
   defaultUnit: true,
   description: true,
-  category:true, price:true, gtin:true, storageConditions:true, ingredients:true, usageInstructions:true,
+  category:true, gtin:true, storageConditions:true, ingredients:true, usageInstructions:true,
   organizationId:true,createdAt:true,
-  organization:{select:{directoryPublications:{take:1,orderBy:[{createdAt:'desc'},{id:'desc'}],select:{presentation:true}}}},
+  organization:{select:{id:true,name:true,directoryPublications:{take:1,orderBy:[{createdAt:'desc'},{id:'desc'}],select:{presentation:true}}}},
   lots:{where:publicLotWhere(),take:50,orderBy:{createdAt:'desc'},select:{id:true}},
   _count:{select:{lots:{where:publicLotWhere()}}},
 } satisfies Prisma.ProductSelect;

@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-agritrace}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agritrace_dev_password}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
@@ -78,7 +78,9 @@ services:
     restart: unless-stopped
     init: true
     environment:
-      NODE_ENV: production
+      # SMTP settings come from the private env file and belong to Worker only.
+      # Mailpit is an explicit optional profile for offline fixtures.
+      NODE_ENV: development
       WORKER_HEALTH_PORT: 8081
       # Temporary passwords and OTPs are sealed with this secret by the API;
       # the Worker must hold the same value to open them before sending.
@@ -91,6 +93,16 @@ services:
       FABRIC_WORKER_BATCH_SIZE: ${FABRIC_WORKER_BATCH_SIZE:-20}
       FABRIC_CLAIM_LEASE_MS: ${FABRIC_CLAIM_LEASE_MS:-120000}
       FABRIC_MAX_RETRIES: ${FABRIC_MAX_RETRIES:-5}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-disabled}
+      MAILPIT_API_URL: http://mail:8025
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-AgriTrace}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      ENTERPRISE_WEB_BASE_URL: ${ENTERPRISE_WEB_BASE_URL:-http://localhost:3000}
     command: ["node", "apps/api/dist/worker-main.js"]
     depends_on:
       api:
@@ -107,6 +119,15 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  # Local email sink. Messages stay on this machine and are not delivered to
+  # real inboxes; the Worker sends them through Mailpit's HTTP API.
+  mail:
+    profiles: [mailpit]
+    image: axllent/mailpit:v1.31.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
 
   # Local stack only: no Fabric runs here, so chains get a simulated binding
   # and requested grants are confirmed (events stay PENDING). The tool refuses

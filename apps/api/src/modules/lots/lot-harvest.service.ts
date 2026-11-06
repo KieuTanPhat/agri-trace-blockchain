@@ -25,6 +25,7 @@ import {
   FARM_WRITE_ROLES,
 } from '../auth/business-write.policy.js';
 import { TraceService, type Actor } from '../trace/trace.service.js';
+import { assertChainCreatesWork } from '../billing/billing-core.js';
 import type { RecordHarvestDto } from './dto.js';
 
 @Injectable()
@@ -150,6 +151,7 @@ export class LotHarvestService {
             'Tổng sản lượng thu hoạch vượt giới hạn của chu kỳ',
           );
         }
+        await assertChainCreatesWork(tx, cycle.chainId, 'lots');
         const harvest = await tx.harvestEvent.create({
           data: {
             cycleId,

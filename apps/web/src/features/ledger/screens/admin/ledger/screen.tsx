@@ -54,6 +54,12 @@ function Ledger() {
               <Stat label={tr("Hold chưa xử lý")} value={d.unresolvedHolds} tone={d.unresolvedHolds ? "warn" : undefined} />
               <Stat label={tr("Chờ lâu nhất")} value={tr("{p0} phút", { p0: d.oldestPendingAgeMinutes })} />
             </StatRow>
+            {d.preparation && <Section title={tr("Chuẩn bị blockchain cho chuỗi")}><DataTable rows={d.preparation.jobs} rowKey={j => j.chainId} columns={[
+              { key: "chain", header: tr("Chuỗi"), cell: j => j.chainName },
+              { key: "state", header: tr("Trạng thái"), cell: j => j.status === "NEEDS_ATTENTION" ? tr("Cần hỗ trợ") : tr("Đang chuẩn bị") },
+              { key: "at", header: tr("Bắt đầu"), cell: j => fmtDateTime(j.createdAt) },
+              { key: "message", header: tr("Thông tin"), cell: j => j.message ?? tr("Hệ thống đang đồng bộ với sổ cái") },
+            ]} empty={<EmptyState title={tr("Không có chuỗi đang chờ chuẩn bị")} />} /></Section>}
             {d.lastFailure && (
               <Callout tone="danger" title={tr("Lỗi gần nhất · {p0} · {p1}", { p0: d.lastFailure.status, p1: fmtDateTime(d.lastFailure.at) })}>
                 <span className="font-mono text-[12px]">{d.lastFailure.error}</span>
@@ -67,6 +73,7 @@ function Ledger() {
                 <table className="w-full min-w-[880px] text-[13px]">
                   <thead>
                     <tr className="border-b border-line bg-sunken text-left text-[12px] text-ink-2">
+                      <th className="h-9 w-12 pl-4 pr-1 text-right font-semibold">{tr("STT")}</th>
                       <th className="h-9 px-4 font-semibold">{tr("Chuỗi")}</th>
                       <th className="px-3 font-semibold">Digest</th>
                       <th className="px-3 font-semibold">{tr("Kênh · chaincode")}</th>
@@ -77,8 +84,9 @@ function Ledger() {
                     </tr>
                   </thead>
                   <tbody>
-                    {d.bindings.map((b) => (
+                    {d.bindings.map((b, i) => (
                       <tr key={b.digest} className="border-b border-line/70 last:border-0">
+                        <td className="w-12 pl-4 pr-1 text-right font-mono text-[12px] text-ink-2">{i + 1}</td>
                         <td className="h-11 px-4">{b.chainName}</td>
                         <td className="px-3 font-mono text-[12px]">{b.digest}</td>
                         <td className="px-3 font-mono text-[12px]">{b.channelId} · {b.chaincodeName}</td>

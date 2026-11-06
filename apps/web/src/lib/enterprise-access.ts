@@ -9,6 +9,10 @@ export type EnterpriseAccess = {
 /** First enterprise page this account may open: the workspace once the
  * service is active, else the plan/onboarding pages an owner completes. */
 export function enterpriseLanding(access: EnterpriseAccess): string | null {
+  // A profile still under review (or rejected) opens its status page, never
+  // the plan selection.
+  if (access.owner && ["PENDING_REVIEW", "REJECTED"].includes(access.stage))
+    return "/enterprise/onboarding";
   return (
     ["/enterprise", "/enterprise/service", "/enterprise/onboarding"].find(
       (path) => canUseEnterpriseRoute(path, access),
@@ -22,13 +26,14 @@ export function canUseEnterpriseRoute(
 ): boolean {
   const within = (prefix: string) =>
     path === prefix || path.startsWith(prefix + "/");
+  if (within("/enterprise/connections")) return false;
   const active = ["ACTIVE", "OPERATOR_PROVISIONED"].includes(access.stage);
   if (within("/enterprise/service") || within("/enterprise/onboarding"))
     return access.owner;
   if (!active) return false;
   const permissions = access.permissions,
     has = (p: string) => permissions.includes(p);
-  if (within("/enterprise/connections")) return access.owner;
+  if (within("/enterprise/audit-log")) return access.primary && has("members.manage");
   if (within("/enterprise/members/new")) return has("members.manage");
   if (within("/enterprise/members"))
     return has(
@@ -48,10 +53,8 @@ export function canUseEnterpriseRoute(
   if (within("/enterprise/sites"))
     return has(path.endsWith("/new") ? "sites.manage" : "sites.read");
   if (within("/enterprise/vehicles"))
-    return (
-      access.capabilities.includes("TRANSPORTER") &&
-      has(path.endsWith("/new") ? "vehicles.manage" : "vehicles.read")
-    );
+    return has(path.endsWith("/new") ? "vehicles.manage" : "vehicles.read");
+  if (within("/enterprise/devices") || within("/iot-simulator")) return has("devices.read");
   if (within("/enterprise/inventory")) return has("inventory.manage") || has("quarantine.manage");
   if (within("/enterprise/materials")) return access.capabilities.includes('FARM') && has(path.endsWith('/new') ? 'materials.manage' : 'materials.read');
   if (within("/enterprise/qr")) return has("qr.manage");
@@ -60,12 +63,18 @@ export function canUseEnterpriseRoute(
   if (within("/enterprise/notifications")) return has("profile.read");
   if (within("/enterprise/settings")) return has("profile.read");
   if (within("/enterprise/help")) return has("profile.read");
-  if (within("/enterprise/notices"))
+  // Role queues: receiving work for every downstream capability, selling for
+  // retailers only.
+  if (within("/enterprise/inbound"))
     return (
-      (access.capabilities.includes("FARM") ||
-        access.capabilities.includes("PROCESSOR")) &&
-      has("distribution.write")
+      ["PROCESSOR", "TRANSPORTER", "DISTRIBUTOR", "RETAILER"].some((c) =>
+        access.capabilities.includes(c),
+      ) && has("distribution.read")
     );
+  if (within("/enterprise/sales"))
+    return access.capabilities.includes("RETAILER") && has("reports.read");
+  // ADR-005: owners recall, every partner may propose a recall.
+  if (within("/enterprise/notices")) return has("distribution.write");
   if (within("/enterprise/processing/conversions"))
     return access.capabilities.includes("PROCESSOR") && has("catalog.read");
   if (within("/enterprise/processing"))
@@ -74,7 +83,6 @@ export function canUseEnterpriseRoute(
       has(path.endsWith("/new") ? "processing.write" : "processing.read")
     );
   if (within("/enterprise/billing")) return access.primary || access.owner;
-  if (within("/enterprise/support")) return has("profile.read");
   if (within("/enterprise/reports/adjust")) return has("quantity.adjust");
   if (within("/enterprise/reports")) return has("reports.read");
   if (within("/enterprise/signing")) return has("distribution.sign");
@@ -94,8 +102,6 @@ export function canUseEnterpriseRoute(
           : "production.read",
       )
     );
-  if (within("/iot-simulator"))
-    return access.capabilities.includes("FARM") && has("production.write");
   if (within("/lots") || within("/dashboard"))
     return (
       has("trace.read") || has("production.read") || has("distribution.read")

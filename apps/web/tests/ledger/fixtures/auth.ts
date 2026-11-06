@@ -206,8 +206,8 @@ registerScenario("auth.registration", {
       if (
         input.requestId !== state.values.get("registrationId") ||
         input.email !== "owner@example.invalid" ||
-        input.organizationName !== "Hộ sản xuất kiểm thử" ||
-        input.participationModel !== "SINGLE" ||
+        input.organizationName !== "HTX sản xuất kiểm thử" ||
+        input.participationStatus !== "MEMBER" ||
         JSON.stringify(input.emailVerifications) !==
           JSON.stringify([
             {
@@ -216,7 +216,7 @@ registerScenario("auth.registration", {
             },
           ]) ||
         details.formVersion !== 2 ||
-        details.legalForm !== "INDIVIDUAL_PRODUCER" ||
+        details.legalForm !== "COOPERATIVE" ||
         JSON.stringify(details.activities) !== JSON.stringify(["FARM"]) ||
         !details.declarationAccepted ||
         !details.termsAccepted ||

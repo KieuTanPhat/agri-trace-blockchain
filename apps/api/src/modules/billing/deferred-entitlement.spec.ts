@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { assertEntitlement, entitlementFor } from './billing-core.js';
+import { assertChainCreatesWork, assertEntitlement, entitlementFor } from './billing-core.js';
 
 afterEach(() => vi.unstubAllEnvs());
 const fixture = (code: 'FARM' | 'RETAILER', subscription: unknown = null) => {
@@ -9,7 +9,7 @@ const fixture = (code: 'FARM' | 'RETAILER', subscription: unknown = null) => {
       findUnique: vi
         .fn()
         .mockResolvedValue({
-          participationModel: 'SINGLE',
+          participationStatus: code === 'FARM' ? 'CHAIN_OWNER' : 'MEMBER',
           _count: { capabilityRequests: 1 },
         }),
     },
@@ -17,7 +17,10 @@ const fixture = (code: 'FARM' | 'RETAILER', subscription: unknown = null) => {
     organizationCapability: { findMany: vi.fn().mockResolvedValue([{ code }]) },
     platformSetting: { findUnique: vi.fn().mockResolvedValue(null) },
     product: { count: vi.fn().mockResolvedValue(30) },
-    supplyChain: { count: vi.fn().mockResolvedValue(0) },
+    supplyChain: { count: vi.fn().mockResolvedValue(0), findUnique: vi.fn().mockResolvedValue({ personal: true, ownerOrganizationId: 'org' }) },
+    chainMembership: { findMany: vi.fn().mockResolvedValue([{ organizationId: 'p1' }]) },
+    productionCycle: { count: vi.fn().mockResolvedValue(10) },
+    lot: { count: vi.fn().mockResolvedValue(3) },
     user: { count: vi.fn().mockResolvedValue(1) },
   };
   return { tx: source as unknown as Prisma.TransactionClient, source };
@@ -54,6 +57,17 @@ describe('Entitlements while collection is deferred', () => {
     await expect(assertEntitlement(tx, 'org', 'products')).rejects.toThrow(
       'Vượt hạn mức',
     );
+  });
+  it('gives members no partner slot and counts distinct partners (ADR-005)', async () => {
+    vi.stubEnv('ENTERPRISE_PAYMENTS_ENABLED', 'false');
+    const { tx } = fixture('RETAILER');
+    await expect(assertEntitlement(tx, 'org', 'partners')).rejects.toThrow('đối tác trong chuỗi');
+  });
+  it('limits the free farm ledger per year without touching plans', async () => {
+    const { tx } = fixture('FARM');
+    await expect(assertChainCreatesWork(tx, 'ledger', 'cycles')).rejects.toThrow('Sổ ghi nông trại');
+    await expect(assertChainCreatesWork(tx, 'ledger', 'lots')).resolves.toBeUndefined();
+    await expect(assertChainCreatesWork(tx, 'ledger', 'runs')).resolves.toBeUndefined();
   });
   it('preserves an existing unpaid subscription without claiming it is paid', async () => {
     vi.stubEnv('ENTERPRISE_PAYMENTS_ENABLED', 'false');

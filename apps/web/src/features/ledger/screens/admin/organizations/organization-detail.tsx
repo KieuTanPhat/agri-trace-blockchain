@@ -111,7 +111,7 @@ export function OrganizationDetailView({ id }: { id: string }) {
         description={
           <>
             {ORG_TYPE_LABEL[o.type]} ·{" "}
-            {o.participationModel ? MODEL_LABEL[o.participationModel] : "—"} ·{" "}
+            {o.participationStatus ? MODEL_LABEL[o.participationStatus] : "—"} ·{" "}
             {o.profile?.province ?? "—"} · tham gia {fmtDate(o.createdAt)} ·{" "}
             <span className="font-mono">version {o.version}</span>
           </>
@@ -161,8 +161,8 @@ export function OrganizationDetailView({ id }: { id: string }) {
               {o.members.length})
             </TabsTrigger>
             <TabsTrigger value="incidents">
-              {tr("Sự cố & hỗ trợ (")}
-              {o.cases.length + o.tickets.length})
+              {tr("Sự cố (")}
+              {o.cases.length})
             </TabsTrigger>
             <TabsTrigger value="audit">
               {tr("Nhật ký (")}
@@ -245,28 +245,6 @@ export function OrganizationDetailView({ id }: { id: string }) {
                 </ul>
               ) : (
                 <EmptyState title={tr("Không có hồ sơ sự cố")} />
-              )}
-            </Section>
-            <Section title={tr("Yêu cầu hỗ trợ")}>
-              {o.tickets.length ? (
-                <ul className="divide-y divide-line/70">
-                  {o.tickets.map((t) => (
-                    <li key={t.id}>
-                      <Link
-                        href={`/admin/support?id=${t.id}`}
-                        className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px] hover:bg-row-alt sm:px-5"
-                      >
-                        <span className="min-w-0 truncate">
-                          <span className="font-mono text-ink-2">{t.code}</span>{" "}
-                          {t.subject}
-                        </span>
-                        <Status group="ticket" value={t.status} />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyState title={tr("Không có yêu cầu hỗ trợ")} />
               )}
             </Section>
           </TabsContent>

@@ -10,7 +10,7 @@ import { decorative, Icon } from '../../../components/Icon';
 import { Card, GreenHeader, IconButton, IconTile, SectionTitle, T } from '../../../components/ui';
 import { date } from '../../../lib/format';
 import { readHistory, readProvince, type HistoryItem } from '../../../lib/local';
-import { useLoad } from '../../../lib/useApi';
+import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
 import { weatherText } from '../../../lib/weather';
 import { color, font, shadow, noOutline } from '../../../theme/tokens';
 
@@ -42,9 +42,8 @@ export default function Home() {
     }, []),
   );
   const weather = useLoad(async () => api<Schemas['PublicWeatherDto']>(`/public/weather?province=${await readProvince()}`));
-  const news = useLoad(() => api<Schemas['PublicNewsPageDto']>('/public/news?limit=5'));
-  const reloadNews = news.reload;
-  useFocusEffect(useCallback(()=>{void reloadNews();},[reloadNews]));
+  const news = useLoad(() => api<Schemas['PublicNewsPageDto']>('/public/news?limit=5'), [], { key: 'public:news:home', staleTimeMs: 60_000 });
+  useReloadOnFocus(news.reloadIfStale);
   const slideWidth = width - 52;
 
   return (

@@ -23,11 +23,11 @@ export function publicProductDetails(product: Record<string,unknown>,registratio
   const p=publication(registrationData);
   const enabled=p.published===true&&p.catalogDetailsPublished===true;
   const get=(key:string,max?:number)=>enabled?text(product[key],max):null;
-  return {price:enabled&&product.price!=null?String(product.price):null,category:get('category',100),gtin:get('gtin',14),
+  return {category:get('category',100),gtin:get('gtin',14),
     storageConditions:get('storageConditions'),ingredients:get('ingredients'),usageInstructions:get('usageInstructions'),
     province:publicContact(registrationData).province};
 }
-export interface DirectoryImage {id:string;supersedesId:string|null;public:boolean;kind:string;mediaType:string;withdrawal?:unknown}
+interface DirectoryImage {id:string;supersedesId:string|null;public:boolean;kind:string;mediaType:string;withdrawal?:unknown}
 export function visibleDirectoryImage<T extends DirectoryImage>(rows:T[]) {
   const superseded=new Set(rows.map(r=>r.supersedesId).filter(Boolean));
   return rows.find(r=>r.public&&!r.withdrawal&&r.kind==='LOT_IMAGE'&&['image/jpeg','image/png'].includes(r.mediaType)&&!superseded.has(r.id))??null;

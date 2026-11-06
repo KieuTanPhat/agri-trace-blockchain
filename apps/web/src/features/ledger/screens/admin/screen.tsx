@@ -231,7 +231,7 @@ function Overview() {
               <Section title={tr("Năng lực đang hiệu lực")}>
                 <Bars data={d.organizations.capabilities} />
                 <div className="border-t border-line/70">
-                  <Bars data={d.organizations.byModel} />
+                  <Bars data={d.organizations.byParticipation} />
                 </div>
               </Section>
               <div className="flex flex-col gap-5">
@@ -340,9 +340,6 @@ function Overview() {
                         <th className="px-3 text-right font-semibold">
                           {tr("Lượt quét")}
                         </th>
-                        <th className="px-3 text-right font-semibold">
-                          {tr("Hỗ trợ")}
-                        </th>
                         <th className="px-4 text-right font-semibold">
                           {tr("Doanh thu thật")}
                         </th>
@@ -363,7 +360,6 @@ function Overview() {
                           <td className="px-3 text-right">
                             {fmtNumber(m.scans)}
                           </td>
-                          <td className="px-3 text-right">{m.tickets}</td>
                           <td className="px-4 text-right">
                             {fmtMoney(m.revenue)}
                           </td>

@@ -77,13 +77,6 @@ export async function provisionChainIn(
 
 /** Bind a chain created through the API and confirm pending grants, as the
  * simulated ledger does locally. Synthetic: not Fabric evidence. */
-export function simulateChainLedger(prisma: PrismaClient, chainId: string) {
-  return prisma.$transaction(async (tx) => {
-    await simulateChainBinding(tx, chainId, { guard: false });
-    await confirmSimulatedPermissions(tx, { guard: false });
-  });
-}
-
 /** Bind chains created by SQL fixtures, and their existing cycles, to a
  * simulated ledger. Synthetic: not Fabric evidence. */
 export function simulateFixtureLedger(prisma: PrismaClient, chainIds: string[]) {
@@ -121,8 +114,3 @@ export async function bindCycle(
 }
 
 /** Confirm grants requested after provisioning (new members, new roles). */
-export function confirmLedgerGrants(prisma: PrismaClient) {
-  return prisma.$transaction((tx) =>
-    confirmSimulatedPermissions(tx, { guard: false }),
-  );
-}

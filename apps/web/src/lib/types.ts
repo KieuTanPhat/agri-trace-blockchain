@@ -5,7 +5,6 @@ export type AllowedCommand =
   Schemas["InternalLotDto"]["allowedCommands"][number];
 export type ProofStatus = Schemas["InternalLotDto"]["proofStatus"];
 export type Organization = Schemas["OrganizationSummaryDto"];
-export type TraceEvent = Schemas["InternalTimelineDto"];
 export type LotTrace = Schemas["InternalLotDto"];
 export type PublicLotTrace = Schemas["PublicLotDto"];
 export type Dashboard = Schemas["DashboardDto"];
@@ -16,6 +15,8 @@ export type AuthUser = Pick<
   "id" | "email" | "fullName" | "organizationId" | "accountStatus"
 > & {
   role: Pick<Schemas["AuthRoleDto"], "code" | "name">;
+  /** Business role the account acts as; an employee's follows its organization type. */
+  businessRole?: Schemas["AuthUserDto"]["businessRole"];
   /** True while the account only has a temporary password. */
   mustChangePassword?: boolean;
   accessRevision?: string;
@@ -37,7 +38,7 @@ export type CommandInput = {
   damagedQuantity?: number;
   note?: string;
 };
-export type ApiError = {
+type ApiError = {
   status: number;
   code: string;
   message: string;

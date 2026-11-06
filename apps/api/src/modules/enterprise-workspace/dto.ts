@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -14,12 +14,21 @@ import {
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { ENTERPRISE_PERMISSIONS } from './enterprise-policy.js';
+
+export class PartnerDirectoryQueryDto {
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  cursor?: string;
+}
 
 export class EnterpriseRoleInput {
   @ApiProperty({ maxLength: 100 })
@@ -67,7 +76,6 @@ export class EnterpriseMemberInput {
   @ApiProperty({ minLength: 5, maxLength: 500 }) @IsString() @MinLength(5, { message: 'Nhập địa chỉ liên hệ từ 5 ký tự' }) @MaxLength(500) contactAddress!: string;
   @ApiProperty({ required: false, maxLength: 1000 }) @IsOptional() @IsString() @MaxLength(1000) memberNote?: string;
   @ApiProperty({ format: 'email' }) @IsEmail() @MaxLength(255) email!: string;
-  @ApiProperty({ enum: [2, 3] }) @IsIn([2, 3]) tier!: number;
   @ApiProperty({ type: MemberRoleInput, isArray: true, minItems: 1 })
   @IsArray()
   @ArrayMinSize(1, { message: 'Chọn ít nhất một nhóm quyền' })
@@ -75,11 +83,6 @@ export class EnterpriseMemberInput {
   @ValidateNested({ each: true })
   @Type(() => MemberRoleInput)
   roles!: MemberRoleInput[];
-}
-export class MemberSupervisorInput {
-  @ApiProperty({ minimum: 0, description: 'Member enterpriseRevision the change is based on' }) @IsInt() @Min(0) version!: number;
-  @ApiProperty({ format: 'uuid', nullable: true, description: 'Active tier-2 manager; null puts the member directly under the owner' })
-  @IsOptional() @IsUUID() supervisorId?: string | null;
 }
 export class EnterpriseMemberUpdate {
   @ApiProperty({ required: false, maxLength: 255 }) @IsOptional() @IsString() @MinLength(2) @MaxLength(255) jobTitle?: string;
@@ -120,10 +123,11 @@ export class EnterpriseExternalPartnerInput {
   @ApiProperty({ enum: ['FARM','TRANSPORTER','DISTRIBUTOR','RETAILER'] }) @IsIn(['FARM','TRANSPORTER','DISTRIBUTOR','RETAILER']) kind!: string;
   @ApiProperty({ maxLength: 500 }) @IsString() @MinLength(5) @MaxLength(500) address!: string;
   @ApiProperty({ maxLength: 30 }) @IsString() @Matches(/^(?:0[35789]\d{8}|02\d{9}|\+84(?:[35789]\d{8}|2\d{9}))$/, { message: 'Số điện thoại không hợp lệ' }) phone!: string;
-  @ApiProperty({ format: 'email' }) @IsEmail({}, { message: 'Email không hợp lệ' }) @MaxLength(255) email!: string;
-  @ApiProperty({ maxLength: 14 }) @IsString() @Matches(/^(?:\d{10}(?:-?\d{3})?|\d{12})$/, { message: 'Mã số thuế cần 10, 12 hoặc 13 số' }) taxCode!: string;
-  @ApiProperty({ maxLength: 255 }) @IsString() @MinLength(2) @MaxLength(255) representative!: string;
-  @ApiProperty({ maxLength: 1000 }) @IsString() @MinLength(5) @MaxLength(1000) note!: string;
+  // Suppliers are often farming households: only name, address and phone are required.
+  @ApiPropertyOptional({ format: 'email' }) @IsOptional() @IsEmail({}, { message: 'Email không hợp lệ' }) @MaxLength(255) email?: string;
+  @ApiPropertyOptional({ maxLength: 14, description: 'Mã số thuế hoặc số định danh 12 số của hộ' }) @IsOptional() @IsString() @Matches(/^(?:\d{10}(?:-?\d{3})?|\d{12})$/, { message: 'Mã số thuế cần 10, 12 hoặc 13 số' }) taxCode?: string;
+  @ApiPropertyOptional({ maxLength: 255 }) @IsOptional() @IsString() @MinLength(2) @MaxLength(255) representative?: string;
+  @ApiPropertyOptional({ maxLength: 1000 }) @IsOptional() @IsString() @MinLength(5) @MaxLength(1000) note?: string;
 }
 export class EnterprisePartnerDecision {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
@@ -147,6 +151,8 @@ export class EnterpriseSiteInput {
   @ApiProperty({maxLength:255}) @IsString() @MinLength(2) @MaxLength(255) ward!: string;
   @ApiProperty({type:Number,minimum:0,exclusiveMinimum:true}) @Type(()=>Number) @IsNumber({maxDecimalPlaces:2}) @IsPositive() areaM2!:number;
   @ApiProperty({required:false,type:Number,minimum:0,exclusiveMinimum:true}) @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:2}) @IsPositive() coldAreaM2?:number;
+  @ApiProperty({required:false,type:Number,minimum:-90,maximum:90,description:'Vĩ độ điểm trên bản đồ (ADR-006); đi cùng longitude'}) @ValidateIf((o:EnterpriseSiteInput)=>o.latitude!==undefined||o.longitude!==undefined) @Type(()=>Number) @IsNumber({maxDecimalPlaces:6}) @Min(-90) @Max(90) latitude?:number;
+  @ApiProperty({required:false,type:Number,minimum:-180,maximum:180,description:'Kinh độ điểm trên bản đồ; đi cùng latitude'}) @ValidateIf((o:EnterpriseSiteInput)=>o.latitude!==undefined||o.longitude!==undefined) @Type(()=>Number) @IsNumber({maxDecimalPlaces:6}) @Min(-180) @Max(180) longitude?:number;
   @ApiProperty({required:false,type:Number,minimum:0,exclusiveMinimum:true}) @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:3}) @IsPositive() capacityKg?:number;
   @ApiProperty({required:false,type:Number,minimum:0,exclusiveMinimum:true}) @IsOptional() @Type(()=>Number) @IsNumber({maxDecimalPlaces:3}) @IsPositive() expectedOutputTons?:number;
   @ApiProperty({required:false,maxLength:255}) @IsOptional() @IsString() @MaxLength(255) manager?:string;

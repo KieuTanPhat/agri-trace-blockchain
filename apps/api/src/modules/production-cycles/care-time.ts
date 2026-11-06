@@ -1,7 +1,7 @@
 import { UnprocessableEntityException } from '@nestjs/common';
 import { businessTimestamp } from '../../common/timestamp.js';
 
-export type CareTimeSource = 'DEVICE' | 'SERVER_RECEIVED';
+type CareTimeSource = 'DEVICE' | 'SERVER_RECEIVED';
 const MAX_DEVICE_AHEAD_MS = 2 * 60 * 1000;
 
 /** Only care journals tolerate a small clock skew; never alter the reported instant. */

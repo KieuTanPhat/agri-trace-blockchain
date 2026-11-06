@@ -11,7 +11,6 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { commandTransaction } from '../../common/idempotency/command-transaction.js';
 import { lockSessionOwner } from '../auth/session-family.js';
-import { isPlatformAdminRole } from '../auth/role-codes.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -54,7 +53,7 @@ const PUBLIC_USER = {
 
 /** User creation body shared by the direct command and an approved
  * SYSTEM_ADMIN_CREATE proposal. Runs on the caller's command transaction. */
-export async function createPlatformUserTx(
+async function createPlatformUserTx(
   tx: Prisma.TransactionClient,
   actor: PlatformCommandActor,
   input: NewPlatformUser,
@@ -70,11 +69,11 @@ export async function createPlatformUserTx(
     throw new ForbiddenException(
       'Tài khoản doanh nghiệp do doanh nghiệp quản lý',
     );
-  if (isPlatformAdminRole(role.code) && input.organizationId)
+  if (role.code === 'SYSTEM_ADMIN' && input.organizationId)
     throw new UnprocessableEntityException(
       'Quản trị hệ thống không thuộc doanh nghiệp',
     );
-  if (!isPlatformAdminRole(role.code) && !input.organizationId) {
+  if (role.code !== 'SYSTEM_ADMIN' && !input.organizationId) {
     throw new UnprocessableEntityException(
       'Tài khoản nghiệp vụ phải thuộc một tổ chức',
     );
@@ -85,7 +84,7 @@ export async function createPlatformUserTx(
   ) {
     throw new UnprocessableEntityException('Organization does not exist');
   }
-  if (role.code === 'COMPLIANCE_REVIEWER') {
+  if (role.code === 'AUDITOR') {
     const organization = await tx.organization.findUnique({
       where: { id: input.organizationId! },
     });
@@ -95,7 +94,7 @@ export async function createPlatformUserTx(
       organization.status !== 'ACTIVE'
     )
       throw new UnprocessableEntityException(
-        'Reviewer phải thuộc tổ chức AUDITOR đang hoạt động',
+        'Tài khoản Kiểm định phải thuộc tổ chức AUDITOR đang hoạt động',
       );
   }
   const user = await tx.user.create({

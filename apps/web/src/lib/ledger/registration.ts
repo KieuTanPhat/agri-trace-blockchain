@@ -11,12 +11,12 @@ export function buildLedgerRegistration(draft:RegistrationDraft,registrationId:s
           email: draft.email.trim(),
           fullName: draft.fullName.trim(),
           organizationName: draft.organizationName.trim(),
-          businessId: draft.businessId.trim() || undefined,
+          businessId: draft.businessId.trim(),
           organizationType:
             draft.organizationType as Registration["organizationType"],
-          participationModel:
-            draft.participationModel as Registration["participationModel"],
-          hostingMode: draft.hostingMode as Registration["hostingMode"],
+          participationStatus:
+            draft.participationStatus as Registration["participationStatus"],
+          invitationToken: draft.invitationToken.trim() || undefined,
           emailVerifications: [
             {
               verificationId: ownerProof.verificationId,

@@ -14,7 +14,7 @@ const entry = (overrides: Record<string, unknown> = {}) => ({
   peerEndpoint: 'localhost:7051',
   peerHostAlias: 'peer0.org1.example.com',
   tlsCertPath: 'tls/ca.crt',
-  mspId: 'Org1MSP',
+  mspId: 'AgritraceMSP',
   relayer: { certPath: 'relayer/cert.pem', keyDir: 'relayer/keystore' },
   ...overrides,
 });

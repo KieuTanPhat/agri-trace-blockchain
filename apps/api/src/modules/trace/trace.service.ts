@@ -53,7 +53,7 @@ export type Actor = {
   role: string;
 };
 
-export interface CreateTraceEventInput {
+interface CreateTraceEventInput {
   entityType: string;
   entityId: string;
   eventType: string;

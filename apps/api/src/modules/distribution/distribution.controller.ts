@@ -9,7 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorator.js';
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
@@ -30,13 +30,11 @@ import {
   TraceNoticeInput,
   HoldingDispositionInput,
   DistributionOptionsDto,
-  SiteAllocationInput, QuarantineInput, ActualReceiptInput, ReturnInput, ReturnSignatureInput,
+  SiteAllocationInput, QuarantineInput, ActualReceiptInput, HandoverPhotosInput, ReturnInput, ReturnSignatureInput,
   DistributionC2Prepare,DistributionC2Submit,
   ConsentRenewInput,
   DistributionReportQuery,
   DistributionTasksDto,
-  PickupRequestInput,
-  PickupResolveInput,
 } from './dto.js';
 import { DistributionService } from './distribution.service.js';
 @ApiTags('distribution')
@@ -99,6 +97,10 @@ export class DistributionController {
   quarantine(@Req() req: AuthenticatedRequest, @Body() dto: QuarantineInput, @IdempotencyKey() key: string) {
     return this.run(req,key,'EW_QUARANTINE',dto,() => this.service.quarantine(req.user,dto));
   }
+  @Post('transfers/:id/photos') @ApiHeader({ name: 'Idempotency-Key', required: true }) @ApiDataResponse(WorkspaceRecordDto, 201)
+  photos(@Req() req: AuthenticatedRequest, @Param('id',ParseUUIDPipe) id: string, @Body() dto: HandoverPhotosInput, @IdempotencyKey() key: string) {
+    return this.run(req,key,'DIST_PHOTOS',{id,...dto},() => this.service.attachHandoverPhotos(req.user,id,dto));
+  }
   @Post('transfers/:id/receipt') @ApiHeader({ name: 'Idempotency-Key', required: true }) @ApiDataResponse(WorkspaceRecordDto, 201)
   receipt(@Req() req: AuthenticatedRequest, @Param('id',ParseUUIDPipe) id: string, @Body() dto: ActualReceiptInput, @IdempotencyKey() key: string) {
     return this.run(req,key,'DIST_RECEIPT',{id,...dto},() => this.service.actualReceipt(req.user,id,dto));
@@ -137,27 +139,6 @@ export class DistributionController {
   joinChain(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: TransferVersion, @IdempotencyKey() key: string) {
     return this.run(req, key, 'DIST_JOIN_CHAIN', { ...dto, id }, () => this.service.joinChainForTransfer(req.user, id, dto));
   }
-  @Get('pickup-requests') @ApiDataResponse(WorkspaceListDto) pickupRequests(@Req() req: AuthenticatedRequest) {
-    return this.service.pickupRequests(req.user);
-  }
-  @Post('pickup-requests')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiDataResponse(WorkspaceRecordDto, 201)
-  requestPickup(@Req() req: AuthenticatedRequest, @Body() dto: PickupRequestInput, @IdempotencyKey() key: string) {
-    return this.run(req, key, 'EW_PICKUP_REQUEST', dto, () => this.service.requestPickup(req.user, dto));
-  }
-  @Post('pickup-requests/:id/decline')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiDataResponse(WorkspaceRecordDto, 201)
-  declinePickup(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PickupResolveInput, @IdempotencyKey() key: string) {
-    return this.run(req, key, 'EW_PICKUP_DECLINE', { ...dto, id }, () => this.service.resolvePickup(req.user, id, dto, 'DECLINED'));
-  }
-  @Post('pickup-requests/:id/cancel')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiDataResponse(WorkspaceRecordDto, 201)
-  cancelPickup(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PickupResolveInput, @IdempotencyKey() key: string) {
-    return this.run(req, key, 'EW_PICKUP_CANCEL', { ...dto, id }, () => this.service.resolvePickup(req.user, id, dto, 'CANCELLED'));
-  }
   @Get('keys') @ApiDataResponse(WorkspaceListDto) keys(
     @Req() req: AuthenticatedRequest,
   ) {
@@ -168,6 +149,13 @@ export class DistributionController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.service.detail(req.user, id);
+  }
+  /** ADR-006 GPS route of the vehicle while the transfer was in transit. */
+  @Get('transfers/:id/route') @ApiDataResponse(WorkspaceRecordDto) route(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.service.route(req.user, id);
   }
   @Get('transfers/:id/challenge')
   @ApiDataResponse(DistributionChallengeDto)
@@ -215,17 +203,12 @@ export class DistributionController {
       this.service.cancel(req.user, id, dto),
     );
   }
-  @Post('keys')
+  @Post('device-keys')
   @ApiHeader({ name: 'Idempotency-Key', required: true })
   @ApiDataResponse(WorkspaceRecordDto, 201)
-  key(
-    @Req() req: AuthenticatedRequest,
-    @Body() dto: TransferKeyInput,
-    @IdempotencyKey() key: string,
-  ) {
-    return this.run(req, key, 'EW_REGISTER_DISTRIBUTION_KEY', dto, () =>
-      this.service.registerKey(req.user, dto),
-    );
+  @ApiOperation({ summary: 'Register a personal device key; it signs right away' })
+  deviceKey(@Req() req: AuthenticatedRequest, @Body() dto: TransferKeyInput, @IdempotencyKey() key: string) {
+    return this.run(req, key, 'EW_DEVICE_KEY_REQUEST', dto, () => this.service.requestDeviceKey(req.user, dto));
   }
   @Post('keys/:id/revoke')
   @ApiHeader({ name: 'Idempotency-Key', required: true })

@@ -11,19 +11,15 @@ function fmt<F extends Intl.DateTimeFormat | Intl.NumberFormat>(kind: string, ma
 }
 const dt = { format: (x: Date) => fmt("dt", (l) => new Intl.DateTimeFormat(l, { timeZone: TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })).format(x) };
 const d = { format: (x: Date) => fmt("d", (l) => new Intl.DateTimeFormat(l, { timeZone: TZ, day: "2-digit", month: "2-digit", year: "numeric" })).format(x) };
-const short = { format: (x: Date) => fmt("s", (l) => new Intl.DateTimeFormat(l, { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })).format(x) };
 const num = { format: (x: number) => fmt("n", (l) => new Intl.NumberFormat(l)).format(x) };
 const money = { format: (x: number) => fmt("m", (l) => new Intl.NumberFormat(l, { style: "currency", currency: "VND", maximumFractionDigits: 0 })).format(x) };
 const en = () => getLocale() === "en";
 
 export const fmtDateTime = (v?: string | null) => (v ? dt.format(new Date(v)) : "—");
 export const fmtDate = (v?: string | null) => (v ? d.format(new Date(v)) : "—");
-export const fmtShort = (v?: string | null) => (v ? short.format(new Date(v)) : "—");
 export const fmtNumber = (v?: number | string | null) => (v === null || v === undefined || v === "" ? "—" : num.format(Number(v)));
 export const fmtMoney = (v?: number | null) => (v === null || v === undefined ? "—" : money.format(v));
-export const fmtQty = (v: string, unit: string) => `${num.format(Number(v))} ${unit}`;
 export const shortHash = (h?: string | null, n = 6) => (h ? `${h.slice(0, n)}…${h.slice(-4)}` : "—");
-export const shortId = (id?: string | null) => (id ? id.slice(-8) : "—");
 export const fmtBytes = (b: number) => (b >= 1_048_576 ? `${(b / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 /** "3 giờ", "2 ngày" — khoảng thời gian không dấu. */

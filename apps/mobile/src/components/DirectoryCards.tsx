@@ -4,7 +4,7 @@ import {router} from 'expo-router';
 import {ActivityIndicator,Pressable,View} from 'react-native';
 import {Icon} from './Icon';
 import {T} from './ui';
-import {directoryAsset,directoryColor as dc,money,type DirectoryProduct,type DirectoryEnterprise} from '../lib/directory';
+import {directoryAsset,directoryColor as dc,type DirectoryProduct,type DirectoryEnterprise} from '../lib/directory';
 import {ORG_TYPE} from '../lib/labels';
 
 export function DirectoryPhoto({url,label,fit='contain'}:{url?:string|null;label:string;fit?:'contain'|'cover'}) {
@@ -25,7 +25,6 @@ export function DirectoryProductCard({product,compact=false}:{product:DirectoryP
     <View style={{aspectRatio:compact?1.2:1.04,maxHeight:245,padding:compact?8:11,backgroundColor:'#fff'}}><DirectoryPhoto url={product.imageUrl} label={product.productName}/></View>
     <View style={{paddingHorizontal:12,paddingTop:7,paddingBottom:14,gap:5}}>
       <T size={compact?14:16} c={dc.ink} numberOfLines={2} style={{minHeight:compact?39:44}}>{product.productName}</T>
-      <T size={compact?14:16} weight="bold" c={dc.red}>{money(product.price)}{product.price&&<T size={12} c="#8c969d"> / {product.defaultUnit??'đơn vị'}</T>}</T>
       <T size={12} weight="bold" c={product.saleStatus==='SELLING'?'#38894c':'#8c969d'}>{product.saleStatus==='SELLING'?'Đang bán':'Chưa bán'}</T>
       {!compact&&<T size={11.5} c={dc.muted} numberOfLines={1}>{product.province??product.category??'Nông sản có truy xuất'}</T>}
     </View>

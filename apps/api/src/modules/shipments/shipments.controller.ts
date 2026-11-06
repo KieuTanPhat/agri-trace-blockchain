@@ -76,7 +76,6 @@ export class ShipmentsController {
     'DISTRIBUTOR',
     'RETAILER',
     'AUDITOR',
-    'COMPLIANCE_REVIEWER',
   )
   @Get()
   list(@Req() req: AuthenticatedRequest) {
@@ -91,7 +90,6 @@ export class ShipmentsController {
     'DISTRIBUTOR',
     'RETAILER',
     'AUDITOR',
-    'COMPLIANCE_REVIEWER',
   )
   @Get(':id')
   get(

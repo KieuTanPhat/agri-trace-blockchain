@@ -20,7 +20,7 @@ import { cn } from "@/lib/ledger/utils";
 import { t as tr } from "@/lib/ledger/i18n";
 const CATS = Object.keys(REF_CATEGORY_LABEL) as ReferenceCategory[];
 const schema = z.object({
-  category: z.enum(["UNIT", "PRODUCT_CATEGORY", "CERTIFICATE_TYPE", "LOSS_REASON", "PROCESSING_TYPE", "TICKET_CATEGORY", "VEHICLE_TYPE"]),
+  category: z.enum(["UNIT", "PRODUCT_CATEGORY", "CERTIFICATE_TYPE", "LOSS_REASON", "PROCESSING_TYPE", "VEHICLE_TYPE"]),
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_]{1,40}$/, { error: () => tr("A-Z, 0-9, _ · tối đa 40") }),
   label: z.string().trim().min(1, { error: () => tr("Bắt buộc") }).max(120),
   description: z.string().max(500).optional(),

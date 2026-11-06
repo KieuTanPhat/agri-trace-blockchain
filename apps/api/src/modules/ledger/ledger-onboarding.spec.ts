@@ -8,9 +8,9 @@ describe('Ledger onboarding stable proposal identity', () => {
     const input = {
       operator: { apply } as unknown as RegistryOperator,
       reader: { health: vi.fn().mockResolvedValue({ governanceDigest: 'a'.repeat(64), channelPolicy: null }) } as unknown as BindingLedgerClient,
-      channelId: 'hybrid-hosted', approvers: ['Org1MSP', 'Org2MSP'],
+      channelId: 'hybrid-hosted', approvers: ['AgritraceMSP'],
       binding: { digest: 'b'.repeat(64), network: 'hosted', chaincodeName: 'agritrace', contractName: 'AgriTraceContract',
-        chainRef: '55690720-e988-4a97-8ef9-4f9c35c34b98', writerAuthority: 'hosted-relayer', writerMspId: 'Org1MSP', governanceDigest: 'a'.repeat(64) },
+        chainRef: '55690720-e988-4a97-8ef9-4f9c35c34b98', writerAuthority: 'hosted-relayer', writerMspId: 'AgritraceMSP', governanceDigest: 'a'.repeat(64) },
       relayerFingerprint: 'c'.repeat(64),
     };
     await onboardBindingOnLedger(input);

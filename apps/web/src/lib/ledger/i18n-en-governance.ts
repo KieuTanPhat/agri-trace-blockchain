@@ -1,5 +1,20 @@
 /** English copy for baseline governance workflows, composed with the Ledger kit. */
 export const GOVERNANCE_EN: Record<string, string> = {
+  "Không tải được quyền quản lý tài khoản. Các thao tác đang tạm ẩn.":
+    "Account management permissions could not be loaded. Actions are temporarily hidden.",
+  "Chưa có email": "No email provided",
+  "Thông tin tài khoản": "Account details",
+  "Đăng nhập lần sau": "Next sign-in",
+  "Bắt buộc đổi mật khẩu": "Password change required",
+  "Không yêu cầu đổi mật khẩu": "No password change required",
+  "Khóa tạm đến": "Temporarily locked until",
+  "Tài khoản doanh nghiệp, nhân viên và người tiêu dùng chỉ tra cứu tại đây. Các thao tác quản lý thực hiện theo luồng dành cho loại tài khoản đó.":
+    "Enterprise, staff and consumer accounts are available for lookup here. Manage them through their designated account workflows.",
+  "Về danh sách tài khoản": "Back to accounts",
+  "Không tìm thấy tài khoản": "Account not found",
+  "Tài khoản không tồn tại hoặc không nằm trong danh sách được phép xem.":
+    "This account does not exist or is outside your permitted account list.",
+  "Hiển thị {p0}/{p1} tài khoản": "Showing {p0} of {p1} accounts",
   "Duyệt hồ sơ doanh nghiệp. Năng lực và kích hoạt dịch vụ được xét riêng.":
     "Approve the enterprise enrollment. Capabilities and service activation are reviewed separately.",
   "Dùng bộ lọc giai đoạn và ô tìm kiếm để thu hẹp danh sách hồ sơ.":
@@ -7,7 +22,6 @@ export const GOVERNANCE_EN: Record<string, string> = {
   "Quản trị viên nền tảng": "Platform administrator",
   "Quản trị viên khác người đề xuất":
     "An administrator other than the proposer",
-  "Người phụ trách hỗ trợ": "Support agent",
   "Người phụ trách vụ việc": "Case manager",
   "Đối chiếu hồ sơ và tài liệu trước khi ghi quyết định. Phê duyệt hồ sơ và kích hoạt dịch vụ là hai bước riêng.":
     "Check the enrollment and documents before deciding. Enrollment approval and service activation are separate steps.",

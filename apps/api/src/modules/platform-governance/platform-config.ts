@@ -1,7 +1,6 @@
 /** Feature flags and limits for platform governance. Read per call so an
  * operator change (and tests) take effect without module re-initialization. */
-import { PLATFORM_ADMIN_ROLES } from '../auth/role-codes.js';
-export type MfaMode = 'OFF' | 'OPTIONAL' | 'REQUIRED';
+type MfaMode = 'OFF' | 'OPTIONAL' | 'REQUIRED';
 
 function intFrom(name: string, fallback: number, min: number, max: number) {
   const parsed = Number(process.env[name]);
@@ -24,9 +23,6 @@ export const loginMaxAttempts = () =>
 export const loginLockMinutes = () =>
   intFrom('PLATFORM_LOGIN_LOCK_MINUTES', 15, 1, 1440);
 
-export const PLATFORM_ROLES = [
-  ...PLATFORM_ADMIN_ROLES,
-  'COMPLIANCE_REVIEWER',
-] as const;
+export const PLATFORM_ROLES = ['SYSTEM_ADMIN', 'AUDITOR'] as const;
 export const MIN_REASON_LENGTH = 10;
 

@@ -1,13 +1,39 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import Link from "next/link";
-import { AlertTriangle, Inbox, Lock, RefreshCw } from "lucide-react";
+import { AlertTriangle, Inbox, Lock, RefreshCw, Search, X } from "lucide-react";
 import { getLedgerError } from "@/lib/ledger/errors";
 import { Button } from "@/components/ledger/ui/button";
 import { Skeleton } from "@/components/ledger/ui/skeleton";
 import { cn } from "@/lib/ledger/utils";
 
 import { t as tr } from "@/lib/ledger/i18n";
+
+const PageHeaderModeContext = createContext<{
+  compact: boolean;
+  onQuickSearch: () => void;
+  pendingReview: boolean;
+}>({ compact: false, onQuickSearch: () => {}, pendingReview: false });
+
+export function PageHeaderModeProvider({
+  compact,
+  onQuickSearch,
+  pendingReview = false,
+  children,
+}: {
+  compact: boolean;
+  onQuickSearch: () => void;
+  pendingReview?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <PageHeaderModeContext.Provider value={{ compact, onQuickSearch, pendingReview }}>
+      {children}
+    </PageHeaderModeContext.Provider>
+  );
+}
+
 export function PageHeader({
   title,
   description,
@@ -21,6 +47,30 @@ export function PageHeader({
   crumbs?: { href?: string; label: string }[];
   meta?: React.ReactNode;
 }) {
+  const { compact, onQuickSearch, pendingReview } = useContext(PageHeaderModeContext);
+  if (compact)
+    return (
+      <div className="flex flex-wrap items-center gap-3 px-4 pt-2 sm:px-7">
+        {pendingReview ? (
+          <span role="status" className="inline-flex h-9 items-center rounded-md border border-line bg-warn-bg px-3 text-[12px] font-semibold text-warn">
+            {tr("CHỜ XÉT DUYỆT")}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={onQuickSearch}
+            className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-line bg-canvas px-2.5 text-left text-[13px] text-ink-2 hover:border-line-strong sm:max-w-[420px]"
+          >
+            <Search className="size-3.5 shrink-0" />
+            <span className="truncate">{tr("Tìm trang, tổ chức, mã lô…")}</span>
+            <kbd className="ml-auto hidden rounded border border-line bg-card px-1.5 font-mono text-[10.5px] sm:inline">
+              Ctrl K
+            </kbd>
+          </button>
+        )}
+        {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+    );
   return (
     <header className="flex flex-col gap-3 border-b border-line bg-card px-4 py-4 sm:px-7">
       {crumbs && (
@@ -99,7 +149,7 @@ export function Field({ label, children, mono, className }: { label: string; chi
   );
 }
 
-export function Callout({ tone = "neutral", title, children, icon, className }: { tone?: "neutral" | "warn" | "danger" | "info" | "ok"; title?: string; children: React.ReactNode; icon?: React.ReactNode; className?: string }) {
+export function Callout({ tone = "neutral", title, children, icon, className, onClose }: { tone?: "neutral" | "warn" | "danger" | "info" | "ok"; title?: string; children: React.ReactNode; icon?: React.ReactNode; className?: string; onClose?: () => void }) {
   const cls = {
     neutral: "bg-sunken text-ink",
     warn: "bg-warn-bg text-warn",
@@ -110,10 +160,15 @@ export function Callout({ tone = "neutral", title, children, icon, className }: 
   return (
     <div role="note" className={cn("flex gap-2.5 rounded-md px-3 py-2.5 text-[13px] leading-relaxed", cls, className)}>
       {icon && <span className="mt-0.5 shrink-0">{icon}</span>}
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         {title && <div className="font-semibold">{title}</div>}
         <div className={cn(title && "mt-0.5", tone !== "neutral" && "text-ink")}>{children}</div>
       </div>
+      {onClose && (
+        <button type="button" aria-label={tr("Đóng thông báo")} onClick={onClose} className="-mr-1 -mt-0.5 grid size-6 shrink-0 place-items-center rounded text-ink-2 hover:bg-black/5 hover:text-ink">
+          <X className="size-3.5" />
+        </button>
+      )}
     </div>
   );
 }

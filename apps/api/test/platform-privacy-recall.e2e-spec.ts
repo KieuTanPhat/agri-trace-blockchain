@@ -40,10 +40,7 @@ let jwt: JwtService;
 let admin: Actor,
   owner: Actor,
   stranger: Actor,
-  auditor: Actor,
-  operator: Actor,
-  cases: Actor,
-  privacy: Actor;
+  auditor: Actor;
 let passwordHash: string;
 const fixtureUserIds: string[] = [];
 
@@ -169,9 +166,6 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     owner = await actor('FARM_STAFF');
     stranger = await actor('FARM_STAFF');
     auditor = await actor('AUDITOR');
-    operator = await actor('PLATFORM_OPERATOR');
-    cases = await actor('PLATFORM_CASE_MANAGER');
-    privacy = await actor('PLATFORM_PRIVACY_OFFICER');
   }, 120_000);
   afterAll(async () => {
     await app?.close();
@@ -198,7 +192,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     await call('get', stranger, `privacy-requests/${id}`).expect(404);
     await call('get', admin, `privacy-requests/${id}`).expect(404);
     expect(
-      (await call('get', privacy, `platform-privacy/${id}`).expect(200)).body
+      (await call('get', admin, `platform-privacy/${id}`).expect(200)).body
         .data.message,
     ).toBe(MESSAGE);
     const stored = await prisma.platformPrivacyTicket.findUniqueOrThrow({
@@ -233,7 +227,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
   it('shares only deliberate responses and rejects stale changes or closed history edits', async () => {
     const id = (await createRequest().expect(201)).body.data.id as string;
     const internal = 'Ghi chú nội bộ không được hiển thị cho người yêu cầu';
-    await call('post', privacy, `platform-privacy/${id}/review`, {
+    await call('post', admin, `platform-privacy/${id}/review`, {
       version: 0,
       status: 'IN_REVIEW',
       note: internal,
@@ -242,12 +236,12 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
       (await call('get', owner, `privacy-requests/${id}`).expect(200)).body.data
         .events,
     ).toEqual([]);
-    await call('post', privacy, `platform-privacy/${id}/review`, {
+    await call('post', admin, `platform-privacy/${id}/review`, {
       version: 0,
       status: 'CLOSED',
       note: 'Stale update must not work',
     }).expect(409);
-    await call('post', privacy, `platform-privacy/${id}/review`, {
+    await call('post', admin, `platform-privacy/${id}/review`, {
       version: 1,
       status: 'RESPONDED',
       note: 'Phản hồi được chia sẻ đúng chủ thể',
@@ -258,13 +252,13 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     ).body.data;
     expect(detail.events).toHaveLength(1);
     expect(JSON.stringify(detail)).not.toContain(internal);
-    await call('post', privacy, `platform-privacy/${id}/review`, {
+    await call('post', admin, `platform-privacy/${id}/review`, {
       version: 2,
       status: 'CLOSED',
       note: 'Đã hoàn tất xem xét theo hồ sơ',
       visibility: 'SHARED',
     }).expect(201);
-    await call('post', privacy, `platform-privacy/${id}/review`, {
+    await call('post', admin, `platform-privacy/${id}/review`, {
       version: 3,
       status: 'IN_REVIEW',
       note: 'Không được mở lại hồ sơ đã đóng',
@@ -277,7 +271,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
   it('pins the 72-hour clock to discovery and requires reporting assessment before closure', async () => {
     const detectedAt = new Date(Date.now() - 74 * 3_600_000).toISOString();
     const created = (
-      await call('post', privacy, 'platform-privacy/breaches', {
+      await call('post', admin, 'platform-privacy/breaches', {
         detectedAt,
         message: MESSAGE,
       }).expect(201)
@@ -286,7 +280,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
       new Date(created.deadlineAt).getTime() - new Date(detectedAt).getTime(),
     ).toBe(72 * 3_600_000);
     expect(created.overdue).toBe(true);
-    await call('post', privacy, `platform-privacy/${created.id}/review`, {
+    await call('post', admin, `platform-privacy/${created.id}/review`, {
       version: 0,
       status: 'CLOSED',
       note: 'Chưa đánh giá nghĩa vụ báo cáo',
@@ -296,7 +290,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     ).rejects.toThrow();
     const updated = await call(
       'post',
-      privacy,
+      admin,
       `platform-privacy/${created.id}/review`,
       {
         version: 0,
@@ -311,7 +305,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     expect(JSON.stringify(updated.body)).not.toContain(
       'private-report-reference',
     );
-    await call('post', privacy, 'platform-privacy/breaches', {
+    await call('post', admin, 'platform-privacy/breaches', {
       detectedAt: new Date(Date.now() + 3_600_000).toISOString(),
       message: MESSAGE,
     }).expect(422);
@@ -321,33 +315,26 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     }).expect(403);
   });
 
-  it('does not grant platform specialists unrelated administration or business writes', async () => {
-    for (const who of [operator, cases, privacy]) {
-      await call('get', who, 'users').expect(403);
-      await call('post', who, `lots/${randomUUID()}/recall`, {
-        version: 0,
-        reason: 'Không được ghi nghiệp vụ',
-      }).expect(403);
-    }
-    await call('get', operator, 'platform-operations/summary').expect(200);
-    await call('get', operator, 'platform-operations/admin-summary').expect(
-      403,
-    );
-    await call('get', cases, 'platform-cases').expect(200);
-    await call('get', cases, 'platform-cases/organization-options').expect(200);
-    await call('post', cases, 'platform-cases', {
+  it('keeps platform administration separate from business writes', async () => {
+    await call('get', admin, 'users').expect(200);
+    await call('post', admin, `lots/${randomUUID()}/recall`, {
+      version: 0,
+      reason: 'Không được ghi nghiệp vụ',
+    }).expect(403);
+    await call('get', admin, 'platform-operations/summary').expect(200);
+    await call('get', admin, 'platform-operations/admin-summary').expect(200);
+    await call('get', admin, 'platform-cases').expect(200);
+    await call('get', admin, 'platform-cases/organization-options').expect(200);
+    await call('post', admin, 'platform-cases', {
       title: 'Điều phối sự cố',
       description: 'Thông tin hồ sơ để doanh nghiệp xử lý',
       category: 'QUALITY',
       severity: 'LOW',
       source: 'INTERNAL',
     }).expect(201);
-    for (const who of [auditor, operator, cases])
-      await call('get', who, 'platform-privacy').expect(403);
-    await call('get', privacy, 'platform-privacy').expect(200);
-    await call('get', privacy, 'platform-cases').expect(403);
-    for (const who of [operator, cases, privacy])
-      await call('get', who, 'auth/mfa').expect(200);
+    await call('get', admin, 'platform-privacy').expect(200);
+    await call('get', auditor, 'platform-privacy').expect(403);
+    await call('get', admin, 'auth/mfa').expect(200);
   });
 
   it('previews source distribution without changing stock, lot state, notices or outbox', async () => {
@@ -395,7 +382,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     const before = await prisma.lot.findUniqueOrThrow({ where: { id: lotId } });
     const outboxBefore = await prisma.blockchainOutbox.count();
     const preview = (
-      await call('get', operator, `platform-recall/${lotId}`).expect(200)
+      await call('get', admin, `platform-recall/${lotId}`).expect(200)
     ).body.data;
     expect(preview.readOnly).toBe(true);
     expect(preview.lots).toHaveLength(1);
@@ -409,7 +396,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     expect(await prisma.blockchainOutbox.count()).toBe(outboxBefore);
     expect(await prisma.traceNotice.count({ where: { lotId } })).toBe(0);
     await call('get', owner, `platform-recall/${lotId}`).expect(403);
-    await call('get', operator, 'platform-recall/not-a-uuid').expect(400);
+    await call('get', admin, 'platform-recall/not-a-uuid').expect(400);
   });
 
   it('rejects session issuance when a concurrent platform lock commits after password lookup', async () => {
@@ -451,7 +438,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
   });
 
   it('keeps a specialist MFA failure and retry on the same idempotency key', async () => {
-    const officer = await actor('PLATFORM_PRIVACY_OFFICER');
+    const officer = await actor('SYSTEM_ADMIN');
     const seed = generateTotpSecret();
     await prisma.platformMfa.create({
       data: {
@@ -480,7 +467,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     const previousMax = process.env.PLATFORM_LOGIN_MAX_ATTEMPTS;
     process.env.PLATFORM_LOGIN_MAX_ATTEMPTS = '3';
     try {
-      const target = await actor('COMPLIANCE_REVIEWER');
+      const target = await actor('AUDITOR');
       const org = await prisma.organization.create({
         data: { type: 'AUDITOR', name: 'Concurrent reviewer fixture' },
       });
@@ -523,7 +510,7 @@ describe('Private rights, recall drill and narrow platform roles (PostgreSQL)', 
     const previousMode = process.env.PLATFORM_MFA_MODE;
     process.env.PLATFORM_MFA_MODE = 'REQUIRED';
     try {
-      const officer = await actor('PLATFORM_PRIVACY_OFFICER');
+      const officer = await actor('SYSTEM_ADMIN');
       const seed = generateTotpSecret();
       await prisma.platformMfa.create({
         data: {

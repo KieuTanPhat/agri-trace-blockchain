@@ -12,19 +12,19 @@ export const RELAYER_FP = sha256(Buffer.from(RELAYER_CERT));
 
 export type Who = "controller" | "admin1" | "admin2" | "admin3" | "relayer" | "rogue";
 const IDENTITIES: Record<Who, { role: string; msp: string; authority?: string; cert?: string }> = {
-  controller: { role: "controller", msp: "Org1MSP" },
-  admin1: { role: "admin", msp: "Org1MSP" },
+  controller: { role: "controller", msp: "AgritraceMSP" },
+  admin1: { role: "admin", msp: "AgritraceMSP" },
   admin2: { role: "admin", msp: "Org2MSP" },
   admin3: { role: "admin", msp: "Org3MSP" },
-  relayer: { role: "relayer", msp: "Org1MSP", authority: AUTHORITY, cert: RELAYER_CERT },
-  rogue: { role: "relayer", msp: "Org1MSP", authority: AUTHORITY, cert: "rogue-cert" },
+  relayer: { role: "relayer", msp: "AgritraceMSP", authority: AUTHORITY, cert: RELAYER_CERT },
+  rogue: { role: "relayer", msp: "AgritraceMSP", authority: AUTHORITY, cert: "rogue-cert" },
 };
 
 export class Network {
   public readonly stub = new FakeStub();
   public readonly contract = new AgriTraceContract();
   private tx = 0;
-  public constructor(channelId = "hybrid-b") {
+  public constructor(channelId = "agritrace") {
     this.stub.channelId = channelId;
   }
   public ctx(who: Who): Context {
@@ -64,13 +64,13 @@ export class Network {
 
 export const binding: BindingTuple = {
   network: "isolated-hybrid-b",
-  channelId: "hybrid-b",
+  channelId: "agritrace",
   chaincodeName: "agritrace",
   contractName: "AgriTraceContract",
   chainRef: u(3),
   envelopeVersion: B_ENVELOPE_VERSION,
   writerAuthority: AUTHORITY,
-  writerMspId: "Org1MSP",
+  writerMspId: "AgritraceMSP",
   writerRole: "relayer",
   governanceDigest: GOVERNANCE_DIGEST,
 };
@@ -81,14 +81,14 @@ export async function readyNetwork() {
   const net = new Network();
   await net.change(
     "CHANNEL_BOOTSTRAP",
-    { channelId: "hybrid-b", strictB: true, allowLegacyV3Writes: false },
-    ["admin1", "admin2"],
+    { channelId: "agritrace", strictB: true, allowLegacyV3Writes: false },
+    ["admin1"],
   );
-  await net.change("BINDING_REGISTER", { binding, bindingDigest: DIGEST }, ["admin1", "admin2"]);
+  await net.change("BINDING_REGISTER", { binding, bindingDigest: DIGEST }, ["admin1"]);
   await net.change(
     "CREDENTIAL_APPROVE",
     { bindingDigest: DIGEST, authority: AUTHORITY, certFingerprint: RELAYER_FP },
-    ["admin1", "admin2"],
+    ["admin1"],
   );
   await net.change(
     "PERMISSION_GRANT",

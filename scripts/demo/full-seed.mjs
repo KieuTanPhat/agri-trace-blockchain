@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { freshProducts, processedProducts } from "./fruit-catalog.mjs";
 import {ensureSeedAccount,seedContentId} from "./seed-recovery.mjs";
 import {publishDirectoryProfiles} from "./publish-directory-profiles.mjs";
+import { seedTarget, LEDGER_REQUIRED_EXIT } from "./seed-target.mjs";
 import {
   createHash,
   randomUUID,
@@ -12,7 +13,6 @@ import {
   sign,
 } from "node:crypto";
 import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { hash } from "bcrypt";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../apps/api/dist/generated/prisma/client.js";
@@ -20,6 +20,8 @@ import {
   appendPlatformAudit,
   lockPlatformAudit,
 } from "../../apps/api/dist/modules/platform-governance/platform-audit.js";
+
+import { mergeServiceContract } from "../../apps/api/dist/modules/enterprise-onboarding/service-contract-pdf.js";
 
 const target = seedTarget();
 const local = target.run;
@@ -178,16 +180,13 @@ for (const asset of manifest.photos) {
 }
 const roles = [
   "SYSTEM_ADMIN",
-  "PLATFORM_OPERATOR",
-  "PLATFORM_CASE_MANAGER",
-  "PLATFORM_PRIVACY_OFFICER",
   "FARM_STAFF",
   "TRANSPORTER",
   "DISTRIBUTOR",
   "RETAILER",
   "PROCESSOR",
+  "ENTERPRISE_STAFF",
   "AUDITOR",
-  "COMPLIANCE_REVIEWER",
 ];
 const orgDefs = [
   [
@@ -314,9 +313,9 @@ const bootstrap = await step("bootstrap", async () => {
       for (const [key, roleCode, name] of [
         ["admin", "SYSTEM_ADMIN", "Nguyễn Minh An"],
         ["checker", "SYSTEM_ADMIN", "Trần Gia Hân"],
-        ["operator", "PLATFORM_OPERATOR", "Lê Tuấn Khang"],
-        ["cases", "PLATFORM_CASE_MANAGER", "Phạm Ngọc Mai"],
-        ["privacy", "PLATFORM_PRIVACY_OFFICER", "Võ Khánh Linh"],
+        ["operator", "SYSTEM_ADMIN", "Lê Tuấn Khang"],
+        ["cases", "SYSTEM_ADMIN", "Phạm Ngọc Mai"],
+        ["privacy", "SYSTEM_ADMIN", "Võ Khánh Linh"],
       ])
         result.users[key] = await makeUser(
           tx,
@@ -326,8 +325,9 @@ const bootstrap = await step("bootstrap", async () => {
         );
       for (let i = 0; i < orgDefs.length; i++) {
         const [key, name, type, roleCode, province, ward] = orgDefs[i];
+        // ADR-005: the cooperative owns the product chains; partners are members.
         const organization = await tx.organization.create({
-          data: { name, type, status: "ACTIVE" },
+          data: { name, type, status: "ACTIVE", participationStatus: type === "FARM" ? "CHAIN_OWNER" : "MEMBER" },
         });
         const owner = await makeUser(
           tx,
@@ -369,7 +369,7 @@ const bootstrap = await step("bootstrap", async () => {
             tx,
             "reviewer@example.test",
             "Nguyễn Thu Hà",
-            "COMPLIANCE_REVIEWER",
+            "AUDITOR",
             {
               organizationId: organization.id,
               jobTitle: "Chuyên viên xét duyệt độc lập",
@@ -393,7 +393,6 @@ const bootstrap = await step("bootstrap", async () => {
             ownerId: owner.id,
             registrationDigest: digest(`demo:${organization.id}`),
             businessId: `AGT-2026-${String(i + 1).padStart(4, "0")}`,
-            hostingMode: i % 2 ? "SELF_MANAGED_ORG" : "MANAGED_ORG",
             status: "APPROVED",
             serviceActivatedAt: now,
             serviceActivatedBy: result.users.admin.id,
@@ -428,7 +427,7 @@ const bootstrap = await step("bootstrap", async () => {
             registrationData: {
               schemaVersion: 2,
              synthetic: true,
-              registrationRole: type,
+              participationStatus: type === "FARM" ? "CHAIN_OWNER" : "MEMBER",
               legalForm: type === "FARM" ? "COOPERATIVE" : "ENTERPRISE",
               activities: caps,
               production:
@@ -440,7 +439,7 @@ const bootstrap = await step("bootstrap", async () => {
                       method: "Canh tác quản lý tổng hợp",
                     }
                   : undefined,
-              servicePreferences: ["TRACEABILITY", "QR_LABELS"],
+              servicePreferences: ["TRACEABILITY"],
               termsAccepted: true,
               privacyAccepted: true,
               accuracyAccepted: true,
@@ -462,15 +461,19 @@ const bootstrap = await step("bootstrap", async () => {
               role,
             },
           });
+        // Members below the owner are enterprise employees; inspection bodies keep AUDITOR.
+        const staffRoleCode =
+          roleCode === "AUDITOR" ? "AUDITOR" : "ENTERPRISE_STAFF";
         const [manager, staff] = await (async () => {
           const manager = await makeUser(
             tx,
             `${key}.manager@example.test`,
             ["Trần Quang Minh","Nguyễn Thị Hạnh","Phạm Minh Đức","Lê Quốc Bảo","Võ Thanh Hà","Trần Ngọc Yến","Nguyễn Văn Khải"][i],
-            roleCode,
+            staffRoleCode,
             {
               organizationId: organization.id,
-              enterpriseTier: 2,
+              // No manager tier: every employee reports directly to the owner.
+              enterpriseTier: 3,
               supervisorId: owner.id,
               memberCode: "NV0002",
               jobTitle: "Quản lý nghiệp vụ",
@@ -480,11 +483,11 @@ const bootstrap = await step("bootstrap", async () => {
             tx,
             `${key}.staff@example.test`,
             ["Lê Thảo Vy","Phạm Ngọc Hân","Nguyễn Thành Đạt","Trần Văn Dũng","Lê Thị Mỹ","Võ Minh Châu","Đặng Thùy Linh"][i],
-            roleCode,
+            staffRoleCode,
             {
               organizationId: organization.id,
               enterpriseTier: 3,
-              supervisorId: manager.id,
+              supervisorId: owner.id,
               memberCode: "NV0003",
               jobTitle: "Nhân viên nghiệp vụ",
             },
@@ -495,7 +498,7 @@ const bootstrap = await step("bootstrap", async () => {
         result.users[`${key}Staff`] = staff;
         // Migration-provided plan versions are authoritative; do not invent a price catalog.
         const plan = await tx.servicePlanVersion.findFirst({
-          where: { status: "PUBLISHED", planCode: "TRACE_20" },
+          where: { status: "PUBLISHED", planCode: "OWNER_SCALE" },
           orderBy: { createdAt: "desc" },
         });
         if (type === "FARM" && plan)
@@ -535,7 +538,6 @@ const bootstrap = await step("bootstrap", async () => {
             id: randomUUID(),
             ownerId: owner.id,
             organizationId: org.id,
-            hostingMode: "MANAGED_ORG",
             registrationDigest: digest(org.id),
             businessId: `AGT-${key}`,
             status,
@@ -558,11 +560,11 @@ const bootstrap = await step("bootstrap", async () => {
           tx,
           `${key}@example.test`,
           `Tài khoản ${key}`,
-          "FARM_STAFF",
+          "ENTERPRISE_STAFF",
           {
             organizationId: result.orgs.farm.id,
             enterpriseTier: 3,
-            supervisorId: result.users.farmManager.id,
+            supervisorId: result.users.farm.id,
             ...fields,
           },
         );
@@ -780,7 +782,6 @@ const resources = await step("resources", async () => {
             manufacturer: "Cơ sở vật tư ",
             batchCode: `AGT-VT-2026-${i}${j}`,
             origin: "Việt Nam (dữ liệu)",
-            price: j ? 45000 : 120000,
             seedType: j ? undefined : "Giống chọn lọc",
             activeIngredient: j === 2 ? "Bacillus thuringiensis" : undefined,
             description:
@@ -921,7 +922,6 @@ const resources = await step("resources", async () => {
           category: definition.category,
           defaultUnit: "kg",
           originFarmId: farm.id,
-          price: definition.price,
           storageConditions:
             definition.storage,
           ingredients: `100% ${definition.name.toLowerCase()}`,
@@ -1215,18 +1215,15 @@ await step("delegation", async () => {
       ...resources.farms.filter((x) => x.key === key).map((x) => x.id),
     ];
     for (const tier of ["Manager", "Staff"]) {
-      const permissions =
-        tier === "Manager"
-          ? allPermissions
-          : allPermissions.filter(
-              (x) =>
-                ![
-                  "members.manage",
-                  "roles.manage",
-                  "profile.manage",
-                  "partners.manage",
-                ].includes(x),
-            );
+      // Member and permission-group administration belongs to the owner only.
+      const permissions = allPermissions.filter(
+        (x) =>
+          ![
+            "members.manage",
+            "roles.manage",
+            ...(tier === "Manager" ? [] : ["profile.manage", "partners.manage"]),
+          ].includes(x),
+      );
       const role = unwrap(
         await api(
           actors[key],
@@ -1644,7 +1641,7 @@ async function signingKey(key) {
   ).toString("base64url");
   await api(
     actors[key],
-    "/distribution/keys",
+    "/distribution/device-keys",
     {
       id: value.id,
       publicKey: value.publicKey,
@@ -1653,6 +1650,12 @@ async function signingKey(key) {
     },
     `key:${key}`,
   );
+  // Demo data only: the seed confirms the emailed code on behalf of its own
+  // test account instead of reading a mailbox.
+  await db.distributionKey.updateMany({
+    where: { id: value.id, status: "PENDING" },
+    data: { status: "ACTIVE", verifiedAt: new Date() },
+  });
   return value;
 }
 async function attest(id, key, phase) {
@@ -1754,7 +1757,7 @@ const processing = await step("processing", async () => {
   for (const definition of processedProducts) {
     const product = await api(actors.processor, "/catalog/products", {
       productName:definition.name, sku:`MV-${definition.slug.toUpperCase()}`, category:definition.category,
-      defaultUnit:"kg", variety:definition.variety, price:definition.price,
+      defaultUnit:"kg", variety:definition.variety,
       storageConditions:definition.storage, ingredients:`100% ${definition.variety.toLowerCase()}`,
       rawMaterials:`${definition.variety} từ các lô nguồn có truy xuất`, usageInstructions:definition.usage,
       manufacturingSiteId:resources.sites.processor[0].id, managerUserId:actors.processor.id,
@@ -1850,20 +1853,20 @@ await step("compliance", async () => {
 
 await step("billing-reference-correction", async () => {
   const plan = await db.servicePlanVersion.findFirstOrThrow({
-    where: { planCode: "TRACE_20", status: "PUBLISHED" },
+    where: { planCode: "OWNER_SCALE", status: "PUBLISHED" },
   });
   await db.$transaction(async (tx) => {
     await lockPlatformAudit(tx);
     const invalid = await tx.subscription.findMany({
       where: {
         status: "ACTIVE",
-        planVersion: { planCode: "CHAIN_PRO" },
-        organization: { participationModel: "SINGLE" },
+        planVersion: { planCode: "OWNER_ENTERPRISE" },
+        organization: { participationStatus: "MEMBER" },
       },
     });
     for (const old of invalid) {
       const reason =
-        "Điều chỉnh gói khởi tạo theo mô hình SINGLE: hủy snapshot gói không phù hợp và tạo snapshot đúng, không ghi thanh toán thật.";
+        "Điều chỉnh gói khởi tạo: thành viên không giữ gói chủ chuỗi; hủy snapshot không phù hợp và tạo snapshot đúng, không ghi thanh toán thật.";
       await tx.subscription.update({
         where: { id: old.id },
         data: {
@@ -1892,7 +1895,7 @@ await step("billing-reference-correction", async () => {
         details: {
          synthetic: true,
           cancelledSnapshotId: old.id,
-          planCode: "TRACE_20",
+          planCode: "OWNER_SCALE",
         },
       });
     }
@@ -1901,77 +1904,6 @@ await step("billing-reference-correction", async () => {
 });
 
 await step("administration", async () => {
-  for (let i = 0; i < 7; i++) {
-    const key = [
-      "farm",
-      "berry",
-      "garden",
-      "carrier",
-      "distributor",
-      "retailer",
-      "processor",
-    ][i];
-    const t = unwrap(
-      await api(
-        actors[key],
-        "/enterprise-support/tickets",
-        {
-          category: [
-            "ACCOUNT",
-            "BILLING",
-            "TECHNICAL",
-            "TRACEABILITY",
-            "BLOCKCHAIN",
-            "PROCESSING",
-            "OTHER",
-          ][i],
-          priority: ["LOW", "NORMAL", "HIGH", "URGENT"][i % 4],
-          subject: [
-            "Hướng dẫn phân quyền quản lý vùng",
-            "Cần đối chiếu gói dịch vụ",
-            "Hỗ trợ quản lý nhật ký chăm sóc",
-            "Kiểm tra chặng giao nhận lạnh",
-            "Hỏi trạng thái bằng chứng blockchain",
-            "Hỗ trợ tra cứu tem hàng nhận",
-            "Cần hướng dẫn cân bằng khối lượng chế biến",
-          ][i],
-          body: "Yêu cầu hỗ trợ trong hồ sơ. Vui lòng hướng dẫn thao tác và kiểm tra thông tin liên quan. Không có dữ liệu khách hàng thật.",
-        },
-        `ticket:${key}`,
-      ),
-    );
-    if (i === 0) continue;
-    let row = await db.supportTicket.findUniqueOrThrow({ where: { id: t.id } });
-    await api(
-      actors.admin,
-      `/platform-admin/tickets/${t.id}/assign`,
-      { version: row.version, assigneeId: actors.cases.id },
-      `ticket-assign:${t.id}`,
-    );
-    row = await db.supportTicket.findUniqueOrThrow({ where: { id: t.id } });
-    await api(
-      actors.cases,
-      `/platform-admin/tickets/${t.id}/reply`,
-      {
-        version: row.version,
-        body: "AgriTrace đã tiếp nhận yêu cầu. Hướng dẫn đã được đối chiếu với chức năng hiện hành; vui lòng kiểm tra lại dữ liệu.",
-        status: ["IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED"][(i - 1) % 3],
-      },
-      `ticket-reply:${t.id}`,
-    );
-    if (i === 6) {
-      row = await db.supportTicket.findUniqueOrThrow({ where: { id: t.id } });
-      await api(
-        actors.admin,
-        `/platform-admin/tickets/${t.id}/close`,
-        {
-          version: row.version,
-          reason: "Đã hoàn tất hướng dẫn và xác nhận đóng yêu cầu hỗ trợ.",
-        },
-        `ticket-close:${t.id}`,
-      );
-    }
-  }
   for (let i = 0; i < 3; i++)
     await api(
       actors.admin,
@@ -2010,7 +1942,7 @@ await step("administration", async () => {
     await api(
       actors[key],
       "/enterprise-billing/renewals",
-      { planCode: "TRACE_20" },
+      { planCode: "OWNER_SCALE" },
       `renewal-invoice-valid:${key}`,
     );
   return true;
@@ -2075,11 +2007,11 @@ await step("onboarding-profiles", async () => {
     const password = `Agri!${randomBytes(18).toString("base64url")}9a`,
       passwordHash = await hash(password, 10);
     const plan = await db.servicePlanVersion.findFirstOrThrow({
-      where: { planCode: "TRACE_20", status: "PUBLISHED" },
+      where: { planCode: "OWNER_SCALE", status: "PUBLISHED" },
     });
     const user = await db.$transaction(async (tx) => {
       const org = await tx.organization.create({
-        data: { name: `HTX ${stage} `, type: "FARM" },
+        data: { name: `HTX ${stage} `, type: "FARM", participationStatus: "CHAIN_OWNER" },
       });
       await tx.organizationCapability.deleteMany({
         where: { organizationId: org.id },
@@ -2107,7 +2039,6 @@ await step("onboarding-profiles", async () => {
           ownerId: user.id,
           registrationDigest: digest(org.id),
           businessId: `AGT-${stage}`,
-          hostingMode: "MANAGED_ORG",
           status: "APPROVED",
           reviewedBy: actors.admin.id,
           reviewNote:
@@ -2137,11 +2068,15 @@ await step("onboarding-profiles", async () => {
       });
       if (stage !== "approved") {
         const contractText = `AGRITRACE AGT - Hợp đồng trải nghiệm không có giá trị pháp lý. Gói ${plan.planCode}, thời hạn ${plan.termMonths} tháng, phí thiết lập ${plan.setupFee} VND, phí năm ${plan.annualFee} VND. Không có thanh toán thật hoặc chữ ký số chứng thực.`;
+        const contractPdf = await mergeServiceContract({organizationName: org.name, representative: user.fullName,
+          businessId: `AGT-${stage}`, billingName: org.name, billingEmail: email, billingAddress: "Đức Trọng, Lâm Đồng",
+          planName: plan.planCode, planCode: plan.planCode, termMonths: plan.termMonths,
+          setup: Number(plan.setupFee), annual: Number(plan.annualFee), total: Number(plan.setupFee+plan.annualFee),
+          limits: plan.limits, reference: enrollment.id});
         const order = await tx.enterpriseServiceOrder.create({
           data: {
             enrollmentId: enrollment.id,
             planCode: plan.planCode,
-            hostingMode: "MANAGED_ORG",
             billingEmail: email,
             billingName: org.name,
             billingAddress: "Đức Trọng, Lâm Đồng ",
@@ -2156,6 +2091,7 @@ await step("onboarding-profiles", async () => {
             },
             contractText,
             contractDigest: digest(contractText),
+            contractPdf: contractPdf.bytes, contractPdfHash: contractPdf.sha256, contractTemplateVersion: contractPdf.templateVersion,
             status: "AWAITING_PAYMENT",
             acceptedAt: now,
           },

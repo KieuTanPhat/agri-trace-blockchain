@@ -2,8 +2,8 @@ import {test,expect} from "./fixtures";
 import {cycleId,harvestImage,lotImage} from "./fixtures/production-harvest";
 import {memberId} from "./fixtures/enterprise-membership";
 import {resolve} from "node:path";
-for(const actor of ["auditor","compliance-reviewer"] as const)test(`${actor} keeps scoped production reads without enterprise authority or writes`,async({page,api})=>{
- await api.useActor(actor);await api.scenario("production.independent-read");await page.goto("/production-cycles");
+test("auditor keeps scoped production reads without enterprise authority or writes",async({page,api})=>{
+ await api.useActor("auditor");await api.scenario("production.independent-read");await page.goto("/production-cycles");
  await expect(page.getByRole("heading",{name:"Vụ sản xuất",exact:true})).toBeVisible();await expect(page.getByText("Vụ Ledger",{exact:true})).toBeVisible();
  await page.getByRole("button",{name:"Chi tiết",exact:true}).click();await expect(page.getByRole("heading",{name:"Vụ Ledger",exact:true})).toBeVisible();
  await expect(page.getByRole("button",{name:"Ghi thu hoạch",exact:true})).toHaveCount(0);await expect(page.getByRole("button",{name:"Ghi nhật ký",exact:true})).toHaveCount(0);

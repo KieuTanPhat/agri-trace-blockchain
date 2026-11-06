@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Inject,
@@ -18,9 +19,13 @@ import { lockSessionOwner, sessionFamilyWhere } from './session-family.js';
 import { registerEnterprise } from '../enterprise-onboarding/enterprise-onboarding.service.js';
 import type { ChangePasswordDto } from './dto/change-password.dto.js';
 import { PlatformMfaService } from '../platform-governance/platform-mfa.service.js';
-import { isPlatformAdminRole } from './role-codes.js';
 import { registrationEmailInUse } from '../enterprise-onboarding/registration-email.js';
+import {
+  normalizeRegistrationBusinessId,
+  registrationBusinessIdInUse,
+} from '../enterprise-onboarding/registration-business-id.js';
 import { enforcePasswordAge } from './password-age.js';
+import { businessRoleOf } from './role-codes.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -38,7 +43,33 @@ let dummyHash: Promise<string> | undefined;
 const timingHash = () => (dummyHash ??= hash('agritrace-timing-equalizer', 12));
 const isPlatformRole = (code: string) =>
   (PLATFORM_ROLES as readonly string[]).includes(code);
-const MACHINE_ROLES = ['IOT_DEVICE', 'SYSTEM_ACTOR'];
+
+/** Adds the business role a client acts as (an employee's comes from its
+ * organization type) without exposing the organization type itself. */
+function presentUser<
+  T extends {
+    role: { code: string };
+    organization?: { status: string; type?: string } | null;
+    enterpriseTier?: number | null;
+  },
+>(user: T) {
+  const businessRole = businessRoleOf({
+    role: user.role,
+    organization: user.organization?.type
+      ? { type: user.organization.type }
+      : null,
+    enterpriseTier: user.enterpriseTier,
+  });
+  const organization =
+    user.organization === undefined
+      ? {}
+      : {
+          organization: user.organization
+            ? { status: user.organization.status }
+            : null,
+        };
+  return { ...user, ...organization, businessRole };
+}
 
 /**
  * The client a session family belongs to. Web uses HttpOnly cookies and takes
@@ -46,8 +77,8 @@ const MACHINE_ROLES = ['IOT_DEVICE', 'SYSTEM_ACTOR'];
  * request body and are limited to their own app: consumer accounts on ACheck,
  * enterprise members (no platform or machine role) on the staff app.
  */
-export type SessionAudience = 'web' | 'consumer' | 'staff';
-export function audienceAllows(
+type SessionAudience = 'web' | 'consumer' | 'staff';
+function audienceAllows(
   audience: SessionAudience,
   user: { role: { code: string }; organizationId: string | null },
 ) {
@@ -55,12 +86,9 @@ export function audienceAllows(
   if (audience === 'consumer')
     return role === 'CONSUMER' && user.organizationId === null;
   if (role === 'CONSUMER') return false;
+  // The staff app is for enterprise employees only; owners work on the Web.
   if (audience === 'staff')
-    return (
-      user.organizationId !== null &&
-      !isPlatformRole(role) &&
-      !MACHINE_ROLES.includes(role)
-    );
+    return user.organizationId !== null && role === 'ENTERPRISE_STAFF';
   return true;
 }
 
@@ -86,6 +114,18 @@ export class AuthService {
 
   async registrationEmailAvailability(email: string) {
     return { available: !(await registrationEmailInUse(this.prisma, email)) };
+  }
+
+  async registrationBusinessIdAvailability(businessId: string) {
+    const normalized = normalizeRegistrationBusinessId(businessId);
+    if (!normalized)
+      throw new BadRequestException('Mã số thuế không hợp lệ');
+    return {
+      available: !(await registrationBusinessIdInUse(
+        this.prisma,
+        normalized,
+      )),
+    };
   }
 
   async login(input: LoginDto, previousRefreshToken?: string) {
@@ -178,7 +218,10 @@ export class AuthService {
         await lockSessionOwner(tx, user.id, user.organizationId, 'read');
         const current = await tx.user.findUnique({
           where: { id: user.id },
-          include: { role: true, organization: { select: { status: true } } },
+          include: {
+            role: true,
+            organization: { select: { status: true, type: true } },
+          },
         });
         if (
           !current ||
@@ -202,7 +245,7 @@ export class AuthService {
         }
         if (platform && current.lockedUntil && current.lockedUntil > new Date())
           throw new UnauthorizedException(GENERIC_LOGIN_ERROR);
-        if (this.mfa && isPlatformAdminRole(current.role.code)) {
+        if (this.mfa && current.role.code === 'SYSTEM_ADMIN') {
           try {
             await this.mfa.assertLogin(
               tx,
@@ -533,7 +576,7 @@ export class AuthService {
       throw new UnauthorizedException('Người dùng không còn tồn tại');
     }
 
-    return user;
+    return presentUser(user);
   }
 
   async createAuthResponse(
@@ -544,6 +587,8 @@ export class AuthService {
       role: {
         code: string;
       };
+      organization?: { status: string; type?: string } | null;
+      enterpriseTier?: number | null;
       [key: string]: unknown;
     },
   ) {
@@ -567,6 +612,8 @@ export class AuthService {
       id: string;
       email: string;
       role: { code: string };
+      organization?: { status: string; type?: string } | null;
+      enterpriseTier?: number | null;
       [key: string]: unknown;
     },
     familyId: string,
@@ -584,7 +631,7 @@ export class AuthService {
       tokenType: 'Bearer',
       refreshToken,
       refreshExpiresAt,
-      user,
+      user: presentUser(user),
     };
   }
 
@@ -602,7 +649,8 @@ export class AuthService {
     email: true,
     fullName: true,
     organizationId: true,
-    organization: { select: { status: true } },
+    organization: { select: { status: true, type: true } },
+    enterpriseTier: true,
     role: {
       select: {
         id: true,

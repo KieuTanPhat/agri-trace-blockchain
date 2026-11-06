@@ -24,7 +24,6 @@ import {
 import { appendPlatformAudit, lockPlatformAudit } from './platform-audit.js';
 import { mfaMode } from './platform-config.js';
 import { MfaStepUpException } from './platform-errors.js';
-import { isPlatformAdminRole } from '../auth/role-codes.js';
 import {
   lockSessionOwner,
   sessionFamilyWhere,
@@ -64,7 +63,7 @@ const recoveryDigest = (userId: string, code: string) =>
     deploymentKey(),
   );
 
-export interface PlatformActor {
+interface PlatformActor {
   sub: string;
   role: string;
 }
@@ -209,7 +208,7 @@ export class PlatformMfaService {
     deploymentKey();
     return this.prisma.$transaction(async (tx) => {
       await lockPlatformAudit(tx);
-      if (!actor.sub || !actor.sid || !isPlatformAdminRole(actor.role))
+      if (!actor.sub || !actor.sid || actor.role !== 'SYSTEM_ADMIN')
         throw new MfaStepUpException('Cần phiên quản trị đang hoạt động');
       const userId = actor.sub;
       await lockSessionOwner(tx, actor.sub, actor.organizationId, 'read');
@@ -322,7 +321,7 @@ export class PlatformMfaService {
     code: string | undefined,
   ) {
     const mode = mfaMode();
-    if (mode === 'OFF' || !isPlatformAdminRole(actor.role)) return;
+    if (mode === 'OFF' || actor.role !== 'SYSTEM_ADMIN') return;
     if (await this.isEnabled(tx, actor.sub)) {
       await this.verifySecondFactor(tx, actor.sub, code, 'stepup');
       return;
@@ -339,7 +338,7 @@ export class PlatformMfaService {
     user: { id: string; role: string },
     code: string | undefined,
   ) {
-    if (mfaMode() === 'OFF' || !isPlatformAdminRole(user.role)) return;
+    if (mfaMode() === 'OFF' || user.role !== 'SYSTEM_ADMIN') return;
     if (!(await this.isEnabled(tx, user.id))) return;
     await this.verifySecondFactor(tx, user.id, code, 'login');
   }

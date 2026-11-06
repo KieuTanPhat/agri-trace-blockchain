@@ -2,15 +2,37 @@ import { test, expect } from "./fixtures";
 import { resolve } from "node:path";
 import { memberId, roleId, siteId, chainId } from "./fixtures/enterprise-membership";
 import {registerScenario,readScenario} from "./fixtures/scenarios";
+import { AUTH_SYNC_KEY } from "../../src/lib/auth-coordination";
 registerScenario("membership.permission-unavailable",{handle(r,state){return r.path==="/chain-permissions"?{status:503,error:{code:"UNAVAILABLE",message:"Quyền tạm thời chưa kiểm tra được"}}:readScenario("membership.baseline").handle(r,state);}});
 
-test("same-account permission recheck hides the real member draft and restores it unchanged",async({page,api})=>{
+test("members list every employee under the owner and filters by name", async ({ page, api }) => {
+  await api.useActor("org-owner");
+  await api.scenario("membership.baseline");
+  const otherId = "77777777-7777-4777-8777-777777777777";
+  const member = { id: memberId, fullName: "Nguyễn Thành Viên", email: "member@example.invalid", accountStatus: "ACTIVE", enterpriseRevision: 7, enterpriseRoles: [], enterpriseTier: 3, jobTitle: "Nhân viên", memberCode: "NV0017", supervisorId: null, phone: null, contactAddress: null, memberNote: null, responsibleFarmId: null, workSiteId: siteId };
+  await page.route("**/api/enterprise-workspace/members", (route) => route.fulfill({ json: {
+    success: true, data: { items: [member, { ...member, id: otherId, fullName: "Trần Thủ Kho", email: "keeper@example.invalid", jobTitle: "Thủ kho", memberCode: "NV0018" }] },
+    timestamp: "2026-11-04T06:00:00Z", requestId: "isolated-members-ui",
+  } }));
+  await page.goto("/enterprise/members");
+  const list = page.getByRole("list", { name: "Danh sách thành viên", exact: true });
+  await expect(list.getByRole("button")).toHaveCount(2);
+  const keeper = await list.getByText("Trần Thủ Kho", { exact: true }).boundingBox();
+  const staff = await list.getByText("Nguyễn Thành Viên", { exact: true }).boundingBox();
+  expect(keeper!.x).toBe(staff!.x);
+  await expect(page.getByRole("combobox", { name: "Cấp", exact: true })).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Tìm thành viên", exact: true }).fill("Thủ kho");
+  await expect(list.getByRole("button")).toHaveCount(1);
+  await expect(list.getByText("Trần Thủ Kho", { exact: true })).toBeVisible();
+});
+
+test("background permission recheck keeps the draft usable and locks it only if verification fails",async({page,api})=>{
  await api.useActor("org-owner");await api.scenario("membership.baseline");await page.goto("/enterprise/members/new");
  const name=page.getByRole("dialog").getByLabel("Họ tên",{exact:true});await name.fill("Bản nháp đang nhập");
  let continueCheck!:()=>void;const held=new Promise<void>(resolve=>{continueCheck=resolve;});
  await page.route("**/api/chain-permissions",async route=>{await held;await route.fallback();});
  await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
- await expect(name).toBeHidden();expect(api.requests().some(r=>r.method==="POST"&&r.path==="/enterprise-workspace/members")).toBe(false);
+ await expect(name).toBeVisible();await expect(name).toHaveValue("Bản nháp đang nhập");expect(api.requests().some(r=>r.method==="POST"&&r.path==="/enterprise-workspace/members")).toBe(false);
  continueCheck();await expect(name).toBeVisible();await expect(name).toHaveValue("Bản nháp đang nhập");
  await page.unroute("**/api/chain-permissions");await api.scenario("membership.permission-unavailable");
  await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await expect(page.getByText("Chưa xác minh được quyền truy cập",{exact:true}).first()).toBeVisible();await expect(name).toBeHidden();
@@ -35,7 +57,8 @@ test("member creation preserves delegated scopes and attachments; edit retains e
   await expect(dialog).toHaveCount(0);
   const create = api.requests().find(request => request.method === "POST" && request.path === "/enterprise-workspace/members");
   expect(create?.idempotencyKey).toBeTruthy();
-  expect(JSON.parse(create!.body!)).toMatchObject({ email: "member@example.invalid", tier: 2, phone: "0901234567", roles: [{ roleId, chainIds: [chainId], siteIds: [siteId] }] });
+  expect(JSON.parse(create!.body!)).not.toHaveProperty("tier");
+  expect(JSON.parse(create!.body!)).toMatchObject({ email: "member@example.invalid", phone: "0901234567", roles: [{ roleId, chainIds: [chainId], siteIds: [siteId] }] });
   const upload = api.requests().find(request => request.method === "POST" && request.path === "/enterprise-workspace/evidence");
   expect(upload?.body).toContain("MEMBER_AVATAR"); expect(upload?.body).toContain(memberId);
   await page.goto(`/enterprise/members/${memberId}/edit`);
@@ -74,15 +97,15 @@ test("profile respects private content denial and submits contact as a versioned
 });
 test("enterprise identity switch clears rendered A before the delayed B workspace response", async ({ page, api }) => {
   await api.useActor("org-owner"); await api.scenario("membership.identity");
-  await page.goto("/enterprise");
-  await expect(page.getByRole("heading", { name: "DOANH_NGHIEP_A", exact: true })).toBeVisible();
-  await expect(page.getByText("PRIVATE_ORG_A_ADDRESS", { exact: true })).toBeVisible();
+  await page.goto("/enterprise/profile");
+  await expect(page.getByText("PRIVATE_ORG_A_ADDRESS", { exact: false })).toBeVisible();
   await api.useActor("org-manager");
   const bRequest = page.waitForRequest(request => new URL(request.url()).pathname === "/api/enterprise-workspace" && request.headers().authorization === "Bearer fixture-org-manager");
-  await page.getByRole("button", { name: "Làm mới", exact: true }).click();
+  await page.evaluate((key) => {
+    localStorage.setItem(key, JSON.stringify({ id: crypto.randomUUID(), state: "signed-in" }));
+    window.dispatchEvent(new StorageEvent("storage", { key }));
+  }, AUTH_SYNC_KEY);
   await bRequest;
-  await expect(page.getByText("PRIVATE_ORG_A_ADDRESS", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "DOANH_NGHIEP_B", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "DOANH_NGHIEP_B", exact: true })).toBeVisible();
-  await expect(page.getByText("PRIVATE_ORG_B_ADDRESS", { exact: true })).toBeVisible();
+  await expect(page.getByText("PRIVATE_ORG_A_ADDRESS", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("PRIVATE_ORG_B_ADDRESS", { exact: false })).toBeVisible();
 });

@@ -53,7 +53,7 @@ def validate(spec):
     require(type(offset) is int and 0 <= offset <= 50000, 'Invalid administrative port offset')
     for name in ['ca', 'peer', 'orderer', 'chaincode']:
         require(re.fullmatch(r'[^\s]+@sha256:[a-f0-9]{64}', spec.get('images', {}).get(name, '')), 'Every network image needs an immutable digest')
-    require(spec.get('channels') == {'hybrid-b': [1, 2], 'hybrid-self': [1, 3]}, 'Unreviewed channel membership')
+    require(spec.get('channels') == {'agritrace': [1]}, 'Unreviewed channel membership')
     require(spec.get('writer_authority') == 'agritrace-relayer-b', 'Unexpected technical writer authority')
     require(re.fullmatch(r'[a-f0-9]{64}', spec.get('chaincode_fingerprint', '')), 'Compiled source fingerprint is required')
     require(re.fullmatch(r'[a-f0-9]{64}', spec.get('governance_digest', '')), 'Governance digest is required')
@@ -90,7 +90,7 @@ class Network:
         return self.instance + '-' + suffix
 
     def base(self, org):
-        return self.root / ('self' if org == 'org3' else 'net')
+        return self.root / 'net'
 
     def orgdir(self, org):
         return self.base(org) / 'organizations' / 'peerOrganizations' / (org + '.example.com')
@@ -99,7 +99,7 @@ class Network:
         return self.base(org) / 'fabric-ca' / (('tls-' if tls else '') + org)
 
     def port(self, org, tls=False):
-        return {'org1': 7054, 'org2': 8054, 'org3': 11054, 'orderer': 9054}[org] + self.offset + int(tls)
+        return {'org1': 7054, 'orderer': 9054}[org] + self.offset + int(tls)
 
     def enroll(self, org, identity, destination, tls=False, hosts=(), profile=None):
         if (destination / 'signcerts/cert.pem').exists():
@@ -242,7 +242,7 @@ class Network:
             for name, role in [('Client', 'client'), ('Peer', 'peer'), ('Admin', 'admin'), ('Orderer', 'orderer')]))
 
     def pki(self):
-        for org in ['orderer', 'org1', 'org2', 'org3']:
+        for org in ['orderer', 'org1']:
             self.ca_server(org, tls=True)
             self.enroll(org, 'admin', self.ca(org, True) / 'admin/msp', tls=True)
             self.enroll(org, 'admin', self.ca(org, True) / 'operator-tls', tls=True, profile='tls', hosts=['localhost'])
@@ -284,14 +284,7 @@ class Network:
                     file.chmod(0o444 if file.name != 'server.key' else 0o400)
                     os.chown(file, 1000, 1000)
                 material.chmod(0o755)
-        public = self.root / 'net/public/org3.example.com/msp'
-        if not public.exists():
-            public.mkdir(parents=True)
-            source = self.orgdir('org3') / 'msp'
-            for name in ['cacerts', 'tlscacerts']:
-                shutil.copytree(source / name, public / name)
-            shutil.copyfile(source / 'config.yaml', public / 'config.yaml')
-        for org in ['orderer', 'org1', 'org2', 'org3']:
+        for org in ['orderer', 'org1']:
             file = self.ca(org, True) / 'fabric-ca-server-config.json'
             config = json.loads(file.read_text())
             if config['tls'].get('clientauth', {}).get('type') != 'RequireAndVerifyClientCert':
@@ -301,7 +294,7 @@ class Network:
 
     def peer_env(self, org):
         return dict(os.environ, FABRIC_CFG_PATH=str(self.tools / 'config'), CORE_PEER_TLS_ENABLED='true',
-                    CORE_PEER_LOCALMSPID=f'Org{org}MSP', CORE_PEER_ADDRESS=f'localhost:{self.peer_port(org)+self.offset}',
+                    CORE_PEER_LOCALMSPID='AgritraceMSP', CORE_PEER_ADDRESS=f'localhost:{self.peer_port(org)+self.offset}',
                     CORE_PEER_MSPCONFIGPATH=str(self.orgdir('org' + str(org)) / f'users/Admin@org{org}.example.com/msp'),
                     CORE_PEER_TLS_ROOTCERT_FILE=str(self.orgdir('org' + str(org)) / f'peers/peer0.org{org}.example.com/tls/ca.crt'))
 
@@ -327,12 +320,12 @@ class Network:
         volume = self.volume('orderer-ledger')
         args += ['-v', f'{directory}:/node:ro', '-v', volume + ':/var/hyperledger/production/orderer', self.images['orderer'], 'orderer']
         self.container('orderer.example.com', 'orderer', args, 256)
-        for org in [1, 2, 3]:
+        for org in [1]:
             port = self.peer_port(org)
             directory = self.orgdir('org' + str(org)) / f'peers/peer0.org{org}.example.com'
             environment = {'FABRIC_LOGGING_SPEC': 'INFO', 'CORE_PEER_TLS_ENABLED': 'true', 'CORE_PEER_PROFILE_ENABLED': 'false',
               'CORE_PEER_TLS_CERT_FILE': '/node/tls/server.crt', 'CORE_PEER_TLS_KEY_FILE': '/node/tls/server.key', 'CORE_PEER_TLS_ROOTCERT_FILE': '/node/tls/ca.crt',
-              'CORE_PEER_MSPCONFIGPATH': '/node/msp', 'CORE_PEER_LOCALMSPID': f'Org{org}MSP', 'CORE_PEER_ID': f'peer0.org{org}.example.com',
+              'CORE_PEER_MSPCONFIGPATH': '/node/msp', 'CORE_PEER_LOCALMSPID': 'AgritraceMSP', 'CORE_PEER_ID': f'peer0.org{org}.example.com',
               'CORE_PEER_ADDRESS': f'peer0.org{org}.example.com:{port}', 'CORE_PEER_LISTENADDRESS': f'0.0.0.0:{port}',
               'CORE_PEER_GOSSIP_BOOTSTRAP': f'peer0.org{org}.example.com:{port}', 'CORE_PEER_GOSSIP_EXTERNALENDPOINT': f'peer0.org{org}.example.com:{port}',
               'CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG': '{"peername":"peer0org' + str(org) + '"}'}
@@ -344,14 +337,14 @@ class Network:
         template = Path(__file__).parents[1] / 'hybrid/templates/configtx.yaml.tmpl'
         config = self.root / 'net/configtx'
         config.mkdir(exist_ok=True, parents=True)
-        (config / 'configtx.yaml').write_text(template.read_text().replace('@NET@', str(self.root / 'net')).replace('@SELF@', str(self.root / 'self')))
+        (config / 'configtx.yaml').write_text(template.read_text().replace('@NET@', str(self.root / 'net')))
         artifacts = self.root / 'net/channel-artifacts'
         artifacts.mkdir(exist_ok=True)
         orderer_tls = self.root / 'net/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls'
         for channel, members in self.spec['channels'].items():
             block = artifacts / (channel + '.block')
             if not block.exists():
-                self.run('channel-genesis-' + channel, [str(self.tools / 'bin/configtxgen'), '-profile', 'HybridB' if channel == 'hybrid-b' else 'HybridSelf', '-channelID', channel, '-outputBlock', str(block)], dict(os.environ, FABRIC_CFG_PATH=str(config)))
+                self.run('channel-genesis-' + channel, [str(self.tools / 'bin/configtxgen'), '-profile', 'Agritrace', '-channelID', channel, '-outputBlock', str(block)], dict(os.environ, FABRIC_CFG_PATH=str(config)))
             if channel not in self.state.get('channels', []):
                 args = [str(self.tools / 'bin/osnadmin'), 'channel', 'join', '--channelID', channel, '--config-block', str(block), '-o', f'localhost:{7053+self.offset}',
                         '--ca-file', str(orderer_tls / 'ca.crt'), '--client-cert', str(orderer_tls / 'server.crt'), '--client-key', str(orderer_tls / 'server.key')]
@@ -372,7 +365,7 @@ class Network:
                 present = self.peer(org, 'channel', 'list').decode().splitlines()[1:]
                 if channel not in present:
                     self.peer(org, 'channel', 'join', '-b', str(block))
-        for org in [1, 2, 3]:
+        for org in [1]:
             channels = self.peer(org, 'channel', 'list').decode().splitlines()[1:]
             require(set(channels) == {c for c, members in self.spec['channels'].items() if org in members}, 'Channel membership isolation differs')
 
@@ -380,7 +373,7 @@ class Network:
         orderer_tls = self.root / 'net/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt'
         label = 'agritrace_2.0'
         package_ids = {}
-        for org in [1, 2, 3]:
+        for org in [1]:
             directory = self.root / 'cc-package' / ('org' + str(org))
             directory.mkdir(parents=True, exist_ok=True)
             peer_tls = self.orgdir('org' + str(org)) / f'peers/peer0.org{org}.example.com/tls'
@@ -408,7 +401,7 @@ class Network:
               'node', '/app/node_modules/fabric-shim/cli.js', 'server', '--chaincode-address', '0.0.0.0:9999', '--chaincode-id', expected_id,
               '--chaincode-tls-cert-file', '/tls/server.crt', '--chaincode-tls-key-file', '/tls/server.key', '--chaincode-tls-client-cacert-file', '/tls/ca.crt'], 192)
         for channel, members in self.spec['channels'].items():
-            args = ['--channelID', channel, '--name', 'agritrace', '--version', '2.0', '--sequence', '1']
+            args = ['--channelID', channel, '--name', 'agritrace', '--version', '2.0', '--sequence', '1', '--signature-policy', "OR('AgritraceMSP.peer')"]
             orderer = ['-o', f'localhost:{7050+self.offset}', '--ordererTLSHostnameOverride', 'orderer.example.com', '--tls', '--cafile', str(orderer_tls)]
             query = ['lifecycle', 'chaincode', 'querycommitted', '--channelID', channel, '--name', 'agritrace', '--output', 'json']
             committed = subprocess.run([str(self.tools / 'bin/peer'), *query], env=self.peer_env(members[0]), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -437,22 +430,37 @@ class Network:
                 for child in ['signcerts', 'keystore']:
                     shutil.copytree(source / child, destination / child)
         tls = worker / 'tls'; tls.mkdir(exist_ok=True)
-        for org in [1, 2, 3]:
+        for org in [1]:
             shutil.copyfile(self.orgdir('org' + str(org)) / f'peers/peer0.org{org}.example.com/tls/ca.crt', tls / f'org{org}.crt')
         for path in [worker, *worker.rglob('*')]:
             os.chown(path, 1000, 1000)
             path.chmod(0o750 if path.is_dir() else 0o440)
-        # Worker export contains no owner/admin2, Org3, CA or orderer key.
-        peers = {str(org): {'address': f'localhost:{self.peer_port(org)+self.offset}', 'hostname': f'peer0.org{org}.example.com', 'msp_id': f'Org{org}MSP',
+        # Worker export contains technical platform identities, never CA or orderer keys.
+        peers = {str(org): {'address': f'localhost:{self.peer_port(org)+self.offset}', 'hostname': f'peer0.org{org}.example.com', 'msp_id': 'AgritraceMSP',
           'msp': str(self.orgdir('org' + str(org)) / f'users/Admin@org{org}.example.com/msp'),
-          'tls': str(self.orgdir('org' + str(org)) / f'peers/peer0.org{org}.example.com/tls/ca.crt')} for org in [1, 2]}
-        descriptor = {'network': self.net, 'root': str(self.root), 'channel': 'hybrid-b', 'chaincode': 'agritrace',
+          'tls': str(self.orgdir('org' + str(org)) / f'peers/peer0.org{org}.example.com/tls/ca.crt')} for org in [1]}
+        descriptor = {'network': self.net, 'root': str(self.root), 'channel': 'agritrace', 'chaincode': 'agritrace',
           'containers': self.resources, 'volumes': self.volumes, 'images': {name: self.images['ca' if '-ca-' in name else 'chaincode' if '-cc-' in name else 'orderer' if name.endswith('orderer.example.com') else 'peer'] for name in self.resources},
           'peer_binary': str(self.tools / 'bin/peer'), 'config_path': str(self.tools / 'config'), 'backup_paths': [str(self.root)], 'peers': peers,
           'orderer': {'address': f'localhost:{7050+self.offset}', 'hostname': 'orderer.example.com', 'tls': str(self.root / 'net/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt')},
           'governance_digest': self.spec['governance_digest'], 'chaincode_fingerprint': self.spec['chaincode_fingerprint'], 'channels': self.spec['channels'],
-          'externalPartnerAuthority': 'NotEvaluated', 'highAvailability': False}
+          'highAvailability': False}
         write_json(self.root / 'hosted-descriptor.json', descriptor)
+        configuration = self.root / 'worker-config'
+        configuration.mkdir(exist_ok=True, mode=0o750)
+        identity = lambda name: {'certPath': f'/hosted-identities/{name}/signcerts/cert.pem', 'keyDir': f'/hosted-identities/{name}/keystore'}
+        platform = {'network': self.net, 'channelId': 'agritrace', 'chaincodeName': 'agritrace',
+          'contractName': 'AgriTraceContract', 'writerAuthority': self.spec['writer_authority'], 'governanceDigest': self.spec['governance_digest'],
+          'node': {'mspId': 'AgritraceMSP', 'peerEndpoint': 'peer0.org1.example.com:7051', 'peerHostAlias': 'peer0.org1.example.com',
+                   'tlsCertPath': '/hosted-identities/tls/org1.crt', 'relayer': identity('relayer'), 'controller': identity('controller'), 'admin': identity('admin')}}
+        config_file = configuration / 'bindings.json'
+        expected = {'version': 1, 'bindings': [], 'platform': platform}
+        if config_file.exists():
+            require(json.loads(config_file.read_text()) == expected, 'Existing Worker template differs; configuration was not overwritten')
+        else:
+            write_json(config_file, expected)
+        os.chown(configuration, 1000, 1000); os.chown(config_file, 1000, 1000)
+        config_file.chmod(0o440)
 
     def provision(self):
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -467,7 +475,7 @@ class Network:
         secret_file = self.root / 'enrollment-secrets.json'
         if not secret_file.exists():
             write_json(secret_file, {org: {identity: secrets.token_hex(24) for identity in ['admin', 'ca-server', 'node', 'cc', 'orgadmin', 'relayer', 'controller']}
-                                    for org in ['orderer', 'org1', 'org2', 'org3']})
+                                    for org in ['orderer', 'org1']})
         self.secrets = json.loads(secret_file.read_text())
         if not self.tools.exists():
             self.tools.mkdir()

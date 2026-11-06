@@ -21,6 +21,7 @@ import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorat
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
 import { SupplyChainsService } from './supply-chains.service.js';
+import { PartnerInvitationInput, PartnerInvitationRecord, PartnerInvitationView } from './partner-invitations.js';
 import {
   CapabilityDto,
   CapabilityRecordDto,
@@ -168,6 +169,30 @@ export class SupplyChainsController {
     );
   }
 
+  @Get('supply-chains/:chainId/invitations')
+  @ApiDataResponse(PartnerInvitationRecord, 200, true)
+  invitations(@Req() req: AuthenticatedRequest, @Param('chainId', ParseUUIDPipe) chainId: string) {
+    return this.service.invitations(req.user, chainId);
+  }
+
+  @Post('supply-chains/:chainId/invitations')
+  @ApiDataResponse(PartnerInvitationView, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  inviteByLink(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) chainId: string,
+    @Body() input: PartnerInvitationInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(
+      req,
+      key,
+      'HYB_INVITE_BY_LINK',
+      { ...input, chainId },
+      () => this.service.inviteByLink(req.user, chainId, input),
+    );
+  }
+
   @Post('supply-chains/:chainId/memberships')
   @ApiDataResponse(MemberRecordDto, 201)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
@@ -208,6 +233,33 @@ export class SupplyChainsController {
           organizationId,
           input.version,
           'ACTIVE',
+        ),
+    );
+  }
+
+  @Post('supply-chains/:chainId/memberships/:organizationId/leave')
+  @ApiDataResponse(MemberRecordDto, 201)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  leave(
+    @Req() req: AuthenticatedRequest,
+    @Param('chainId', ParseUUIDPipe) chainId: string,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Body() input: ChainVersionDto,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.command(
+      req,
+      key,
+      'HYB_LEAVE_MEMBERSHIP',
+      { ...input, chainId, organizationId },
+      () =>
+        this.service.changeMember(
+          req.user,
+          chainId,
+          organizationId,
+          input.version,
+          'REVOKED',
+          'LEAVE',
         ),
     );
   }

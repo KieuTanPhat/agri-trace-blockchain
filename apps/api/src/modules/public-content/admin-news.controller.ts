@@ -72,7 +72,7 @@ function project(row: {
     hasCover: !!(row.coverMimeType || row.coverUrl),
   };
 }
-export function newsCover(input: NewsWriteInput) {
+function newsCover(input: NewsWriteInput) {
   if (input.removeCover && (input.coverBase64 || input.coverMimeType))
     throw new BadRequestException('Chọn ảnh mới hoặc xóa ảnh hiện tại.');
   if (input.removeCover)

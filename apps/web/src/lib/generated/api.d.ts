@@ -320,6 +320,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/registration-business-id-availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AuthController_registrationBusinessIdAvailability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/registration-documents": {
         parameters: {
             query?: never;
@@ -416,6 +432,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/staff/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["StaffSessionController_confirmPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/staff/password-reset/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["StaffSessionController_requestPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/staff/password-reset/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["StaffSessionController_verifyPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/staff/refresh": {
         parameters: {
             query?: never;
@@ -442,6 +506,22 @@ export interface paths {
         get: operations["BlockchainController_verify"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/capability-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["EnterpriseServiceController_requestCapability"];
         delete?: never;
         options?: never;
         head?: never;
@@ -538,6 +618,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["CatalogController_product"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/products/{id}/approval-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CatalogController_requestApproval"];
         delete?: never;
         options?: never;
         head?: never;
@@ -704,6 +800,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/distribution/device-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a personal device key; it signs right away */
+        post: operations["DistributionController_deviceKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/distribution/keys": {
         parameters: {
             query?: never;
@@ -713,7 +826,7 @@ export interface paths {
         };
         get: operations["DistributionController_keys"];
         put?: never;
-        post: operations["DistributionController_key"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -762,54 +875,6 @@ export interface paths {
         get: operations["DistributionController_options"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/distribution/pickup-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["DistributionController_pickupRequests"];
-        put?: never;
-        post: operations["DistributionController_requestPickup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/distribution/pickup-requests/{id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["DistributionController_cancelPickup"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/distribution/pickup-requests/{id}/decline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["DistributionController_declinePickup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1136,6 +1201,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/distribution/transfers/{id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DistributionController_photos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/distribution/transfers/{id}/receipt": {
         parameters: {
             query?: never;
@@ -1178,6 +1259,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["DistributionController_signReturn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/distribution/transfers/{id}/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DistributionController_route"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1248,6 +1345,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/enterprise-billing/invoices/{id}/sepay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SepayController_invoice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/enterprise-billing/renewals": {
         parameters: {
             query?: never;
@@ -1306,38 +1419,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["EnterpriseCasesController_respond"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/enterprise-connections": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["EnterpriseOnboardingController_connect"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/enterprise-connections/{id}/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["EnterpriseOnboardingController_reviewConnection"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1584,6 +1665,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/enterprise-service/documents/{kind}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EnterpriseServiceController_document"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/enterprise-service/orders": {
         parameters: {
             query?: never;
@@ -1616,6 +1713,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/enterprise-service/payment/sepay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SepayController_checkout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/enterprise-service/preview": {
         parameters: {
             query?: never;
@@ -1632,23 +1745,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/enterprise-support/tickets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["EnterpriseSupportController_mine"];
-        put?: never;
-        post: operations["EnterpriseSupportController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/enterprise-support/tickets/{id}/reply": {
+    "/api/enterprise-service/upgrade": {
         parameters: {
             query?: never;
             header?: never;
@@ -1657,7 +1754,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["EnterpriseSupportController_reply"];
+        post: operations["EnterpriseServiceController_upgrade"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1672,6 +1769,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["EnterpriseWorkspaceController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enterprise-workspace/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EnterpriseWorkspaceController_auditLog"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1856,22 +1969,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/enterprise-workspace/members/{id}/supervisor": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["EnterpriseWorkspaceController_changeMemberSupervisor"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/enterprise-workspace/partners": {
         parameters: {
             query?: never;
@@ -1898,6 +1995,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["EnterpriseWorkspaceController_resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enterprise-workspace/partners/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EnterpriseWorkspaceController_partnerDirectory"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2496,6 +2609,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/iot/v2/cycles/{id}/readings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DevicesController_cycleReadings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/device-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DevicesController_options"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/device/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_assignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DevicesController_list"];
+        put?: never;
+        post: operations["DevicesController_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/devices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DevicesController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/devices/{id}/binding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_bind"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/devices/{id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_remove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/devices/{id}/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_rotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/devices/{id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_update"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/devices/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_status"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/ingest/positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_positions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/iot/v2/ingest/readings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DevicesController_readings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lots": {
         parameters: {
             query?: never;
@@ -2714,6 +3019,22 @@ export interface paths {
         get: operations["SupplyChainsController_users"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/sepay/webhook/{mode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SepayController_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3024,6 +3345,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform-admin/product-approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PlatformAdminController_productApprovals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform-admin/product-approvals/{productId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PlatformAdminController_reviewProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform-admin/qr": {
         parameters: {
             query?: never;
@@ -3146,86 +3499,6 @@ export interface paths {
         get: operations["PlatformAdminController_statistics"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/platform-admin/support-staff": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["PlatformAdminController_staff"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/platform-admin/tickets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["PlatformAdminController_tickets"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/platform-admin/tickets/{id}/assign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["PlatformAdminController_assign"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/platform-admin/tickets/{id}/close": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["PlatformAdminController_close"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/platform-admin/tickets/{id}/reply": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["PlatformAdminController_reply"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3401,7 +3674,23 @@ export interface paths {
         };
         get: operations["PlatformBillingController_plans"];
         put?: never;
-        post?: never;
+        post: operations["PlatformBillingController_createPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform-billing/plans/{code}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PlatformBillingController_setPlanStatus"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4016,6 +4305,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/processing-runs/receipts/{id}/confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ProcessingController_confirmReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/processing-runs/stock": {
         parameters: {
             query?: never;
@@ -4418,6 +4723,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/supplier-confirmations/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PublicSupplierConfirmationController_get"];
+        put?: never;
+        post: operations["PublicSupplierConfirmationController_respond"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/trace/{token}": {
         parameters: {
             query?: never;
@@ -4802,6 +5123,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/supply-chains/{chainId}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SupplyChainsController_invitations"];
+        put?: never;
+        post: operations["SupplyChainsController_inviteByLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/supply-chains/{chainId}/ledger-status": {
         parameters: {
             query?: never;
@@ -4844,6 +5181,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["SupplyChainsController_accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/supply-chains/{chainId}/memberships/{organizationId}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SupplyChainsController_leave"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5220,6 +5573,8 @@ export interface components {
         };
         ActualReceiptInput: {
             lines: components["schemas"]["ActualReceiptLine"][];
+            /** @description Up to 6 receiver TRANSFER_IMAGE evidence; required when a line is short, rejected or quarantined */
+            photos?: string[];
             reason: string;
             version: number;
         };
@@ -5308,6 +5663,40 @@ export interface components {
             responseDueAt?: string;
             version: number;
         };
+        AssignedDeviceDto: {
+            active: boolean;
+            deviceCode: string;
+            name: string;
+            simulated: boolean;
+            status: string;
+            type: string;
+        };
+        AssignedPlaceDto: {
+            latitude: number | null;
+            longitude: number | null;
+            name: string;
+            /** @enum {string|null} */
+            source: "SITE" | "PROVINCE" | null;
+        };
+        AssignedPlotDto: {
+            farmName: string;
+            name: string;
+            runningCycles: string[];
+        };
+        AssignedTripDto: {
+            destination: components["schemas"]["AssignedPlaceDto"];
+            /** Format: date-time */
+            inTransitAt: string;
+            origin: components["schemas"]["AssignedPlaceDto"];
+            planned: components["schemas"]["PlannedTripDto"] | null;
+            /** Format: uuid */
+            transferId: string;
+        };
+        AssignedVehicleDto: {
+            kind: string;
+            registration: string;
+            status: string;
+        };
         AssignmentListDto: {
             audits: components["schemas"]["ComplianceAssignmentAuditRecordDto"][];
             farm: components["schemas"]["NamedDto"];
@@ -5367,7 +5756,7 @@ export interface components {
         };
         AuthRoleDto: {
             /** @enum {string} */
-            code: "SYSTEM_ADMIN" | "PLATFORM_OPERATOR" | "PLATFORM_CASE_MANAGER" | "PLATFORM_PRIVACY_OFFICER" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "AUDITOR" | "COMPLIANCE_REVIEWER" | "SYSTEM_ACTOR";
+            code: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "ENTERPRISE_STAFF" | "AUDITOR" | "SYSTEM_ACTOR";
             /** Format: uuid */
             id: string;
             name: string;
@@ -5393,6 +5782,11 @@ export interface components {
         };
         AuthUserDto: {
             accountStatus: string;
+            /**
+             * @description Vai nghiệp vụ tài khoản hành động; nhân viên doanh nghiệp lấy theo loại tổ chức
+             * @enum {string|null}
+             */
+            businessRole: "FARM_STAFF" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: email */
@@ -5419,6 +5813,14 @@ export interface components {
             record: {
                 [key: string]: unknown;
             };
+        };
+        BindDeviceInput: {
+            /** Format: uuid */
+            plotId?: Record<string, never> | null;
+            /** Format: uuid */
+            vehicleId?: Record<string, never> | null;
+            /** @description authorityRevision hiện tại */
+            version: number;
         };
         BindShipmentDeviceDto: {
             /** Format: uuid */
@@ -5456,6 +5858,23 @@ export interface components {
         };
         CancelProcessingInput: {
             reason: string;
+            version: number;
+        };
+        CapabilityAddInput: {
+            /** @enum {string} */
+            code: "FARM" | "TRANSPORTER" | "PROCESSOR" | "DISTRIBUTOR" | "RETAILER";
+            /** @description PROFILE certificates of the organization */
+            evidenceIds?: string[];
+            processing?: components["schemas"]["RegistrationProcessingDetails"];
+            production?: components["schemas"]["RegistrationProductionDetails"];
+        };
+        CapabilityAddView: {
+            /** @enum {string} */
+            code: "FARM" | "TRANSPORTER" | "PROCESSOR" | "DISTRIBUTOR" | "RETAILER";
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "PENDING";
             version: number;
         };
         CapabilityDto: {
@@ -5743,7 +6162,7 @@ export interface components {
             note: string | null;
             /** Format: uuid */
             ownerOrganizationId: string;
-            /** @description Chuỗi riêng tạo khi kích hoạt doanh nghiệp sản xuất */
+            /** @description Free farm ledger created when the FARM capability takes effect (ADR-005) */
             personal: boolean;
             /** Format: date */
             plannedStartDate: string | null;
@@ -5942,6 +6361,8 @@ export interface components {
             /** @description Số hóa đơn / chứng từ */
             documentNo: string;
             expiryDate?: string;
+            /** @description Mã số vùng trồng hoặc cơ sở đóng gói của nguồn */
+            growingAreaCode?: string;
             materialName: string;
             note?: string;
             quantity: string;
@@ -5952,7 +6373,13 @@ export interface components {
              * @description Cơ sở chế biến/đóng gói nhận hàng
              */
             siteId: string;
-            supplierName: string;
+            /**
+             * Format: uuid
+             * @description Supplier from the private address book (ADR-005)
+             */
+            supplierId: string;
+            /** @description Mã lô in trên chứng từ hoặc thùng hàng của nhà cung cấp; khớp lô AgriTrace đã xuất ngoài thì nối nguồn gốc */
+            supplierLotCode?: string;
             unit: string;
         };
         CreateOrganizationDto: {
@@ -6053,6 +6480,16 @@ export interface components {
             /** @description Nhân viên được giao vụ; người đầu tiên là người phụ trách. Bỏ trống: người phụ trách hoặc người tạo */
             staffUserIds?: string[];
             startDate?: string;
+        };
+        CreateServicePlanInput: {
+            annualFee: number;
+            code: string;
+            description?: string;
+            limits: components["schemas"]["PlanLimitsInput"];
+            name: string;
+            note: string;
+            setupFee: number;
+            termMonths: number;
         };
         CreateShipmentDto: {
             destination: string;
@@ -6317,6 +6754,29 @@ export interface components {
             updatedAt: string;
             version: number;
         };
+        DeviceAssignmentDto: {
+            device: components["schemas"]["AssignedDeviceDto"];
+            plot: components["schemas"]["AssignedPlotDto"] | null;
+            trip: components["schemas"]["AssignedTripDto"] | null;
+            vehicle: components["schemas"]["AssignedVehicleDto"] | null;
+        };
+        DeviceAssignmentInput: {
+            deviceCode: string;
+            /** Format: date-time */
+            sentAt: string;
+        };
+        DeviceIngestResultDto: {
+            accepted: number;
+            anomalies: number;
+            /** @description Số thứ tự đã nhận trước đó (gửi lại) */
+            duplicates: number;
+            /** @description Ngoài phạm vi: không có vụ/phiếu đang chạy */
+            ignored: number;
+            /** @description Đến sau khi đã chốt (đánh dấu muộn) */
+            late: number;
+            /** @description Bị từ chối vì thời gian không hợp lệ */
+            rejected: number;
+        };
         DeviceListDto: {
             authorityRevision: number;
             /** Format: date-time */
@@ -6338,6 +6798,16 @@ export interface components {
             type: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        DeviceStatusInput: {
+            /** @enum {string} */
+            status: "ACTIVE" | "INACTIVE";
+            /** @description authorityRevision hiện tại */
+            version: number;
+        };
+        DeviceVersionInput: {
+            /** @description authorityRevision hiện tại */
+            version: number;
         };
         DistributionC2Prepare: {
             /** Format: uuid */
@@ -6375,6 +6845,10 @@ export interface components {
             snapshotDigest: string;
         };
         DistributionOptionsDto: {
+            /** @description Thành viên có quyền Lái xe, kèm chuỗi/cơ sở được giao; chọn làm tài xế khi bên giao tự chở */
+            drivers: {
+                [key: string]: unknown;
+            }[];
             items: {
                 [key: string]: unknown;
             }[];
@@ -6412,6 +6886,27 @@ export interface components {
             primary: boolean;
             stage: string;
             tier?: number | null;
+        };
+        EnterpriseAuditEmployeeDto: {
+            email: string;
+            fullName: string;
+            /** Format: uuid */
+            id: string;
+        };
+        EnterpriseAuditEntryDto: {
+            action: string;
+            /** @enum {string} */
+            category: "ACTIVITY" | "ACCOUNT";
+            employee: components["schemas"]["EnterpriseAuditEmployeeDto"];
+            id: string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** @enum {string} */
+            outcome: "SUCCESS" | "DENIED" | "FAILED";
+        };
+        EnterpriseAuditPageDto: {
+            items: components["schemas"]["EnterpriseAuditEntryDto"][];
+            nextCursor: string | null;
         };
         EnterpriseBillingDto: {
             applies: boolean;
@@ -6466,48 +6961,9 @@ export interface components {
             note: string;
             version: number;
         };
-        EnterpriseConnectionDto: {
-            /** Format: uuid */
-            chainId: string;
-            /**
-             * Format: uuid
-             * @description Stable request id retained for retries
-             */
-            id: string;
-            mspId?: string;
-            /** @description DNS name or IP of self-managed peer; no URL or credentials */
-            peerHost?: string;
-            peerPort?: number;
-            /** @description Hostname in the peer TLS certificate */
-            peerServerName?: string;
-            /** @description Public TLS root certificate, PEM. Never a private key. */
-            tlsCaPem?: string;
-        };
-        EnterpriseConnectionViewDto: {
-            /** Format: uuid */
-            chainId: string;
-            checkedAt?: string | null;
-            createdAt: string;
-            errorCode?: string | null;
-            evidence?: {
-                [key: string]: unknown;
-            } | null;
-            hostingMode: string;
-            /** Format: uuid */
-            id: string;
-            /** @description Submitted public peer settings; never private keys. */
-            publicConfig: {
-                [key: string]: unknown;
-            };
-            reviewNote?: string | null;
-            status: string;
-            txId?: string | null;
-            version: number;
-        };
         EnterpriseEnrollmentViewDto: {
             businessId: string | null;
             capabilityRequests: components["schemas"]["CapabilityRequestViewDto"][];
-            connections: components["schemas"]["EnterpriseConnectionViewDto"][];
             /** Format: date-time */
             createdAt: string;
             /** @description Private submitted legal/contact profile; never public QR data */
@@ -6515,7 +6971,6 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             documents: components["schemas"]["RegistrationDocumentViewDto"][];
-            hostingMode: string;
             /** Format: uuid */
             id: string;
             /** @description PENDING_REVIEW, REJECTED, SELECT_SERVICE, AWAITING_PAYMENT, AWAITING_ACTIVATION or ACTIVE */
@@ -6524,10 +6979,11 @@ export interface components {
             organizationId: string;
             organizationName: string;
             organizationType: string;
-            /** @enum {string} */
-            participationModel: "SINGLE" | "SUPPLY_CHAIN_ENTERPRISE";
-            /** @description True for producers/cooperatives and supply-chain enterprises, which buy a service plan and may own chains */
-            payingParticipant: boolean;
+            /**
+             * @description MEMBER takes part free; CHAIN_OWNER buys a plan and may own chains
+             * @enum {string}
+             */
+            participationStatus: "MEMBER" | "CHAIN_OWNER";
             /** @description Whether service payment collection is currently enabled; false allows administrator activation for temporary use without settlement */
             paymentsEnabled: boolean;
             representativeEmail: string;
@@ -6543,14 +6999,15 @@ export interface components {
             address: string;
             businessId: string;
             /** Format: email */
-            email: string;
+            email?: string;
             /** @enum {string} */
             kind: "FARM" | "TRANSPORTER" | "DISTRIBUTOR" | "RETAILER";
             name: string;
-            note: string;
+            note?: string;
             phone: string;
-            representative: string;
-            taxCode: string;
+            representative?: string;
+            /** @description Mã số thuế hoặc số định danh 12 số của hộ */
+            taxCode?: string;
         };
         EnterpriseInvoicePayInput: {
             version: number;
@@ -6593,8 +7050,6 @@ export interface components {
                 components["schemas"]["MemberRoleInput"],
                 ...components["schemas"]["MemberRoleInput"][]
             ];
-            /** @enum {number} */
-            tier: 2 | 3;
             /** Format: uuid */
             workSiteId?: string;
         };
@@ -6700,7 +7155,7 @@ export interface components {
             website: string | null;
         };
         EnterpriseRegistrationDetails: {
-            /** @description SINGLE participation registers exactly one activity; SUPPLY_CHAIN_ENTERPRISE registers two or more. Each activity is reviewed separately. */
+            /** @description Any number of activities; each is reviewed separately. A chain owner needs at least one goods-owning activity (not only TRANSPORTER). */
             activities: ("FARM" | "TRANSPORTER" | "PROCESSOR" | "DISTRIBUTOR" | "RETAILER")[];
             address: string;
             /** Format: email */
@@ -6713,7 +7168,7 @@ export interface components {
             /** @enum {number} */
             formVersion: 2;
             /** @enum {string} */
-            legalForm: "ENTERPRISE" | "COOPERATIVE" | "HOUSEHOLD_BUSINESS" | "PRODUCER_HOUSEHOLD" | "INDIVIDUAL_PRODUCER";
+            legalForm: "ENTERPRISE" | "COOPERATIVE";
             /** @default false */
             marketingAccepted: boolean;
             phone: string;
@@ -6767,7 +7222,7 @@ export interface components {
         };
         EnterpriseRoleInput: {
             name: string;
-            permissions: ("profile.read" | "members.read" | "members.manage" | "roles.manage" | "partners.read" | "partners.manage" | "catalog.read" | "catalog.manage" | "sites.read" | "sites.manage" | "vehicles.read" | "vehicles.manage" | "production.read" | "production.write" | "distribution.read" | "distribution.write" | "distribution.sign" | "trace.read" | "qr.manage" | "reports.read" | "quantity.adjust" | "profile.manage" | "cases.read" | "cases.respond" | "inventory.manage" | "quarantine.manage" | "evidence.read" | "evidence.manage" | "materials.read" | "materials.manage" | "processing.read" | "processing.write")[];
+            permissions: ("profile.read" | "members.read" | "members.manage" | "roles.manage" | "partners.read" | "partners.manage" | "catalog.read" | "catalog.manage" | "sites.read" | "sites.manage" | "vehicles.read" | "vehicles.manage" | "production.read" | "production.write" | "distribution.read" | "distribution.write" | "distribution.sign" | "distribution.drive" | "trace.read" | "qr.manage" | "reports.read" | "quantity.adjust" | "profile.manage" | "cases.read" | "cases.respond" | "inventory.manage" | "quarantine.manage" | "evidence.read" | "evidence.manage" | "materials.read" | "materials.manage" | "processing.read" | "processing.write" | "devices.read" | "devices.manage")[];
             version?: number;
         };
         EnterpriseRoleListDto: {
@@ -6807,6 +7262,10 @@ export interface components {
             farmId?: string;
             /** @enum {string} */
             kind: "PRODUCTION" | "PACKING" | "WAREHOUSE" | "COLD_STORAGE" | "PROCESSING" | "DISTRIBUTION" | "RETAIL" | "OTHER";
+            /** @description Vĩ độ điểm trên bản đồ (ADR-006); đi cùng longitude */
+            latitude?: number;
+            /** @description Kinh độ điểm trên bản đồ; đi cùng latitude */
+            longitude?: number;
             manager?: string;
             name: string;
             otherInfo?: string;
@@ -6836,6 +7295,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             kind: string;
+            latitude: string | null;
+            longitude: string | null;
             manager: string | null;
             name: string;
             /** Format: uuid */
@@ -6893,7 +7354,7 @@ export interface components {
             /** Format: binary */
             file: string;
             /** @enum {string} */
-            kind?: "OTHER" | "PRODUCT_IMAGE" | "INSPECTION_IMAGE" | "AREA_IMAGE" | "LAND_CERTIFICATE" | "PRODUCTION_CONTRACT" | "QUALITY_CERTIFICATE" | "CYCLE_IMAGE" | "MATERIAL_IMAGE" | "SEED_IMAGE" | "CERTIFICATE_IMAGE" | "LOT_IMAGE" | "LOT_DOCUMENT" | "SITE_IMAGE" | "BUSINESS_LICENSE" | "TRANSFER_IMAGE" | "HARVEST_IMAGE" | "CARE_IMAGE" | "PARTNER_LOGO" | "PARTNERSHIP_EVIDENCE" | "MEMBER_AVATAR" | "MEMBER_DOCUMENT" | "CHAIN_IMAGE" | "QUARANTINE_IMAGE" | "RECEIPT_DOCUMENT" | "PROCESSING_IMAGE";
+            kind?: "OTHER" | "PRODUCT_IMAGE" | "INSPECTION_IMAGE" | "AREA_IMAGE" | "LAND_CERTIFICATE" | "PRODUCTION_CONTRACT" | "QUALITY_CERTIFICATE" | "CYCLE_IMAGE" | "MATERIAL_IMAGE" | "SEED_IMAGE" | "CERTIFICATE_IMAGE" | "LOT_IMAGE" | "LOT_DOCUMENT" | "SITE_IMAGE" | "BUSINESS_LICENSE" | "TRANSFER_IMAGE" | "HARVEST_IMAGE" | "CARE_IMAGE" | "PARTNER_LOGO" | "PARTNERSHIP_EVIDENCE" | "MEMBER_AVATAR" | "MEMBER_DOCUMENT" | "CHAIN_IMAGE" | "QUARANTINE_IMAGE" | "RECEIPT_DOCUMENT" | "PROCESSING_IMAGE" | "INVOICE" | "PURCHASE_LIST" | "WEIGHING_SLIP" | "LAB_TEST" | "PRODUCT_DECLARATION" | "DAMAGE_IMAGE";
             /** @description Only source-lot evidence can be public. Must also confirm publication. */
             public?: boolean;
             publicationConfirmed?: boolean;
@@ -7061,6 +7522,13 @@ export interface components {
             state: "OFFERED" | "CONFIRMED" | "REJECTED" | "EXPIRED" | "CANCELLED";
             unit: string;
         };
+        HandoverPhotosInput: {
+            /** @enum {string} */
+            phase: "PICKUP" | "DELIVERY";
+            /** @description 1 to 6 TRANSFER_IMAGE evidence of the signing party, fixed before the phase is signed */
+            photos: string[];
+            version: number;
+        };
         HarvestDetailDto: {
             /** Format: date-time */
             createdAt: string;
@@ -7203,12 +7671,19 @@ export interface components {
             unhealthy: number;
         };
         HoldingDispositionInput: {
+            /** @description Delivery document number, required for EXTERNAL_DISPATCH */
+            documentNo?: string;
             /** @description Only DAMAGE, explicitly consume quarantined stock at a site */
             fromQuarantine?: boolean;
-            /** @enum {string} */
-            kind: "SALE" | "DAMAGE";
+            /**
+             * @description SALE to consumers; EXTERNAL_DISPATCH hands goods to an organization outside AgriTrace (ADR-005)
+             * @enum {string}
+             */
+            kind: "SALE" | "DAMAGE" | "EXTERNAL_DISPATCH";
             /** Format: uuid */
             lotId: string;
+            /** @description Up to 6 LOT DAMAGE_IMAGE evidence; required for DAMAGE */
+            photos?: string[];
             /** @description Decimal string, maximum 3 fractional digits */
             quantity: string;
             /**
@@ -7217,6 +7692,8 @@ export interface components {
              */
             quarantineCaseId?: string;
             reason: string;
+            /** @description Required for EXTERNAL_DISPATCH */
+            recipientName?: string;
             /** Format: uuid */
             siteId?: string;
             unit: string;
@@ -7271,7 +7748,7 @@ export interface components {
         };
         InspectCommandRequestDto: {
             /** @enum {string} */
-            operation: "PLATFORM_NEWS_CREATE" | "PLATFORM_NEWS_UPDATE" | "PLATFORM_NEWS_STATUS" | "EW_PROFILE_CONTACT" | "EW_PROFILE_SUBMIT" | "EW_PROFILE_WITHDRAW" | "ENTERPRISE_PROFILE_REVIEW" | "PRIVACY_REQUEST_CREATE" | "PLATFORM_PRIVACY_BREACH_CREATE" | "PLATFORM_PRIVACY_UPDATE" | "EW_CREATE_MEMBER" | "EW_INVITE_MEMBER" | "EW_REVOKE_MEMBER_INVITATION" | "EW_UPDATE_MEMBER" | "EW_CHANGE_MEMBER_SUPERVISOR" | "EW_CREATE_ROLE" | "EW_UPDATE_ROLE" | "EW_DELETE_ROLE" | "EW_INVITE_PARTNER" | "EW_CREATE_EXTERNAL_PARTNER" | "EW_RESOLVE_PARTNER" | "EW_CREATE_SITE" | "EW_COMPLETE_SITE" | "EW_UPDATE_SITE" | "EW_CREATE_VEHICLE" | "EW_UPDATE_VEHICLE" | "EW_CREATE_PRODUCT" | "EW_UPDATE_PRODUCT" | "EW_REVISE_SITE" | "EW_REVISE_VEHICLE" | "EW_CREATE_MATERIAL" | "EW_UPDATE_MATERIAL" | "EW_IMPORT_PRODUCTS" | "EW_UPLOAD_EVIDENCE" | "EW_WITHDRAW_EVIDENCE" | "EW_ORDER_PRODUCT_PHOTOS" | "EW_COMPLETE_MATERIAL" | "EW_ALLOCATE" | "EW_QUARANTINE" | "EW_CASE_ACK" | "EW_CASE_RESPOND" | "EW_MESSAGE_SEND" | "EW_MESSAGE_REPLY" | "EW_MESSAGE_READ" | "EW_SITE_TRANSFER_CREATE" | "EW_SITE_TRANSFER_DISPATCH" | "EW_SITE_TRANSFER_RECEIVE" | "EW_SITE_TRANSFER_RESOLVE" | "EW_SITE_TRANSFER_CANCEL" | "EW_PICKUP_REQUEST" | "EW_PICKUP_DECLINE" | "EW_PICKUP_CANCEL" | "DIST_JOIN_CHAIN" | "DIST_RECEIPT" | "DIST_RETURN" | "DIST_RETURN_SIGN" | "DIST_RENEW_CONSENT" | "DIST_C2_PREPARE" | "DIST_C2_SUBMIT" | "EW_CREATE_FARM" | "EW_COMPLETE_FARM" | "EW_COMPLETE_PRODUCT" | "EW_CREATE_PLOT" | "EW_REGISTER_DISTRIBUTION_KEY" | "EW_REVOKE_DISTRIBUTION_KEY" | "DIST_CREATE" | "DIST_SIGN" | "DIST_CANCEL" | "DIST_OBSERVE" | "EW_TRACE_NOTICE" | "EW_DISPOSITION" | "ENTERPRISE_REVIEW" | "ENTERPRISE_ACTIVATE" | "ENTERPRISE_CONNECT" | "ENTERPRISE_CONNECTION_REVIEW" | "CREATE_PRODUCTION_CYCLE" | "EW_CREATE_CYCLE_DRAFT" | "EW_LINK_CYCLE_DRAFT" | "EW_SET_CYCLE_STAFF" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "INGEST_SENSOR_READING" | "INGEST_SHIPMENT_TELEMETRY" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_SUSPEND_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
+            operation: "PLATFORM_NEWS_CREATE" | "PLATFORM_NEWS_UPDATE" | "PLATFORM_NEWS_STATUS" | "EW_PROFILE_CONTACT" | "EW_PROFILE_SUBMIT" | "EW_PROFILE_WITHDRAW" | "ENTERPRISE_PROFILE_REVIEW" | "PRIVACY_REQUEST_CREATE" | "PLATFORM_PRIVACY_BREACH_CREATE" | "PLATFORM_PRIVACY_UPDATE" | "EW_CREATE_MEMBER" | "EW_INVITE_MEMBER" | "EW_REVOKE_MEMBER_INVITATION" | "EW_UPDATE_MEMBER" | "EW_CREATE_ROLE" | "EW_UPDATE_ROLE" | "EW_DELETE_ROLE" | "EW_INVITE_PARTNER" | "EW_CREATE_EXTERNAL_PARTNER" | "EW_RESOLVE_PARTNER" | "EW_CREATE_SITE" | "EW_COMPLETE_SITE" | "EW_UPDATE_SITE" | "EW_CREATE_VEHICLE" | "EW_DEVICE_REGISTER" | "EW_DEVICE_BIND" | "EW_DEVICE_ROTATE_KEY" | "EW_DEVICE_STATUS" | "EW_DEVICE_UPDATE" | "EW_DEVICE_DELETE" | "EW_UPDATE_VEHICLE" | "EW_CREATE_PRODUCT" | "EW_UPDATE_PRODUCT" | "EW_REVISE_SITE" | "EW_REVISE_VEHICLE" | "EW_CREATE_MATERIAL" | "EW_UPDATE_MATERIAL" | "EW_IMPORT_PRODUCTS" | "EW_UPLOAD_EVIDENCE" | "EW_WITHDRAW_EVIDENCE" | "EW_ORDER_PRODUCT_PHOTOS" | "EW_COMPLETE_MATERIAL" | "EW_ALLOCATE" | "EW_QUARANTINE" | "EW_CASE_ACK" | "EW_CASE_RESPOND" | "EW_MESSAGE_SEND" | "EW_MESSAGE_REPLY" | "EW_MESSAGE_READ" | "EW_SITE_TRANSFER_CREATE" | "EW_SITE_TRANSFER_DISPATCH" | "EW_SITE_TRANSFER_RECEIVE" | "EW_SITE_TRANSFER_RESOLVE" | "EW_SITE_TRANSFER_CANCEL" | "DIST_JOIN_CHAIN" | "DIST_RECEIPT" | "DIST_PHOTOS" | "EW_DEVICE_KEY_REQUEST" | "DIST_RETURN" | "DIST_RETURN_SIGN" | "DIST_RENEW_CONSENT" | "DIST_C2_PREPARE" | "DIST_C2_SUBMIT" | "EW_CREATE_FARM" | "EW_COMPLETE_FARM" | "EW_COMPLETE_PRODUCT" | "EW_CREATE_PLOT" | "EW_REVOKE_DISTRIBUTION_KEY" | "DIST_CREATE" | "DIST_SIGN" | "DIST_CANCEL" | "DIST_OBSERVE" | "EW_TRACE_NOTICE" | "EW_SUPPLIER_CONFIRMATION_CREATE" | "EW_PRODUCT_APPROVAL_REQUEST" | "EW_DISPOSITION" | "PLATFORM_PRODUCT_REVIEW" | "ENTERPRISE_REVIEW" | "ENTERPRISE_ACTIVATE" | "ENTERPRISE_UPGRADE_OWNER" | "ENTERPRISE_CAPABILITY_REQUEST" | "CREATE_PRODUCTION_CYCLE" | "EW_CREATE_CYCLE_DRAFT" | "EW_LINK_CYCLE_DRAFT" | "EW_SET_CYCLE_STAFF" | "PLANT_PRODUCTION_CYCLE" | "RECORD_CARE" | "RECORD_SENSOR" | "INGEST_SENSOR_READING" | "INGEST_SHIPMENT_TELEMETRY" | "CLOSE_PRODUCTION_CYCLE" | "CANCEL_PRODUCTION_CYCLE" | "RECORD_HARVEST" | "CREATE_SHIPMENT" | "START_SHIPMENT" | "ARRIVE_SHIPMENT" | "RECEIVE_SHIPMENT" | "REJECT_SHIPMENT" | "DAMAGE_SHIPMENT" | "DAMAGE_LOT" | "MARK_FOR_SALE" | "MARK_SOLD" | "RECALL_LOT" | "EXPIRE_LOT" | "CREATE_INSPECTION" | "CREATE_CERTIFICATE" | "REVIEW_CERTIFICATE" | "BIND_SHIPMENT_DEVICE" | "UNBIND_SHIPMENT_DEVICE" | "CREATE_SHIPMENT_TELEMETRY_DIGEST" | "HYB_CREATE_CHAIN" | "HYB_ACTIVATE_BUSINESS_PROFILE" | "HYB_SUSPEND_BUSINESS_PROFILE" | "HYB_INVITE_MEMBERSHIP" | "HYB_ACCEPT_MEMBERSHIP" | "HYB_CHANGE_MEMBERSHIP" | "HYB_LEAVE_MEMBERSHIP" | "HYB_INVITE_BY_LINK" | "HYB_GRANT_ROLE" | "HYB_REVOKE_ROLE" | "HYB_SET_CAPABILITY" | "SCOPE_CREATE_SHIPMENT_PLAN" | "SCOPE_REVISE_SHIPMENT_PLAN" | "SCOPE_ACCEPT_SHIPMENT_PLAN" | "SCOPE_CANCEL_SHIPMENT_PLAN" | "SCOPE_FINALIZE_SHIPMENT_PLAN" | "PREPARE_HANDOVER_OFFER" | "PREPARE_HANDOVER_CONFIRM" | "SUBMIT_SIGNED_INTENT" | "REJECT_HANDOVER" | "CANCEL_HANDOVER" | "HYB_REGISTER_SIGNING_KEY" | "HYB_REVOKE_SIGNING_KEY";
             /** @description Payload gốc của command, gồm resource IDs như controller chuẩn hóa */
             payload: {
                 [key: string]: unknown;
@@ -7396,7 +7873,7 @@ export interface components {
             organizationId?: string;
             organizationName: string;
             /** @enum {string} */
-            role: "SYSTEM_ADMIN" | "PLATFORM_OPERATOR" | "PLATFORM_CASE_MANAGER" | "PLATFORM_PRIVACY_OFFICER" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "AUDITOR" | "COMPLIANCE_REVIEWER" | "SYSTEM_ACTOR";
+            role: "SYSTEM_ADMIN" | "FARM_STAFF" | "IOT_DEVICE" | "TRANSPORTER" | "DISTRIBUTOR" | "PROCESSOR" | "RETAILER" | "ENTERPRISE_STAFF" | "AUDITOR" | "SYSTEM_ACTOR";
             /** Format: uuid */
             userId?: string;
         };
@@ -7530,11 +8007,13 @@ export interface components {
             openHolds: number;
             pendingControlJobs: number;
             permissions: components["schemas"]["LedgerPermissionCountsDto"];
+            /** @enum {string} */
+            preparationStatus: "PREPARING" | "READY" | "NEEDS_ATTENTION";
             /**
              * @description UNBOUND: chuỗi chưa có binding nên chưa ghi được sự kiện
              * @enum {string}
              */
-            profile: "UNBOUND" | "SERVICE" | "MANAGED_ORG" | "SELF_MANAGED_ORG";
+            profile: "UNBOUND" | "SERVICE";
             worker: components["schemas"]["LedgerWorkerObservationDto"];
         };
         LedgerWorkerObservationDto: {
@@ -7554,7 +8033,7 @@ export interface components {
             address: string;
             businessId?: string;
             /** @enum {string} */
-            legalForm: "ENTERPRISE" | "COOPERATIVE" | "HOUSEHOLD_BUSINESS" | "PRODUCER_HOUSEHOLD" | "INDIVIDUAL_PRODUCER";
+            legalForm: "ENTERPRISE" | "COOPERATIVE";
             name: string;
             production?: components["schemas"]["RegistrationProductionDetails"];
             provinceCode: string;
@@ -7735,7 +8214,6 @@ export interface components {
             manufacturer?: string;
             name: string;
             origin?: string;
-            price?: number;
             seedType?: string;
             supplier?: string;
             unit: string;
@@ -7765,8 +8243,6 @@ export interface components {
                 components["schemas"]["MemberRoleInput"],
                 ...components["schemas"]["MemberRoleInput"][]
             ];
-            /** @enum {number} */
-            tier: 2 | 3;
             /** @description SHA-256 of a 32-byte token generated on the inviting device */
             tokenDigest: string;
             /** Format: uuid */
@@ -7775,6 +8251,11 @@ export interface components {
         MemberRecordDto: {
             /** Format: uuid */
             chainId: string;
+            /**
+             * Format: date-time
+             * @description Owner stopped new handovers; suspension follows once the partner holds nothing (ADR-005)
+             */
+            closingAt?: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -7793,15 +8274,6 @@ export interface components {
             /** Format: uuid */
             roleId: string;
             siteIds: string[];
-        };
-        MemberSupervisorInput: {
-            /**
-             * Format: uuid
-             * @description Active tier-2 manager; null puts the member directly under the owner
-             */
-            supervisorId: Record<string, never> | null;
-            /** @description Member enterpriseRevision the change is based on */
-            version: number;
         };
         MessageReplyInput: {
             body: string;
@@ -8056,6 +8528,29 @@ export interface components {
         OwnProfileWorkspaceRecordDto: {
             record: components["schemas"]["OwnProfileWorkspaceDto"];
         };
+        ParticipationUpgradeInput: {
+            /** @description Current enrollment version */
+            version: number;
+        };
+        ParticipationUpgradeView: {
+            /** Format: uuid */
+            organizationId: string;
+            /** @enum {string} */
+            participationStatus: "CHAIN_OWNER";
+        };
+        PartnerDirectoryItemDto: {
+            /** @description AGT organization code */
+            agriTraceCode: string;
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            name: string;
+        };
+        PartnerDirectoryPageDto: {
+            items: components["schemas"]["PartnerDirectoryItemDto"][];
+            /** Format: uuid */
+            nextCursor: string | null;
+        };
         PartnerDirectoryProfileDto: {
             activities: string[];
             address: string | null;
@@ -8082,6 +8577,30 @@ export interface components {
             taxCode: string | null;
             ward: string | null;
             website: string | null;
+        };
+        PartnerInvitationInput: {
+            email: string;
+            organizationName: string;
+        };
+        PartnerInvitationRecord: {
+            /** Format: date-time */
+            createdAt: string;
+            email: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            organizationName: string;
+            /** @enum {string} */
+            status: "PENDING" | "ACCEPTED" | "EXPIRED";
+        };
+        PartnerInvitationView: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @description Registration link; shown once, only its hash is stored */
+            link: string;
         };
         PartnerOrganizationDto: {
             /** @description AGT organization code */
@@ -8117,21 +8636,6 @@ export interface components {
             changed: true;
             sessionsRevoked: number;
         };
-        PickupRequestInput: {
-            /** @description Sản phẩm, lượng và thời gian muốn lấy */
-            note: string;
-            /** Format: date-time */
-            preferredPickupAt?: string;
-            /**
-             * Format: uuid
-             * @description Bên giao (đối tác đã liên kết)
-             */
-            senderId: string;
-        };
-        PickupResolveInput: {
-            note?: string;
-            version: number;
-        };
         PlanAcceptanceResultDto: {
             /** Format: date-time */
             acceptedAt: string;
@@ -8165,7 +8669,14 @@ export interface components {
         PlanLimitsInput: {
             chains: number;
             members: number;
+            /** @description Distinct partner organizations active in the owner chains */
+            partners: number;
             products: number;
+        };
+        PlannedTripDto: {
+            distanceM: number;
+            durationS: number;
+            estimated: boolean;
         };
         PlanningLotDto: {
             /** Format: uuid */
@@ -8546,7 +9057,7 @@ export interface components {
             code: string;
             /** Format: date-time */
             completedAt: string | null;
-            /** @description Nguyên liệu nhập ngoài AgriTrace, doanh nghiệp tự khai (selfDeclared = true) */
+            /** @description Hàng hoặc nguyên liệu nhập ngoài AgriTrace, bên nhận khai từ chứng từ (selfDeclared = true); trust: SUPPLIER_CONFIRMED | EVIDENCED; matchedOrigin: lô AgriTrace mà mã lô nhà cung cấp khớp, hoặc null */
             externalInputs: Record<string, never>[];
             inputs: components["schemas"]["ProcessingInputSummaryDto"][];
             inputTotal: number | null;
@@ -8567,6 +9078,15 @@ export interface components {
         ProcessingVersionInput: {
             version: number;
         };
+        ProductApprovalRequestInput: {
+            version: number;
+        };
+        ProductApprovalReviewInput: {
+            /** @enum {string} */
+            decision: "APPROVE" | "REJECT";
+            note: string;
+            version: number;
+        };
         ProductBriefDto: {
             /** Format: uuid */
             id: string;
@@ -8579,6 +9099,8 @@ export interface components {
             description?: string;
             distributor?: string;
             exporter?: string;
+            /** @description Goods of a supplier outside AgriTrace, recorded by a retailer or distributor from its documents */
+            externalGoods?: boolean;
             /** @description GTIN digits, syntax only; no registry verification */
             gtin?: string;
             importer?: string;
@@ -8598,7 +9120,8 @@ export interface components {
              * @description Origin farm. Required for producers; processors give manufacturingSiteId instead.
              */
             originFarmId?: string;
-            price?: number;
+            /** @description Private label: source products of other businesses already received; no farm or site needed */
+            privateLabelSourceIds?: string[];
             productName: string;
             rawMaterials?: string;
             sku?: string;
@@ -8627,7 +9150,6 @@ export interface components {
             manufacturingSiteId?: string;
             /** Format: uuid */
             originFarmId: string;
-            price?: number;
             productName: string;
             rawMaterials?: string;
             sku: string;
@@ -8725,7 +9247,6 @@ export interface components {
             /** Format: uuid */
             organizationId: string;
             origin: string | null;
-            price: string | null;
             seedType: string | null;
             status: string;
             supplier: string | null;
@@ -8744,6 +9265,12 @@ export interface components {
             order: string[];
         };
         ProductRecordDto: {
+            approvalNote?: string | null;
+            /**
+             * @description Platform approval gating the public brand page (ADR-005)
+             * @enum {string}
+             */
+            approvalStatus?: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
             carrier?: string | null;
             category: string | null;
             /** Format: date-time */
@@ -8753,11 +9280,15 @@ export interface components {
             distributor?: string | null;
             evidenceComplete: boolean;
             exporter?: string | null;
+            /** @description Goods of a supplier outside AgriTrace, recorded by the seller from documents */
+            externalGoods?: boolean;
             gtin?: string | null;
             /** Format: uuid */
             id: string;
             importer?: string | null;
             ingredients: string | null;
+            /** @description Source products a private label is packed from */
+            labelSourceIds?: string[];
             /** Format: uuid */
             managerUserId?: string | null;
             /** Format: uuid */
@@ -8766,7 +9297,8 @@ export interface components {
             organizationId?: string | null;
             /** Format: uuid */
             originFarmId: string | null;
-            price: string | null;
+            /** @description Branded by a retailer or distributor from source products of other businesses */
+            privateLabel?: boolean;
             productName: string;
             rawMaterials?: string | null;
             sku?: string | null;
@@ -8919,6 +9451,11 @@ export interface components {
             items: components["schemas"]["PublicAnnouncementDto"][];
             nextCursor: string | null;
         };
+        PublicBrandDto: {
+            organizationName: string;
+            productName: string;
+            story: string | null;
+        };
         PublicCertificateDto: {
             documentHash: string;
             /** Format: date-time */
@@ -8968,14 +9505,13 @@ export interface components {
             createdAt: string;
             defaultUnit: string | null;
             description: string | null;
+            enterprise: components["schemas"]["PublicProductEnterpriseDto"] | null;
             gtin: string | null;
             /** Format: uuid */
             id: string;
             /** @description Only an explicitly published product image. */
             imageUrl: string | null;
             ingredients: string | null;
-            /** @description Published indicative price in VND per defaultUnit; not a checkout price. */
-            price: string | null;
             productName: string;
             province: string | null;
             /**
@@ -9048,6 +9584,8 @@ export interface components {
             ];
             availableQuantity: number;
             blockchainProof?: components["schemas"]["LotProofDto"];
+            /** @description Chain-owner brand, only for an approved product (ADR-005) */
+            brand?: components["schemas"]["PublicBrandDto"] | null;
             certificates: components["schemas"]["PublicCertificateDto"][];
             /** @enum {string} */
             currentState: "CONSUMED" | "HARVESTED" | "IN_TRANSPORT" | "ARRIVED" | "RETAIL_RECEIVED" | "FOR_SALE" | "SOLD" | "RECALLED" | "EXPIRED" | "DAMAGED" | "REJECTED";
@@ -9080,6 +9618,8 @@ export interface components {
             quantityReconciled: boolean;
             sensorEvidence: components["schemas"]["SensorEvidenceDto"];
             shipment: components["schemas"]["PublicShipmentDto"] | null;
+            /** @description Trust levels of the material sources of a processed lot */
+            sourceTrust?: components["schemas"]["PublicSourceTrustDto"] | null;
             stateReconciled: boolean;
             timeline: components["schemas"]["PublicTimelineDto"][];
             traceToken: string;
@@ -9129,6 +9669,7 @@ export interface components {
             createdAt: string;
             defaultUnit: string | null;
             description: string | null;
+            enterprise: components["schemas"]["PublicProductEnterpriseDto"] | null;
             enterprises: components["schemas"]["PublicEnterprisesPageDto"];
             gtin: string | null;
             /** Format: uuid */
@@ -9137,8 +9678,6 @@ export interface components {
             imageUrl: string | null;
             ingredients: string | null;
             lots: components["schemas"]["PublicTraceLinksPageDto"];
-            /** @description Published indicative price in VND per defaultUnit; not a checkout price. */
-            price: string | null;
             productName: string;
             province: string | null;
             /**
@@ -9152,6 +9691,13 @@ export interface components {
             traceCount: number;
             usageInstructions: string | null;
             variety: string | null;
+        };
+        PublicProductEnterpriseDto: {
+            /** Format: uuid */
+            id: string;
+            /** @description Only an explicitly published logo. */
+            logoUrl: string | null;
+            name: string;
         };
         PublicProductsPageDto: {
             /** @description Có thể tải tiếp hay không. */
@@ -9174,6 +9720,25 @@ export interface components {
             receivedTime: string | null;
             /** @enum {string} */
             status: "CREATED" | "IN_TRANSIT" | "ARRIVED" | "DELIVERED" | "REJECTED" | "FAILED";
+        };
+        PublicSourceTrustDto: {
+            declared: number;
+            evidenced: number;
+            /** @description AgriTrace lots recorded by the supplier itself */
+            selfRecorded: number;
+            supplierConfirmed: number;
+        };
+        PublicSupplierConfirmationView: {
+            buyerName: string;
+            documentNo: string | null;
+            materialName: string;
+            quantity: string;
+            /** Format: date-time */
+            receivedAt: string;
+            /** @enum {string} */
+            status: "PENDING" | "CONFIRMED" | "DECLINED";
+            supplierName: string;
+            unit: string;
         };
         PublicTimelineActorDto: {
             organizationName: string;
@@ -9252,6 +9817,8 @@ export interface components {
             /** Format: uuid */
             lotId: string;
             note?: string;
+            /** @description Up to 6 LOT DAMAGE_IMAGE evidence of the goods put on hold */
+            photos?: string[];
             /** @description Decimal string, maximum 3 fractional digits */
             quantity: string;
             /**
@@ -9381,7 +9948,7 @@ export interface components {
         };
         ReferenceItemInput: {
             /** @enum {string} */
-            category: "UNIT" | "PRODUCT_CATEGORY" | "CERTIFICATE_TYPE" | "LOSS_REASON" | "PROCESSING_TYPE" | "TICKET_CATEGORY" | "VEHICLE_TYPE";
+            category: "UNIT" | "PRODUCT_CATEGORY" | "CERTIFICATE_TYPE" | "LOSS_REASON" | "PROCESSING_TYPE" | "VEHICLE_TYPE";
             code: string;
             description?: string;
             label: string;
@@ -9391,9 +9958,24 @@ export interface components {
             /** @description Bỏ trống khi tạo mới; phiên bản đã đọc khi sửa */
             version?: number;
         };
+        RegisterDeviceInput: {
+            /** @description Mã in trên thiết bị (IMEI/serial) */
+            deviceCode: string;
+            /** @enum {string} */
+            kind: "FIELD_SENSOR" | "GPS_TRACKER";
+            name: string;
+            /** Format: uuid */
+            plotId?: string;
+            /** @description Khóa công khai Ed25519 SPKI base64url do thiết bị tạo */
+            publicKey: string;
+            /** @description Thiết bị ảo; nguồn SIMULATED được giữ trong dữ liệu niêm phong */
+            simulated: boolean;
+            /** Format: uuid */
+            vehicleId?: string;
+        };
         RegisterDto: {
-            /** @description Tax identifier when applicable. Registered entities require it; producer households/individuals may omit it. Operator verification remains required. */
-            businessId?: string;
+            /** @description Enterprise or cooperative tax identifier. Operator verification remains required. */
+            businessId: string;
             /** @description Required five-step registration profile. Province and ward must match the offline administrative catalog. */
             details: components["schemas"]["EnterpriseRegistrationDetails"];
             /** Format: email */
@@ -9401,16 +9983,16 @@ export interface components {
             /** @description Exactly one verified OTP proof for the admin login email. The contact email is not verified by OTP. */
             emailVerifications: components["schemas"]["RegistrationEmailProof"][];
             fullName: string;
-            /** @enum {string} */
-            hostingMode: "MANAGED_ORG" | "SELF_MANAGED_ORG";
+            /** @description Partner invitation token received by email; joins the inviting chain after activation. */
+            invitationToken?: string;
             organizationName: string;
             /** @enum {string} */
             organizationType: "FARM" | "TRANSPORTER" | "PROCESSOR" | "DISTRIBUTOR" | "RETAILER";
             /**
-             * @description Defaults to SINGLE for one activity and SUPPLY_CHAIN_ENTERPRISE for several.
+             * @description MEMBER takes part free of charge; CHAIN_OWNER buys a plan and may own chains. A member may upgrade later.
              * @enum {string}
              */
-            participationModel?: "SINGLE" | "SUPPLY_CHAIN_ENTERPRISE";
+            participationStatus: "MEMBER" | "CHAIN_OWNER";
             /**
              * Format: uuid
              * @description Retain this id and the original form for retries.
@@ -9428,6 +10010,14 @@ export interface components {
             popSignature: string;
             /** @description Khóa công khai Ed25519, SPKI DER mã hóa base64url (59 ký tự) */
             publicKey: string;
+        };
+        RegistrationBusinessIdAvailabilityDto: {
+            /** @description Advisory availability only; final registration checks uniqueness atomically. */
+            businessId: string;
+        };
+        RegistrationBusinessIdAvailabilityViewDto: {
+            /** @description Advisory availability only. Final registration still enforces unique business identifiers atomically. */
+            available: boolean;
         };
         RegistrationDocumentContentDto: {
             /**
@@ -9571,8 +10161,11 @@ export interface components {
             ];
             /** @enum {string} */
             partnerIntent: "YES" | "LATER";
-            /** @enum {string} */
-            planCode?: "TRACE_5" | "TRACE_10" | "TRACE_20" | "CHAIN_PRO";
+            /**
+             * @description Chain owners only
+             * @enum {string}
+             */
+            planCode?: "OWNER_START" | "OWNER_GROWTH" | "OWNER_SCALE" | "OWNER_ENTERPRISE";
         };
         RejectHandoverDto: {
             reason: string;
@@ -9722,6 +10315,11 @@ export interface components {
             id: string;
             name: string;
         };
+        RotateDeviceKeyInput: {
+            publicKey: string;
+            /** @description authorityRevision hiện tại */
+            version: number;
+        };
         ScopedUserDto: {
             fullName: string;
             /** Format: uuid */
@@ -9737,6 +10335,8 @@ export interface components {
             /** Format: date-time */
             periodStart: string | null;
             readingCount: number;
+            /** @description Readings come from a virtual (simulated) device (ADR-006) */
+            simulated: boolean;
             /**
              * @description NOT_APPLICABLE for lots created by processing
              * @enum {string}
@@ -9789,11 +10389,49 @@ export interface components {
             /** @description Exact decimal serialized as a string */
             value: string;
         };
+        SepayCheckoutView: {
+            accountHolder: string | null;
+            accountNumber: string | null;
+            amount: number | null;
+            bank: string | null;
+            dueAt: string | null;
+            enabled: boolean;
+            invoiceId: string | null;
+            invoiceNumber: string | null;
+            /** @enum {string|null} */
+            mode: "test" | "live" | null;
+            paidAt: string | null;
+            paymentCode: string | null;
+            qrUrl: string | null;
+            reviewMessage: string | null;
+            serviceActive: boolean;
+            simulated: boolean;
+            /** @enum {string|null} */
+            status: "ISSUED" | "PAID" | "VOID" | null;
+        };
+        SepayWebhookAcknowledgement: {
+            /** @enum {boolean} */
+            success: true;
+        };
+        SepayWebhookInput: {
+            accountNumber: string;
+            accumulated?: number;
+            code?: string | null;
+            content: string;
+            description?: string;
+            gateway: string;
+            id: number;
+            referenceCode?: string;
+            subAccount?: string | null;
+            transactionDate: string;
+            transferAmount: number;
+            /** @enum {string} */
+            transferType: "in" | "out";
+        };
         ServiceCatalogView: {
             checkedAt: string;
             currency: string;
             disclaimer: string;
-            hosting: Record<string, never>[];
             plans: components["schemas"]["ServicePlanView"][];
             qrReference: Record<string, never>[];
             simulationEnabled: boolean;
@@ -9801,6 +10439,21 @@ export interface components {
             sourceUrl: string;
             termMonths: number;
             version: string;
+        };
+        ServiceContractFileView: {
+            /** @description Private PDF bytes encoded as base64; never a public download URL */
+            contentBase64: string;
+            /** @enum {string} */
+            contentType: "application/pdf";
+            filename: string;
+            sha256: string;
+        };
+        ServiceContractHistoryView: {
+            action: string;
+            id: string;
+            /** Format: date-time */
+            occurredAt: string;
+            outcome: string;
         };
         ServiceOrderInput: {
             /**
@@ -9815,8 +10468,6 @@ export interface components {
             /** @description Catalog version of the exact quotation previewed (digest of the published plan versions) */
             catalogVersion: string;
             contractDigest: string;
-            /** @enum {string} */
-            hostingMode: "MANAGED_ORG" | "SELF_MANAGED_ORG";
             /** @description Published plan code for the organization participation model */
             planCode: string;
         };
@@ -9829,17 +10480,19 @@ export interface components {
             billingName: string;
             contractDigest: string;
             contractText: string;
-            hostingMode: string;
+            hasPdf: boolean;
             /** Format: uuid */
             id: string;
             /** Format: date-time */
             paidAt?: string | null;
+            pdfSha256?: string | null;
             planCode: string;
             quotation: {
                 [key: string]: unknown;
             };
             /** @enum {string} */
-            status: "AWAITING_PAYMENT" | "PAID_SIMULATED";
+            status: "AWAITING_PAYMENT" | "PAID_SIMULATED" | "PAID";
+            templateVersion?: string | null;
             version: number;
         };
         ServicePaymentInput: {
@@ -9856,6 +10509,16 @@ export interface components {
             chains: number;
             members: number;
             products: number;
+        };
+        ServicePlanStatusInput: {
+            /**
+             * @description Current plan status displayed to the operator; rejects stale changes
+             * @enum {string}
+             */
+            expectedStatus: "ACTIVE" | "RETIRED";
+            reason: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "RETIRED";
         };
         ServicePlanVersionView: {
             annualFee: number;
@@ -9874,9 +10537,15 @@ export interface components {
         ServicePreviewView: {
             contractDigest: string;
             contractText: string;
+            /** Format: date-time */
+            expiresAt: string;
+            input: components["schemas"]["ServiceQuoteInput"];
+            pdfSha256: string;
+            previewId: string;
             quotation: {
                 [key: string]: unknown;
             };
+            templateVersion: string;
         };
         ServiceQuoteInput: {
             billingAddress: string;
@@ -9885,14 +10554,14 @@ export interface components {
             billingName: string;
             /** @description Catalog version of the exact quotation previewed (digest of the published plan versions) */
             catalogVersion: string;
-            /** @enum {string} */
-            hostingMode: "MANAGED_ORG" | "SELF_MANAGED_ORG";
             /** @description Published plan code for the organization participation model */
             planCode: string;
         };
         ServiceWorkspaceView: {
             catalog: components["schemas"]["ServiceCatalogView"];
             emails: Record<string, never>[];
+            history: components["schemas"]["ServiceContractHistoryView"][];
+            latestPreview?: components["schemas"]["ServicePreviewView"] | null;
             order?: components["schemas"]["ServiceOrderView"] | null;
             stage: string;
         };
@@ -10166,6 +10835,39 @@ export interface components {
             occurredAt?: string;
             version: number;
         };
+        SignedPositionItem: {
+            accuracyM?: number;
+            battery?: number;
+            heading?: number;
+            latitude: number;
+            longitude: number;
+            /** Format: date-time */
+            recordedAt: string;
+            satellites?: number;
+            sequence: number;
+            speedKmh?: number;
+        };
+        SignedPositionsInput: {
+            deviceCode: string;
+            positions: components["schemas"]["SignedPositionItem"][];
+            /** Format: date-time */
+            sentAt: string;
+        };
+        SignedReadingItem: {
+            /** Format: date-time */
+            recordedAt: string;
+            /** @enum {string} */
+            sensorType: "TEMPERATURE" | "HUMIDITY" | "SOIL_MOISTURE";
+            sequence: number;
+            unit: string;
+            value: number;
+        };
+        SignedReadingsInput: {
+            deviceCode: string;
+            readings: components["schemas"]["SignedReadingItem"][];
+            /** Format: date-time */
+            sentAt: string;
+        };
         SigningContextDto: {
             /** @description Binding ledger hiện hoạt của chuỗi; null nếu chưa có */
             bindingDigest: string | null;
@@ -10308,6 +11010,56 @@ export interface components {
             /** @description Refresh token of the session this device held; its family is revoked first. */
             previousRefreshToken?: string;
         };
+        StaffPasswordResetConfirmDto: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            newPassword: string;
+            /**
+             * Format: uuid
+             * @description Client-generated ID; retry a lost response with the same ID and email
+             */
+            requestId: string;
+            resetToken: string;
+        };
+        StaffPasswordResetRequestDto: {
+            /** Format: email */
+            email: string;
+            /**
+             * Format: uuid
+             * @description Client-generated ID; retry a lost response with the same ID and email
+             */
+            requestId: string;
+        };
+        StaffPasswordResetRequestResultDto: {
+            /** @example 600 */
+            expiresInSeconds: number;
+            message: string;
+            /** Format: uuid */
+            requestId: string;
+            /** @example 60 */
+            resendAfterSeconds: number;
+        };
+        StaffPasswordResetResultDto: {
+            /** @example true */
+            changed: boolean;
+        };
+        StaffPasswordResetVerifyDto: {
+            code: string;
+            /** Format: email */
+            email: string;
+            /**
+             * Format: uuid
+             * @description Client-generated ID; retry a lost response with the same ID and email
+             */
+            requestId: string;
+        };
+        StaffPasswordResetVerifyResultDto: {
+            /** @example 300 */
+            expiresInSeconds: number;
+            /** @description Short-lived proof; keep in memory only */
+            resetToken: string;
+        };
         StaffSessionDto: {
             accessToken: string;
             /** Format: date-time */
@@ -10330,6 +11082,18 @@ export interface components {
             /** @description Chữ ký Ed25519 base64url (86 ký tự) trên signedMessage */
             signature: string;
         };
+        SupplierConfirmationDecision: {
+            /** @enum {string} */
+            decision: "CONFIRMED" | "DECLINED";
+            /** @description Name of the person confirming */
+            responderName: string;
+        };
+        SupplierConfirmationView: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description Link printed as a QR code on the weighing slip or purchase list; shown once */
+            link: string;
+        };
         SuspendChainDto: {
             reason: string;
             version: number;
@@ -10339,33 +11103,6 @@ export interface components {
             status: "accepted";
             /** Format: uuid */
             telemetryId: string;
-        };
-        TicketAssignInput: {
-            /** Format: uuid */
-            assigneeId: string;
-            /** @enum {string} */
-            priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
-            version: number;
-        };
-        TicketCloseInput: {
-            reason: string;
-            version: number;
-        };
-        TicketCreateInput: {
-            body: string;
-            /** @enum {string} */
-            category: "ACCOUNT" | "BILLING" | "TECHNICAL" | "TRACEABILITY" | "BLOCKCHAIN" | "PROCESSING" | "OTHER";
-            /** @enum {string} */
-            priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
-            subject: string;
-        };
-        TicketReplyInput: {
-            body: string;
-            /** @description Ghi chú nội bộ chỉ nhân sự nền tảng thấy */
-            internal?: boolean;
-            /** @enum {string} */
-            status?: "IN_PROGRESS" | "WAITING_CUSTOMER" | "RESOLVED";
-            version: number;
         };
         TraceEvidenceListDto: {
             items: components["schemas"]["TraceEvidenceRecordDto"][];
@@ -10432,8 +11169,11 @@ export interface components {
             txId: string | null;
         };
         TraceNoticeInput: {
-            /** @enum {string} */
-            kind: "WARNING" | "RECALL";
+            /**
+             * @description RECALL by the chain owner; RECALL_PROPOSAL from a partner, private to the chain
+             * @enum {string}
+             */
+            kind: "WARNING" | "RECALL" | "RECALL_PROPOSAL";
             /** Format: uuid */
             lotId: string;
             /** @description Public consumer notice; do not include private contact data */
@@ -10506,6 +11246,11 @@ export interface components {
             chainId?: string;
             destination: string;
             /**
+             * Format: uuid
+             * @description Bên giao tự chở: nhân viên có quyền Lái xe; người này (hoặc chủ doanh nghiệp) ký lấy hàng và giao hàng
+             */
+            driverUserId?: string;
+            /**
              * @description Bên thuê đơn vị vận chuyển ngoài AgriTrace; bên đó giữ hàng trong lúc vận chuyển
              * @enum {string}
              */
@@ -10513,11 +11258,6 @@ export interface components {
             lines: components["schemas"]["TransferLineInput"][];
             note?: string;
             origin: string;
-            /**
-             * Format: uuid
-             * @description Yêu cầu lấy hàng của bên nhận được chuyển thành phiếu này
-             */
-            pickupRequestId?: string;
             /** Format: date-time */
             plannedDeliveryAt?: string;
             /**
@@ -10536,7 +11276,7 @@ export interface components {
              * @default PLATFORM_CARRIER
              * @enum {string}
              */
-            transportMode: "PLATFORM_CARRIER" | "EXTERNAL_CARRIER" | "SELF_DELIVERY" | "RECEIVER_PICKUP";
+            transportMode: "PLATFORM_CARRIER" | "EXTERNAL_CARRIER" | "SELF_DELIVERY";
             /** Format: uuid */
             vehicleId?: string;
         };
@@ -10558,8 +11298,6 @@ export interface components {
             /** Format: date-time */
             eventTime: string;
             note: string;
-            /** @description Manually observed temperature in °C, not an IoT attestation */
-            temperature?: string;
         };
         TransferSignature: {
             /** Format: date-time */
@@ -10590,6 +11328,11 @@ export interface components {
             /** @description Lý do (tối thiểu 10 ký tự) được ghi vào nhật ký kiểm toán */
             reason: string;
             /** @description Optimistic version đã đọc; lệch version trả 409 */
+            version: number;
+        };
+        UpdateDeviceInput: {
+            name: string;
+            /** @description authorityRevision hiện tại */
             version: number;
         };
         UpdateOrganizationDto: {
@@ -10742,12 +11485,11 @@ export interface components {
             capabilities: ("DISTRIBUTOR" | "FARM" | "TRANSPORTER" | "RETAILER" | "AUDITOR" | "PROCESSOR")[];
             /** @description AGT organization code */
             code: string;
-            hostingMode?: string | null;
             /** Format: uuid */
             id: string;
             name: string;
-            /** @description SINGLE or SUPPLY_CHAIN_ENTERPRISE */
-            participationModel?: string;
+            /** @enum {string} */
+            participationStatus?: "MEMBER" | "CHAIN_OWNER";
             /** @enum {string} */
             status: "ACTIVE" | "INACTIVE";
             /** @enum {string} */
@@ -12989,6 +13731,126 @@ export interface operations {
             };
         };
     };
+    AuthController_registrationBusinessIdAvailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationBusinessIdAvailabilityDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RegistrationBusinessIdAvailabilityViewDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     RegistrationDocumentUploadController_upload: {
         parameters: {
             query?: never;
@@ -13727,6 +14589,366 @@ export interface operations {
             };
         };
     };
+    StaffSessionController_confirmPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffPasswordResetConfirmDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["StaffPasswordResetResultDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    StaffSessionController_requestPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffPasswordResetRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["StaffPasswordResetRequestResultDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    StaffSessionController_verifyPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffPasswordResetVerifyDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["StaffPasswordResetVerifyResultDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     StaffSessionController_refresh: {
         parameters: {
             query?: never;
@@ -13865,6 +15087,128 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["VerifyProofDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    EnterpriseServiceController_requestCapability: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CapabilityAddInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CapabilityAddView"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -14585,6 +15929,130 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ProductDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProductRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    CatalogController_requestApproval: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductApprovalRequestInput"];
             };
         };
         responses: {
@@ -16139,22 +17607,28 @@ export interface operations {
             };
         };
     };
-    DistributionController_keys: {
+    DistributionController_deviceKey: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferKeyInput"];
+            };
+        };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["WorkspaceListDto"];
+                        data: components["schemas"]["WorkspaceRecordDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -16255,28 +17729,22 @@ export interface operations {
             };
         };
     };
-    DistributionController_key: {
+    DistributionController_keys: {
         parameters: {
             query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TransferKeyInput"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["WorkspaceRecordDto"];
+                        data: components["schemas"]["WorkspaceListDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -16635,492 +18103,6 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["DistributionOptionsDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    DistributionController_pickupRequests: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceListDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    DistributionController_requestPickup: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickupRequestInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    DistributionController_cancelPickup: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickupResolveInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    DistributionController_declinePickup: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PickupResolveInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceRecordDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -19887,6 +20869,130 @@ export interface operations {
             };
         };
     };
+    DistributionController_photos: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoverPhotosInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     DistributionController_receipt: {
         parameters: {
             query?: never;
@@ -20154,6 +21260,124 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DistributionController_route: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -20740,6 +21964,124 @@ export interface operations {
             };
         };
     };
+    SepayController_invoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SepayCheckoutView"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     EnterpriseBillingController_renew: {
         parameters: {
             query?: never;
@@ -21126,252 +22468,6 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["EnterpriseCaseDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    EnterpriseOnboardingController_connect: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EnterpriseConnectionDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["EnterpriseConnectionViewDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    EnterpriseOnboardingController_reviewConnection: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReviewEnterpriseDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["EnterpriseConnectionViewDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -23381,6 +24477,125 @@ export interface operations {
             };
         };
     };
+    EnterpriseServiceController_document: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ServiceContractFileView"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     EnterpriseServiceController_create: {
         parameters: {
             query?: never;
@@ -23625,11 +24840,127 @@ export interface operations {
             };
         };
     };
+    SepayController_checkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SepayCheckoutView"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     EnterpriseServiceController_preview: {
         parameters: {
             query?: never;
             header: {
-                /** @description Preview request identifier. This operation is pure and does not create a contract. */
+                /** @description Idempotent PDF snapshot preview; acceptance is a separate command. */
                 "Idempotency-Key": string;
             };
             path?: never;
@@ -23748,123 +25079,7 @@ export interface operations {
             };
         };
     };
-    EnterpriseSupportController_mine: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["AdminListDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    EnterpriseSupportController_create: {
+    EnterpriseServiceController_upgrade: {
         parameters: {
             query?: never;
             header: {
@@ -23875,7 +25090,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TicketCreateInput"];
+                "application/json": components["schemas"]["ParticipationUpgradeInput"];
             };
         };
         responses: {
@@ -23885,131 +25100,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["AdminRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    EnterpriseSupportController_reply: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TicketReplyInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["AdminRecordDto"];
+                        data: components["schemas"]["ParticipationUpgradeView"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -24126,6 +25217,132 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["WorkspaceOverviewDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    EnterpriseWorkspaceController_auditLog: {
+        parameters: {
+            query?: {
+                action?: string;
+                cursor?: string;
+                employeeId?: string;
+                from?: string;
+                limit?: number;
+                outcome?: "SUCCESS" | "DENIED" | "FAILED";
+                /** @description Employee name or email */
+                q?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["EnterpriseAuditPageDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -26030,130 +27247,6 @@ export interface operations {
             };
         };
     };
-    EnterpriseWorkspaceController_changeMemberSupervisor: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MemberSupervisorInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["WorkspaceRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
     EnterpriseWorkspaceController_partners: {
         parameters: {
             query?: never;
@@ -26416,6 +27509,124 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    EnterpriseWorkspaceController_partnerDirectory: {
+        parameters: {
+            query?: {
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PartnerDirectoryPageDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -30552,7 +31763,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
                 };
             };
-            /** @description Chỉ COMPLIANCE_REVIEWER có assignment active với Farm của Lot được ghi inspection. */
+            /** @description Chỉ tài khoản Kiểm định (AUDITOR) có assignment active với Farm của Lot được ghi inspection. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -31627,6 +32838,1585 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["ShipmentTelemetryDigestRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_cycleReadings: {
+        parameters: {
+            query?: {
+                /** @description Số giờ gần nhất (mặc định cả vụ) */
+                hours?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_options: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_assignment: {
+        parameters: {
+            query?: never;
+            header: {
+                "x-device-signature": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceAssignmentInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeviceAssignmentDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceListDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_register: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterDeviceInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_bind: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BindDeviceInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_remove: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceVersionInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_rotate: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RotateDeviceKeyInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_update: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDeviceInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_status: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceStatusInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["WorkspaceRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_positions: {
+        parameters: {
+            query?: never;
+            header: {
+                "x-device-signature": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignedPositionsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeviceIngestResultDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    DevicesController_readings: {
+        parameters: {
+            query?: never;
+            header: {
+                "x-device-signature": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignedReadingsInput"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeviceIngestResultDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -33576,6 +36366,125 @@ export interface operations {
                         /** Format: date-time */
                         timestamp: string;
                     };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    SepayController_webhook: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Apikey <SEPAY_WEBHOOK_KEY>; server-to-server only, never a user bearer token */
+                Authorization: string;
+            };
+            path: {
+                mode: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SepayWebhookInput"];
+            };
+        };
+        responses: {
+            /** @description Exact SePay acknowledgement; only after the receipt transaction commits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SepayWebhookAcknowledgement"];
                 };
             };
             /** @description Error envelope from GlobalExceptionFilter */
@@ -35934,7 +38843,7 @@ export interface operations {
         parameters: {
             query?: {
                 capability?: "FARM" | "TRANSPORTER" | "PROCESSOR" | "DISTRIBUTOR" | "RETAILER";
-                model?: "SINGLE" | "SUPPLY_CHAIN_ENTERPRISE";
+                participation?: "MEMBER" | "CHAIN_OWNER";
                 plan?: "ACTIVE" | "GRACE" | "RESTRICTED" | "PENDING_PAYMENT";
                 q?: string;
                 status?: "ACTIVE" | "INACTIVE";
@@ -36064,6 +38973,246 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    PlatformAdminController_productApprovals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminListDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    PlatformAdminController_reviewProduct: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                productId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductApprovalReviewInput"];
+            };
+        };
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -36535,7 +39684,7 @@ export interface operations {
     PlatformAdminController_references: {
         parameters: {
             query?: {
-                category?: "UNIT" | "PRODUCT_CATEGORY" | "CERTIFICATE_TYPE" | "LOSS_REASON" | "PROCESSING_TYPE" | "TICKET_CATEGORY" | "VEHICLE_TYPE";
+                category?: "UNIT" | "PRODUCT_CATEGORY" | "CERTIFICATE_TYPE" | "LOSS_REASON" | "PROCESSING_TYPE" | "VEHICLE_TYPE";
             };
             header?: never;
             path?: never;
@@ -37138,612 +40287,6 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["AdminRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    PlatformAdminController_staff: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["AdminListDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    PlatformAdminController_tickets: {
-        parameters: {
-            query?: {
-                status?: "OPEN" | "IN_PROGRESS" | "WAITING_CUSTOMER" | "RESOLVED" | "CLOSED";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["AdminListDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    PlatformAdminController_assign: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TicketAssignInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["AdminRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    PlatformAdminController_close: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TicketCloseInput"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["AdminRecordDto"];
-                        requestId: string;
-                        /** @enum {boolean} */
-                        success: true;
-                        /** Format: date-time */
-                        timestamp: string;
-                    };
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-            /** @description Error envelope from GlobalExceptionFilter */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
-                };
-            };
-        };
-    };
-    PlatformAdminController_reply: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TicketReplyInput"];
-            };
-        };
-        responses: {
-            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -39088,6 +41631,252 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["BillingListDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    PlatformBillingController_createPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateServicePlanInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BillingRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    PlatformBillingController_setPlanStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServicePlanStatusInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BillingRecordDto"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;
@@ -44287,6 +47076,126 @@ export interface operations {
             };
         };
     };
+    ProcessingController_confirmReceipt: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SupplierConfirmationView"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     ProcessingController_stock: {
         parameters: {
             query?: never;
@@ -47678,6 +50587,249 @@ export interface operations {
             };
         };
     };
+    PublicSupplierConfirmationController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicSupplierConfirmationView"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    PublicSupplierConfirmationController_respond: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Retry identifier. The one-time token already makes a repeated identical answer return the recorded result. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupplierConfirmationDecision"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicSupplierConfirmationView"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     PublicTraceController_get: {
         parameters: {
             query?: never;
@@ -48393,7 +51545,7 @@ export interface operations {
     ReferenceItemsController_items: {
         parameters: {
             query?: {
-                category?: "UNIT" | "PRODUCT_CATEGORY" | "CERTIFICATE_TYPE" | "LOSS_REASON" | "PROCESSING_TYPE" | "TICKET_CATEGORY" | "VEHICLE_TYPE";
+                category?: "UNIT" | "PRODUCT_CATEGORY" | "CERTIFICATE_TYPE" | "LOSS_REASON" | "PROCESSING_TYPE" | "VEHICLE_TYPE";
             };
             header?: never;
             path?: never;
@@ -50806,6 +53958,248 @@ export interface operations {
             };
         };
     };
+    SupplyChainsController_invitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chainId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PartnerInvitationRecord"][];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    SupplyChainsController_inviteByLink: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                chainId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartnerInvitationInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PartnerInvitationView"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
     SupplyChainsController_ledgerStatus: {
         parameters: {
             query?: never;
@@ -51167,6 +54561,131 @@ export interface operations {
         };
     };
     SupplyChainsController_accept: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                chainId: string;
+                organizationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChainVersionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberRecordDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    SupplyChainsController_leave: {
         parameters: {
             query?: never;
             header: {

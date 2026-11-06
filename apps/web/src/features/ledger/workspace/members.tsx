@@ -16,6 +16,7 @@ import { PERMISSION_LABEL, TIER_LABEL, type EnterprisePermission } from "@/lib/l
 import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
 import { Input } from "@/components/ledger/ui/input";
+import { FilterSelect } from "@/components/ledger/kit/filters";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ledger/ui/dialog";
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
@@ -37,7 +38,6 @@ const profileSchema = z.object({
   memberNote: z.string().max(1000).optional(),
   workSiteId: z.string().optional(),
   responsibleFarmId: z.string().optional(),
-  tier: z.enum(["2", "3"]),
   roles: grantSchema.min(1, { error: () => tr("Gán ít nhất một nhóm quyền") }),
 });
 const editSchema = z.object({
@@ -47,7 +47,6 @@ const editSchema = z.object({
   phone: z.string().trim().max(30),
   roles: grantSchema,
 });
-const supervisorSchema = z.object({ supervisorId: z.string() });
 
 type MembersView = "tree" | "new" | "detail" | "edit" | "invitations";
 export default function MembersPage({ view = "tree", memberId }: { view?: MembersView; memberId?: string }) {
@@ -63,14 +62,17 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
   const avatar = useRef<File | null>(null);
   const params = useSearchParams();
   const { user } = useAuth();
-  const { can, primary, tier } = useWorkspaceAccess();
+  const { can, primary } = useWorkspaceAccess();
   const [tab, setTab] = useState<"tree" | "invitations">((view === "invitations" || params.get("tab") === "invitations") ? "invitations" : "tree");
   const [selectedId, setSelected] = useState<string | null>(null);
   const [showRemoved, setShowRemoved] = useState(false);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const [createdMember, setCreatedMember] = useState<string>();
   const [uploadError, setUploadError] = useState("");
   const members = useQuery({ queryKey: ["ws-members"], queryFn: wapi.members, enabled: can("members.read") });
-  const manage = can("members.manage") && tier !== 3;
+  // Only the enterprise owner creates, invites and manages employees.
+  const manage = primary;
   const roles = useQuery({ queryKey: ["ws-roles"], queryFn: wapi.roles, enabled: can("members.read") });
   const chains = useQuery({ queryKey: ["ws-chains"], queryFn: wapi.chains });
   const sites = useQuery({ queryKey: ["ws-sites"], queryFn: wapi.sites, enabled: can("sites.read") });
@@ -78,19 +80,16 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
   const create = useDialog<"member" | "invite">();
   const [inviteLink, setInviteLink] = useState<string | null>(null);
 
+  // Flat list (no tree indentation): tier first, then name; filters narrow it.
   const tree = useMemo(() => {
-    const list = (members.data ?? []).filter(member => memberId || (showRemoved ? member.accountStatus === "INACTIVE" : member.accountStatus !== "INACTIVE"));
-    const ids = new Set(list.map((m) => m.id));
-    const rows: { m: Member; depth: number }[] = [];
-    const walk = (parent: string | null, depth: number) => {
-      for (const m of list.filter((x) => (parent === null ? !x.supervisorId || !ids.has(x.supervisorId) : x.supervisorId === parent)).sort((a, b) => (a.enterpriseTier ?? 1) - (b.enterpriseTier ?? 1) || a.fullName.localeCompare(b.fullName, "vi"))) {
-        rows.push({ m, depth });
-        walk(m.id, depth + 1);
-      }
-    };
-    walk(null, 0);
-    return rows;
-  }, [members.data, memberId, showRemoved]);
+    const q = search.trim().toLocaleLowerCase("vi");
+    return (members.data ?? [])
+      .filter((member) => memberId || (showRemoved ? member.accountStatus === "INACTIVE" : member.accountStatus !== "INACTIVE"))
+      .filter((m) => !roleFilter || m.enterpriseRoles.some((r) => r.roleId === roleFilter))
+      .filter((m) => !q || [m.fullName, m.email, m.memberCode, m.jobTitle, m.phone].some((v) => v?.toLocaleLowerCase("vi").includes(q)))
+      .sort((a, b) => (a.enterpriseTier ?? 1) - (b.enterpriseTier ?? 1) || a.fullName.localeCompare(b.fullName, "vi"))
+      .map((m) => ({ m }));
+  }, [members.data, memberId, showRemoved, search, roleFilter]);
 
   if (!can("members.read")) return <ErrorState error={new Error(tr("Bạn chưa có quyền members.read"))} />;
   const current = memberId ? tree.find(r => r.m.id === memberId)?.m : tree.find((r) => r.m.id === selectedId)?.m ?? tree[0]?.m;
@@ -101,7 +100,7 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
     <>
       <PageHeader
         title={tr("Thành viên")}
-        description={primary ? tr("Toàn bộ thành viên, xếp theo người quản lý trực tiếp. Chủ quản tạo được cấp 2 và cấp 3; cấp 2 chỉ tạo cấp 3.") : tr("Nhân viên do bạn quản lý trực tiếp. Bạn chỉ cấp được quyền và phạm vi mà chính mình đang có.")}
+        description={primary ? tr("Chủ doanh nghiệp và toàn bộ nhân viên. Chỉ chủ doanh nghiệp tạo, mời và phân quyền nhân viên.") : tr("Chỉ chủ doanh nghiệp quản lý thành viên và nhóm quyền.")}
         actions={
           manage && (
             <>
@@ -124,7 +123,7 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
           <div role="tablist" className="flex gap-1">
             {(["tree", "invitations"] as const).map((k) => (
               <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)} className={cn("h-8 rounded-md border px-3 text-[12.5px] font-medium", tab === k ? "border-ink bg-ink text-canvas" : "border-line bg-card")}>
-                {k === "tree" ? tr("Cây thành viên") : tr("Lời mời")}
+                {k === "tree" ? tr("Thành viên") : tr("Lời mời")}
               </button>
             ))}
           </div>
@@ -135,36 +134,46 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
           <ErrorState error={members.error} onRetry={() => members.refetch()} />
         ) : !members.data ? (
           <LoadingRows />
-        ) : !tree.length ? (
-          <EmptyState title={tr("Chưa có thành viên trực thuộc")}>{tr("Tạo thành viên hoặc gửi lời mời để giao việc.")}</EmptyState>
         ) : (
           <div className="flex flex-wrap items-start gap-5">
-            <ul aria-label={tr("Cây thành viên")} className="min-w-0 flex-[1_1_380px] overflow-hidden rounded-md border border-line bg-card py-1">
-              {tree.map(({ m, depth }) => (
+            <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Input aria-label={tr("Tìm thành viên")} placeholder={tr("Tìm tên, email, mã NV, chức vụ")} value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 min-w-[200px] flex-1 text-[13px]" />
+              <FilterSelect label={tr("Nhóm quyền")} value={roleFilter} onChange={setRoleFilter} options={(roles.data ?? []).map((r) => ({ value: r.id, label: r.name }))} />
+            </div>
+            {!tree.length ? (
+              <EmptyState title={search || roleFilter ? tr("Không có thành viên khớp bộ lọc") : tr("Chưa có thành viên trực thuộc")}>{search || roleFilter ? null : tr("Tạo thành viên hoặc gửi lời mời để giao việc.")}</EmptyState>
+            ) : (
+            <ul aria-label={tr("Danh sách thành viên")} className="min-w-0 overflow-hidden rounded-md border border-line bg-card py-1">
+              {tree.map(({ m }, index) => (
                 <li key={m.id}>
                   <button
                     type="button"
                     onClick={() => setSelected(m.id)}
                     aria-current={current?.id === m.id || undefined}
-                    className={cn("flex w-full items-center justify-between gap-3 py-2.5 pr-4 text-left hover:bg-row-alt", current?.id === m.id && "bg-brand-weak shadow-[inset_3px_0_0_var(--brand)] hover:bg-brand-weak")}
-                    style={{ paddingLeft: 16 + depth * 24 }}
+                    className={cn("flex w-full items-center justify-between gap-3 py-2.5 pl-4 pr-4 text-left hover:bg-row-alt", current?.id === m.id && "bg-brand-weak shadow-[inset_3px_0_0_var(--brand)] hover:bg-brand-weak")}
                   >
-                    <span className="flex min-w-0 flex-col">
+                    <span className="w-6 shrink-0 text-right font-mono text-[12px] text-ink-2 tabular-nums">{index + 1}</span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className={cn("truncate text-[13px] font-medium", m.accountStatus !== "ACTIVE" && "text-ink-2 line-through")}>
                         {m.fullName} {m.id === user?.id && <span className="font-normal text-ink-2">{tr("(bạn)")}</span>}
                       </span>
-                      <span className="truncate text-[12px] text-ink-2">{m.jobTitle ?? "—"}</span>
+                      <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
+                        {m.jobTitle ? <span className="rounded-sm bg-brand-weak px-1.5 py-0.5 text-[11.5px] font-medium text-brand-ink">{m.jobTitle}</span> : <span>—</span>}
+                      </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {m.accountStatus !== "ACTIVE" && <Status group="account" value={m.accountStatus} />}
-                      <span className="rounded-sm bg-sunken px-1.5 py-0.5 font-mono text-[11px]">{m.enterpriseTier ? `C${m.enterpriseTier}` : "C1"}</span>
+                      <span className="rounded-sm bg-sunken px-1.5 py-0.5 text-[11px]">{TIER_LABEL[m.enterpriseTier ?? 1]}</span>
                     </span>
                   </button>
                 </li>
               ))}
             </ul>
+            )}
+            </div>
             {memberId && !current && !members.isLoading && <EmptyState title={tr("Không tìm thấy thành viên")}/>}
-            {current && <MemberDetail canonicalEdit={view === "edit"} m={current} all={members.data} manage={manage} primary={primary} {...sharedOpts} invalidate={invalidate} />}
+            {current && <MemberDetail canonicalEdit={view === "edit"} m={current} all={members.data} manage={manage} {...sharedOpts} invalidate={invalidate} />}
           </div>
         )}
       </PageBody>
@@ -176,22 +185,33 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
           onOpenChange={open => view === "new" && !open ? router.push("/enterprise/members") : create.props.onOpenChange(open)}
           title={tr("Tạo thành viên")}
           endpoint="POST /enterprise-workspace/members"
-          description={tr("Hệ thống gửi mật khẩu tạm qua email; thành viên phải đổi ở lần đăng nhập đầu. Người tạo trở thành người quản lý trực tiếp.")}
+          description={tr("Hệ thống gửi mật khẩu tạm qua email; thành viên phải đổi ở lần đăng nhập đầu. Tài khoản là Nhân viên doanh nghiệp: chỉ thấy và ghi vụ được giao, quyền theo nhóm quyền.")}
           schema={profileSchema}
-          defaultValues={{ fullName: "", email: "", jobTitle: "", phone: "", contactAddress: "", tier: primary ? "2" : "3", roles: [] }}
+          defaultValues={{ fullName: "", email: "", jobTitle: "", phone: "", contactAddress: "", roles: [] }}
           submitLabel={tr("Tạo thành viên")}
+          mapServerErrorToField={(messages) =>
+            messages.some((message) =>
+              message.includes("Email đã được đăng ký"),
+            )
+              ? {
+                  field: "email",
+                  message: tr(
+                    "Email đã được đăng ký. Vui lòng dùng email khác hoặc đăng nhập.",
+                  ),
+                }
+              : undefined
+          }
           invalidate={invalidate}
           wide
           onDone={async result => { if (avatar.current && result && typeof result === "object" && "record" in result) { const record = result.record; if (record && typeof record === "object" && "id" in record && typeof record.id === "string") { setCreatedMember(record.id); try { await wapi.uploadEvidence({file: avatar.current, entityType:"MEMBER", entityId:record.id,kind:"MEMBER_AVATAR",description:"Ảnh đại diện thành viên mới"},{idempotencyKey:crypto.randomUUID()}); } catch { setUploadError("Tài khoản đã tạo; ảnh chưa tải được. Bổ sung tại khối chứng cứ của thành viên, không tạo lại tài khoản."); } } } if (view === "new") router.push("/enterprise/members"); }}
-          run={(v, cmd) => wapi.createMember({ ...v, tier: Number(v.tier) as 2 | 3, workSiteId: v.workSiteId || undefined, responsibleFarmId: v.responsibleFarmId || undefined, memberNote: v.memberNote || undefined }, cmd)}
+          run={(v, cmd) => wapi.createMember({ ...v, workSiteId: v.workSiteId || undefined, responsibleFarmId: v.responsibleFarmId || undefined, memberNote: v.memberNote || undefined }, cmd)}
         >
-          {(f) => <><ProfileFields f={f} primary={primary} {...sharedOpts}/><label className="flex flex-col gap-2 text-sm">{tr("Ảnh đại diện")}<Input type="file" accept="image/png,image/jpeg" onChange={event => { avatar.current = event.target.files?.[0] ?? null; }}/></label></>}
+          {(f) => <><ProfileFields f={f} {...sharedOpts}/><label className="flex flex-col gap-2 text-sm">{tr("Ảnh đại diện")}<Input type="file" accept="image/png,image/jpeg" onChange={event => { avatar.current = event.target.files?.[0] ?? null; }}/></label></>}
         </CommandDialog>
       )}
       {create.target === "invite" && (
         <InviteDialog
           {...create.props}
-          primary={primary}
           {...sharedOpts}
           invalidate={invalidate}
           onCreated={(link) => {
@@ -225,7 +245,7 @@ function Members({ view, memberId }: { view: MembersView; memberId?: string }) {
   );
 }
 
-function ProfileFields({ f, primary, roles, chains, sites }: { f: Parameters<Parameters<typeof CommandDialog<typeof profileSchema>>[0]["children"]>[0]; primary: boolean } & Pick<React.ComponentProps<typeof GrantsField>, "roles" | "chains" | "sites">) {
+function ProfileFields({ f, roles, chains, sites }: { f: Parameters<Parameters<typeof CommandDialog<typeof profileSchema>>[0]["children"]>[0] } & Pick<React.ComponentProps<typeof GrantsField>, "roles" | "chains" | "sites">) {
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -237,21 +257,13 @@ function ProfileFields({ f, primary, roles, chains, sites }: { f: Parameters<Par
       <TextField control={f.control} name="contactAddress" label={tr("Địa chỉ liên hệ")} hint={tr("Bắt buộc theo quy định thêm thành viên")} />
       <SelectField control={f.control} name="responsibleFarmId" label={tr("Vùng trồng phụ trách")} options={sites.filter(site => site.kind === "FARM" && site.status === "ACTIVE").map(site => ({value:site.id,label:site.name}))}/>
       <TextField control={f.control} name="memberNote" label={tr("Ghi chú")}/>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField control={f.control} name="workSiteId" label={tr("Cơ sở làm việc")} options={sites.filter((s) => s.status === "ACTIVE" && s.kind !== "FARM").map((s) => ({ value: s.id, label: s.name }))} />
-        <ChoiceField
-          control={f.control}
-          name="tier"
-          label={tr("Cấp")}
-          options={[...(primary ? [{ value: "2", label: tr("Cấp 2 · quản lý"), help: tr("Được quản lý nhân viên cấp 3 trong phạm vi được giao.") }] : []), { value: "3", label: tr("Cấp 3 · nhân viên"), help: tr("Không quản trị thành viên hay nhóm quyền.") }]}
-        />
-      </div>
+      <SelectField control={f.control} name="workSiteId" label={tr("Cơ sở làm việc")} options={sites.filter((s) => s.status === "ACTIVE" && s.kind !== "FARM").map((s) => ({ value: s.id, label: s.name }))} />
       <GrantsField control={f.control} name="roles" roles={roles} chains={chains} sites={sites} />
     </>
   );
 }
 
-function InviteDialog({ open, onOpenChange, primary, roles, chains, sites, invalidate, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; primary: boolean; invalidate: string[][]; onCreated: (link: string) => void } & Pick<React.ComponentProps<typeof GrantsField>, "roles" | "chains" | "sites">) {
+function InviteDialog({ open, onOpenChange, roles, chains, sites, invalidate, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; invalidate: string[][]; onCreated: (link: string) => void } & Pick<React.ComponentProps<typeof GrantsField>, "roles" | "chains" | "sites">) {
   const [token] = useState(randomToken);
   const [id] = useState(() => crypto.randomUUID());
   return (
@@ -262,23 +274,22 @@ function InviteDialog({ open, onOpenChange, primary, roles, chains, sites, inval
       endpoint="POST /enterprise-workspace/member-invitations"
       description={tr("Người được mời tự đặt mật khẩu khi chấp nhận. Lời mời mất hiệu lực nếu quyền, nhóm hoặc phạm vi của người mời thay đổi trước khi chấp nhận.")}
       schema={profileSchema}
-      defaultValues={{ fullName: "", email: "", jobTitle: "", phone: "", contactAddress: "", tier: primary ? "2" : "3", roles: [] }}
+      defaultValues={{ fullName: "", email: "", jobTitle: "", phone: "", contactAddress: "", roles: [] }}
       submitLabel={tr("Tạo lời mời")}
       invalidate={invalidate}
       wide
       onDone={() => onCreated(`${window.location.origin}/join-organization?id=${id}&token=${token}`)}
-      run={async (v, cmd) => wapi.invite({ ...v, tier: Number(v.tier) as 2 | 3, workSiteId: v.workSiteId || undefined, memberNote: v.memberNote || undefined, id, tokenDigest: await sha256Hex(token) }, cmd)}
+      run={async (v, cmd) => wapi.invite({ ...v, workSiteId: v.workSiteId || undefined, memberNote: v.memberNote || undefined, id, tokenDigest: await sha256Hex(token) }, cmd)}
     >
-      {(f) => <ProfileFields f={f} primary={primary} roles={roles} chains={chains} sites={sites} />}
+      {(f) => <ProfileFields f={f} roles={roles} chains={chains} sites={sites} />}
     </CommandDialog>
   );
 }
 
-function MemberDetail({ canonicalEdit = false, m, all, manage, primary, roles, chains, sites, invalidate }: { canonicalEdit?: boolean; m: Member; all: Member[]; manage: boolean; primary: boolean; invalidate: string[][] } & Pick<React.ComponentProps<typeof GrantsField>, "roles" | "chains" | "sites">) {
+function MemberDetail({ canonicalEdit = false, m, all, manage, roles, chains, sites, invalidate }: { canonicalEdit?: boolean; m: Member; all: Member[]; manage: boolean; invalidate: string[][] } & Pick<React.ComponentProps<typeof GrantsField>, "roles" | "chains" | "sites">) {
   const { user } = useAuth();
   const router = useRouter();
   const edit = useDialog();
-  const sup = useDialog();
   const byId = (id: string | null) => all.find((x) => x.id === id);
   const chain: Member[] = [];
   for (let p: Member | undefined = m; p && chain.length < 4; p = byId(p.supervisorId)) chain.unshift(p);
@@ -286,7 +297,6 @@ function MemberDetail({ canonicalEdit = false, m, all, manage, primary, roles, c
   const perms = isOwner ? null : [...new Set(m.enterpriseRoles.flatMap((g) => g.role.permissions))];
   const name = (list: { id: string; name: string }[], ids: string[]) => ids.map((id) => list.find((x) => x.id === id)?.name ?? id.slice(-6)).join(", ") || "—";
   const editable = manage && !isOwner && m.id !== user?.id;
-  const managers = all.filter((x) => x.enterpriseTier === 2 && x.accountStatus === "ACTIVE" && x.id !== m.id);
   return (
     <section aria-label={tr("Chi tiết {p0}", { p0: m.fullName })} className="flex min-w-0 flex-[2_1_520px] flex-col gap-4 rounded-md border border-line bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -314,7 +324,7 @@ function MemberDetail({ canonicalEdit = false, m, all, manage, primary, roles, c
             </span>
           ))}
         </div>
-        {!isOwner && <span className="text-[12px] text-ink-2">{tr("Mọi quyền của thành viên đều phải được người quản lý ở các cấp trên nắm giữ; người quản lý bị khóa thì nhân viên trực thuộc bị khóa theo.")}</span>}
+        {!isOwner && <span className="text-[12px] text-ink-2">{tr("Nhân viên trực thuộc chủ doanh nghiệp; chỉ thấy và ghi vụ sản xuất được giao.")}</span>}
       </div>
       <div className="flex flex-col gap-1.5">
         <span className="label-caps">{tr("Nhóm quyền × phạm vi")}</span>
@@ -366,11 +376,6 @@ function MemberDetail({ canonicalEdit = false, m, all, manage, primary, roles, c
           <Button size="sm" onClick={() => edit.open(true)}>
             {tr("Sửa quyền & trạng thái")}
           </Button>
-          {primary && (
-            <Button size="sm" variant="outline" onClick={() => sup.open(true)}>
-              {tr("Đổi người quản lý")}
-            </Button>
-          )}
         </div>
       )}
       <EvidencePanel entityType="MEMBER" entityId={m.id} canManage={manage}/>
@@ -381,7 +386,7 @@ function MemberDetail({ canonicalEdit = false, m, all, manage, primary, roles, c
         onOpenChange={open => canonicalEdit && !open ? router.push(`/enterprise/members/${m.id}`) : edit.props.onOpenChange(open)}
         title={tr("Sửa {p0}", { p0: m.fullName })}
         endpoint="POST /enterprise-workspace/members/:id"
-        description={tr("Lưu sẽ thu hồi phiên của thành viên. Khóa hoặc ngừng thành viên sẽ khóa mọi nhân viên trực thuộc và gỡ nhóm quyền của họ.")}
+        description={tr("Khi có thay đổi, phiên của thành viên sẽ bị thu hồi. Khóa hoặc ngừng thành viên sẽ khóa mọi nhân viên trực thuộc và gỡ nhóm quyền của họ.")}
         schema={editSchema}
         defaultValues={{ status: m.accountStatus, jobTitle: m.jobTitle ?? "", phone: m.phone ?? "", workSiteId: m.workSiteId ?? "", responsibleFarmId: m.responsibleFarmId ?? "", contactAddress: m.contactAddress ?? "", memberNote: m.memberNote ?? "", roles: m.enterpriseRoles.map((g) => ({ roleId: g.roleId, chainIds: g.chainIds, siteIds: g.siteIds })) }}
         version={m.enterpriseRevision}
@@ -414,27 +419,6 @@ function MemberDetail({ canonicalEdit = false, m, all, manage, primary, roles, c
           </>
         )}
       </CommandDialog>
-      <CommandDialog
-        {...sup.props}
-        title={tr("Đổi người quản lý · {p0}", { p0: m.fullName })}
-        endpoint="POST /enterprise-workspace/members/:id/supervisor"
-        description={tr("Chỉ chủ quản thực hiện. Cấp 2 luôn trực thuộc chủ quản; cấp 3 có thể chuyển sang một quản lý cấp 2 đang nắm đủ mọi quyền và phạm vi của nhân viên.")}
-        schema={supervisorSchema}
-        defaultValues={{ supervisorId: m.supervisorId ?? "" }}
-        version={m.enterpriseRevision}
-        submitLabel={tr("Đổi người quản lý")}
-        invalidate={invalidate}
-        run={(v, cmd) => wapi.changeSupervisor(m.id, { supervisorId: v.supervisorId || null, version: m.enterpriseRevision }, cmd)}
-      >
-        {(f) => (
-          <SelectField
-            control={f.control}
-            name="supervisorId"
-            label={tr("Người quản lý trực tiếp")}
-            options={[{ value: user?.id ?? "", label: tr("{p0} (chủ quản)", { p0: user?.fullName ?? "" }) }, ...(m.enterpriseTier === 3 ? managers.map((x) => ({ value: x.id, label: tr("{p0} · cấp 2", { p0: x.fullName }) })) : [])]}
-          />
-        )}
-      </CommandDialog>
     </section>
   );
 }
@@ -444,7 +428,6 @@ function Invitations() {
   const revoke = useDialog<Invitation>();
   const columns: Column<Invitation>[] = [
     { key: "who", header: tr("Người được mời"), cell: (i) => <span className="flex flex-col"><span className="font-medium">{i.fullName}</span><span className="font-mono text-[11.5px] text-ink-2">{i.email}</span></span> },
-    { key: "tier", header: tr("Cấp"), cell: (i) => <span className="font-mono text-[12px]">{i.tier}</span> },
     { key: "created", header: tr("Tạo lúc"), cell: (i) => <span className="font-mono text-[12px]">{fmtDateTime(i.createdAt)}</span> },
     { key: "exp", header: tr("Hạn"), cell: (i) => (i.status === "PENDING" ? <span className="text-[12px]">{fmtDue(i.expiresAt).text}</span> : <span className="font-mono text-[12px] text-ink-2">{fmtDateTime(i.expiresAt)}</span>) },
     { key: "status", header: tr("Trạng thái"), cell: (i) => <Badge tone={i.status === "PENDING" ? "info" : i.status === "ACCEPTED" ? "ok" : "neutral"}>{{ PENDING: tr("Chờ chấp nhận"), ACCEPTED: tr("Đã chấp nhận"), REVOKED: tr("Đã thu hồi"), EXPIRED: tr("Hết hạn") }[i.status] ?? i.status}</Badge> },

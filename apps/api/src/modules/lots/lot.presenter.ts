@@ -15,7 +15,7 @@ import { resolveLotCustodian } from './lot-custody.js';
 
 type ProvenanceRun = NonNullable<InternalLot['processingRun']>;
 /** Inputs consumed to make a processed lot. Private farms stay anonymous. */
-export function processingProvenance(
+function processingProvenance(
   run: ProvenanceRun | null,
   processorName: string,
   publicView: boolean,
@@ -44,16 +44,31 @@ export function processingProvenance(
           : input.lot.organization.name,
       harvestTime: input.lot.harvest?.harvestTime ?? null,
     })),
-    // Material bought outside AgriTrace: declared by the processor, not traced further.
-    externalInputs: run.externalInputs.map((input) => ({
-      materialName: input.receipt.materialName,
-      supplierName: input.receipt.supplierName,
-      ...(publicView ? {} : { documentNo: input.receipt.documentNo }),
-      receivedAt: input.receipt.receivedAt,
-      quantity: Number(input.quantity),
-      unit: input.unit,
-      selfDeclared: true,
-    })),
+    // Goods bought outside AgriTrace, recorded from documents by the receiver.
+    // Trust per source: confirmed by the supplier through its one-time link,
+    // or documented only (a receipt is used only once it has a document photo).
+    // A supplier lot code that matched a lot which left AgriTrace links back to it.
+    externalInputs: run.externalInputs.map((input) => {
+      const origin = input.receipt.matchedLot;
+      return {
+        materialName: input.receipt.materialName,
+        supplierName: input.receipt.supplierName,
+        ...(publicView ? {} : { documentNo: input.receipt.documentNo }),
+        supplierLotCode: input.receipt.supplierLotCode,
+        receivedAt: input.receipt.receivedAt,
+        quantity: Number(input.quantity),
+        unit: input.unit,
+        selfDeclared: true,
+        trust: input.receipt.confirmations.length ? 'SUPPLIER_CONFIRMED' : 'EVIDENCED',
+        matchedOrigin: origin ? {
+          lotCode: origin.lotCode,
+          productName: origin.product.productName,
+          producerName: origin.harvest && publicView && origin.harvest.cycle.farm.privacy !== 'PUBLIC' ? 'Vùng sản xuất riêng tư' : origin.organization.name,
+          harvestTime: origin.harvest?.harvestTime ?? null,
+          traceToken: origin.traceQr?.traceToken ?? null,
+        } : null,
+      };
+    }),
     // The public log never names the staff member who recorded a step.
     steps: run.logs.map((log) => ({
       ...(publicView ? {} : { id: log.id, recordedBy: log.recordedBy }),

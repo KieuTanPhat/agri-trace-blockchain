@@ -34,7 +34,7 @@ export const SETTING_RULES: Record<string, { valid: (v: unknown) => boolean; hin
   'notifications.renewalReminderDays': { valid: int(1, 120), hint: 'số nguyên 1–120' },
 };
 
-export function assertSetting(key: string, value: unknown) {
+function assertSetting(key: string, value: unknown) {
   const rule = SETTING_RULES[key];
   if (!rule) throw new UnprocessableEntityException('Tham số không được phép chỉnh sửa');
   if (!rule.valid(value))
@@ -120,6 +120,3 @@ export async function unblockQrTx(
 }
 
 /** Active administrative block, if any, for the public trace page and label printing. */
-export async function activeQrBlock(db: Tx, lotId: string) {
-  return db.traceQrBlock.findFirst({ where: { lotId, unblockedAt: null } });
-}

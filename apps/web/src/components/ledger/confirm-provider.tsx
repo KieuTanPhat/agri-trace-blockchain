@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { t } from "@/lib/ledger/i18n";
-export type LedgerConfirmation = { title: string; description?: string; confirmLabel?: string; danger?: boolean };
+type LedgerConfirmation = { title: string; description?: string; confirmLabel?: string; danger?: boolean };
 type Confirm = (input: LedgerConfirmation) => Promise<boolean>;
 const ConfirmContext = createContext<Confirm | null>(null);
 export function LedgerConfirmProvider({ children }: { children: React.ReactNode }) {

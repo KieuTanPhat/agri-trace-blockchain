@@ -91,8 +91,51 @@ describe('ComplianceService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it.each(['SYSTEM_ADMIN', 'AUDITOR', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER'])(
-    'denies %s unassigned compliance review and inspection without touching persistence',
+  it('denies an inspector without an active assignment and writes nothing', async () => {
+    const create = vi.fn();
+    const tx = {
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn().mockResolvedValue([]),
+      lot: {
+        findUnique: vi.fn().mockResolvedValue({
+          farmOrgId: farmActor.organizationId,
+          harvest: { cycle: { id: 'cycle', farmId: 'farm' } },
+        }),
+      },
+      complianceAssignment: { findFirst: vi.fn().mockResolvedValue(null) },
+      inspection: { create },
+    };
+    const prisma = { $transaction: vi.fn(async (callback) => callback(tx)) };
+    const trace = { createInTransaction: vi.fn() };
+    const service = new ComplianceService(
+      prisma as unknown as PrismaService,
+      trace as unknown as TraceService,
+    );
+    await expect(
+      service.createInspection(
+        {
+          lotId: certificateInput.lotId,
+          result: 'PASS',
+          inspectedAt: certificateInput.issueDate,
+        },
+        auditor,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.complianceAssignment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          reviewerUserId: auditor.sub,
+          farmId: 'farm',
+          revokedAt: null,
+        }),
+      }),
+    );
+    expect(create).not.toHaveBeenCalled();
+    expect(trace.createInTransaction).not.toHaveBeenCalled();
+  });
+
+  it.each(['SYSTEM_ADMIN', 'FARM_STAFF', 'TRANSPORTER', 'RETAILER'])(
+    'denies %s compliance review and inspection without touching persistence',
     async (role) => {
       const transaction = vi.fn();
       const prisma = { $transaction: transaction };

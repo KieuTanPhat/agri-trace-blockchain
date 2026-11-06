@@ -8,6 +8,14 @@ import type {
 import type { Prisma } from '../../generated/prisma/client.js';
 import { evidenceSubject } from './evidence-policy.js';
 import { lockChainScope } from '../supply-chains/chain-policy.js';
+import { BUSINESS_ROLES } from '../auth/role-codes.js';
+
+/** Every enterprise employee sits one level below the owner (tier 1). */
+export const STAFF_TIER = 3;
+
+export function isEnterpriseBusinessRole(role: string) {
+  return (BUSINESS_ROLES as readonly string[]).includes(role);
+}
 
 export const ENTERPRISE_PERMISSIONS = [
   'profile.read',
@@ -27,6 +35,8 @@ export const ENTERPRISE_PERMISSIONS = [
   'distribution.read',
   'distribution.write',
   'distribution.sign',
+  // Self delivery: may be named as the driver who signs pickup and delivery.
+  'distribution.drive',
   'trace.read',
   // Kho QR (read-only since label printing was retired).
   'qr.manage',
@@ -43,6 +53,9 @@ export const ENTERPRISE_PERMISSIONS = [
   'materials.manage',
   'processing.read',
   'processing.write',
+  // ADR-006: field sensors on plots, GPS trackers on vehicles.
+  'devices.read',
+  'devices.manage',
 ] as const;
 export type EnterprisePermission = (typeof ENTERPRISE_PERMISSIONS)[number];
 
@@ -66,14 +79,19 @@ export function enterpriseTransferWhere(
       {
         OR: auth.user.enterpriseRoles
           .filter((r) => r.role.permissions.includes(permission))
-          .map((r) => ({
-            chainId: { in: r.chainIds },
-            OR: [
-              { senderId: organizationId, senderSiteId: { in: r.siteIds } },
-              { carrierId: organizationId, carrierSiteId: { in: r.siteIds } },
-              { receiverId: organizationId, receiverSiteId: { in: r.siteIds } },
-            ],
-          })),
+          .map((r) =>
+            // A driver role (drive without write) sees only the trips it drives.
+            r.role.permissions.includes('distribution.drive') && !r.role.permissions.includes('distribution.write')
+              ? { chainId: { in: r.chainIds }, senderId: organizationId, driverUserId: actor.sub! }
+              : {
+                  chainId: { in: r.chainIds },
+                  OR: [
+                    { senderId: organizationId, senderSiteId: { in: r.siteIds } },
+                    { carrierId: organizationId, carrierSiteId: { in: r.siteIds } },
+                    { receiverId: organizationId, receiverSiteId: { in: r.siteIds } },
+                  ],
+                },
+          ),
       },
     ],
   };
@@ -92,7 +110,7 @@ export async function enterpriseAuthority(
   if (
     !actor.organizationId ||
     !actor.sub ||
-    ['SYSTEM_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'IOT_DEVICE'].includes(
+    ['SYSTEM_ADMIN', 'AUDITOR', 'IOT_DEVICE'].includes(
       actor.role,
     )
   )
@@ -141,12 +159,10 @@ export async function enterpriseAuthority(
     throw new ForbiddenException(
       'Bạn chưa được cấp quyền hoặc phạm vi cho thao tác này',
     );
-  if (
-    ['members.manage', 'roles.manage'].includes(permission) &&
-    user.enterpriseTier === 3
-  )
+  // Only the enterprise (its owner) manages members and permission groups.
+  if (['members.manage', 'roles.manage'].includes(permission) && !primary)
     throw new ForbiddenException(
-      'Tài khoản cấp 3 không được quản trị thành viên',
+      'Chỉ chủ doanh nghiệp quản trị thành viên và nhóm quyền',
     );
   const ancestry: unknown[] = [];
   let supervisorId =
@@ -232,13 +248,9 @@ export async function enterpriseAuthority(
   };
 }
 
-export async function lockEnterprise(db: Prisma.TransactionClient, organizationId: string) {
-  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`enterprise:${organizationId}`},0))`;
-}
-
 /** Enrollment owners can correct a rejected registration before business activation. */
 export async function profileAuthority(db:Prisma.TransactionClient,actor:CommandActor,lock=false) {
- if(!actor.organizationId||!actor.sub||['SYSTEM_ADMIN','AUDITOR','COMPLIANCE_REVIEWER','IOT_DEVICE'].includes(actor.role))throw new ForbiddenException();
+ if(!actor.organizationId||!actor.sub||['SYSTEM_ADMIN','AUDITOR','IOT_DEVICE'].includes(actor.role))throw new ForbiddenException();
  if(lock)await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`enterprise:${actor.organizationId}`},0))`;
  const user=await db.user.findUnique({where:{id:actor.sub},include:{organization:{include:{enterpriseEnrollment:true}}}});
  if(!user||user.accountStatus!=='ACTIVE'||user.organizationId!==actor.organizationId||user.organization?.status!=='ACTIVE')throw new ForbiddenException();
@@ -254,7 +266,6 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_INVITE_MEMBER: 'members.manage',
   EW_REVOKE_MEMBER_INVITATION: 'members.manage',
   EW_UPDATE_MEMBER: 'members.manage',
-  EW_CHANGE_MEMBER_SUPERVISOR: 'members.manage',
   EW_CREATE_ROLE: 'roles.manage',
   EW_UPDATE_ROLE: 'roles.manage',
   EW_DELETE_ROLE: 'roles.manage',
@@ -265,6 +276,12 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_COMPLETE_SITE: 'sites.manage',
   EW_UPDATE_SITE: 'sites.manage',
   EW_CREATE_VEHICLE: 'vehicles.manage',
+  EW_DEVICE_REGISTER: 'devices.manage',
+  EW_DEVICE_BIND: 'devices.manage',
+  EW_DEVICE_ROTATE_KEY: 'devices.manage',
+  EW_DEVICE_STATUS: 'devices.manage',
+  EW_DEVICE_UPDATE: 'devices.manage',
+  EW_DEVICE_DELETE: 'devices.manage',
   EW_UPDATE_VEHICLE: 'vehicles.manage',
   EW_CREATE_PRODUCT: 'catalog.manage',
   EW_UPDATE_PRODUCT: 'catalog.manage',
@@ -303,16 +320,14 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_SITE_TRANSFER_RESOLVE: 'inventory.manage',
   EW_SITE_TRANSFER_CANCEL: 'inventory.manage',
   DIST_RECEIPT: 'distribution.sign',
+  DIST_PHOTOS: 'distribution.sign',
+  EW_DEVICE_KEY_REQUEST: 'distribution.sign',
   DIST_C2_PREPARE: 'distribution.sign',
   DIST_C2_SUBMIT: 'distribution.sign',
   DIST_RENEW_CONSENT: 'distribution.write',
   DIST_RETURN: 'distribution.write',
   DIST_RETURN_SIGN: 'distribution.sign',
   DIST_JOIN_CHAIN: 'distribution.sign',
-  EW_PICKUP_REQUEST: 'distribution.write',
-  EW_PICKUP_DECLINE: 'distribution.write',
-  EW_PICKUP_CANCEL: 'distribution.write',
-  EW_REGISTER_DISTRIBUTION_KEY: 'roles.manage',
   EW_REVOKE_DISTRIBUTION_KEY: 'roles.manage',
   EW_PROCESSING_CREATE: 'processing.write',
   EW_PROCESSING_COMPLETE: 'processing.write',
@@ -321,17 +336,24 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_PROCESSING_INPUTS: 'processing.write',
   EW_PROCESSING_LOG: 'processing.write',
   EW_MATERIAL_RECEIPT_CREATE: 'processing.write',
+  EW_SUPPLIER_CONFIRMATION_CREATE: 'processing.write',
+  EW_PRODUCT_APPROVAL_REQUEST: 'catalog.manage',
   EW_UNIT_CONVERSION_CREATE: 'catalog.manage',
   EW_UNIT_CONVERSION_REVOKE: 'catalog.manage',
-  EW_TICKET_CREATE: 'profile.read',
-  EW_TICKET_REPLY: 'profile.read',
 };
+/** Handover and damage photos belong to the people who sign or adjust the
+ * goods; every other upload stays with evidence managers. */
+export function evidencePermission(entityType: unknown, kind: unknown): EnterprisePermission {
+  if (entityType === 'TRANSFER' && kind === 'TRANSFER_IMAGE') return 'distribution.sign';
+  if (entityType === 'LOT' && kind === 'DAMAGE_IMAGE') return 'quantity.adjust';
+  return 'evidence.manage';
+}
 export async function authorizeWorkspaceCommand(
   db: Prisma.TransactionClient,
   input: AuthorizedCommand,
   lock: boolean,
 ) {
-  if (!input.actor?.organizationId || ['SYSTEM_ADMIN','PLATFORM_OPERATOR','PLATFORM_CASE_MANAGER','PLATFORM_PRIVACY_OFFICER','AUDITOR','COMPLIANCE_REVIEWER','IOT_DEVICE'].includes(input.actor.role)) throw new ForbiddenException('Chức năng ghi thuộc thành viên doanh nghiệp');
+  if (!input.actor?.organizationId || ['SYSTEM_ADMIN','AUDITOR','IOT_DEVICE'].includes(input.actor.role)) throw new ForbiddenException('Chức năng ghi thuộc thành viên doanh nghiệp');
   const permission = OPERATIONS[input.operation];
   if (!permission)
     throw new ForbiddenException('Command doanh nghiệp chưa có policy');
@@ -339,8 +361,9 @@ export async function authorizeWorkspaceCommand(
   if (input.operation.startsWith('EW_PROFILE_')) return profileAuthority(db,input.actor!,lock);
   if (input.operation === 'EW_UPLOAD_EVIDENCE') {
     if(data.entityType==='PROFILE'&&data.entityId===input.actor!.organizationId)return profileAuthority(db,input.actor!,lock);
-    const context = await evidenceSubject(db,input.actor!,String(data.entityType),String(data.entityId),permission,typeof data.siteId==='string'?data.siteId:undefined);
-    return (await enterpriseAuthority(db,input.actor!,permission,data.entityType==='CHAIN'?undefined:context.chainId,context.siteId,lock)).scope;
+    const upload = evidencePermission(data.entityType, data.kind);
+    const context = await evidenceSubject(db,input.actor!,String(data.entityType),String(data.entityId),upload,typeof data.siteId==='string'?data.siteId:undefined);
+    return (await enterpriseAuthority(db,input.actor!,upload,data.entityType==='CHAIN'?undefined:context.chainId,context.siteId,lock)).scope;
   }
   if (lock && input.operation === 'EW_LINK_CYCLE_DRAFT') {
     await lockChainScope(db, `org:${input.actor!.organizationId}`);
@@ -361,6 +384,12 @@ export async function authorizeWorkspaceCommand(
     : null;
   if (runOperation && processingRun?.organizationId !== input.actor!.organizationId)
     throw new ForbiddenException('Lệnh chế biến nằm ngoài doanh nghiệp');
+  if (input.operation === 'EW_SUPPLIER_CONFIRMATION_CREATE') {
+    const receipt = await db.materialReceipt.findUnique({ where: { id: String(data.id) } });
+    if (!receipt || receipt.organizationId !== input.actor!.organizationId)
+      throw new ForbiddenException('Phiếu nhập nằm ngoài doanh nghiệp');
+    return (await enterpriseAuthority(db, input.actor!, permission, undefined, receipt.siteId, lock)).scope;
+  }
   if (input.operation === 'EW_MATERIAL_RECEIPT_CREATE') {
     // External material receipts are scoped to the receiving site only.
     const siteId = typeof data.siteId === 'string' ? data.siteId : undefined;
@@ -521,6 +550,9 @@ export async function restrictEnterpriseBusiness(
   lock: boolean,
   businessRole: string,
 ) {
+  // Compliance authority has already checked the independent assignment/grant.
+  // Personnel hierarchy metadata must not turn it into a business write scope.
+  if (!isEnterpriseBusinessRole(businessRole)) return;
   const user = await db.user.findUnique({
     where: { id: input.actor!.sub! },
     select: { enterpriseTier: true },

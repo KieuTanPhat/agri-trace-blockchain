@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   useForm,
+  type Path,
   type DefaultValues,
   type UseFormReturn,
   type FieldValues,
@@ -37,7 +38,7 @@ import { Callout } from "./page";
 import { FormSchemaContext } from "./form-fields";
 
 import { t as tr } from "@/lib/ledger/i18n";
-export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
+interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -56,6 +57,10 @@ export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
   success?: string | ((result: unknown) => string);
   onDone?: (result: unknown) => void;
   onLockChange?: (locked: boolean) => void;
+  /** Maps a known server conflict to the corresponding form control. */
+  mapServerErrorToField?: (messages: string[]) =>
+    | { field: string; message: string }
+    | undefined;
   version?: number;
   wide?: boolean;
   /** Hiển thị trong trang (panel quyết định) thay vì dialog. */
@@ -65,8 +70,18 @@ export interface CommandDialogProps<S extends z.ZodType<FieldValues>> {
 export function CommandDialog<S extends z.ZodType<FieldValues>>(
   props: CommandDialogProps<S>,
 ) {
-  const { open, onOpenChange } = props;
+  const { onOpenChange } = props;
   const [locked, setLocked] = useState(false);
+  // A dialog that is open on its first render inside a sheet (e.g. the
+  // /products/:id/edit route) would register its dismissable layer before the
+  // parent sheet, which then stays on top and blocks every click. Open one
+  // frame after mount so the layers stack in visual order.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setArmed(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const open = props.open && armed;
   const change = (value: boolean) => {
     if (!locked) onOpenChange(value);
   };
@@ -128,6 +143,7 @@ function Body<S extends z.ZodType<FieldValues>>({
   invalidate = [],
   success,
   onDone,
+  mapServerErrorToField,
   version,
   inline,
 }: CommandDialogProps<S> & { onLockChange?: (locked: boolean) => void }) {
@@ -153,6 +169,7 @@ function Body<S extends z.ZodType<FieldValues>>({
   const [error, setError] = useState<ReturnType<
     typeof ledgerCommandError
   > | null>(null);
+  const fieldToFocus = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const mfaRef = useRef<HTMLInputElement>(null);
   const showMfa = stepUp;
@@ -195,6 +212,15 @@ function Body<S extends z.ZodType<FieldValues>>({
     } catch (cause) {
       const err = ledgerCommandError(cause);
       setError(err);
+      const fieldError = mapServerErrorToField?.(err.messages);
+      if (fieldError) {
+        const field = fieldError.field as Path<z.infer<S>>;
+        form.setError(field, {
+          type: "server",
+          message: fieldError.message,
+        });
+        fieldToFocus.current = field;
+      }
       recoveryId.current = err.recoveryId ?? recoveryId.current;
       // A response alone cannot release the original request. Inspect the
       // journal for validation/conflict failures without resending a command.
@@ -254,7 +280,16 @@ function Body<S extends z.ZodType<FieldValues>>({
     if (mfaError) mfaRef.current?.focus();
   }, [mfaError]);
 
+  useEffect(() => {
+    if (busy || frozen || !fieldToFocus.current) return;
+    form.setFocus(fieldToFocus.current as Path<z.infer<S>>);
+    fieldToFocus.current = null;
+  }, [busy, form, frozen]);
+
   const submit = form.handleSubmit((values) => execute(values));
+  const inlineError = error
+    ? mapServerErrorToField?.(error.messages)
+    : undefined;
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
@@ -320,8 +355,9 @@ function Body<S extends z.ZodType<FieldValues>>({
         </div>
       )}
 
-      {error && (
+      {error && !inlineError && (
         <Callout
+          onClose={() => setError(null)}
           tone={error.isConflict ? "warn" : "danger"}
           title={
             error.isConflict

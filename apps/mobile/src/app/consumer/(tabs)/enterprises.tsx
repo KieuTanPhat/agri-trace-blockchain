@@ -14,8 +14,8 @@ export default function Enterprises(){
   const [type,setType]=useState(''),[province,setProvince]=useState('');
   const changeQuery=(value:string)=>{router.setParams({q:value});};
   const clearFilters=()=>{changeQuery('');setType('');setProvince('');};
-  const page=useLoad(()=>loadDirectory<DirectoryEnterprise>('enterprises'));
-  useReloadOnFocus(page.reload);
+  const page=useLoad(()=>loadDirectory<DirectoryEnterprise>('enterprises'),[],{key:'public:directory:enterprises',staleTimeMs:60_000});
+  useReloadOnFocus(page.reloadIfStale);
   const all=page.data??[],provinces=[...new Set(all.map(e=>e.province).filter((s):s is string=>!!s))].sort(),types=[...new Set(all.map(e=>e.type))];
   const items=all.filter(e=>(!query||normalized(e.name).includes(normalized(query)))&&(!type||e.type===type)&&(!province||e.province===province)).sort((a,b)=>a.name.localeCompare(b.name,'vi'));
   return <View style={{flex:1,backgroundColor:dc.bg}}>

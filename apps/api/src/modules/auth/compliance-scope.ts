@@ -9,7 +9,7 @@ export async function assertAssignedFarm(
   farmId: string,
   lock = false,
 ): Promise<string> {
-  if (actor.role !== 'COMPLIANCE_REVIEWER' || !actor.sub)
+  if (!['AUDITOR', 'COMPLIANCE_REVIEWER'].includes(actor.role) || !actor.sub)
     throw new ForbiddenException('Cần reviewer được phân công');
   const scoped = commandContext.getStore()?.input.businessActor;
   const scopedReviewer =
@@ -35,7 +35,7 @@ export async function assertAssignedFarm(
               },
             }
           : {
-              role: { code: 'COMPLIANCE_REVIEWER' },
+              role: { code: 'AUDITOR' },
               organization: { type: 'AUDITOR', status: 'ACTIVE' },
             }),
       },

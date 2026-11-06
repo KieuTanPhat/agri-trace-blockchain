@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
@@ -15,18 +16,20 @@ import { IdempotencyKey } from '../../common/idempotency/idempotency-key.decorat
 import { IdempotencyService } from '../../common/idempotency/idempotency.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { AuthenticatedRequest } from '../auth/auth.types.js';
+import { EnterpriseAuditService } from './enterprise-audit.service.js';
+import { EnterpriseAuditQueryDto, EnterpriseAuditPageDto } from './enterprise-audit.dto.js';
 import { EnterpriseWorkspaceService } from './enterprise-workspace.service.js';
 import {
   EnterpriseMemberInput,
   EnterpriseVersionInput,
   EnterpriseMemberUpdate,
-  MemberSupervisorInput,
   EnterprisePartnerDecision,
   EnterprisePartnerInput,
   EnterpriseExternalPartnerInput,
   EnterpriseRoleInput,
   EnterpriseSiteInput,
   EnterpriseVehicleInput,
+  PartnerDirectoryQueryDto,
   ResourceStatusInput,
   WorkspaceRecordDto,
 } from './dto.js';
@@ -35,6 +38,7 @@ import {
   EnterprisePartnerListDto,
   ExternalPartnerListDto,
   PartnerSearchListDto,
+  PartnerDirectoryPageDto,
   PartnerDirectoryProfileDto,
   EnterpriseRoleListDto,
   EnterpriseRoleTemplateListDto,
@@ -50,6 +54,7 @@ import {
 export class EnterpriseWorkspaceController {
   constructor(
     private readonly service: EnterpriseWorkspaceService,
+    private readonly audit: EnterpriseAuditService,
     private readonly idem: IdempotencyService,
   ) {}
   private run(
@@ -77,6 +82,13 @@ export class EnterpriseWorkspaceController {
   ) {
     return this.service.overview(req.user);
   }
+  @Get('audit')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiDataResponse(EnterpriseAuditPageDto)
+  auditLog(@Req() req: AuthenticatedRequest, @Query() query: EnterpriseAuditQueryDto) {
+    return this.audit.list(req.user, query);
+  }
+
   @Get('members') @ApiDataResponse(EnterpriseMemberListDto) members(
     @Req() req: AuthenticatedRequest,
   ) {
@@ -94,6 +106,12 @@ export class EnterpriseWorkspaceController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.service.partners(req.user);
+  }
+  @Get('partners/directory') @ApiDataResponse(PartnerDirectoryPageDto) partnerDirectory(
+    @Req() req: AuthenticatedRequest,
+    @Query() query: PartnerDirectoryQueryDto,
+  ) {
+    return this.service.partnerDirectory(req.user, query.cursor);
   }
   @Get('partners/search') @ApiDataResponse(PartnerSearchListDto) searchPartners(
     @Req() req: AuthenticatedRequest, @Query('q') query = '',
@@ -144,19 +162,6 @@ export class EnterpriseWorkspaceController {
   ) {
     return this.run(req, key, 'EW_UPDATE_MEMBER', { id, ...dto }, () =>
       this.service.updateMember(req.user, id, dto),
-    );
-  }
-  @Post('members/:id/supervisor')
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiDataResponse(WorkspaceRecordDto, 201)
-  changeMemberSupervisor(
-    @Req() req: AuthenticatedRequest,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: MemberSupervisorInput,
-    @IdempotencyKey() key: string,
-  ) {
-    return this.run(req, key, 'EW_CHANGE_MEMBER_SUPERVISOR', { id, ...dto }, () =>
-      this.service.changeSupervisor(req.user, id, dto),
     );
   }
   @Post('roles')

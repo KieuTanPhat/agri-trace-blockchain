@@ -1,10 +1,9 @@
 import type { AuthUser, Role } from "../types";
-import { canAccessManagementRoute, platformAdminHome } from "../permissions";
+import { actingRole, canAccessManagementRoute, platformAdminHome } from "../permissions";
 // Extracted baseline account/role policy only; no old navigation groups or renderer.
 const nonEnterpriseRoles: Role[] = [
   "SYSTEM_ADMIN",
   "AUDITOR",
-  "COMPLIANCE_REVIEWER",
   "IOT_DEVICE",
   "SYSTEM_ACTOR",
 ];
@@ -27,7 +26,10 @@ export function ledgerLoginDestination(user: AuthUser, next?: string): string {
       !next.startsWith("//") &&
       !next.includes("\\") &&
       next !== "/" &&
-      !/^\/login(?:[/?#]|$)/.test(next)
+      !/^\/login(?:[/?#]|$)/.test(next) &&
+      // After a forced change the gate may leave next=/account/password;
+      // following it would ask for a second change (login loop).
+      !/^\/account\/password(?:[/?#]|$)/.test(next)
         ? next
         : "/dashboard";
   const url = new URL(candidate, "https://ledger.invalid");
@@ -35,10 +37,10 @@ export function ledgerLoginDestination(user: AuthUser, next?: string): string {
   if (
     (url.pathname === "/dashboard" &&
       (platformAdminHome(user.role.code) ||
-        user.role.code === "DISTRIBUTOR")) ||
+        actingRole(user) === "DISTRIBUTOR")) ||
     !canAccessManagementRoute(
       url.pathname,
-      user.role.code,
+      actingRole(user),
       user.productionAccess,
     )
   )

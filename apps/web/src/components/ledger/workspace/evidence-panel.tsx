@@ -48,7 +48,7 @@ export const EVIDENCE_KIND_LABEL: Record<string, string> = localized({
   PROCESSING_IMAGE: "Ảnh bước chế biến",
 });
 /** Loại chứng cứ cho phép theo đối tượng — evidenceKinds trong enterprise-resources.service.ts. */
-export const EVIDENCE_KINDS: Partial<Record<EvidenceEntity, string[]>> = {
+const EVIDENCE_KINDS: Partial<Record<EvidenceEntity, string[]>> = {
   CHAIN: ["CHAIN_IMAGE", "OTHER"],
   MATERIAL_RECEIPT: ["RECEIPT_DOCUMENT", "INSPECTION_IMAGE", "CERTIFICATE_IMAGE", "OTHER"],
   PROCESSING_LOG: ["PROCESSING_IMAGE", "OTHER"],
@@ -88,6 +88,7 @@ export function EvidencePanel({
   required,
   title = tr("Ảnh & chứng từ"),
   onChanged,
+  onlyIds,
 }: {
   entityType: EvidenceEntity;
   entityId: string;
@@ -96,6 +97,8 @@ export function EvidencePanel({
   required?: { kind: string; min: number }[];
   title?: string;
   onChanged?: () => void;
+  /** Chỉ hiện các chứng cứ này (bản hiện hành sau đính chính), ví dụ ảnh của một nhật ký. */
+  onlyIds?: string[];
 }) {
   const key = ["ws-evidence", entityType, entityId];
   const q = useQuery({ queryKey: key, queryFn: () => wapi.evidence({ entityType, entityId }) });
@@ -104,7 +107,14 @@ export function EvidencePanel({
   const [view, setView] = useState<Evidence | null>(null);
   const kinds = EVIDENCE_KINDS[entityType] ?? ["OTHER"];
   const superseded = new Set((q.data ?? []).map((e) => e.supersedesId).filter(Boolean));
-  const rows = (q.data ?? []).filter((e) => !superseded.has(e.id));
+  const byId = new Map((q.data ?? []).map((e) => [e.id, e]));
+  // A correction replaces the photo it supersedes, so follow the chain back to the original id.
+  const rootOf = (e: Evidence) => {
+    let cur = e;
+    for (let i = 0; cur.supersedesId && byId.has(cur.supersedesId) && i < 50; i++) cur = byId.get(cur.supersedesId)!;
+    return cur.id;
+  };
+  const rows = (q.data ?? []).filter((e) => !superseded.has(e.id) && (!onlyIds || onlyIds.includes(rootOf(e))));
   const count = (kind: string) => rows.filter((e) => e.kind === kind).length;
 
   return (
@@ -112,7 +122,7 @@ export function EvidencePanel({
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-[13px] font-semibold">{title}</h3>
         <span className="font-mono text-[11.5px] text-ink-2">{rows.length}</span>
-        {canManage && (
+        {canManage && !onlyIds && (
           <Button size="xs" variant="outline" className="ml-auto" onClick={() => upload.open({})}>
             <Upload /> {tr("Tải lên")}
           </Button>
@@ -165,7 +175,7 @@ export function EvidencePanel({
           ))}
         </ul>
       )}
-      <p className="text-[11.5px] text-ink-2">{tr("PNG, JPEG hoặc PDF tối đa 5 MB; Backend kiểm tra loại tệp theo byte đầu. Chứng cứ không bị xóa: muốn thay bản cũ thì tải bản đính chính cùng loại.")}</p>
+      <p className="text-[11.5px] text-ink-2">{onlyIds ? tr("Ảnh đã ghi không bị xóa hay sửa: bấm Đính chính để tải ảnh thay thế, bản cũ vẫn lưu trong lịch sử.") : tr("PNG, JPEG hoặc PDF tối đa 5 MB; Backend kiểm tra loại tệp theo byte đầu. Chứng cứ không bị xóa: muốn thay bản cũ thì tải bản đính chính cùng loại.")}</p>
 
       {upload.target && (
         <CommandDialog
@@ -228,13 +238,27 @@ export function EvidencePanel({
   );
 }
 
+/**
+ * Ảnh đại diện nhỏ của một đối tượng trong danh sách (sản phẩm, cơ sở, vùng, vật tư):
+ * ảnh hiện hành đầu tiên, ưu tiên các loại trong `prefer`; không có ảnh thì báo thiếu.
+ */
+export function EvidenceCover({ entityType, entityId, prefer = [] }: { entityType: EvidenceEntity; entityId: string; prefer?: string[] }) {
+  const q = useQuery({ queryKey: ["ws-evidence", entityType, entityId], queryFn: () => wapi.evidence({ entityType, entityId }), staleTime: 60_000 });
+  if (q.isLoading) return <span className="inline-block size-10 animate-pulse rounded border border-line bg-sunken" aria-hidden />;
+  const superseded = new Set((q.data ?? []).map((e) => e.supersedesId).filter(Boolean));
+  const images = (q.data ?? []).filter((e) => !superseded.has(e.id) && e.mediaType.startsWith("image/"));
+  const cover = prefer.map((k) => images.find((e) => e.kind === k)).find(Boolean) ?? images[0];
+  if (!cover) return <Badge tone="warn">{tr("Chưa có ảnh")}</Badge>;
+  return <EvidenceThumb evidence={cover} size="sm" />;
+}
+
 /** Ảnh thu nhỏ đã kiểm sha256; PDF hiện biểu tượng. */
-export function EvidenceThumb({ evidence }: { evidence: Evidence }) {
+export function EvidenceThumb({ evidence, size = "md" }: { evidence: Evidence; size?: "sm" | "md" }) {
   const image = evidence.mediaType.startsWith("image/");
   const q = useQuery({ queryKey: ["ws-evidence-content", evidence.id], queryFn: () => wapi.evidenceContent(evidence.id), enabled: image, retry: false });
   const verified = useEvidenceObjectUrl(image && !q.error ? q.data : undefined);
   return (
-    <span className="relative inline-flex size-14 items-center justify-center overflow-hidden rounded border border-line bg-sunken text-ink-2">
+    <span className={cn("relative inline-flex items-center justify-center overflow-hidden rounded border border-line bg-sunken text-ink-2", size === "sm" ? "size-10" : "size-14")}>
       {verified.url ? <Image unoptimized fill src={verified.url} alt={evidence.description} className="object-cover" /> : image ? <ImageIcon className="size-4" aria-hidden /> : <FileText className="size-4" aria-hidden />}
     </span>
   );

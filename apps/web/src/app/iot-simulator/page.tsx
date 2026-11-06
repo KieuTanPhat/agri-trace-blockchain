@@ -1,3 +1,5 @@
-import Screen from "@/features/ledger/screens/iot-simulator/screen";
-import {resolveLedgerRouteInput,type LedgerPageInput} from "@/lib/ledger/route-input";
-export default async function Page(props:LedgerPageInput){return <Screen route={await resolveLedgerRouteInput(props)}/>;}
+import { redirect } from "next/navigation";
+
+export default function Page() {
+  redirect("/enterprise/devices");
+}

@@ -1,8 +1,8 @@
 # Vận hành production Hybrid
 
-Cập nhật 14/10/2026 theo [kế hoạch cài mới](plans/fresh-install-cleanup-2026-10-13.md).
-`main` triển khai vào `https://agritrace.dev`. Chủ dự án đã cho phép merge/deploy
-sau kiểm thử; không yêu cầu duyệt lại, giới hạn 2 giờ hay canary riêng.
+`main` triển khai vào `https://agritrace.dev`. Dùng source/controller revision
+hiện hành và ủy quyền của tác vụ đang thực hiện; receipt hoặc kế hoạch triển khai
+cũ không xác nhận runtime hay cấp quyền merge/deploy cho lần mới.
 
 ## Target và chuẩn bị
 
@@ -12,8 +12,8 @@ sau kiểm thử; không yêu cầu duyệt lại, giới hạn 2 giờ hay cana
 | Root config / state | `/etc/agri-trace-cd/prod/config.json`, schema 3; `/opt/agri-trace/cd/state.json` |
 | App / PGDATA | `agritrace-prod` / `agritrace-prod_postgres-data` |
 | Ingress / Edge | `agritrace-prod-ingress` / `agritrace-edge` |
-| Fabric | Một mạng hosted; `hybrid-b` Org1/2, `hybrid-self` Org1/3 |
-| API / Worker | API không có khóa; Worker chỉ giữ technical identity Org1 |
+| Fabric | Một mạng; channel `agritrace`, `AgritraceMSP` + `OrdererMSP` |
+| API / Worker | API không có khóa; Worker giữ technical relayer/controller/registry admin AgritraceMSP |
 
 Schema 2 / `agri-trace-uat` đã retire. Tài nguyên cũ trên VPS do operator kiểm kê
 và xử lý riêng, không thuộc thao tác delivery của production. Controller
@@ -41,10 +41,11 @@ volume chứng chỉ có sẵn, cập nhật compose/Caddyfile, validate), `star
 Caddy mang tên lịch sử `agri-trace-uat_caddy-data` và `agri-trace-uat_caddy-config` đang giữ chứng
 chỉ HTTPS: không xóa hoặc đổi tên chúng.
 
-Production đã được cài và chạy. Lệnh `fresh-install` của installer chỉ chuyển từ
+Lệnh `fresh-install` của installer chỉ chuyển từ
 schema 2 đã tắt sang schema 3, nên đã gỡ cùng phần cấp identity dành riêng cho lần
 chuyển đó. Không dùng source hiện tại để adopt lại UAT hoặc tạo lại target trên VPS.
-Quyết định/acceptance của lần cài đầu vẫn nằm trong [plan cài mới](plans/fresh-install-cleanup-2026-10-13.md).
+Quyết định của lần cài đầu tra qua Git; gate hiện hành ở
+[cổng nghiệm thu phát hành](#cổng-nghiệm-thu-phát-hành).
 Luồng first-install/recover của controller production vẫn giữ kiểm DB rỗng,
 `fresh_release_ack`, archive phục hồi đã verified và migration floor; không bỏ
 chúng khi đối soát một delivery production bị gián đoạn.
@@ -63,14 +64,9 @@ Bootstrap chỉ nhận cấu hình riêng tư và không đổi account hiện c
 pin image/governance và giữ persistent CA/MSP/ledger; script Hybrid pilot chỉ dùng
 cho test. Cấu trúc binding tham khảo [network](../deploy/hosted-network.example.json).
 
-Ứng viên onboarding cần `HOSTED_WORKER_CONFIG_HOST` là thư mục riêng chỉ có
-`bindings.json` và `enterprise-connections.json` (inventory khởi đầu
-`{"version":1,"targets":[]}`). `FABRIC_BINDINGS_CONFIG_HOST` và
-`ENTERPRISE_CONNECTIONS_CONFIG_HOST` trỏ tới hai file đó. Worker mount cả thư mục
-readonly ở `/hosted-config` để thấy bản mới sau atomic rename; không mount thư
-mục cha chứa credentials. File không được group/world writable hoặc là symlink.
-`ENTERPRISE_ONBOARDING_ENABLED=false` đóng admission; khi mở phải
-đồng nhất trên API/Worker. Controller kiểm các ranh giới này trước delivery.
+Worker dùng `HOSTED_WORKER_CONFIG_HOST` là thư mục private chỉ chứa `bindings.json`; `FABRIC_BINDINGS_CONFIG_HOST` trỏ vào file đó. Cấu hình platform target dùng chung theo Hybrid runbook, không còn inventory peer doanh nghiệp. Mount config readonly ở `/hosted-config`, identities ở `/hosted-identities`; API không nhận signing identity. Admission flag phải đồng nhất trên API/Worker.
+
+Topology hai MSP là cấu hình source mới, chưa xác nhận VPS đã chuyển đổi. Migration `20261223000000_platform_fabric_service` yêu cầu database mới và không nhập lịch sử/proof cũ. Chỉ thực hiện reinstall trong tác vụ vận hành được ủy quyền, đúng ownership/receipt/controller revision.
 
 GitHub đặt `CD_PROJECT=agritrace-prod`, `CD_PROFILE=fabric`, origin
 `https://agritrace.dev`, known-hosts và delivery key đã pin. Giữ công tắc delivery
@@ -84,7 +80,7 @@ trong `finally`; smoke lỗi vẫn giữ journal và dừng writers để đối
 ## Cài lại có chủ đích, không giữ dữ liệu trước đó
 
 Quyết định ngày 24/10/2026 cho lần phát hành gỡ A/c1: chủ dự án cho phép bỏ dữ
-liệu AgriTrace/Fabric cũ không backup, cài mạng ba Org trên VPS nền tảng và gỡ
+liệu AgriTrace/Fabric cũ không backup, cài mạng nền tảng trên VPS AgriTrace và gỡ
 Fabric cũ tại VPS doanh nghiệp. Ngoại lệ này chỉ áp dụng lần cài lại đã xác định;
 deploy, rollback và first-install thông thường vẫn cần archive theo runbook.
 
@@ -119,10 +115,10 @@ Nếu gián đoạn, giữ journal và `recover` đúng candidate/generation; kh
 network/DB mới hoặc chuyển candidate để vượt lỗi. Sau verified, `reinstall` lặp
 lại bị từ chối vì target đã có current release.
 
-### Nạp bộ dữ liệu 28 sản phẩm sau khi cài lại
+### Nạp bộ dữ liệu 227 sản phẩm sau khi cài lại
 
 Chỉ dùng cho bản cài lại vừa verified, khi ghi đã mở (`open_after_smoke`). Trên
-máy có `.codex/fruit-assets`, checkout đúng SHA đang chạy rồi đóng gói:
+máy có `.codex/seed-227/assets`, checkout đúng SHA đang chạy rồi đóng gói:
 `node scripts/demo/production-dataset-bundle.mjs --out <thư mục trống>`. Gói chứa
 script `scripts/demo` lấy từ commit và ảnh đã chuẩn bị, không chứa ảnh gốc hay tài
 liệu tham chiếu. Chép gói lên VPS, rồi chạy bằng root:
@@ -134,8 +130,8 @@ production trong container một lần từ image API của release. Khi chuỗi
 binding, seed dừng với mã 75; runner gọi `bootstrap-production.mjs` thao tác
 `dataset-ledger` bằng operator container của controller đã cài, thêm Worker
 inventory bằng `add_worker_binding`, activate rồi chạy tiếp. Worker xác nhận quyền
-trên Fabric trước mỗi bước. Sau seed, runner đăng ảnh giới thiệu, ảnh bìa tin và
-chạy `verify-seed.mjs` (binding thật, mỗi event có proof). Lỗi giữa chừng thì sửa
+trên Fabric trước mỗi bước. Seed là `dataset-seed.mjs`, đọc `scripts/demo/dataset`; ảnh
+giới thiệu và tin đã nằm trong seed. Sau seed, runner chạy `verify-seed.mjs` (binding thật, mỗi event có proof). Lỗi giữa chừng thì sửa
 nguyên nhân rồi chạy lại với `--resume`; checkpoint giữ khóa và body gốc. Mật khẩu
 tài khoản demo nằm trong `run/accounts.json` (root-only), không gửi qua kênh chung.
 
@@ -143,19 +139,38 @@ App mobile (ACheck và app nhân viên) đăng nhập vào production khi privat
 `CONSUMER_AUTH_ENABLED=true` và `STAFF_APP_AUTH_ENABLED=true`. Đăng ký consumer
 vẫn tắt trên production.
 
+## Cổng nghiệm thu phát hành
+
+Ghi evidence đúng candidate SHA, image/manifest/controller revision, migration
+checksum, network/channel/sequence/protocol và môi trường. Mỗi gate phải có kết
+quả thực; mock, compile, skipped test hoặc receipt cũ không thay acceptance.
+Ma trận nghiệp vụ HYB-AC ở [CI guide](ci.md#ma-trận-nghiệm-thu-hybrid).
+
+| Gate | Bằng chứng cần có |
+| --- | --- |
+| Domain | Scope trước write/replay, grant/epoch/version, atomic journal/domain/trace/outbox, quantity/custody và sensor windows |
+| SQL | Fresh migrate, lịch sử migration/checksum, refusal khi có dữ liệu không tương thích, schema alignment và constraints thật |
+| Web/mobile | Giữ body/key/signature khi mất response/reload/đổi account/revoke; UI cách ly và thiết bị thật cho chức năng native |
+| Fabric | Registry/MSP approvals, key PoP, dual handover, tamper/scope negatives, event/proof/history VALID trên ledger thật |
+| Fault/load | Hai Worker, stale lease, outage/restart/unknown outcome; 10 clients/200 Pending qua hai binding, p95 ≤2s và drain ≤15 phút trong quota |
+| First install/reinstall | Đúng điều kiện empty target, checksum/floor, receipt/generation và resume sau migration/promotion gián đoạn; lỗi giữ writes CLOSED |
+| Network | Images pin, enrollment/TLS CA tách riêng, admin port loopback, TLS chaincode, CA/MSP/ledger persistent và channel isolation |
+| Restore | Backup nhất quán mã hóa DB/ledger/CA/MSP/config/images, bản ngoài VPS, decrypt/checksum và isolated DB+ledger restore trước replacement mặc định |
+| CI/CD | Application/Blockchain/Dependency đúng final candidate, full final-main push CI, immutable publication và helper/deployment khớp |
+| VPS smoke | Web/API/auth/session/CORS/role, care/harvest/Lot/consent, ký pickup/arrival/receive, outbox/direct ledger/proof/QR và runtime SHA |
+
+Không có canary production riêng, giới hạn bảo trì hai giờ hoặc nghĩa vụ agent
+quan sát liên tục. Smoke và troubleshooting có giới hạn thuộc lần delivery;
+support sau bàn giao cần yêu cầu mới. Reinstall không backup là ngoại lệ cần
+ủy quyền rõ đúng target, không thay quy trình backup/restore mặc định.
+
 ## Delivery và smoke trên VPS
 
 `Production CD` kiểm ba CI push thành công đúng main SHA, HEAD hiện hành, immutable
 API/Web/chaincode images, helper checksums, Compose/mounts/quotas, governance và
 migration catalog. Không thay byte migration đã áp hoặc bỏ parser default-deny.
 
-Lần đầu bắt đầu từ DB trống, ghi floor trước migrate rồi operator tạo account/
-catalog/chain/binding/approvals. Owner MSP chỉ cấp cho operator một lần; API/Worker
-thường trực không nhận owner/CA/orderer keys. Bootstrap có thể đối soát/tiếp tục.
-Container bootstrap chỉ đọc Worker inventory; khi binding mới cần thêm, controller
-trên host ghi `bindings.json` bằng file tạm cùng thư mục + fsync + rename dưới
-delivery lock, đọc lại rồi chạy lại bootstrap để activate. Ghi lỗi giữ nguyên
-inventory đã review; file `.bindings.json.next` còn sót từ lần gián đoạn được bỏ.
+Lần đầu bắt đầu từ DB và mạng trống, ghi floor trước migrate rồi operator tạo tài khoản/catalog kiểm chứng. Worker dùng template platform đã review, tự chuẩn bị mọi chuỗi và đăng ký khóa ký; không cấp MSP doanh nghiệp hoặc thêm một dòng inventory cho mỗi chuỗi. API/Worker không nhận khóa doanh nghiệp, CA hoặc orderer. Bootstrap chỉ đọc config, kiểm khớp template rồi có thể tiếp tục sau gián đoạn. Registry admin AgritraceMSP là technical identity nhạy cảm và phải mount đúng phạm vi. Bootstrap private dùng `connections` gồm đúng `relayer`, `controller`, `admin`, cùng MSP `AgritraceMSP`; bỏ cấu hình admin doanh nghiệp. `workerConnection` phải khớp nguyên template `platform.node`. Sai template bị từ chối, controller không tự ghi thêm inventory.
 
 API/Web/Worker khởi động CLOSED; smoke chạy API ở `HYBRID_WRITES_MODE=CANARY` với
 `HYBRID_CANARY_ACTOR_IDS` là đúng các ID trong `accounts.json` (tài khoản kỹ thuật
@@ -232,7 +247,7 @@ trong CD hoặc qua route quản trị.
 
 ### Gỡ bản A, c1 và legacy nghiệp vụ
 
-Nhánh gỡ bản A/c1 (xem [kế hoạch](plans/retire-release-a-and-legacy-2026-10-24.md))
+Thay đổi gỡ bản A/c1 (xem [ADR-004](adr-004-hybrid-binding-and-signatures.md#phiên-bản-hiện-hành))
 thêm sáu migration `20261213000000`..`20261213000005`. Bốn migration đầu **từ chối**
 database còn dữ liệu A/c1, hồ sơ doanh nghiệp không cần kích hoạt, digest cảm biến theo vụ,
 đối soát mốc cảm biến hoặc consent kế hoạch thiếu snapshot; không tự xóa hay sửa lịch sử.
@@ -253,65 +268,11 @@ schema/protocol. Rollback ứng dụng chỉ tới image verified tương thích
 restore DB riêng sau ledger commit. Hosted chaincode thay đổi cần lifecycle review,
 không gọi `upgrade` để thay B/C vào channel legacy.
 
-### Nghiệm thu peer doanh nghiệp trên VPS thứ hai
+## SMTP của Dedicated Worker
 
-Chủ dự án cho phép nghiệm thu trên production sau sao lưu. Hai VPS dùng tuyến
-WireGuard riêng (`10.77.0.1` phía platform, `10.77.0.2` phía doanh nghiệp). Relay
-`blockchain/network/production/tcp-relay.py` chỉ chuyển byte TLS từ cổng trên VPN
-tới cổng loopback hiện hữu, không kết thúc TLS hoặc giữ signing key. Security
-group/firewall chỉ cho tuyến đã review; không mở peer/orderer/CA ra Internet.
-
-Doanh nghiệp khởi tạo CA/admin/peer bằng bộ cài enterprise tại máy mình. Chỉ
-chuyển public MSP/TLS sang platform. Với channel `hybrid-self` đã tạo nhưng chưa
-có binding doanh nghiệp, `external-owner.py` chuẩn bị bản đổi root CA/NodeOUs
-và anchor của Org3; nó không ký hoặc gửi cập nhật. Kiểm fingerprint, nội dung
-config update và binding chưa được cấp cho bên khác. Admin hiện hành ký cập nhật
-theo policy, giữ toàn bộ block cũ; kiểm CA cũ không còn được tin cậy cho hành
-động mới. Không gán private identity Org3 cũ cho doanh nghiệp mới.
-
-Sau khi đối soát peer doanh nghiệp, `hosted.external_owner` pin protocol
-`agritrace-external-owner/1`, MSP/channel/hostname, endpoint `10.77.0.2:11051`
-và public `tls_ca` trong hosted root. Bỏ stack Org3 cũ khỏi resource catalog đang
-hoạt động; bản lưu và tài nguyên cũ được giữ riêng. API/Worker không nhận owner
-admin/CA key. Nâng CaaS image và definition trên từng channel là thao tác lifecycle
-riêng được review, tăng sequence và xác minh policy/package/HealthCheck c2.
-Ghi journal và baseline trước thao tác; nếu app cũ không tương thích sau lifecycle,
-giữ writers dừng và giao candidate bằng luồng `forward` hiện hành, không giả
-verified release hoặc sửa receipt lịch sử.
-
-Backup khi đã có peer ngoài phải dừng writers và phối hợp hai host: đóng băng,
-đối chiếu block height/hash, lưu database/config/ledger/danh tính của từng bên,
-mã hóa rồi tải khỏi VPS. Khóa giải mã ở ngoài hai VPS. Controller từ chối snapshot
-nếu `external_backup_receipt` không trỏ tới receipt private protocol
-`agritrace-coordinated-backup/1` đúng candidate SHA/MSP, archive doanh nghiệp,
-fingerprint baseline và block hiện tại. Nó không có SSH key để tự sao lưu máy
-doanh nghiệp. Đọc block của peer Org3 bằng QSCC `GetChainInfo` với channel
-`hybrid-self` trong proposal, xác thực TLS bằng public CA và ký bằng operator
-Org1. `peer channel getinfo` tạo proposal không có channel nên chỉ dùng với peer
-cùng MSP; không chuyển khóa Org3 sang platform để vượt giới hạn đó.
-Khôi phục cách ly và khôi phục peer thật phải giữ cùng khóa,
-installation, genesis, txId/proof; không restore database riêng sau ledger commit.
-
-Đo tài nguyên cả host và container cùng thời gian/tải, gồm CPU, peak RAM, đĩa,
-OOM/restart, độ trễ và backlog. Kết luận cấu hình thấp nhất **đã kiểm chứng** ở
-tải đã ghi; quota container hoặc kết quả một VPS không chứng minh mọi VPS nhỏ
-hơn đều đạt. Kết quả mỗi lần chạy nằm trong PR/artifact, không chép vào hướng dẫn.
-
-Mọi container có CPU/RAM quota, chừa >=20% RAM host. Mẫu
-[capacity](../deploy/hosted-capacity.example.json) cần kiểm tải/OOM/restarts thực.
-Compose JSON có thể trả `mem_limit` thành chuỗi số byte; controller chuẩn hóa
-chuỗi thập phân dương trước khi cộng quota. Giá trị thiếu, zero, âm hoặc định
-dạng không hợp lệ vẫn bị chặn; không bỏ cổng capacity khi preflight thất bại.
-Chỉ một mạng Fabric hoạt động; retired resources không tự resume. Không bỏ quota
-để vượt preflight. Giữ secret/CA/MSP/archive riêng tư.
-
-Chủ dự án quản lý VPS và sự cố sau bàn giao. Agent kết thúc khi production mới
-qua smoke, CI/CD thành công và bàn giao SHA/digests, backup/restore, resource
-catalog, credentials riêng tư và lệnh vận hành. Không cài collector mỗi phút,
-systemd timer, quan sát liên tục 24 giờ hoặc trực sự cố sau hoàn thành.
-
-Chữ ký độc lập bắt buộc ở bàn giao khác tổ chức; care/harvest là ghi nhận có xác
-thực nền tảng. Khóa Ed25519 thật nên do tổ chức giữ (Web không trích xuất hoặc
-thiết bị/dịch vụ ký riêng); API chỉ giữ public key/PoP. Kích hoạt ledger cần đủ
-writer/owner MSP. Khóa smoke chứng minh giao thức kỹ thuật; quyền CA/admin/peer/
-signer của đối tác ngoài là **NotEvaluated**. Single VPS/orderer không có HA/SLA.
+Cấu hình gửi hợp đồng/OTP qua SMTP nằm trong private env của Worker; xem
+[hướng dẫn Gmail và nghiệm thu PDF](email.md). Production Compose mặc định tắt
+mail, nhận cùng `JWT_SECRET` của API để giải mã OTP/mật khẩu tạm. Bật SMTP sau khi
+kiểm tra credential, recipient và hàng đợi đúng môi trường; không gửi lịch sử
+từ bản dump. Mailpit không được phép trên production. Thay env phải triển khai
+lại Worker theo quy trình controller hiện hành, không khởi chạy Compose local.

@@ -59,13 +59,6 @@ const table: Record<string, Record<string, Entry>> = {
     HIGH: ["Cao", "warn"],
     CRITICAL: ["Nghiêm trọng", "danger"],
   },
-  ticket: {
-    OPEN: ["Mới", "info"],
-    IN_PROGRESS: ["Đang xử lý", "brand"],
-    WAITING_CUSTOMER: ["Chờ doanh nghiệp", "warn"],
-    RESOLVED: ["Đã giải quyết", "ok"],
-    CLOSED: ["Đã đóng", "neutral"],
-  },
   priority: {
     LOW: ["Thấp", "neutral"],
     NORMAL: ["Bình thường", "info"],
@@ -106,6 +99,7 @@ const table: Record<string, Record<string, Entry>> = {
     NONE: ["Chưa có gói", "warn"],
   },
   plan: {
+    RETIRED: ["Ngừng áp dụng", "neutral"],
     DRAFT: ["Bản nháp", "warn"],
     PUBLISHED: ["Đã công bố", "ok"],
   },
@@ -183,9 +177,10 @@ export const CAPABILITY_LABEL: Record<string, string> = localized({
   AUDITOR: "Kiểm định",
 });
 export const ORG_TYPE_LABEL: Record<string, string> = CAPABILITY_LABEL;
+/** Participation status (ADR-005): free member or paying chain owner. */
 export const MODEL_LABEL: Record<string, string> = localized({
-  SINGLE: "Một hoạt động",
-  SUPPLY_CHAIN_ENTERPRISE: "Doanh nghiệp chuỗi",
+  MEMBER: "Thành viên",
+  CHAIN_OWNER: "Chủ chuỗi",
   NONE: "Không áp dụng",
 });
 export const INBOX_KIND_LABEL: Record<string, string> = localized({
@@ -193,7 +188,6 @@ export const INBOX_KIND_LABEL: Record<string, string> = localized({
   CAPABILITY: "Năng lực",
   AMENDMENT: "Điều chỉnh",
   CONNECTION: "Kết nối",
-  TICKET: "Hỗ trợ",
   CONSUMER_REPORT: "Báo cáo NTD",
   CASE: "Sự cố",
   INVOICE_OVERDUE: "Hóa đơn",
@@ -211,19 +205,6 @@ export const CASE_SOURCE_LABEL: Record<string, string> = localized({
   AUDITOR: "Kiểm toán",
   INTERNAL: "Nội bộ",
 });
-export const OPERATION_LABEL: Record<string, string> = localized({
-  CAPABILITY_GRANT: "Cấp năng lực tổ chức",
-  CREATE_CHAIN_GRANT: "Cấp quyền tạo chuỗi",
-  SYSTEM_ADMIN_CREATE: "Tạo tài khoản quản trị",
-  CONNECTION_APPROVE: "Chấp nhận kết nối peer",
-  ADMIN_PASSWORD_RESET: "Đặt lại mật khẩu quản trị",
-  CAPABILITY_REQUEST_APPROVE: "Duyệt yêu cầu năng lực",
-  PLAN_VERSION_PUBLISH: "Công bố bảng giá",
-  INVOICE_CONFIRM_PAYMENT: "Xác nhận thanh toán",
-  SETTING_CHANGE: "Đổi tham số nền tảng",
-  QR_BLOCK: "Khóa QR lô",
-  ENROLLMENT_APPROVE: "Phê duyệt hồ sơ doanh nghiệp",
-});
 export const DOC_KIND_LABEL: Record<string, string> = localized({
   LEGAL_REGISTRATION: "Giấy đăng ký",
   AUTHORIZATION: "Giấy ủy quyền",
@@ -236,7 +217,6 @@ export const REF_CATEGORY_LABEL: Record<string, string> = localized({
   CERTIFICATE_TYPE: "Loại chứng nhận",
   LOSS_REASON: "Lý do hao hụt",
   PROCESSING_TYPE: "Loại hình chế biến",
-  TICKET_CATEGORY: "Chủ đề hỗ trợ",
   VEHICLE_TYPE: "Loại xe",
 });
 export const AUDIENCE_LABEL: Record<string, string> = localized({

@@ -3,10 +3,11 @@
 import {useRouter} from "next/navigation";
 import {EvidencePanel} from "@/components/ledger/workspace/evidence-panel";
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ledger/ui/sheet";
+import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from "@/components/ledger/ui/dialog";
 import { useState } from "react";
-import {useLedgerQuery as useQuery} from "@/lib/ledger/data";
+import {useLedgerInfiniteQuery as useInfiniteQuery, useLedgerQuery as useQuery} from "@/lib/ledger/data";
 import { z } from "zod";
-import { Plus, Search } from "lucide-react";
+import { Building2, Plus, Search, UserPlus } from "lucide-react";
 import { wapi } from "@/lib/ledger/enterprise-coordination-api";
 import type { ExternalPartner, Partner, PartnerSearchItem } from "@/lib/ledger/coordination-types";
 import { fmtDate } from "@/lib/ledger/format";
@@ -19,7 +20,7 @@ import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { useDebounced } from "@/components/ledger/kit/filters";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
-import { EmptyState, PageBody, PageHeader, Section } from "@/components/ledger/kit/page";
+import { EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
@@ -38,6 +39,9 @@ const externalSchema = z.object({
 });
 const STATUS: Record<string, "info" | "ok" | "danger" | "neutral"> = { INVITED: "info", ACTIVE: "ok", REJECTED: "danger", REVOKED: "neutral" };
 const STATUS_TEXT: Record<string, string> = { get INVITED() { return tr("Chờ phản hồi"); }, get ACTIVE() { return tr("Đang liên kết"); }, get REJECTED() { return tr("Bị từ chối"); }, get REVOKED() { return tr("Đã chấm dứt"); } };
+type Source = "AGRITRACE" | "EXTERNAL";
+/** One row of the merged partner list: an AgriTrace link or a private address-book entry. */
+type Row = { id: string; source: Source; name: string; code: string; kind: string; detail: string; note: string | null; createdAt: string; link?: Partner; ext?: ExternalPartner };
 
 export default function PartnersPage({view="list",partnerId,externalMode=false}:{view?:"list"|"new"|"external";partnerId?:string;externalMode?:boolean}) {
  const router=useRouter();
@@ -45,12 +49,38 @@ export default function PartnersPage({view="list",partnerId,externalMode=false}:
   const o = useOverview();
   const me = o.data?.organization.id;
   const manage=can("partners.manage");
-  const [tab, setTab] = useState<"links" | "external">(view==="external" || externalMode?"external":"links");
+  const [filter, setFilter] = useState<"ALL" | Source>(view==="external" ? "EXTERNAL" : "ALL");
+  const [adding, setAdding] = useState(view==="new" && !externalMode);
   const partners = useQuery({ queryKey: ["ws-partners"], queryFn: wapi.partners, enabled: can("partners.read") });
   const external = useQuery({ queryKey: ["ws-external"], queryFn: wapi.externalPartners, enabled: can("partners.read") });
   const [text, setText] = useState("");
   const q = useDebounced(text.trim());
-  const search = useQuery({ queryKey: ["ws-partner-search", q], queryFn: () => wapi.searchPartners(q), enabled: manage && q.length >= 2 });
+  const search = useQuery({ queryKey: ["ws-partner-search", q], queryFn: () => wapi.searchPartners(q), enabled: manage && adding && q.length >= 2 });
+  const directory = useInfiniteQuery({
+    queryKey: ["ws-partner-directory"],
+    queryFn: ({ pageParam }) => wapi.partnerDirectory(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: manage && adding && q.length < 2,
+  });
+  // Search also returns our own external entries; those are already in the table and have no AgriTrace profile.
+  const found = search.data?.filter((s) => s.registered);
+  const directoryItems = directory.data?.pages.flatMap((page) => page.items);
+  const searching = q.length >= 2;
+  const candidates: PartnerSearchItem[] = searching
+    ? found ?? []
+    : (directoryItems ?? []).map((item) => ({
+        id: item.id,
+        businessId: item.agriTraceCode,
+        taxCode: null,
+        agriTraceCode: item.agriTraceCode,
+        name: item.name,
+        kind: item.kind,
+        registered: true,
+        matched: "CODE",
+      }));
+  const candidateError = searching ? search.error : directory.error;
+  const candidateLoading = searching ? search.isLoading : directory.isLoading;
   const invite = useDialog<PartnerSearchItem>();
   const resolve = useDialog<{ p: Partner; decision: "ACCEPT" | "REJECT" | "REVOKE" }>();
   const addExternal = useDialog();
@@ -60,37 +90,33 @@ export default function PartnersPage({view="list",partnerId,externalMode=false}:
   const invalidate = [["ws-partners"]];
 
   const other = (p: Partner) => (p.inviterId === me ? p.invitee : p.inviter);
-  const cols: Column<Partner>[] = [
-    { key: "org", header: tr("Doanh nghiệp"), cell: (p) => <span className="flex flex-col"><button type="button" className="text-left font-medium hover:underline" onClick={() => setProfileOf(other(p)?.id ?? null)}>{other(p)?.name}</button><span className="font-mono text-[11px] text-ink-2">{other(p)?.code}</span></span> },
-    { key: "type", header: tr("Loại"), hideBelow: "md", cell: (p) => <span className="text-[12px]">{CAPABILITY_LABEL[other(p)?.type ?? ""] ?? other(p)?.type}</span> },
-    { key: "dir", header: tr("Chiều"), cell: (p) => <span className="text-[12px] text-ink-2">{p.inviterId === me ? tr("Mình mời") : tr("Được mời")}</span> },
-    { key: "note", header: tr("Ghi chú"), hideBelow: "lg", cell: (p) => <span className="line-clamp-1 text-ink-2">{p.note ?? "—"}</span> },
-    { key: "date", header: tr("Từ"), hideBelow: "md", cell: (p) => <span className="font-mono text-[12px]">{fmtDate(p.createdAt)}</span> },
-    { key: "status", header: tr("Trạng thái"), cell: (p) => <Badge tone={STATUS[p.status] ?? "neutral"}>{STATUS_TEXT[p.status] ?? p.status}</Badge> },
-    {
-      key: "act",
-      header: <span className="sr-only">{tr("Thao tác")}</span>,
-      cell: (p) =>
-        manage ? (
-          <span className="flex gap-1">
-            {p.status === "INVITED" && p.inviteeId === me && (
-              <>
-                <Button size="xs" onClick={() => resolve.open({ p, decision: "ACCEPT" })}>{tr("Chấp nhận")}</Button>
-                <Button size="xs" variant="outline" onClick={() => resolve.open({ p, decision: "REJECT" })}>{tr("Từ chối")}</Button>
-              </>
-            )}
-            {(p.status === "ACTIVE" || (p.status === "INVITED" && p.inviterId === me)) && (
-              <Button size="xs" variant="ghost" onClick={() => resolve.open({ p, decision: "REVOKE" })}>{p.status === "ACTIVE" ? tr("Chấm dứt") : tr("Rút lời mời")}</Button>
-            )}
-          </span>
-        ) : null,
-    },
-  ];
-  const extCols: Column<ExternalPartner>[] = [
-    { key: "name", header: tr("Đối tác"), cell: (p) => <span className="flex flex-col"><span className="font-medium"><button className="text-left hover:underline" onClick={()=>router.push(`/enterprise/partners/external/${p.id}`)}>{p.name}</button></span><span className="font-mono text-[11px] text-ink-2">MST {p.taxCode}</span></span> },
-    { key: "kind", header: tr("Loại"), cell: (p) => <span className="text-[12px]">{CAPABILITY_LABEL[p.kind]}</span> },
-    { key: "contact", header: tr("Liên hệ"), hideBelow: "md", cell: (p) => <span className="text-[12px] text-ink-2">{p.representative} · {p.phone}</span> },
-    { key: "note", header: tr("Ghi chú"), hideBelow: "lg", cell: (p) => <span className="line-clamp-1 text-ink-2">{p.note}</span> },
+  const rows: Row[] = [
+    ...(partners.data ?? []).map((p): Row => ({ id: `l-${p.id}`, source: "AGRITRACE", name: other(p)?.name ?? "—", code: other(p)?.code ?? "", kind: other(p)?.type ?? "", detail: p.inviterId === me ? tr("Mình mời liên kết") : tr("Được mời liên kết"), note: p.note ?? null, createdAt: p.createdAt, link: p })),
+    ...(external.data ?? []).map((p): Row => ({ id: `e-${p.id}`, source: "EXTERNAL", name: p.name, code: p.taxCode ? `MST ${p.taxCode}` : p.businessId, kind: p.kind, detail: [p.representative, p.phone].filter(Boolean).join(" · ") || "—", note: p.note, createdAt: p.createdAt, ext: p })),
+  ].filter((r) => filter === "ALL" || r.source === filter).sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+  const count = (k: Source) => (k === "AGRITRACE" ? partners.data?.length : external.data?.length) ?? 0;
+  const linkActions = (p: Partner) => (
+    <span className="flex gap-1">
+      {p.status === "INVITED" && p.inviteeId === me && (
+        <>
+          <Button size="xs" onClick={() => resolve.open({ p, decision: "ACCEPT" })}>{tr("Chấp nhận")}</Button>
+          <Button size="xs" variant="outline" onClick={() => resolve.open({ p, decision: "REJECT" })}>{tr("Từ chối")}</Button>
+        </>
+      )}
+      {(p.status === "ACTIVE" || (p.status === "INVITED" && p.inviterId === me)) && (
+        <Button size="xs" variant="ghost" onClick={() => resolve.open({ p, decision: "REVOKE" })}>{p.status === "ACTIVE" ? tr("Chấm dứt") : tr("Rút lời mời")}</Button>
+      )}
+    </span>
+  );
+  const cols: Column<Row>[] = [
+    { key: "org", header: tr("Đối tác"), cell: (r) => <span className="flex flex-col"><button type="button" className="text-left font-medium hover:underline" onClick={() => r.link ? setProfileOf(other(r.link)?.id ?? null) : router.push(`/enterprise/partners/external/${r.ext!.id}`)}>{r.name}</button><span className="font-mono text-[11px] text-ink-2">{r.code}</span></span> },
+    { key: "source", header: tr("Nguồn"), cell: (r) => r.source === "AGRITRACE" ? <Badge tone="info">AgriTrace</Badge> : <Badge tone="neutral">{tr("Ngoài AgriTrace")}</Badge> },
+    { key: "type", header: tr("Loại"), hideBelow: "md", cell: (r) => <span className="text-[12px]">{CAPABILITY_LABEL[r.kind] ?? r.kind}</span> },
+    { key: "detail", header: tr("Liên kết / liên hệ"), hideBelow: "md", cell: (r) => <span className="text-[12px] text-ink-2">{r.detail}</span> },
+    { key: "note", header: tr("Ghi chú"), hideBelow: "lg", cell: (r) => <span className="line-clamp-1 text-ink-2">{r.note ?? "—"}</span> },
+    { key: "date", header: tr("Từ"), hideBelow: "md", cell: (r) => <span className="font-mono text-[12px]">{fmtDate(r.createdAt)}</span> },
+    { key: "status", header: tr("Trạng thái"), cell: (r) => r.link ? <Badge tone={STATUS[r.link.status] ?? "neutral"}>{STATUS_TEXT[r.link.status] ?? r.link.status}</Badge> : <Badge tone="neutral" dot={false}>{tr("Danh bạ riêng")}</Badge> },
+    { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (r) => manage && r.link ? linkActions(r.link) : null },
   ];
   const r = resolve.target;
 
@@ -98,68 +124,94 @@ export default function PartnersPage({view="list",partnerId,externalMode=false}:
     <>
       <PageHeader
         title={tr("Đối tác")}
-        description={tr("Liên kết với doanh nghiệp AgriTrace đang hoạt động (mời theo mã AgriTrace hoặc mã số thuế) và danh bạ đối tác chưa dùng hệ thống.")}
+        description={tr("Danh sách chung đối tác trong AgriTrace (liên kết để giao lô, mời vào chuỗi) và đối tác ngoài AgriTrace (danh bạ riêng, dùng làm nhà cung cấp khai báo).")}
         actions={
-          manage && tab === "external" && (
-            <Button size="sm" onClick={() => router.push("/enterprise/partners/new?mode=external")}>
-              <Plus /> {tr("Thêm đối tác ngoài hệ thống")}
+          manage && (
+            <Button size="sm" onClick={() => setAdding(true)}>
+              <Plus /> {tr("Thêm đối tác")}
             </Button>
           )
         }
       />
       <PageBody className="min-w-0">
-        <div role="tablist" className="flex gap-1">
-          {(["links", "external"] as const).map((k) => (
-            <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)} className={cn("h-8 rounded-md border px-3 text-[12.5px] font-medium", tab === k ? "border-ink bg-ink text-canvas" : "border-line bg-card")}>
-              {k === "links" ? tr("Liên kết AgriTrace") : tr("Ngoài hệ thống")}
+        <div role="tablist" className="flex flex-wrap gap-1">
+          {(["ALL", "AGRITRACE", "EXTERNAL"] as const).map((k) => (
+            <button key={k} role="tab" type="button" aria-selected={filter === k} onClick={() => setFilter(k)} className={cn("h-8 rounded-md border px-3 text-[12.5px] font-medium", filter === k ? "border-ink bg-ink text-canvas" : "border-line bg-card")}>
+              {k === "ALL" ? tr("Tất cả") : k === "AGRITRACE" ? tr("Trong AgriTrace") : tr("Ngoài AgriTrace")}
+              <span className="ml-1.5 font-mono text-[11px] opacity-70">{k === "ALL" ? count("AGRITRACE") + count("EXTERNAL") : count(k)}</span>
             </button>
           ))}
         </div>
-        {tab === "links" ? (
-          <>
-            {manage && (
-              <Section title={tr("Tìm doanh nghiệp để mời")} aside={tr("Chỉ doanh nghiệp đã kích hoạt và có gói còn hiệu lực mới tìm thấy")}>
-                <div className="flex flex-col gap-2 px-4 py-3 sm:px-5">
-                  <div className="relative max-w-lg">
-                    <Search className="absolute top-2.5 left-2.5 size-4 text-ink-2" aria-hidden />
-                    <Input aria-label={tr("Tìm theo tên, mã AgriTrace hoặc MST")} placeholder={tr("Tên, mã AGT-… hoặc mã số thuế")} value={text} onChange={(e) => setText(e.target.value)} className="bg-card pl-8" />
-                  </div>
-                  {q.length >= 2 && (
-                    <ul className="divide-y divide-line/70 rounded-md border border-line">
-                      {search.isLoading ? (
-                        <li className="px-3 py-2 text-[13px] text-ink-2">{tr("Đang tìm…")}</li>
-                      ) : !search.data?.length ? (
-                        <li className="px-3 py-2 text-[13px] text-ink-2">{tr("Không tìm thấy doanh nghiệp phù hợp.")}</li>
-                      ) : (
-                        search.data.map((s) => (
-                          <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
-                            <span className="min-w-0">
-                              <span className="font-medium">{s.name}</span> <span className="text-[12px] text-ink-2">· {CAPABILITY_LABEL[s.kind] ?? s.kind} · MST {s.taxCode}</span>
-                            </span>
-                            <span className="flex shrink-0 gap-1">
-                              <Button size="xs" variant="ghost" onClick={() => setProfileOf(s.id)}>{tr("Hồ sơ")}</Button>
-                              <Button size="xs" variant="outline" onClick={() => invite.open(s)}>
-                                {tr("Mời liên kết")}
-                              </Button>
-                            </span>
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                  )}
-                </div>
-              </Section>
-            )}
-            <div className="min-w-0 overflow-hidden rounded-md border border-line bg-card">
-              <DataTable rows={partners.data} loading={partners.isLoading} error={partners.error} onRetry={() => partners.refetch()} columns={cols} rowKey={(p) => p.id} empty={<EmptyState title={tr("Chưa có liên kết đối tác")} />} />
-            </div>
-          </>
-        ) : (
-          <div className="min-w-0 overflow-hidden rounded-md border border-line bg-card">
-            <DataTable rows={external.data} loading={external.isLoading} error={external.error} onRetry={() => external.refetch()} columns={extCols} rowKey={(p) => p.id} empty={<EmptyState title={tr("Chưa có đối tác ngoài hệ thống")} />} />
-          </div>
-        )}
+        <div className="min-w-0 overflow-hidden rounded-md border border-line bg-card">
+          <DataTable rows={partners.isLoading || external.isLoading ? undefined : rows} loading={partners.isLoading || external.isLoading} error={partners.error ?? external.error} onRetry={() => { partners.refetch(); external.refetch(); }} columns={cols} rowKey={(r) => r.id} empty={<EmptyState title={tr("Chưa có đối tác")} />} />
+        </div>
       </PageBody>
+      <Dialog open={manage && adding} onOpenChange={(o) => { setAdding(o); if (!o) { setText(""); if (view === "new") router.push("/enterprise/partners"); } }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader className="pr-8">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <DialogTitle>{tr("Thêm đối tác")}</DialogTitle>
+                <DialogDescription className="mt-1">{tr("Doanh nghiệp đã dùng AgriTrace thì gửi lời mời liên kết; chưa dùng thì lưu vào danh bạ riêng.")}</DialogDescription>
+              </div>
+              <Button size="xs" variant="outline" className="shrink-0" title={tr("Khai báo đối tác chưa dùng AgriTrace")} onClick={() => { setAdding(false); addExternal.open(true); }}>
+                <UserPlus className="size-3.5" aria-hidden /> {tr("Ngoài AgriTrace")}
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="flex min-h-0 flex-col gap-3">
+            <div className="rounded-md border border-line p-3">
+              <p className="flex items-center gap-2 text-[13px] font-medium"><Building2 className="size-4" aria-hidden /> {tr("Trong AgriTrace")}</p>
+              <p className="mt-0.5 text-[12px] text-ink-2">{tr("Chỉ doanh nghiệp đã được duyệt hồ sơ trên AgriTrace mới được mời liên kết.")}</p>
+              <div className="relative mt-2">
+                <Search className="absolute top-2.5 left-2.5 size-4 text-ink-2" aria-hidden />
+                <Input aria-label={tr("Tìm theo tên, mã AgriTrace hoặc MST")} placeholder={tr("Tên, mã AGT-… hoặc mã số thuế")} value={text} onChange={(e) => setText(e.target.value)} className="bg-card pl-8" />
+              </div>
+              {candidateError && !candidates.length ? (
+                <ErrorState error={candidateError} compact onRetry={() => { void (searching ? search.refetch() : directory.refetch()); }} />
+              ) : candidateLoading && !candidates.length ? (
+                <LoadingRows rows={3} className="mt-2" />
+              ) : !candidates.length ? (
+                <EmptyState title={tr(searching ? "Không tìm thấy doanh nghiệp phù hợp." : "Chưa có doanh nghiệp phù hợp để mời.")} />
+              ) : (
+                <ul className="mt-2 flex max-h-[55vh] flex-col gap-2 overflow-y-auto pr-1">
+                  {candidates.map((s) => (
+                    <li key={s.id} className="flex flex-col gap-2 rounded-md border border-line bg-card p-3 text-[13px]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{s.name}</p>
+                          <p className="mt-0.5 text-[12px] text-ink-2">{CAPABILITY_LABEL[s.kind] ?? s.kind}</p>
+                        </div>
+                        <Badge tone="info">AgriTrace</Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line/70 pt-2">
+                        <span className="font-mono text-[11px] text-ink-2">{s.taxCode ? `MST ${s.taxCode}` : s.agriTraceCode}</span>
+                        <span className="flex shrink-0 gap-1">
+                          <Button size="xs" variant="ghost" onClick={() => setProfileOf(s.id)}>{tr("Hồ sơ")}</Button>
+                          <Button size="xs" variant="outline" onClick={() => { setAdding(false); invite.open(s); }}>{tr("Mời liên kết")}</Button>
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                  {!searching && directory.hasNextPage && (
+                    <li className="flex justify-center py-1">
+                      <Button size="xs" variant="outline" onClick={() => void directory.fetchNextPage()} disabled={directory.isFetchingNextPage}>
+                        {directory.isFetchingNextPage ? tr("Đang tải…") : tr("Tải thêm")}
+                      </Button>
+                    </li>
+                  )}
+                </ul>
+              )}
+              {candidateError && !!candidates.length && (
+                <div className="mt-2 flex items-center justify-between gap-2 text-[12px] text-danger" role="alert">
+                  <span>{tr("Không tải thêm được doanh nghiệp.")}</span>
+                  <Button size="xs" variant="outline" onClick={() => { void (searching ? search.refetch() : directory.refetch()); }}>{tr("Thử lại")}</Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       {invite.target && (
         <CommandDialog {...invite.props} title={tr("Mời liên kết · {p0}", { p0: invite.target.name })} endpoint="POST /enterprise-workspace/partners" schema={inviteSchema} defaultValues={{ note: "" }} submitLabel={tr("Gửi lời mời")} invalidate={invalidate} run={(v, cmd) => wapi.invitePartner({ businessId: invite.target!.agriTraceCode ?? invite.target!.businessId, note: v.note || undefined }, cmd)}>
           {(f) => <TextAreaField control={f.control} name="note" label={tr("Ghi chú cho đối tác")} max={500} />}

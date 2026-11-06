@@ -1,14 +1,12 @@
 /**
  * Real-ledger acceptance for the hybrid release B protocol (HYB-AC-09/11/12/13/
- * 19/20 at ledger level). Runs on the host against the local three-organization
+ * 19/20 at ledger level). Runs on the host against the local two-MSP
  * pilot started by hybrid-network.sh. Not a mock: every check commits to or
  * queries real peers, endorsement policies and the Raft orderer.
  *
  *   FABRIC_ROOT   Linux data dir as seen by this host (UNC path under WSL)
  *   HYBRID_SCRIPT WSL path of hybrid-network.sh (for certificate rotation)
  *
- * Org3 (self-managed) keys are read from its own directory solely to act as
- * the owner's operator in this harness; the API/Worker export never contains them.
  */
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -46,13 +44,11 @@ const CHAINCODE = "agritrace";
 const CONTRACT = "AgriTraceContract";
 const AUTHORITY = "agritrace-relayer-b";
 
-type Org = "org1" | "org2" | "org3";
+type Org = "org1";
 const offset = Number(process.env.AGRI_FABRIC_PORT_OFFSET ?? '0');
 if (!Number.isInteger(offset) || offset < 0 || offset > 50000) throw new Error('Invalid Fabric test port offset');
 const ORG = {
-  org1: { dir: "net", msp: "Org1MSP", endpoint: `localhost:${7051 + offset}` },
-  org2: { dir: "net", msp: "Org2MSP", endpoint: `localhost:${9051 + offset}` },
-  org3: { dir: "self", msp: "Org3MSP", endpoint: `localhost:${11051 + offset}` },
+  org1: { dir: "net", msp: "AgritraceMSP", endpoint: `localhost:${7051 + offset}` },
 } as const;
 
 const orgDir = (org: Org) => path.join(ROOT, ORG[org].dir, "organizations", "peerOrganizations", `${org}.example.com`);
@@ -128,18 +124,17 @@ const u = () => randomUUID();
 async function openChannel(name: string, ownerOrg: Org): Promise<Channel> {
   const controller = await identity("org1", "controller", name);
   const admin1 = await identity("org1", "Admin", name);
-  const adminOwner = await identity(ownerOrg, "Admin", name);
+  const adminOwner = admin1;
   const relayer = await identity("org1", "relayer", name);
   const operator = new RegistryOperator(controller.client, {
-    Org1MSP: admin1.client,
-    [ORG[ownerOrg].msp]: adminOwner.client,
+    AgritraceMSP: admin1.client,
   });
   const health = (await relayer.client.health()) as { governanceDigest: string; channelPolicy: unknown };
   if (!health.channelPolicy)
     await operator.apply(
       "CHANNEL_BOOTSTRAP",
       { channelId: name, strictB: true, allowLegacyV3Writes: false },
-      ["Org1MSP", ORG[ownerOrg].msp],
+      ["AgritraceMSP"],
     );
   return {
     name, ownerOrg,
@@ -153,11 +148,11 @@ interface Binding { tuple: BindingTuple; digest: string; permissionRef: string }
 async function registerBinding(channel: Channel, options: { fingerprint?: string } = {}): Promise<Binding> {
   const tuple: BindingTuple = {
     network: "agritrace-hybrid-local", channelId: channel.name, chaincodeName: CHAINCODE, contractName: CONTRACT,
-    chainRef: u(), envelopeVersion: "4.0.0", writerAuthority: AUTHORITY, writerMspId: "Org1MSP", writerRole: "relayer",
+    chainRef: u(), envelopeVersion: "4.0.0", writerAuthority: AUTHORITY, writerMspId: "AgritraceMSP", writerRole: "relayer",
     governanceDigest: channel.governanceDigest,
   };
   const digest = bindingDigest(tuple);
-  const both = ["Org1MSP", ORG[channel.ownerOrg].msp];
+  const both = ["AgritraceMSP"];
   await channel.operator.apply("BINDING_REGISTER", { binding: tuple, bindingDigest: digest }, both);
   await channel.operator.apply(
     "CREDENTIAL_APPROVE",
@@ -170,7 +165,7 @@ async function grant(channel: Channel, binding: Binding, ref: string, epoch = "1
   return channel.operator.apply(
     "PERMISSION_GRANT",
     { permissionRef: ref, bindingDigest: binding.digest, epoch, entityTypes },
-    ["Org1MSP"],
+    ["AgritraceMSP"],
     revision,
   );
 }
@@ -213,7 +208,7 @@ type Signer = ReturnType<typeof newSigner>;
 async function registerKey(channel: Channel, binding: Binding, signer: Signer, keyRef = u(), orgRef = u()) {
   const fields = { bindingDigest: binding.digest, keyRef, orgRef, algorithm: "Ed25519" as const, publicKey: signer.publicKey };
   const payload = { ...fields, popSignature: signer.sign(keyPopMessage(fields)) };
-  await channel.operator.apply("SIGNING_KEY_REGISTER", payload, ["Org1MSP", ORG[channel.ownerOrg].msp]);
+  await channel.operator.apply("SIGNING_KEY_REGISTER", payload, ["AgritraceMSP"]);
   return { keyRef, orgRef };
 }
 
@@ -282,17 +277,18 @@ async function releaseC(b: Channel, s: Channel) {
   const signer = newSigner();
   const { keyRef, orgRef } = await registerKey(b, bind, signer);
 
-  await check("AC-14", "a key registers only with proof of possession and the writer and owner approvals", async () => {
+  await check("AC-14", "a key registers only with proof of possession and platform registry approval", async () => {
     const stranger = newSigner();
     const fields = { bindingDigest: bind.digest, keyRef: u(), orgRef: u(), algorithm: "Ed25519" as const, publicKey: stranger.publicKey };
     const copied = { ...fields, popSignature: signer.sign(keyPopMessage(fields)) };
     const fail = await failure(() => b.operator.propose("SIGNING_KEY_REGISTER", copied));
     if (!/SIGNATURE_INVALID/.test(fail.message)) throw new Error(fail.message.slice(0, 200));
     const proposal = await b.operator.propose("SIGNING_KEY_REGISTER", { ...fields, popSignature: stranger.sign(keyPopMessage(fields)) });
-    await b.operator.approve(proposal, "Org1MSP");
     expectChaincode(await failure(() => b.operator.execute(proposal)), "APPROVALS_MISSING");
-    const registered = (await b.relayer.getRegistrySigningKey(bind.digest, keyRef)) as { status: string; orgRef: string };
-    if (registered.status !== "ACTIVE" || registered.orgRef !== orgRef) throw new Error(JSON.stringify(registered));
+    await b.operator.approve(proposal, "AgritraceMSP");
+    await b.operator.execute(proposal);
+    const registered = (await b.relayer.getRegistrySigningKey(bind.digest, fields.keyRef)) as { status: string; orgRef: string };
+    if (registered.status !== "ACTIVE" || registered.orgRef !== fields.orgRef) throw new Error(JSON.stringify(registered));
   });
   await check("AC-14", "a signed handover event commits with the signature verified on the ledger", async () => {
     const built = signedEventFor(bind, signer, keyRef);
@@ -352,22 +348,23 @@ async function releaseC(b: Channel, s: Channel) {
     expectChaincode(await failure(() => sendSigned(b, second)), "SIGNATURE_REPLAY");
     expectChaincode(await failure(() => sendSigned(b, first)), "DUPLICATE_EVENT");
   });
-  await check("AC-14", "the owner peer must endorse signed events on its channel", async () => {
-    const fail = await failure(() => sendSigned(b, signedEventFor(bind, signer, keyRef), "0", ["Org1MSP"]));
-    if (fail.kind !== "COMMIT_INVALID" || fail.validationCode !== "ENDORSEMENT_POLICY_FAILURE")
-      throw new Error(`${fail.kind}/${fail.validationCode}`);
+  await check("AC-14", "the platform peer alone endorses an enterprise-signed event on the shared channel", async () => {
+    const built = signedEventFor(bind, signer, keyRef);
+    await sendSigned(b, built, "0", ["AgritraceMSP"]);
+    const proof = (await b.relayer.getBindingProof(bind.tuple.chainRef, built.event.eventId)) as { signature?: { orgRef: string }; dataHash: string };
+    if (proof.signature?.orgRef !== orgRef || proof.dataHash !== built.event.dataHash) throw new Error("signed platform proof mismatch");
   });
   await check("AC-22", "a revoked key refuses even an event whose time claims it was signed earlier", async () => {
     const queued = signedEventFor(bind, signer, keyRef);
     queued.event.eventTime = "2020-01-01T00:00:00.000Z";
     const refreshed = { ...queued.event };
     refreshed.dataHash = signedBindingEventCommitment(refreshed);
-    await b.operator.apply("SIGNING_KEY_REVOKE", { bindingDigest: bind.digest, keyRef }, ["Org2MSP"], "1");
+    await b.operator.apply("SIGNING_KEY_REVOKE", { bindingDigest: bind.digest, keyRef }, ["AgritraceMSP"], "1");
     expectChaincode(await failure(() => sendSigned(b, { ...queued, event: refreshed })), "SIGNING_KEY_INACTIVE");
     const state = (await b.relayer.getRegistrySigningKey(bind.digest, keyRef)) as { status: string };
     if (state.status !== "REVOKED") throw new Error(state.status);
   });
-  await check("AC-14", "the self-managed channel enforces the same signature rules with its own owner approval", async () => {
+  await check("AC-14", "a second binding on the shared channel enforces the same organization signature rules", async () => {
     const bindS = await registerBinding(s);
     await grant(s, bindS, bindS.permissionRef);
     const signerS = newSigner();
@@ -381,8 +378,8 @@ async function releaseC(b: Channel, s: Channel) {
 }
 
 async function main() {
-  const b = await openChannel("hybrid-b", "org2");
-  const s = await openChannel("hybrid-self", "org3");
+  const b = await openChannel("agritrace", "org1");
+  const s = await openChannel("agritrace", "org1");
 
   // ---------------------------------------------------------------- AC-09
   const bindB = await registerBinding(b);
@@ -396,25 +393,25 @@ async function main() {
     await send(b, eb);
     await send(s, es);
     const proof = (await b.relayer.getBindingProof(bindB.tuple.chainRef, eb.eventId)) as { dataHash: string; channelId: string };
-    if (proof.dataHash !== eb.dataHash || proof.channelId !== "hybrid-b") throw new Error("proof mismatch");
+    if (proof.dataHash !== eb.dataHash || proof.channelId !== "agritrace") throw new Error("proof mismatch");
     return `tx on ${proof.channelId}`;
   });
-  await check("AC-09", "a binding digest from another channel is unknown here (hash right, route wrong)", async () => {
-    expectChaincode(await failure(() => send(s, eventFor(bindB))), "BINDING_UNKNOWN");
-    expectChaincode(await failure(() => send(b, eventFor(bindS))), "BINDING_UNKNOWN");
+  await check("AC-09", "a binding digest cannot be paired with another chain on the shared channel", async () => {
+    expectChaincode(await failure(() => send(s, eventFor(bindB, { chainRef: bindS.tuple.chainRef }))), "BINDING_MISMATCH");
+    expectChaincode(await failure(() => send(b, eventFor(bindS, { chainRef: bindB.tuple.chainRef }))), "BINDING_MISMATCH");
   });
   await check("AC-09", "a binding cannot be registered for a different channel than the one invoked", async () => {
-    const tuple = { ...bindS.tuple, chainRef: u() };
+    const tuple = { ...bindS.tuple, channelId: "unreviewed-channel", chainRef: u() };
     const fail = await failure(() =>
       b.operator.propose("BINDING_REGISTER", { binding: tuple, bindingDigest: bindingDigest(tuple) }),
     );
     if (!/reviewed governance/.test(fail.message)) throw new Error(fail.message.slice(0, 200));
   });
-  await check("AC-09", "events of one chain are invisible to the other channel's ledger", async () => {
+  await check("AC-09", "shared-channel readers observe the same public commitment in its chain namespace", async () => {
     const e = eventFor(bindB);
     await send(b, e);
-    const fail = await failure(() => s.relayer.getBindingProof(bindB.tuple.chainRef, e.eventId));
-    if (!/NOT_FOUND|does not exist/.test(fail.message)) throw new Error(fail.message.slice(0, 200));
+    const proof = (await s.relayer.getBindingProof(bindB.tuple.chainRef, e.eventId)) as { dataHash: string; bindingDigest: string; channelId: string };
+    if (proof.dataHash !== e.dataHash || proof.bindingDigest !== bindB.digest || proof.channelId !== "agritrace") throw new Error("shared-channel proof mismatch");
   });
 
   // ---------------------------------------------------------------- AC-11
@@ -429,40 +426,28 @@ async function main() {
     const fail = await failure(() => b.relayer.prepare("RecordTraceEvent", [legacy]).endorse());
     if (!/does not exist|RecordTraceEvent/.test(fail.message)) throw new Error(fail.message.slice(0, 200));
   });
-  await check("AC-11", "missing endorsement of the owner peer never commits VALID (hosted owner)", async () => {
-    const fail = await failure(() => send(b, eventFor(bindB), "0", b.relayer, ["Org1MSP"]));
-    if (fail.kind !== "COMMIT_INVALID" || fail.validationCode !== "ENDORSEMENT_POLICY_FAILURE")
-      throw new Error(`${fail.kind}/${fail.validationCode} ${fail.message.slice(0, 160)}`);
-    return `${fail.kind}/${fail.validationCode}`;
+  await check("AC-11", "the platform peer alone endorses events for distinct chain bindings", async () => {
+    for (const [channel, bind] of [[b, bindB], [s, bindS]] as const) {
+      const e = eventFor(bind);
+      await send(channel, e, "0", channel.relayer, ["AgritraceMSP"]);
+      const proof = await channel.relayer.getBindingProof(bind.tuple.chainRef, e.eventId) as { dataHash: string; channelId: string };
+      if (proof.dataHash !== e.dataHash || proof.channelId !== "agritrace") throw new Error("platform proof mismatch");
+    }
   });
-  await check("AC-11", "self-managed peer endorsement is required on its channel and is given when asked", async () => {
-    const fail = await failure(() => send(s, eventFor(bindS), "0", s.relayer, ["Org1MSP"]));
-    if (fail.kind !== "COMMIT_INVALID" || fail.validationCode !== "ENDORSEMENT_POLICY_FAILURE")
-      throw new Error(`${fail.kind}/${fail.validationCode}`);
-    await send(s, eventFor(bindS), "0", s.relayer, ["Org1MSP", "Org3MSP"]);
-    return `${fail.kind}/${fail.validationCode}`;
+  await check("AC-11", "a platform admin cannot impersonate the technical relayer", async () => {
+    const admin = await identity("org1", "Admin", "agritrace");
+    expectChaincode(await failure(() => send(s, eventFor(bindS), "0", admin.client)), "UNAUTHORIZED_RELAYER");
   });
-  await check("AC-11", "the self-managed peer queries and holds the same committed state", async () => {
-    const e = eventFor(bindS);
-    await send(s, e);
-    const ownerView = await identity("org3", "Admin", "hybrid-self");
-    await new Promise((r) => setTimeout(r, 2000));
-    const proof = (await ownerView.client.getBindingProof(bindS.tuple.chainRef, e.eventId)) as { dataHash: string };
-    if (proof.dataHash !== e.dataHash) throw new Error("owner peer disagrees");
+  await check("AC-12", "distinct chains share the channel without sharing a binding or proof namespace", async () => {
+    if (bindB.digest === bindS.digest || bindB.tuple.chainRef === bindS.tuple.chainRef) throw new Error("bindings collided");
+    const e = eventFor(bindB);
+    await send(b, e);
+    const missing = await failure(() => s.relayer.getBindingProof(bindS.tuple.chainRef, e.eventId));
+    expectChaincode(missing, "NOT_FOUND");
   });
-  await check("AC-11", "a wrong-MSP or foreign relayer certificate is not an approved credential", async () => {
-    // The owner admin identity (Org3) is neither the writer MSP nor a relayer.
-    const foreign = await identity("org3", "Admin", "hybrid-self");
-    expectChaincode(await failure(() => send(s, eventFor(bindS), "0", foreign.client)), "UNAUTHORIZED_RELAYER");
-  });
-
-  // ---------------------------------------------------------------- AC-12
-  await check("AC-12", "the Org3 peer holds no hybrid-b ledger and Org2 none of hybrid-self", async () => {
-    const org3OnB = await identity("org3", "Admin", "hybrid-b");
-    const org2OnSelf = await identity("org2", "Admin", "hybrid-self");
-    const f1 = await failure(() => org3OnB.client.health());
-    const f2 = await failure(() => org2OnSelf.client.health());
-    return `org3→b: ${f1.kind}; org2→self: ${f2.kind}`;
+  await check("AC-12", "one chain cannot borrow the other chain's permission on the shared channel", async () => {
+    expectChaincode(await failure(() => send(b, eventFor(bindB, { ref: bindS.permissionRef }))), "PERMISSION_INACTIVE");
+    expectChaincode(await failure(() => send(s, eventFor(bindS, { ref: bindB.permissionRef }))), "PERMISSION_INACTIVE");
   });
   await check("AC-12", "the public ledger record holds only reviewed fields (no business data or actor)", async () => {
     const e = eventFor(bindB);
@@ -479,7 +464,7 @@ async function main() {
   });
 
   // ---------------------------------------------------------------- AC-13
-  await check("AC-13", "private keys of the self-managed owner stay out of the AgriTrace export", async () => {
+  await check("AC-13", "CA and orderer private keys stay out of the Worker export", async () => {
     // Export this instance into its own isolated root; a missing, unreadable or
     // stale export is a failure, never a pass. Key bytes are compared, not logged.
     const exportDir = path.join(ROOT, `acceptance-export-${randomUUID()}`);
@@ -488,7 +473,7 @@ async function main() {
         ? spawnSync("wsl", ["-d", process.env.HYBRID_WSL_DISTRO ?? "Ubuntu", "--exec", "bash", SCRIPT, "export", wslPath(exportDir)], { encoding: "utf8" })
         : spawnSync("bash", [SCRIPT, "export", exportDir], { encoding: "utf8" });
       if (run.status !== 0) throw new Error(`export failed with status ${run.status}`);
-      return verifyExport(exportDir, orgDir("org3"));
+      return verifyExport(exportDir, path.join(ROOT, "net/organizations/ordererOrganizations/example.com"));
     } finally {
       rmSync(exportDir, { recursive: true, force: true });
     }
@@ -498,12 +483,12 @@ async function main() {
     : spawnSync('bash', [SCRIPT, 'rotate-relayer', 'r2'], { encoding: 'utf8' });
   await check("AC-13", "a rotated certificate of the same authority is rejected until governance approves it", async () => {
     if (r2Run.status !== 0) throw new Error(`rotation failed: ${r2Run.stderr?.slice(0, 200)}`);
-    const rotated = await identity("org1", "relayer-r2", "hybrid-b");
+    const rotated = await identity("org1", "relayer-r2", "agritrace");
     expectChaincode(await failure(() => send(b, eventFor(bindB), "0", rotated.client)), "UNAUTHORIZED_RELAYER");
-    // Approve the new certificate with both MSPs, then retire the old one (either MSP may revoke).
-    await b.operator.apply("CREDENTIAL_APPROVE", { bindingDigest: bindB.digest, authority: AUTHORITY, certFingerprint: rotated.fingerprint }, ["Org1MSP", "Org2MSP"]);
+    // Approve the new certificate with the platform registry admin, then retire the old one (the registry admin may revoke).
+    await b.operator.apply("CREDENTIAL_APPROVE", { bindingDigest: bindB.digest, authority: AUTHORITY, certFingerprint: rotated.fingerprint }, ["AgritraceMSP"]);
     await send(b, eventFor(bindB), "0", rotated.client);
-    await b.operator.apply("CREDENTIAL_REVOKE", { bindingDigest: bindB.digest, authority: AUTHORITY, certFingerprint: b.relayerFingerprint }, ["Org2MSP"], "1");
+    await b.operator.apply("CREDENTIAL_REVOKE", { bindingDigest: bindB.digest, authority: AUTHORITY, certFingerprint: b.relayerFingerprint }, ["AgritraceMSP"], "1");
     expectChaincode(await failure(() => send(b, eventFor(bindB))), "UNAUTHORIZED_RELAYER");
     await send(b, eventFor(bindB), "0", rotated.client);
   });
@@ -514,11 +499,11 @@ async function main() {
   });
   const permB = { ...bindB, permissionRef: u() };
   await grant(b, permB, permB.permissionRef);
-  const rotatedB = await identity("org1", "relayer-r2", "hybrid-b");
+  const rotatedB = await identity("org1", "relayer-r2", "agritrace");
   const writeB = (event: BindingEventInput, generation = "0") => send(b, event, generation, rotatedB.client);
   await check("AC-20", "normal revoke: a transaction endorsed before the revoke is invalidated by MVCC", async () => {
     const pre = await rotatedB.client.recordBindingEvent(JSON.stringify(eventFor(permB)), JSON.stringify({ generation: "0" })).endorse();
-    await b.operator.apply("PERMISSION_REVOKE", { permissionRef: permB.permissionRef, epoch: "1" }, ["Org1MSP"], "1");
+    await b.operator.apply("PERMISSION_REVOKE", { permissionRef: permB.permissionRef, epoch: "1" }, ["AgritraceMSP"], "1");
     const outcome = await pre.submit();
     if (outcome.successful || outcome.status !== "MVCC_READ_CONFLICT") throw new Error(`expected MVCC_READ_CONFLICT, got ${outcome.status}`);
     expectChaincode(await failure(() => writeB(eventFor(permB))), "PERMISSION_INACTIVE");
@@ -530,7 +515,7 @@ async function main() {
     await writeB(eventFor(permB, { epoch: "2" }));
   });
   await check("AC-20", "emergency revoke needs only one governed MSP and marks the permission for review", async () => {
-    const result = await b.operator.apply("PERMISSION_EMERGENCY_REVOKE", { permissionRef: permB.permissionRef, epoch: "2" }, ["Org2MSP"], "3");
+    const result = await b.operator.apply("PERMISSION_EMERGENCY_REVOKE", { permissionRef: permB.permissionRef, epoch: "2" }, ["AgritraceMSP"], "3");
     const state = (await b.relayer.getRegistryPermission(permB.permissionRef)) as { status: string; reviewRequired: boolean };
     if (state.status !== "REVOKED" || !state.reviewRequired) throw new Error(JSON.stringify(state));
     expectChaincode(await failure(() => writeB(eventFor(permB, { epoch: "2" }))), "PERMISSION_INACTIVE");
@@ -542,13 +527,13 @@ async function main() {
     const e = eventFor(bindS);
     const stale = await s.relayer.recordBindingEvent(JSON.stringify(e), JSON.stringify({ generation: "0" })).endorse();
     const payload = { chainRef: bindS.tuple.chainRef, bindingDigest: bindS.digest, eventId: e.eventId, dataHash: e.dataHash };
-    const fenced = await s.operator.apply("FENCE_DELIVERY", payload, ["Org1MSP"]);
+    const fenced = await s.operator.apply("FENCE_DELIVERY", payload, ["AgritraceMSP"]);
     if ((fenced.result as { outcome?: string })?.outcome !== "FENCED") throw new Error(JSON.stringify(fenced.result));
     const outcome = await stale.submit();
     if (outcome.successful) throw new Error("stale attempt committed after the fence");
     expectChaincode(await failure(() => send(s, e, "0")), "DELIVERY_FENCED");
     await send(s, e, "1");
-    const again = await s.operator.apply("FENCE_DELIVERY", payload, ["Org1MSP"], "1");
+    const again = await s.operator.apply("FENCE_DELIVERY", payload, ["AgritraceMSP"], "1");
     if ((again.result as { outcome?: string })?.outcome !== "EVENT_COMMITTED") throw new Error(JSON.stringify(again.result));
     return `stale tx ${outcome.status}`;
   });
@@ -556,8 +541,8 @@ async function main() {
     const e = eventFor(bindS);
     const payload = { chainRef: bindS.tuple.chainRef, bindingDigest: bindS.digest, eventId: e.eventId, dataHash: e.dataHash };
     const nonce = u();
-    const first = await s.operator.apply("FENCE_DELIVERY", payload, ["Org1MSP"], "0", nonce);
-    const second = await s.operator.apply("FENCE_DELIVERY", payload, ["Org1MSP"], "0", nonce);
+    const first = await s.operator.apply("FENCE_DELIVERY", payload, ["AgritraceMSP"], "0", nonce);
+    const second = await s.operator.apply("FENCE_DELIVERY", payload, ["AgritraceMSP"], "0", nonce);
     if (first.proposalId !== second.proposalId || second.status !== "EXECUTED") throw new Error("not idempotent");
     const fence = (await s.relayer.getDeliveryFence(bindS.tuple.chainRef, e.eventId)) as { generation: string };
     if (fence.generation !== "1") throw new Error(`generation ${fence.generation}`);

@@ -139,7 +139,7 @@ export class ChainRecordDto {
   @ApiProperty({ type: String, nullable: true, format: 'date' }) plannedStartDate!: string | null;
   @ApiProperty({ type: String, nullable: true }) note!: string | null;
   @ApiProperty({ type: [String], format: 'uuid', required: false }) productIds?: string[];
-  @ApiProperty({ type: Boolean, description: 'Chuỗi riêng tạo khi kích hoạt doanh nghiệp sản xuất' }) personal!: boolean;
+  @ApiProperty({ type: Boolean, description: 'Free farm ledger created when the FARM capability takes effect (ADR-005)' }) personal!: boolean;
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
 }
@@ -176,9 +176,11 @@ export class LedgerWorkerObservationDto {
 }
 /** Trạng thái ledger của chuỗi. Không chứa endpoint, khóa hay descriptor quản trị. */
 export class LedgerStatusDto {
+  @ApiProperty({ enum: ['PREPARING', 'READY', 'NEEDS_ATTENTION'] })
+  preparationStatus!: string;
   @ApiProperty({ type: String, format: 'uuid' }) chainId!: string;
   @ApiProperty({
-    enum: ['UNBOUND', 'SERVICE', 'MANAGED_ORG', 'SELF_MANAGED_ORG'],
+    enum: ['UNBOUND', 'SERVICE'],
     description: 'UNBOUND: chuỗi chưa có binding nên chưa ghi được sự kiện',
   })
   profile!: string;
@@ -216,6 +218,8 @@ export class MemberRecordDto {
   status!: string;
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: Number }) invitationRevision!: number;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true, required: false, description: 'Owner stopped new handovers; suspension follows once the partner holds nothing (ADR-005)' })
+  closingAt?: string | null;
 }
 export class GrantRecordDto {
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;

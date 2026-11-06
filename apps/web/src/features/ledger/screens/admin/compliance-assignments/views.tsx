@@ -177,7 +177,7 @@ export function AssignmentCreate() {
                     options={users.data
                       .filter(
                         (u) =>
-                          u.role.code === "COMPLIANCE_REVIEWER" &&
+                          u.role.code === "AUDITOR" &&
                           u.accountStatus === "ACTIVE" &&
                           u.organization?.type === "AUDITOR",
                       )

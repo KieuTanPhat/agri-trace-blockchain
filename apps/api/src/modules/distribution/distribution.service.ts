@@ -1,3 +1,4 @@
+import { effectiveRole } from '../auth/role-codes.js';
 import { LOT_ORIGIN_INCLUDE, lotChainId, lotSiteId } from '../lots/lot-origin.js';
 import {
   ConflictException,
@@ -25,15 +26,19 @@ import { isPastExpiry } from '../../common/expiry-date.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import {
   verifyEd25519,
-  parseEd25519PublicKey,
 } from '../trace/signed-commitment.js';
 import { TraceService } from '../trace/trace.service.js';
 import { randomUUID } from 'node:crypto';
 import { activeSite, siteBalance, requireSiteStock, addSiteStock, internalInTransit, unslippedQuarantine, consumeQuarantineCase, type ReceiptLine } from './distribution-inventory.js';
 import { recordHandoverReceipt } from '../processing/processing-receipts.js';
 import { prepareC2,consumeC2 } from './distribution-c2.js';
+import { handoverPhotosDigest, ownPhotos, phaseSigned } from './handover-photos.js';
+import { requestDeviceKey } from './device-keys.js';
 import { BUSINESS_CAPABILITIES, lockChainScope } from '../supply-chains/chain-policy.js';
 import { requestLedgerGrant } from '../ledger/ledger-permissions.js';
+import { assertPartnerSlot } from '../supply-chains/chain-membership-rules.js';
+import { sealRoute } from '../iot/route-seal.js';
+import { transferRoute } from '../iot/route-read.js';
 import type {
   TransferInput,
   TransferSignature,
@@ -45,19 +50,17 @@ import type {
   SiteAllocationInput,
   QuarantineInput,
   ActualReceiptInput,
+  HandoverPhotosInput,
   ReturnInput,
   ReturnSignatureInput,
   DistributionC2Prepare, DistributionC2Submit,
   ConsentRenewInput,
   DistributionReportQuery,
-  PickupRequestInput,
-  PickupResolveInput,
 } from './dto.js';
 
-export const DISTRIBUTION_SIGNATURE_DOMAIN =
+const DISTRIBUTION_SIGNATURE_DOMAIN =
   'agritrace:distribution-attestation:1';
-export const DISTRIBUTION_KEY_DOMAIN = 'agritrace:distribution-key:1';
-export function distributionSnapshot(
+function distributionSnapshot(
   t: DistributionTransfer & { lines: DistributionLine[] },
 ) {
   return {
@@ -73,6 +76,7 @@ export function distributionSnapshot(
       transportMode: t.transportMode,
       transportDetails: t.transportDetails ?? null,
     } : {}),
+    ...(t.driverUserId ? { driverUserId: t.driverUserId } : {}),
     ...(t.plannedPickupAt ? {
       plannedPickupAt: t.plannedPickupAt.toISOString(),
       plannedDeliveryAt: t.plannedDeliveryAt?.toISOString() ?? null,
@@ -81,6 +85,7 @@ export function distributionSnapshot(
     ...(t.handoverMode === 'DUAL_SIGNED' ? {handoverMode:t.handoverMode} : {}),
     ...(t.attestationEpoch ? {attestationEpoch:t.attestationEpoch} : {}),
     ...(t.receiptDigest ? { receiptDigest: t.receiptDigest } : {}),
+    ...(t.photosDigest ? { photosDigest: t.photosDigest } : {}),
     ...(t.senderSiteId || t.carrierSiteId || t.receiverSiteId
       ? {
           senderSiteId: t.senderSiteId,
@@ -99,7 +104,7 @@ export function distributionSnapshot(
 }
 /** Distinct organizations that must sign one phase. When the sender or the
  * receiver also carries the goods, that organization signs once. */
-export function phaseParties(
+function phaseParties(
   t: Pick<DistributionTransfer, 'senderId' | 'carrierId' | 'receiverId'>,
   phase: string,
 ) {
@@ -111,7 +116,24 @@ export function phaseParties(
         : [t.carrierId, t.receiverId],
   )];
 }
-export const domainMessage = (domain: string, body: unknown) =>
+/** Self delivery with a named driver: the carrying side signs pickup and
+ * delivery (and attaches their photos) through that driver; the owner may
+ * stand in. Consent and transfers without a driver stay organization-level. */
+export function driverMaySign(
+  t: Pick<DistributionTransfer, 'carrierId' | 'driverUserId'>,
+  phase: string,
+  actor: CommandActor,
+  primary: boolean,
+) {
+  return (
+    !t.driverUserId ||
+    actor.organizationId !== t.carrierId ||
+    !['PICKUP', 'DELIVERY'].includes(phase) ||
+    primary ||
+    actor.sub === t.driverUserId
+  );
+}
+const domainMessage = (domain: string, body: unknown) =>
   Buffer.from(`${domain}\0${canonicalize(body)}`, 'utf8');
 const participantWhere = (organizationId: string) => ({
   OR: [
@@ -159,6 +181,25 @@ export class DistributionService {
         where: { organizationId: { in: ids }, status: 'ACTIVE', ...(!auth.primary ? {OR:[{organizationId:{not:actor.organizationId!}},{id:{in:auth.matching.flatMap(r=>r.siteIds)}}]}:{}) },
         select: { id: true, organizationId: true, name: true, kind: true },
         orderBy: { name: 'asc' },
+      }),
+      // Drivers of this organization; create re-checks drive and sign scope.
+      drivers: (await this.db.user.findMany({
+        where: {
+          organizationId: actor.organizationId!,
+          accountStatus: 'ACTIVE',
+          enterpriseRoles: { some: { role: { permissions: { has: 'distribution.drive' } } } },
+        },
+        select: { id: true, fullName: true, phone: true, enterpriseRoles: { include: { role: true } } },
+        orderBy: { fullName: 'asc' },
+      })).map((u) => {
+        const roles = u.enterpriseRoles.filter((r) => r.role.permissions.includes('distribution.drive'));
+        return {
+          id: u.id,
+          fullName: u.fullName,
+          phone: u.phone,
+          chainIds: [...new Set(roles.flatMap((r) => r.chainIds))],
+          siteIds: [...new Set(roles.flatMap((r) => r.siteIds))],
+        };
       }),
     };
   }
@@ -225,6 +266,39 @@ export class DistributionService {
       })),
     }));
   }
+  /** ADR-006 route read model; same participant/site scope as the transfer detail. */
+  async route(actor: CommandActor, id: string) {
+    const t = await this.db.distributionTransfer.findFirst({
+      where: {
+        id,
+        ...participantWhere(
+          actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
+        ),
+      },
+    });
+    if (!t) throw new NotFoundException('Không tìm thấy giao nhận');
+    const site =
+      t.senderId === actor.organizationId
+        ? t.senderSiteId
+        : t.carrierId === actor.organizationId
+          ? t.carrierSiteId
+          : t.receiverSiteId;
+    const membership = await this.db.chainMembership.findUnique({
+      where: { chainId_organizationId: { chainId: t.chainId, organizationId: actor.organizationId! } },
+    });
+    const authority = await enterpriseAuthority(
+      this.db,
+      actor,
+      'distribution.read',
+      membership?.status === 'ACTIVE' ? t.chainId : undefined,
+      site ?? undefined,
+    );
+    if (!authority.primary && !site)
+      throw new ForbiddenException(
+        'Giao nhận chưa có cơ sở được phân công cho nhân viên',
+      );
+    return { record: await transferRoute(this.db, t) };
+  }
   async detail(actor: CommandActor, id: string) {
     const t = await this.db.distributionTransfer.findFirst({
       where: {
@@ -259,18 +333,23 @@ export class DistributionService {
         'Giao nhận chưa có cơ sở được phân công cho nhân viên',
       );
     const has = (permission: string) => authority.primary || authority.user.enterpriseRoles.some(r => r.role.permissions.includes(permission) && r.chainIds.includes(t.chainId) && !!site && r.siteIds.includes(site));
-    const phases = ['CONSENT','PICKUP','DELIVERY'].filter(phase=>this.phaseAllowed(t,phase,actor.organizationId!));
+    const phases = ['CONSENT','PICKUP','DELIVERY'].filter(phase=>this.phaseAllowed(t,phase,actor.organizationId!) && driverMaySign(t,phase,actor,authority.primary));
     const signed = new Set(t.attestations.filter(a => a.organizationId === actor.organizationId && a.epoch===t.attestationEpoch).map(a => a.phase));
     const chain = await this.db.supplyChain.findUnique({ where: { id: t.chainId }, select: { name: true, ownerOrganizationId: true } });
     const roleGrants = await this.db.scopedRoleGrant.count({
       where: { chainId: t.chainId, organizationId: actor.organizationId!, revokedAt: null },
     });
+    // Photos of the open handover phase can be added until anyone signs it.
+    const photoPhase = t.status === 'READY' ? 'PICKUP' : t.status === 'IN_TRANSIT' ? 'DELIVERY' : null;
+    const canAttach = !!photoPhase && has('distribution.sign') && membership?.status === 'ACTIVE'
+      && phaseParties(t, photoPhase).includes(actor.organizationId!) && driverMaySign(t, photoPhase, actor, authority.primary) && !(await phaseSigned(this.db, id, photoPhase));
     const allowedActions = [
+      ...(canAttach ? [`PHOTOS_${photoPhase}`] : []),
       ...(authority.primary && membership?.status === 'INVITED' && t.status === 'PROPOSED' && actor.organizationId !== t.senderId ? ['JOIN_CHAIN'] : []),
       ...(has('distribution.sign') && membership?.status === 'ACTIVE' ? phases.filter(p => !signed.has(p)) : []),
       ...(has('distribution.sign') && t.receiverId === actor.organizationId && t.status === 'IN_TRANSIT' && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
       ...(has('distribution.write') && t.senderId === actor.organizationId && ['PROPOSED','READY'].includes(t.status) ? ['CANCEL'] : []),
-      ...(has('distribution.write') && t.transportMode === 'PLATFORM_CARRIER' && t.carrierId === actor.organizationId && t.status === 'IN_TRANSIT' ? ['OBSERVE'] : []),
+      ...(has('distribution.write') && t.transportMode !== 'EXTERNAL_CARRIER' && t.carrierId === actor.organizationId && t.status === 'IN_TRANSIT' ? ['OBSERVE'] : []),
       ...(has('distribution.write') && t.carrierId === actor.organizationId && t.status === 'DELIVERED' ? ['RETURN'] : []),
       ...(has('distribution.write') && ['PROPOSED','READY','IN_TRANSIT'].includes(t.status)?['RENEW_CONSENT']:[]),
     ];
@@ -285,6 +364,7 @@ export class DistributionService {
           ownerIsSender: chain?.ownerOrganizationId === t.senderId,
         },
         receipt: await this.db.distributionReceipt.findUnique({ where: { transferId: id } }),
+        photos: await this.db.distributionHandoverPhoto.findMany({ where: { transferId: id }, select: { phase: true, evidenceId: true, sha256: true, organizationId: true, createdAt: true }, orderBy: { createdAt: 'asc' } }),
         remainders: await this.db.distributionRemainder.findMany({ where: { transferId: id } }),
         returns: await Promise.all((await this.db.distributionReturn.findMany({ where: { transferId: id }, orderBy: { createdAt: 'asc' } })).map(async r => {
           const signatures = await this.db.distributionReturnSignature.findMany({ where: { returnId: r.id }, select: { organizationId: true } });
@@ -332,7 +412,10 @@ export class DistributionService {
       });
       const membership = org?.chainMemberships[0]?.status;
       // Partners join the lot's chain when they consent; a suspended or
-      // revoked membership is never revived by a transfer.
+      // revoked membership is never revived by a transfer, and a partner the
+      // owner is closing out receives no new handover (ADR-005).
+      if (org?.chainMemberships[0]?.closingAt)
+        throw new ForbiddenException('Chủ chuỗi đang ngừng hợp tác với đối tác này; không tạo giao nhận mới');
       const member =
         membership === 'ACTIVE' ||
         (mayJoin && (!membership || membership === 'INVITED'));
@@ -418,6 +501,7 @@ export class DistributionService {
       });
       if (!member || member.status !== 'INVITED')
         throw new ConflictException('Không có lời mời vào chuỗi đang chờ');
+      await assertPartnerSlot(tx, t.chainId, org);
       const active = await tx.chainMembership.update({
         where: { id: member.id },
         data: { status: 'ACTIVE', version: { increment: 1 }, updatedAt: new Date() },
@@ -425,12 +509,16 @@ export class DistributionService {
       await tx.chainAudit.create({
         data: { chainId: t.chainId, actorUserId: actor.sub!, operation: 'MEMBER_ACTIVE', subjectId: member.id, revision: active.version },
       });
-      const chain = await tx.supplyChain.findUniqueOrThrow({ where: { id: t.chainId } });
       const role = actor.role as keyof typeof BUSINESS_CAPABILITIES;
       const capability = BUSINESS_CAPABILITIES[role];
       let granted = false;
+      // Business roles follow a handover from any ACTIVE member of the lot's
+      // chain, so lots reach processors through traders too (ADR-005).
+      const senderActive = await tx.chainMembership.findFirst({
+        where: { chainId: t.chainId, organizationId: t.senderId, status: 'ACTIVE' },
+      });
       if (
-        chain.ownerOrganizationId === t.senderId &&
+        !!senderActive &&
         capability &&
         (await tx.organizationCapability.findFirst({ where: { organizationId: org, code: capability, revokedAt: null } })) &&
         !(await tx.scopedRoleGrant.findFirst({ where: { userId: actor.sub!, organizationId: org, chainId: t.chainId, role, revokedAt: null } }))
@@ -555,7 +643,7 @@ export class DistributionService {
           ? input.carrierId
           : mode === 'SELF_DELIVERY' || (mode === 'EXTERNAL_CARRIER' && input.externalHirer === 'SENDER')
             ? sender
-            : mode === 'RECEIVER_PICKUP' || (mode === 'EXTERNAL_CARRIER' && input.externalHirer === 'RECEIVER')
+            : mode === 'EXTERNAL_CARRIER' && input.externalHirer === 'RECEIVER'
               ? input.receiverId
               : undefined;
       if (!carrierId)
@@ -567,14 +655,36 @@ export class DistributionService {
           .map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])
           .filter(([, v]) => typeof v === 'string' && v),
       ) as Record<string, string>;
-      if (mode === 'PLATFORM_CARRIER' ? Object.keys(details).length > 0 : !!input.vehicleId)
+      // ADR-006: the carrying party may pick its own declared vehicle (GPS
+      // tracking); an external carrier has no vehicle on AgriTrace.
+      if (mode === 'PLATFORM_CARRIER' ? Object.keys(details).length > 0 : mode === 'EXTERNAL_CARRIER' && !!input.vehicleId)
         throw new UnprocessableEntityException(
-          mode === 'PLATFORM_CARRIER' ? 'Thông tin xe nhập tay chỉ dùng khi không qua đơn vị vận chuyển trên AgriTrace' : 'Chỉ chọn phương tiện đã khai khi dùng đơn vị vận chuyển trên AgriTrace',
+          mode === 'PLATFORM_CARRIER' ? 'Thông tin xe nhập tay chỉ dùng khi không qua đơn vị vận chuyển trên AgriTrace' : 'Xe thuê ngoài không chọn phương tiện đã khai',
         );
       if (mode === 'EXTERNAL_CARRIER' && !details.carrierName)
         throw new UnprocessableEntityException('Nhập tên đơn vị vận chuyển bên ngoài');
       if (mode !== 'EXTERNAL_CARRIER' && details.carrierName)
         throw new UnprocessableEntityException('Tên đơn vị vận chuyển chỉ dùng khi thuê đơn vị bên ngoài');
+      // Self delivery names one of the sender's employees as driver; the
+      // driver must be able to drive and sign on this chain and sender site.
+      if (mode !== 'SELF_DELIVERY' && input.driverUserId)
+        throw new UnprocessableEntityException('Chọn tài xế thành viên chỉ khi bên giao tự chở');
+      if (mode === 'SELF_DELIVERY') {
+        if (!input.driverUserId) throw new UnprocessableEntityException('Chọn tài xế là thành viên của doanh nghiệp');
+        const driver = await tx.user.findUnique({ where: { id: input.driverUserId }, include: { role: true, organization: { select: { type: true } } } });
+        if (!driver || driver.organizationId !== sender || driver.accountStatus !== 'ACTIVE')
+          throw new UnprocessableEntityException('Tài xế phải là thành viên đang hoạt động của doanh nghiệp');
+        const driverActor = { sub: driver.id, organizationId: sender, role: effectiveRole(driver) ?? '' };
+        try {
+          await enterpriseAuthority(tx, driverActor, 'distribution.drive', chainId, input.senderSiteId);
+          await enterpriseAuthority(tx, driverActor, 'distribution.sign', chainId, input.senderSiteId);
+        } catch {
+          throw new UnprocessableEntityException('Tài xế chưa có quyền Lái xe và Ký giao nhận ở chuỗi và cơ sở giao này');
+        }
+        details.driverName = driver.fullName;
+        if (driver.phone) details.driverPhone = driver.phone;
+        else delete details.driverPhone;
+      }
       const carrierSiteId = carrierId === sender ? input.senderSiteId : carrierId === input.receiverId ? input.receiverSiteId : input.carrierSiteId;
       const data = {
         chainId,
@@ -589,14 +699,8 @@ export class DistributionService {
         note: input.note,
         transportMode: mode,
         transportDetails: Object.keys(details).length ? details : Prisma.DbNull,
+        driverUserId: mode === 'SELF_DELIVERY' ? input.driverUserId : undefined,
       };
-      const request = input.pickupRequestId
-        ? (await tx.$queryRaw<{ id: string }[]>`SELECT id FROM distribution_pickup_request WHERE id=${input.pickupRequestId}::uuid FOR UPDATE`).length
-          ? await tx.distributionPickupRequest.findUnique({ where: { id: input.pickupRequestId } })
-          : null
-        : null;
-      if (input.pickupRequestId && (!request || request.status !== 'OPEN' || request.senderId !== sender || request.receiverId !== input.receiverId || mode !== 'RECEIVER_PICKUP'))
-        throw new ConflictException('Yêu cầu lấy hàng không còn mở hoặc không khớp bên nhận');
       const ledger = await tx.chainLedgerProfile.findUnique({
         where: { chainId },
       });
@@ -692,11 +796,6 @@ export class DistributionService {
       });
       for (const party of new Set([data.receiverId, carrierId].filter((x) => x !== sender)))
         await this.inviteForTransfer(tx, chainId, party, actor);
-      if (request)
-        await tx.distributionPickupRequest.update({
-          where: { id: request.id },
-          data: { status: 'ACCEPTED', transferId: transfer.id, version: { increment: 1 } },
-        });
       await this.events(tx, transfer, actor, 'DISTRIBUTION_PROPOSED', {
         transportMode: mode,
       });
@@ -727,60 +826,17 @@ export class DistributionService {
       });
   }
   async keys(actor: CommandActor) {
-    await enterpriseAuthority(this.db, actor, 'distribution.sign');
+    const auth = await enterpriseAuthority(this.db, actor, 'distribution.sign');
     return {
+      // Members see organization keys and their own device keys.
       items: await this.db.distributionKey.findMany({
-        where: { organizationId: actor.organizationId! },
+        where: { organizationId: actor.organizationId!, ...(auth.primary ? {} : { OR: [{ userId: null }, { userId: actor.sub! }] }) },
         orderBy: { createdAt: 'desc' },
       }),
     };
   }
-  registerKey(actor: CommandActor, input: TransferKeyInput) {
-    return commandTransaction(this.db, async (tx) => {
-      const auth = await enterpriseAuthority(
-        tx,
-        actor,
-        'roles.manage',
-        undefined,
-        undefined,
-        true,
-      );
-      if (!auth.primary)
-        throw new ForbiddenException(
-          'Chỉ tài khoản cấp 1 được đăng ký khóa doanh nghiệp',
-        );
-      try {
-        parseEd25519PublicKey(input.publicKey);
-      } catch {
-        throw new UnprocessableEntityException(
-          'Khóa công khai Ed25519 không hợp lệ',
-        );
-      }
-      if (
-        !verifyEd25519(
-          input.publicKey,
-          domainMessage(DISTRIBUTION_KEY_DOMAIN, {
-            id: input.id,
-            organizationId: actor.organizationId,
-            publicKey: input.publicKey,
-          }),
-          input.popSignature,
-        )
-      )
-        throw new UnprocessableEntityException(
-          'Bằng chứng sở hữu khóa không hợp lệ',
-        );
-      return {
-        record: await tx.distributionKey.create({
-          data: {
-            id: input.id,
-            organizationId: actor.organizationId!,
-            publicKey: input.publicKey,
-            label: input.label,
-          },
-        }),
-      };
-    });
+  requestDeviceKey(actor: CommandActor, input: TransferKeyInput) {
+    return commandTransaction(this.db, (tx) => requestDeviceKey(tx, actor, input));
   }
   revokeKey(actor: CommandActor, id: string) {
     return commandTransaction(this.db, async (tx) => {
@@ -793,6 +849,7 @@ export class DistributionService {
         true,
       );
       if (!auth.primary) throw new ForbiddenException();
+      // The primary account revokes any key of the organization, including a member's device key.
       const changed = await tx.distributionKey.updateMany({
         where: { id, organizationId: actor.organizationId!, status: 'ACTIVE' },
         data: { status: 'REVOKED' },
@@ -822,6 +879,7 @@ export class DistributionService {
       const r=input.phase==='RETURN'&&input.returnId?await tx.distributionReturn.findUnique({where:{id:input.returnId}}):undefined;
       if(input.phase==='RETURN' && (!r||r.transferId!==id||r.status!=='PROPOSED'||r.version!==input.version||![t.senderId,t.carrierId].includes(actor.organizationId!)))throw new ConflictException('Chặng trả không phù hợp');
       if(input.phase!=='RETURN' && (t.version!==input.version || !this.phaseAllowed(t,input.phase,actor.organizationId!)))throw new ConflictException('Trạng thái hoặc phiên bản bàn giao đã đổi');
+      if(!driverMaySign(t,input.phase,actor,auth.primary))throw new ForbiddenException('Chỉ tài xế được chỉ định hoặc chủ doanh nghiệp ký bước này');
       return prepareC2(tx,t,actor,auth.scope,input.phase,distributionSnapshot(t),input.keyRef,r??undefined);
     });
   }
@@ -880,6 +938,8 @@ export class DistributionService {
         throw new ConflictException(
           'Bước bàn giao không phù hợp trạng thái hoặc bên ký',
         );
+      if (!driverMaySign(t, input.phase, actor, auth.primary))
+        throw new ForbiddenException('Chỉ tài xế được chỉ định hoặc chủ doanh nghiệp ký bước này');
       if (input.phase === 'DELIVERY' && t.receiverSiteId && !t.receiptDigest)
         throw new ConflictException('Bên nhận cần lập biên bản thực nhận trước khi hai bên ký');
       const expiry = Date.parse(input.expiresAt);
@@ -894,11 +954,13 @@ export class DistributionService {
       await this.assets(tx, t);
       const consumed=c2?await consumeC2(tx,t,actor,auth.scope,c2,distributionSnapshot(t)):undefined;
       if(consumed?.length)input={...input,keyRef:consumed[0].intent.keyRef,expiresAt:consumed[0].intent.expiresAt.toISOString(),signature:consumed[0].intent.signature!};
+      // A personal device key signs only for its owner.
       const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({
         where: {
           id: input.keyRef,
           organizationId: actor.organizationId!,
           status: 'ACTIVE',
+          OR: [{ userId: null }, { userId: actor.sub! }],
         },
       });
       if (!key)
@@ -935,7 +997,7 @@ export class DistributionService {
       for (const a of t.attestations.filter(a=>a.epoch===t.attestationEpoch)) {
         const old = await tx.user.findUnique({
           where: { id: a.userId },
-          include: { role: true },
+          include: { role: true, organization: { select: { type: true } } },
         });
         if (!old || old.accountStatus !== 'ACTIVE')
           throw new ForbiddenException(
@@ -952,7 +1014,7 @@ export class DistributionService {
           {
             sub: old.id,
             organizationId: old.organizationId,
-            role: old.role.code,
+            role: effectiveRole(old) ?? '',
           },
           'distribution.sign',
           t.chainId,
@@ -987,8 +1049,17 @@ export class DistributionService {
       let status = t.status;
       const required = phaseParties(t, input.phase).length;
       if (input.phase === 'CONSENT' && phaseCount === required && t.status==='PROPOSED') status = 'READY';
+      const transition: { inTransitAt?: Date; deliveredAt?: Date } = {};
+      let routeSeal: Prisma.InputJsonObject | undefined;
       if (input.phase === 'PICKUP' && phaseCount === required) {
+        // GPS binding takes this lock too, so a concurrent rebind completes
+        // before pickup or observes IN_TRANSIT and is refused.
+        if (t.vehicleId) await tx.$queryRaw`SELECT id FROM enterprise_vehicle WHERE id=${t.vehicleId}::uuid FOR UPDATE`;
         status = 'IN_TRANSIT';
+        transition.inTransitAt = new Date();
+        // ADR-006: one moving transfer per vehicle (backed by a partial unique index).
+        if (t.vehicleId && await tx.distributionTransfer.count({ where: { vehicleId: t.vehicleId, status: 'IN_TRANSIT', inTransitAt: { not: null }, id: { not: id } } }))
+          throw new ConflictException('Xe đang chở một phiếu khác; hoàn tất phiếu đó trước khi lấy hàng');
         for (const l of t.lines) {
           if (t.senderSiteId) await tx.lotSiteHolding.update({ where: { lotId_organizationId_siteId: { lotId: l.lotId, organizationId: t.senderId, siteId: t.senderSiteId } }, data: { quantity: { decrement: l.quantity }, reserved: { decrement: l.quantity }, version: { increment: 1 } } });
           await tx.lotHolding.update({
@@ -1008,6 +1079,9 @@ export class DistributionService {
       }
       if (input.phase === 'DELIVERY' && phaseCount === required) {
         status = 'DELIVERED';
+        transition.deliveredAt = new Date();
+        // The c2 path commits a payload that was signed before; it is not extended.
+        if (!consumed) routeSeal = await sealRoute(tx, t, transition.deliveredAt);
         const receipt = await tx.distributionReceipt.findUnique({ where: { transferId: id } });
         const receiptLines = receipt?.lines as ReceiptLine[] | undefined;
         for (const l of t.lines) {
@@ -1043,7 +1117,7 @@ export class DistributionService {
       }
       const updated = await tx.distributionTransfer.update({
         where: { id },
-        data: { status, version: { increment: 1 } },
+        data: { status, version: { increment: 1 }, ...transition },
         include: { lines: true },
       });
       if(consumed)for(const row of consumed)await this.trace.createInTransaction(tx,{entityType:'LOT',entityId:row.lotId,lotId:row.lotId,eventId:row.intent.eventId,eventType:row.intent.eventType,actor,businessData:row.payload,signature:{intentId:row.intent.id}});
@@ -1059,6 +1133,7 @@ export class DistributionService {
           attestationDigest: canonicalSha256(body),
           signatureCommitment,
           signerOrganizationId: actor.organizationId!,
+          ...(routeSeal ? { routeSeal } : {}),
         },
       );
       return { record: updated };
@@ -1118,10 +1193,10 @@ export class DistributionService {
         !t ||
         t.carrierId !== actor.organizationId ||
         t.status !== 'IN_TRANSIT' ||
-        t.transportMode !== 'PLATFORM_CARRIER'
+        t.transportMode === 'EXTERNAL_CARRIER'
       )
         throw new ForbiddenException(
-          'Chỉ đơn vị vận chuyển trên AgriTrace ghi nhật ký khi đang vận chuyển',
+          'Chỉ bên chở hàng trên AgriTrace ghi nhật ký khi đang vận chuyển',
         );
       const time = new Date(input.eventTime);
       if (time.getTime() > Date.now() + 60_000 || time < t.createdAt)
@@ -1132,14 +1207,12 @@ export class DistributionService {
           organizationId: actor.organizationId!,
           eventTime: time,
           note: input.note,
-          temperature: input.temperature,
         },
       });
       await this.events(tx, t, actor, 'DISTRIBUTION_OBSERVED', {
         observationId: observation.id,
         eventTime: time.toISOString(),
         note: input.note,
-        temperature: input.temperature ?? null,
         source: 'MANUAL',
       });
       return { record: observation };
@@ -1152,21 +1225,56 @@ export class DistributionService {
         where: { id: input.lotId },
         include: LOT_ORIGIN_INCLUDE,
       });
-      if (!lot || lot.farmOrgId !== actor.organizationId)
+      if (!lot) throw new NotFoundException('Không tìm thấy lô');
+      const chainId = lotChainId(lot);
+      const chain = chainId
+        ? await tx.supplyChain.findUnique({ where: { id: chainId }, select: { ownerOrganizationId: true, personal: true } })
+        : null;
+      const org = actor.organizationId!;
+      const owner = chain?.ownerOrganizationId === org;
+      // ADR-005: the chain owner triggers a public recall; the producer of a
+      // farm-ledger lot keeps that duty for its own lots (food safety). Others
+      // who take part in the chain send a recall proposal to the owner.
+      if (input.kind === 'RECALL_PROPOSAL') {
+        const member = chainId
+          ? await tx.chainMembership.findUnique({ where: { chainId_organizationId: { chainId, organizationId: org } } })
+          : null;
+        if (owner || member?.status !== 'ACTIVE')
+          throw new ForbiddenException('Đề xuất thu hồi dành cho đối tác đang tham gia chuỗi của lô');
+        await enterpriseAuthority(tx, actor, 'distribution.write', chainId, undefined, true);
+        return { record: await tx.traceNotice.create({ data: { ...input, organizationId: org } }) };
+      }
+      if (input.kind === 'RECALL' ? !owner : !owner && lot.farmOrgId !== org)
         throw new ForbiddenException(
-          'Chỉ doanh nghiệp sản xuất lô nguồn được phát cảnh báo công khai',
+          input.kind === 'RECALL'
+            ? 'Chỉ chủ chuỗi của lô được phát động thu hồi; đối tác gửi đề xuất thu hồi'
+            : 'Chỉ chủ chuỗi hoặc doanh nghiệp sản xuất lô được phát cảnh báo công khai',
         );
       await enterpriseAuthority(
         tx,
         actor,
         'distribution.write',
-        lotChainId(lot),
-        lotSiteId(lot),
+        chainId,
+        owner ? undefined : lotSiteId(lot),
         true,
       );
       const notice = await tx.traceNotice.create({
-        data: { ...input, organizationId: actor.organizationId! },
+        data: { ...input, organizationId: org },
       });
+      if (input.kind === 'RECALL' && lot.processingRunId) {
+        // Cross-chain sources: tell each source chain owner by a proposal on
+        // the source lot; their own recall stays their decision.
+        const sources = await tx.processingCrossChainInput.findMany({ where: { runId: lot.processingRunId } });
+        for (const source of sources)
+          await tx.traceNotice.create({
+            data: {
+              lotId: source.lotId,
+              organizationId: org,
+              kind: 'RECALL_PROPOSAL',
+              message: `Lô thành phẩm ${lot.lotCode} dùng lô này làm nguyên liệu đã bị thu hồi: ${input.message}`.slice(0, 500),
+            },
+          });
+      }
       await this.trace.createInTransaction(tx, {
         entityType: 'LOT',
         entityId: lot.id,
@@ -1202,9 +1310,11 @@ export class DistributionService {
       const cap = await tx.organizationCapability.findFirst({
         where: {
           organizationId: actor.organizationId!,
+          // Selling to consumers suits retailers and producers selling direct;
+          // any goods-owning holder may dispatch outside AgriTrace (ADR-005).
           code:
             input.kind === 'SALE'
-              ? 'RETAILER'
+              ? { in: ['RETAILER', 'FARM', 'PROCESSOR'] }
               : { in: ['FARM', 'PROCESSOR', 'DISTRIBUTOR', 'RETAILER'] },
           revokedAt: null,
         },
@@ -1214,6 +1324,11 @@ export class DistributionService {
           'Năng lực doanh nghiệp không phù hợp ghi giảm lượng này',
         );
       const qty = quantity(input.quantity);
+      if (input.kind === 'EXTERNAL_DISPATCH' && (!input.recipientName?.trim() || !input.documentNo?.trim()))
+        throw new UnprocessableEntityException('Ghi đơn vị nhận và số chứng từ khi xuất cho đơn vị ngoài hệ thống');
+      if (input.kind !== 'DAMAGE' && input.photos?.length) throw new UnprocessableEntityException('Chỉ báo hư hỏng mới kèm ảnh');
+      const photos = await ownPhotos(tx, actor.organizationId!, 'LOT', lot.id, 'DAMAGE_IMAGE', input.photos);
+      if (input.kind === 'DAMAGE' && !photos.length) throw new UnprocessableEntityException('Chụp ít nhất một ảnh hàng hư hỏng');
       if(input.fromQuarantine){
         if(input.kind!=='DAMAGE'||!input.siteId)throw new ConflictException('Chỉ ghi hư hỏng lượng cách ly tại cơ sở');
         await enterpriseAuthority(tx,actor,'quarantine.manage',lotChainId(lot),input.siteId);
@@ -1248,8 +1363,9 @@ export class DistributionService {
         );
       if (!(await quantityIsReconciled(tx, lot)))
         throw new ConflictException('Lô cần đối soát trước khi ghi giảm');
+      const outbound = input.kind !== 'DAMAGE';
       if (
-        input.kind === 'SALE' &&
+        outbound &&
         (isPastExpiry(lot.expiryDate) ||
           (await tx.traceNotice.findFirst({
             where: { lotId: lot.id, kind: 'RECALL' },
@@ -1275,6 +1391,10 @@ export class DistributionService {
           organizationId: actor.organizationId!,
           siteId: input.siteId ?? null,
           fromQuarantine: input.fromQuarantine??false,
+          ...(photos.length ? { photos } : {}),
+          ...(input.kind === 'EXTERNAL_DISPATCH'
+            ? { recipientName: input.recipientName!.trim(), documentNo: input.documentNo!.trim() }
+            : {}),
         },
       });
       await tx.lotHolding.update({
@@ -1293,7 +1413,7 @@ export class DistributionService {
           availableQuantity: after,
           version: { increment: 1 },
           ...(after.isZero()
-            ? { currentState: input.kind === 'SALE' ? 'SOLD' : 'DAMAGED' }
+            ? { currentState: outbound ? 'SOLD' : 'DAMAGED' }
             : {}),
         },
       });
@@ -1301,7 +1421,7 @@ export class DistributionService {
         data: {
           lotId: lot.id,
           eventId: event.id,
-          type: input.kind === 'SALE' ? 'SALE_OUT' : 'DAMAGE_OUT',
+          type: outbound ? 'SALE_OUT' : 'DAMAGE_OUT',
           quantity: qty,
           beforeQty: lot.availableQuantity,
           delta: qty.negated(),
@@ -1354,6 +1474,8 @@ export class DistributionService {
       const stock = await siteBalance(tx, lot.id, actor.organizationId!, input.siteId);
       if (!stock || lot.version !== input.version || lot.unit !== input.unit) throw new ConflictException('Tồn cơ sở hoặc phiên bản không khớp');
       const scope = { lotId: lot.id, organizationId: actor.organizationId!, siteId: input.siteId };
+      if (input.action !== 'HOLD' && input.photos?.length) throw new UnprocessableEntityException('Chỉ khi cách ly mới kèm ảnh');
+      const photos = await ownPhotos(tx, actor.organizationId!, 'LOT', lot.id, 'DAMAGE_IMAGE', input.photos);
       let slip: { id: string; code: string } | null = null;
       if (input.action === 'HOLD') {
         if (!input.cause) throw new UnprocessableEntityException('Chọn nguyên nhân cách ly');
@@ -1368,7 +1490,7 @@ export class DistributionService {
       if (input.action === 'HOLD')
         slip = await tx.quarantineCase.create({ data: { code: `CL-${randomUUID().slice(0, 12).toUpperCase()}`, ...scope, quantity: qty, unit: lot.unit, cause: input.cause!, reason: input.reason.trim(), note: input.note?.trim() || null, createdBy: actor.sub! } });
       await tx.lot.update({ where: { id: lot.id }, data: { version: { increment: 1 } } });
-      await this.trace.createInTransaction(tx, { entityType: 'LOT', entityId: lot.id, lotId: lot.id, eventType: 'DISTRIBUTION_QUARANTINE_RECORDED', actor, businessData: { siteId: input.siteId, action: input.action, quantity: qty.toFixed(3), reason: input.reason, ...(input.cause && input.action === 'HOLD' ? { cause: input.cause } : {}), ...(slip ? { quarantineCaseId: slip.id, code: slip.code } : {}) } });
+      await this.trace.createInTransaction(tx, { entityType: 'LOT', entityId: lot.id, lotId: lot.id, eventType: 'DISTRIBUTION_QUARANTINE_RECORDED', actor, businessData: { siteId: input.siteId, action: input.action, quantity: qty.toFixed(3), reason: input.reason, ...(input.cause && input.action === 'HOLD' ? { cause: input.cause } : {}), ...(slip ? { quarantineCaseId: slip.id, code: slip.code } : {}), ...(photos.length ? { photos } : {}) } });
       return { record: { ...updated, lotVersion: lot.version + 1, quarantineCase: slip } };
     });
   }
@@ -1387,11 +1509,43 @@ export class DistributionService {
         if (received.add(rejected).gt(l.quantity) || quarantined.gt(received)) throw new ConflictException('Thực nhận + từ chối vượt lượng giao hoặc cách ly vượt thực nhận');
         return { lotId: l.lotId, received: received.toFixed(3), rejected: rejected.toFixed(3), quarantined: quarantined.toFixed(3), missing: l.quantity.sub(received).sub(rejected).toFixed(3) };
       }).sort((a,b) => a.lotId.localeCompare(b.lotId));
-      const digest = canonicalSha256({ transferId: id, lines, reason: input.reason });
-      const record = await tx.distributionReceipt.create({ data: { transferId: id, organizationId: actor.organizationId!, lines, reason: input.reason, digest } });
+      // A shortfall, rejection or quarantine is shown with the receiver's photos;
+      // their hashes enter the receipt digest the delivery signatures cover.
+      const photos = await ownPhotos(tx, actor.organizationId!, 'TRANSFER', id, 'TRANSFER_IMAGE', input.photos);
+      if (!photos.length && lines.some(l => Number(l.missing) > 0 || Number(l.rejected) > 0 || Number(l.quarantined) > 0))
+        throw new UnprocessableEntityException('Chụp ít nhất một ảnh khi nhận thiếu, từ chối hoặc cách ly hàng');
+      const digest = canonicalSha256({ transferId: id, lines, reason: input.reason, ...(photos.length ? { photos } : {}) });
+      const record = await tx.distributionReceipt.create({ data: { transferId: id, organizationId: actor.organizationId!, lines, reason: input.reason, digest, photos } });
       await tx.distributionTransfer.update({ where: { id }, data: { receiptDigest: digest, version: { increment: 1 } } });
-      await this.events(tx, t, actor, 'DISTRIBUTION_RECEIPT_RECORDED', { receiptId: record.id, receiptDigest: digest });
+      await this.events(tx, t, actor, 'DISTRIBUTION_RECEIPT_RECORDED', { receiptId: record.id, receiptDigest: digest, ...(photos.length ? { photos } : {}) });
       return { record };
+    });
+  }
+  /** Pickup or delivery photos of a signing party. They are fixed before the
+   * phase is signed: the snapshot carries their digest, so every signature of
+   * the phase covers them, and the version bump voids earlier prepared intents. */
+  attachHandoverPhotos(actor: CommandActor, id: string, input: HandoverPhotosInput) {
+    return commandTransaction(this.db, async tx => {
+      await tx.$queryRaw`SELECT id FROM distribution_transfer WHERE id=${id}::uuid FOR UPDATE`;
+      const t = await tx.distributionTransfer.findUnique({ where: { id }, include: { lines: true, photos: true } });
+      const org = actor.organizationId!;
+      if (!t || ![t.senderId, t.carrierId, t.receiverId].includes(org)) throw new NotFoundException();
+      if (!phaseParties(t, input.phase).includes(org)) throw new ForbiddenException('Chỉ bên ký bước này gắn ảnh bàn giao');
+      const siteId = t.senderId === org && input.phase === 'PICKUP' ? t.senderSiteId : t.carrierId === org ? t.carrierSiteId : t.receiverSiteId;
+      const signer = await enterpriseAuthority(tx, actor, 'distribution.sign', t.chainId, siteId ?? undefined, true);
+      if (!driverMaySign(t, input.phase, actor, signer.primary))
+        throw new ForbiddenException('Chỉ tài xế được chỉ định hoặc chủ doanh nghiệp gắn ảnh bước này');
+      const open = input.phase === 'PICKUP' ? t.status === 'READY' : t.status === 'IN_TRANSIT';
+      if (!open || t.version !== input.version || await phaseSigned(tx, id, input.phase))
+        throw new ConflictException('Chỉ gắn ảnh trước khi bước bàn giao được ký; tải lại giao nhận');
+      const photos = await ownPhotos(tx, org, 'TRANSFER', id, 'TRANSFER_IMAGE', input.photos);
+      if (photos.some(p => t.photos.some(x => x.evidenceId === p.evidenceId))) throw new ConflictException('Ảnh đã được gắn vào chuyến hàng');
+      if (t.photos.filter(p => p.phase === input.phase).length + photos.length > 6) throw new ConflictException('Mỗi bước bàn giao có tối đa 6 ảnh');
+      await tx.distributionHandoverPhoto.createMany({ data: photos.map(p => ({ transferId: id, phase: input.phase, evidenceId: p.evidenceId, sha256: p.sha256, organizationId: org, createdBy: actor.sub! })) });
+      const photosDigest = handoverPhotosDigest(id, [...t.photos, ...photos.map(p => ({ ...p, phase: input.phase }))]);
+      const updated = await tx.distributionTransfer.update({ where: { id }, data: { photosDigest, version: { increment: 1 } } });
+      await this.events(tx, { ...t, photosDigest }, actor, 'DISTRIBUTION_PHOTOS_ATTACHED', { phase: input.phase, photos, photosDigest });
+      return { record: { id, version: updated.version, photosDigest } };
     });
   }
   proposeReturn(actor: CommandActor, id: string, input: ReturnInput) {
@@ -1428,15 +1582,15 @@ export class DistributionService {
       if((t.handoverMode==='DUAL_SIGNED')!==!!c2)throw new ConflictException('Chặng trả phải giữ giao thức chữ ký của chặng gốc');
       const consumed=c2?await consumeC2(tx,t,actor,auth.scope,c2,distributionSnapshot(t),r):undefined;
       if(consumed?.length)input={...input,keyRef:consumed[0].intent.keyRef,expiresAt:consumed[0].intent.expiresAt.toISOString(),signature:consumed[0].intent.signature!};
-      const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({ where: { id: input.keyRef, organizationId: actor.organizationId!, status: 'ACTIVE' } });
+      const key = consumed?.[0].intent.key ?? await tx.distributionKey.findFirst({ where: { id: input.keyRef, organizationId: actor.organizationId!, status: 'ACTIVE', OR: [{ userId: null }, { userId: actor.sub! }] } });
       const body = { returnId, transferId: t.id, digest: r.digest, organizationId: actor.organizationId, userId: actor.sub, keyRef: input.keyRef, version: String(input.version), expiresAt: input.expiresAt };
       const expiry = Date.parse(input.expiresAt);
       if (!key || expiry <= Date.now() || expiry > Date.now()+20*60_000 || (!c2 && !verifyEd25519(key.publicKey, domainMessage('agritrace:distribution-return:1',body),input.signature))) throw new ConflictException('Chữ ký trả hàng không hợp lệ hoặc đã hết hạn');
       const previous = await tx.distributionReturnSignature.findMany({ where: { returnId } });
       if (previous.some((p) => p.organizationId === actor.organizationId)) throw new ConflictException('Doanh nghiệp đã ký chặng trả này');
       for (const signature of previous) {
-        const user = await tx.user.findUniqueOrThrow({ where: { id: signature.userId }, include: { role: true } });
-        const authority = await enterpriseAuthority(tx, { sub: user.id, organizationId: user.organizationId, role: user.role.code }, 'distribution.sign', t.chainId, (user.organizationId === t.senderId ? t.senderSiteId : t.carrierSiteId) ?? undefined);
+        const user = await tx.user.findUniqueOrThrow({ where: { id: signature.userId }, include: { role: true, organization: { select: { type: true } } } });
+        const authority = await enterpriseAuthority(tx, { sub: user.id, organizationId: user.organizationId, role: effectiveRole(user) ?? '' }, 'distribution.sign', t.chainId, (user.organizationId === t.senderId ? t.senderSiteId : t.carrierSiteId) ?? undefined);
         const oldKey = t.handoverMode==='DUAL_SIGNED'?await tx.signingKey.findUnique({where:{keyRef:signature.keyRef}}):await tx.distributionKey.findUnique({ where: { id: signature.keyRef } });
         if (authority.scope !== (signature.authority as Prisma.JsonObject).scope || oldKey?.status !== 'ACTIVE') throw new ForbiddenException('Quyền hoặc khóa bên ký trả trước đã bị thay đổi');
       }
@@ -1461,78 +1615,6 @@ export class DistributionService {
       return { record: await tx.distributionReturn.findUniqueOrThrow({ where: { id: returnId } }) };
     });
   }
-  /** Pickup requests where this organization is either side. */
-  async pickupRequests(actor: CommandActor) {
-    await enterpriseAuthority(this.db, actor, 'distribution.read');
-    const rows = await this.db.distributionPickupRequest.findMany({
-      where: { OR: [{ senderId: actor.organizationId! }, { receiverId: actor.organizationId! }] },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
-    const orgs = await this.db.organization.findMany({
-      where: { id: { in: rows.flatMap((r) => [r.senderId, r.receiverId]) } },
-      select: { id: true, name: true },
-    });
-    return {
-      items: rows.map((r) => ({
-        ...r,
-        senderName: orgs.find((o) => o.id === r.senderId)?.name,
-        receiverName: orgs.find((o) => o.id === r.receiverId)?.name,
-        direction: r.senderId === actor.organizationId ? 'INCOMING' : 'OUTGOING',
-      })),
-    };
-  }
-  /** A receiver asks a linked partner to prepare goods it will collect itself. */
-  requestPickup(actor: CommandActor, input: PickupRequestInput) {
-    return commandTransaction(this.db, async (tx) => {
-      await enterpriseAuthority(tx, actor, 'distribution.write', undefined, undefined, true);
-      const receiver = actor.organizationId!;
-      if (input.senderId === receiver)
-        throw new UnprocessableEntityException('Chọn bên giao khác doanh nghiệp của bạn');
-      const partner = await tx.enterprisePartner.findFirst({
-        where: {
-          status: 'ACTIVE',
-          OR: [
-            { inviterId: receiver, inviteeId: input.senderId },
-            { inviterId: input.senderId, inviteeId: receiver },
-          ],
-        },
-      });
-      if (!partner)
-        throw new ForbiddenException('Hai doanh nghiệp phải liên kết đối tác trước khi yêu cầu lấy hàng');
-      const preferredPickupAt = input.preferredPickupAt
-        ? businessTimestamp(input.preferredPickupAt, 'Thời gian muốn lấy hàng', { allowFuture: true })
-        : null;
-      const record = await tx.distributionPickupRequest.create({
-        data: {
-          senderId: input.senderId,
-          receiverId: receiver,
-          requestedBy: actor.sub!,
-          preferredPickupAt,
-          note: input.note.trim(),
-        },
-      });
-      return { record };
-    });
-  }
-  /** The sender declines, or the receiver withdraws, an open pickup request. */
-  resolvePickup(actor: CommandActor, id: string, input: PickupResolveInput, outcome: 'DECLINED' | 'CANCELLED') {
-    return commandTransaction(this.db, async (tx) => {
-      await enterpriseAuthority(tx, actor, 'distribution.write', undefined, undefined, true);
-      await tx.$queryRaw`SELECT id FROM distribution_pickup_request WHERE id=${id}::uuid FOR UPDATE`;
-      const request = await tx.distributionPickupRequest.findUnique({ where: { id } });
-      const owner = outcome === 'DECLINED' ? request?.senderId : request?.receiverId;
-      if (!request || owner !== actor.organizationId)
-        throw new NotFoundException('Không tìm thấy yêu cầu lấy hàng');
-      if (request.status !== 'OPEN' || request.version !== input.version)
-        throw new ConflictException('Yêu cầu đã được xử lý hoặc đã thay đổi');
-      const record = await tx.distributionPickupRequest.update({
-        where: { id },
-        data: { status: outcome, resolutionNote: input.note?.trim() || null, version: { increment: 1 } },
-      });
-      return { record };
-    });
-  }
   /** Work waiting on this organization, filtered by the same scope as detail/report.
    * Counts are hints for navigation; each action is re-authorized on submit. */
   async tasks(actor: CommandActor) {
@@ -1554,7 +1636,7 @@ export class DistributionService {
         const has = (permission: string) => readable.primary || readable.user.enterpriseRoles.some(r => r.role.permissions.includes(permission) && r.chainIds.includes(t.chainId) && !!site && r.siteIds.includes(site));
         const signed = new Set(t.attestations.filter(a => a.organizationId === org && a.epoch === t.attestationEpoch).map(a => a.phase));
         const actions = [
-          ...(has('distribution.sign') ? ['CONSENT', 'PICKUP', 'DELIVERY'].filter(p => this.phaseAllowed(t, p, org) && !signed.has(p)) : []),
+          ...(has('distribution.sign') ? ['CONSENT', 'PICKUP', 'DELIVERY'].filter(p => this.phaseAllowed(t, p, org) && driverMaySign(t, p, actor, readable.primary) && !signed.has(p)) : []),
           ...(has('distribution.sign') && t.receiverId === org && t.status === 'IN_TRANSIT' && t.receiverSiteId && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
         ];
         if (t.status === 'DELIVERED' && [t.senderId, t.carrierId].includes(org)) {
@@ -1630,6 +1712,7 @@ export class DistributionService {
         },
         processingRun: { include: { chain: { select: { name: true } } } },
         traceQr: true,
+        organization: { select: { name: true } },
       },
       orderBy:{id:'asc'},
       ...(query.page?{skip:(query.page-1)*(query.pageSize??25),take:(query.pageSize??25)+1}:{}),
@@ -1670,6 +1753,10 @@ export class DistributionService {
           originType: l.originType,
           lotCode: l.lotCode,
           productName: l.product.productName,
+          productId: l.productId,
+          producerName: l.organization?.name ?? null,
+          privateLabel: l.product.privateLabel,
+          externalGoods: l.product.externalGoods,
           chainId: lotChainId(l),
           farmOrgId: l.farmOrgId,
           initialQuantity: l.initialQuantity.toFixed(3),

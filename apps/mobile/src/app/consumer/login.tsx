@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { BrandLogo } from '../../components/BrandLogo';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
@@ -33,7 +33,7 @@ export default function Login() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 24, paddingBottom: 32, gap: 16 }} keyboardShouldPersistTaps="handled">
         <IconButton name="back" label="Quay lại" onPress={() => (router.canGoBack() ? router.back() : router.replace('/consumer'))} style={{ marginLeft: -10 }} />
-        <Image source={require('../../../assets/brand/logo-agritrace.webp')} style={{ width: 170, height: 96, marginLeft: -8 }} contentFit="contain" accessibilityLabel="AgriTrace" />
+        <BrandLogo variant="consumer" maxWidth={270} align="start" />
         <View style={{ gap: 6 }}>
           <T size={32} weight="heavy">
             Chào mừng bạn!

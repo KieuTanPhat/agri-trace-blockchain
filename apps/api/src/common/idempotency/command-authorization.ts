@@ -7,6 +7,7 @@ import { isUUID } from 'class-validator';
 import { canonicalSha256 } from '../crypto/rfc8785.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { sessionFamilyWhere } from '../../modules/auth/session-family.js';
+import { effectiveRole } from '../../modules/auth/role-codes.js';
 import { authorizeChainCommand } from '../../modules/supply-chains/chain-policy.js';
 import {
   SHIPMENT_PLAN_OPERATIONS,
@@ -214,7 +215,7 @@ export async function authorizeCommand(
     !user ||
     user.accountStatus !== 'ACTIVE' ||
     (user.organizationId && user.organization?.status !== 'ACTIVE') ||
-    user.role.code !== actor.role ||
+    effectiveRole(user) !== actor.role ||
     user.organizationId !== actor.organizationId
   )
     throw new UnauthorizedException('Quyền tài khoản đã thay đổi');
@@ -268,12 +269,15 @@ export async function authorizeCommand(
     case 'PLATFORM_USER_RESET_PASSWORD':
     case 'PLATFORM_ORG_UPDATE':
     // Billing, organization/QR controls and platform configuration.
+    case 'PLATFORM_BILLING_PLAN_CREATE':
+    case 'PLATFORM_BILLING_PLAN_STATUS':
     case 'PLATFORM_BILLING_PLAN_DRAFT':
     case 'PLATFORM_BILLING_PLAN_PUBLISH':
     case 'PLATFORM_BILLING_CONFIRM_PAYMENT':
     case 'PLATFORM_BILLING_VOID_INVOICE':
     case 'PLATFORM_BILLING_ISSUE_RENEWAL':
     case 'PLATFORM_QR_BLOCK':
+    case 'PLATFORM_PRODUCT_REVIEW':
     case 'PLATFORM_QR_UNBLOCK':
     case 'PLATFORM_NOTICE_PUBLISH':
     case 'PLATFORM_NOTICE_WITHDRAW':
@@ -284,11 +288,8 @@ export async function authorizeCommand(
     case 'PLATFORM_REFERENCE_UPSERT':
       requireRole(actor, ['SYSTEM_ADMIN']);
       break;
-    case 'PLATFORM_TICKET_ASSIGN':
-    case 'PLATFORM_TICKET_REPLY':
-    case 'PLATFORM_TICKET_CLOSE':
     case 'PLATFORM_REPORT_TRIAGE':
-      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER']);
+      requireRole(actor, ['SYSTEM_ADMIN']);
       break;
     case 'PLATFORM_CASE_CREATE':
     case 'PLATFORM_CASE_CLASSIFY':
@@ -297,19 +298,15 @@ export async function authorizeCommand(
     case 'PLATFORM_CASE_NOTE':
     case 'PLATFORM_CASE_ESCALATE':
     case 'PLATFORM_CASE_CLOSE':
-      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_CASE_MANAGER']);
+      requireRole(actor, ['SYSTEM_ADMIN']);
       break;
     case 'PLATFORM_PRIVACY_BREACH_CREATE':
     case 'PLATFORM_PRIVACY_UPDATE':
-      requireRole(actor, ['SYSTEM_ADMIN', 'PLATFORM_PRIVACY_OFFICER']);
+      requireRole(actor, ['SYSTEM_ADMIN']);
       break;
     case 'PRIVACY_REQUEST_CREATE':
       requireRole(actor, [
         'SYSTEM_ADMIN',
-        'PLATFORM_OPERATOR',
-        'PLATFORM_CASE_MANAGER',
-        'PLATFORM_PRIVACY_OFFICER',
-        'COMPLIANCE_REVIEWER',
         'AUDITOR',
         'FARM_STAFF',
         'TRANSPORTER',

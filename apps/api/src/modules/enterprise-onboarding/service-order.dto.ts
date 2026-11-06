@@ -3,7 +3,6 @@ import { Transform } from 'class-transformer';
 import {
   Equals,
   IsEmail,
-  IsIn,
   IsInt,
   IsString,
   Matches,
@@ -11,7 +10,6 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { HOSTING_MODES } from './dto.js';
 export class ServiceQuoteInput {
   @ApiProperty({
     pattern: '^[A-Z][A-Z0-9_]{1,29}$',
@@ -19,9 +17,6 @@ export class ServiceQuoteInput {
   })
   @Matches(/^[A-Z][A-Z0-9_]{1,29}$/)
   planCode!: string;
-  @ApiProperty({ enum: HOSTING_MODES })
-  @IsIn(HOSTING_MODES)
-  hostingMode!: (typeof HOSTING_MODES)[number];
   @ApiProperty({ format: 'email', maxLength: 255 })
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
@@ -80,7 +75,6 @@ export class ServicePaymentInput {
 export class ServiceOrderView {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() planCode!: string;
-  @ApiProperty() hostingMode!: string;
   @ApiProperty() billingEmail!: string;
   @ApiProperty() billingName!: string;
   @ApiProperty() billingAddress!: string;
@@ -91,14 +85,52 @@ export class ServiceOrderView {
   >;
   @ApiProperty() contractText!: string;
   @ApiProperty() contractDigest!: string;
-  @ApiProperty({ enum: ['AWAITING_PAYMENT', 'PAID_SIMULATED'] })
+  @ApiProperty() hasPdf!: boolean;
+  @ApiPropertyOptional({ type: String, nullable: true }) pdfSha256!:
+    string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) templateVersion!:
+    string | null;
+  @ApiProperty({ enum: ['AWAITING_PAYMENT', 'PAID_SIMULATED', 'PAID'] })
   status!: string;
   @ApiProperty() version!: number;
   @ApiProperty({ format: 'date-time' }) acceptedAt!: string;
   @ApiPropertyOptional({ type: String, nullable: true, format: 'date-time' })
   paidAt!: string | null;
 }
+export class ServiceContractFileView {
+  @ApiProperty() filename!: string;
+  @ApiProperty({ enum: ['application/pdf'] }) contentType!: string;
+  @ApiProperty() sha256!: string;
+  @ApiProperty({
+    description:
+      'Private PDF bytes encoded as base64; never a public download URL',
+  })
+  contentBase64!: string;
+}
+export class ServiceContractHistoryView {
+  @ApiProperty() id!: string;
+  @ApiProperty() action!: string;
+  @ApiProperty({ format: 'date-time' }) occurredAt!: string;
+  @ApiProperty() outcome!: string;
+}
+export class ServicePreviewView {
+  @ApiProperty({ type: Object, additionalProperties: true }) quotation!: Record<
+    string,
+    unknown
+  >;
+  @ApiProperty() contractText!: string;
+  @ApiProperty() contractDigest!: string;
+  @ApiProperty() previewId!: string;
+  @ApiProperty() pdfSha256!: string;
+  @ApiProperty() templateVersion!: string;
+  @ApiProperty({ format: 'date-time' }) expiresAt!: string;
+  @ApiProperty({ type: ServiceQuoteInput }) input!: ServiceQuoteInput;
+}
 export class ServiceWorkspaceView {
+  @ApiPropertyOptional({ type: ServicePreviewView, nullable: true })
+  latestPreview!: ServicePreviewView | null;
+  @ApiProperty({ type: [ServiceContractHistoryView] })
+  history!: ServiceContractHistoryView[];
   @ApiProperty() stage!: string;
   @ApiProperty({ type: () => ServiceCatalogView }) catalog!: Record<
     string,
@@ -108,14 +140,6 @@ export class ServiceWorkspaceView {
   order!: ServiceOrderView | null;
   @ApiProperty({ type: Object, additionalProperties: true, isArray: true })
   emails!: Array<Record<string, unknown>>;
-}
-export class ServicePreviewView {
-  @ApiProperty({ type: Object, additionalProperties: true }) quotation!: Record<
-    string,
-    unknown
-  >;
-  @ApiProperty() contractText!: string;
-  @ApiProperty() contractDigest!: string;
 }
 export class EnterpriseAccessView {
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 3, nullable: true })
@@ -146,8 +170,6 @@ export class ServiceCatalogView {
   >;
   @ApiProperty({ type: Object, additionalProperties: true, isArray: true })
   qrReference!: Array<Record<string, unknown>>;
-  @ApiProperty({ type: Object, additionalProperties: true, isArray: true })
-  hosting!: Array<Record<string, unknown>>;
   @ApiProperty() simulationEnabled!: boolean;
 }
 export class ServicePlanLimitsView {
@@ -163,7 +185,7 @@ export class ServicePlanVersionView {
   @ApiProperty() termMonths!: number;
   @ApiProperty({ type: ServicePlanLimitsView }) limits!: ServicePlanLimitsView;
 }
-export class ServicePlanView {
+class ServicePlanView {
   @ApiProperty() code!: string;
   @ApiProperty() name!: string;
   @ApiProperty({ type: ServicePlanVersionView })

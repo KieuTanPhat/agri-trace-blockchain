@@ -9,8 +9,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'node:crypto';
 
-export const FIREBASE_CERT_FETCH = Symbol('FIREBASE_CERT_FETCH');
-export type CertificateSet = {
+const FIREBASE_CERT_FETCH = Symbol('FIREBASE_CERT_FETCH');
+type CertificateSet = {
   certificates: Record<string, string>;
   maxAgeSeconds: number;
 };

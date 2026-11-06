@@ -7,7 +7,7 @@ test("case manager reads Ledger cases and opens the canonical creation URL", asy
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.assigned");
   await page.goto("/admin/cases");
   await expect(page.getByTestId("ledger-case-list")).toBeVisible();
@@ -45,7 +45,7 @@ test("case filters and pagination use the baseline query and cursor", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.assigned");
   await page.goto("/admin/cases");
   await expect(page.getByTestId("ledger-case-list")).toBeVisible();
@@ -89,7 +89,7 @@ test("closing a case sends its version and command key then locks the closed rec
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.close");
   await page.goto("/admin/cases/11111111-1111-4111-8111-111111111111");
   await expect(page.getByTestId("ledger-case-detail")).toBeVisible();
@@ -116,7 +116,7 @@ test("new case keeps the canonical URL and posts a baseline DTO", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.create");
   await page.goto("/admin/cases/new");
   await expect(page.getByTestId("ledger-case-create")).toBeVisible();
@@ -157,7 +157,7 @@ for (const action of [
   test(
     "case command preserves baseline DTO: " + action.path,
     async ({ page, api }) => {
-      await api.useActor("case-manager");
+      await api.useActor("platform-admin");
       await api.scenario("cases.actions");
       await page.goto("/admin/cases/11111111-1111-4111-8111-111111111111");
       await expect(page.getByTestId("ledger-case-detail")).toBeVisible();
@@ -200,7 +200,7 @@ test("unknown private note freezes the form and retries its original body and ke
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.unknown-note");
   await page.goto("/admin/cases/11111111-1111-4111-8111-111111111111");
   const note = page.getByLabel("Nội dung", { exact: true });
@@ -230,7 +230,7 @@ test("Ledger case presentation fits desktop and mobile", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("cases.detail");
   const out = path.resolve(
     __dirname,
@@ -267,7 +267,7 @@ test("privacy officer sees scoped privacy records in Ledger", async ({
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.scoped");
   await page.goto("/admin/privacy");
   await expect(page.getByTestId("ledger-privacy-workspace")).toBeVisible();
@@ -302,7 +302,7 @@ test("privacy review can submit without MFA when baseline policy does not requir
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.review");
   await page.goto("/admin/privacy");
   await page
@@ -317,7 +317,7 @@ test("pending privacy review keeps its record, private body and command identity
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.unknown-review");
   await page.goto("/admin/privacy");
   const note = page.getByLabel("Ghi chú", { exact: true });
@@ -369,7 +369,7 @@ test("privacy breach keeps its detected time and forwards optional MFA without e
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.breach");
   await page.goto("/admin/privacy");
   await page
@@ -401,7 +401,7 @@ test("privacy cursor loads the next authorized record", async ({
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.pagination");
   await page.goto("/admin/privacy");
   await expect(
@@ -441,7 +441,7 @@ test("Ledger privacy is readable on desktop and mobile with VI and EN controls",
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.scoped");
   await page.goto("/admin/privacy");
   await expect(
@@ -480,7 +480,7 @@ test("privacy displays the actual baseline OPEN status with its Ledger label", a
   page,
   api,
 }) => {
-  await api.useActor("privacy-officer");
+  await api.useActor("platform-admin");
   await api.scenario("privacy.scoped");
   await page.goto("/admin/privacy");
   await expect(
@@ -489,200 +489,11 @@ test("privacy displays the actual baseline OPEN status with its Ledger label", a
   await expect(page.getByText("Mới", { exact: true }).first()).toBeVisible();
 });
 
-test("support list links to the canonical deep detail route", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.open");
-  await page.goto("/admin/support");
-  await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: /SUPPORT_IN_SCOPE_RECORD/ }),
-  ).toHaveAttribute(
-    "href",
-    "/admin/support/11111111-1111-4111-8111-111111111111",
-  );
-});
-test("support deep link replies using baseline body, version and command key", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.open");
-  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
-  await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "SUPPORT_IN_SCOPE_RECORD", exact: true }),
-  ).toBeVisible();
-  await page
-    .getByLabel("Nội dung", { exact: true })
-    .fill("Nội dung phản hồi cần xử lý");
-  await page.getByRole("button", { name: "Gửi", exact: true }).click();
-  await expect(
-    page
-      .locator("ol")
-      .getByText("Nội dung phản hồi cần xử lý", { exact: true }),
-  ).toBeVisible();
-});
-test("closed support record is loaded without reply or assignment controls", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.closed");
-  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
-  await expect(page.getByTestId("ledger-support-workspace")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "SUPPORT_IN_SCOPE_RECORD", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByLabel("Nội dung", { exact: true })).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Gán / đổi ưu tiên", exact: true }),
-  ).toHaveCount(0);
-});
-
-test("pending support reply locks filters and keeps the original body and key", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.unknown");
-  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
-  const field = page.getByLabel("Nội dung", { exact: true });
-  await field.fill("Nội dung phản hồi cần xử lý");
-  await page.getByRole("button", { name: "Gửi", exact: true }).click();
-  await expect(page.getByTestId("ledger-command-pending")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Đã đóng", exact: true }),
-  ).toBeDisabled();
-  await expect(field).toBeDisabled();
-  await page.getByRole("button", { name: "Đối soát", exact: true }).click();
-  await expect(
-    page
-      .locator("ol")
-      .getByText("Nội dung phản hồi cần xử lý", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByTestId("ledger-command-pending")).toHaveCount(0);
-  const posts = api
-    .requests()
-    .filter((r) => r.method === "POST" && r.path.endsWith("/reply"));
-  expect(posts).toHaveLength(2);
-  expect(posts[1]!.body).toBe(posts[0]!.body);
-  expect(posts[1]!.idempotencyKey).toBe(posts[0]!.idempotencyKey);
-});
-
-test("support assignment uses the active platform staff UUID and version", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.actions");
-  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
-  await page
-    .getByRole("button", { name: "Gán / đổi ưu tiên", exact: true })
-    .click();
-  const d = page.getByRole("dialog");
-  await d
-    .getByRole("combobox", { name: "Người phụ trách", exact: true })
-    .click();
-  await page
-    .getByRole("option", { name: /Người phụ trách · PLATFORM_CASE_MANAGER/ })
-    .click();
-  await d.getByRole("button", { name: "Gán", exact: true }).click();
-  await expect(d).toHaveCount(0);
-  await expect(
-    page.getByText("Người phụ trách", { exact: true }),
-  ).toBeVisible();
-});
-test("internal support note omits the selected external status", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.actions");
-  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
-  await page
-    .getByLabel("Nội dung", { exact: true })
-    .fill("Ghi chú nền tảng riêng tư");
-  await page
-    .getByRole("radio", { name: "Ghi chú nội bộ", exact: true })
-    .check();
-  await page
-    .getByRole("combobox", { name: "Chuyển trạng thái", exact: true })
-    .click();
-  await page
-    .getByRole("option", { name: "Đã giải quyết", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Gửi", exact: true }).click();
-  await expect(
-    page.locator("ol").getByText("Ghi chú nền tảng riêng tư", { exact: true }),
-  ).toBeVisible();
-});
-test("support closing sends its reason then removes write controls", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.actions");
-  await page.goto("/admin/support/11111111-1111-4111-8111-111111111111");
-  await page.getByRole("button", { name: "Đóng yêu cầu", exact: true }).click();
-  const d = page.getByRole("dialog");
-  await d
-    .getByLabel("Kết quả xử lý", { exact: true })
-    .fill("Đã hoàn thành xử lý hỗ trợ");
-  await d.getByRole("button", { name: "Đóng yêu cầu", exact: true }).click();
-  await expect(d).toHaveCount(0);
-  await expect(page.getByLabel("Nội dung", { exact: true })).toHaveCount(0);
-  await expect(page.getByText(/Đã hoàn thành xử lý hỗ trợ/)).toBeVisible();
-});
-test("support status filter reaches the baseline query", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.actions");
-  await page.goto("/admin/support");
-  await expect(
-    page.getByRole("heading", { name: "SUPPORT_IN_SCOPE_RECORD", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Đã đóng", exact: true }).click();
-  await expect
-    .poll(() =>
-      api
-        .requests()
-        .some((r) => r.path === "/platform-admin/tickets?status=CLOSED"),
-    )
-    .toBe(true);
-  await expect(
-    page
-      .locator('section[aria-label="Yêu cầu SUP-17"]')
-      .getByText("Đã đóng", { exact: true })
-      .first(),
-  ).toBeVisible();
-  await expect(page.getByLabel("Nội dung", { exact: true })).toHaveCount(0);
-});
-test("missing support deep link does not fall back to another ticket", async ({
-  page,
-  api,
-}) => {
-  await api.useActor("case-manager");
-  await api.scenario("support.open");
-  await page.goto("/admin/support/99999999-9999-4999-8999-999999999999");
-  await expect(
-    page.getByText("Không tìm thấy yêu cầu hỗ trợ", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "SUPPORT_IN_SCOPE_RECORD", exact: true }),
-  ).toHaveCount(0);
-  await expect(page.getByLabel("Nội dung", { exact: true })).toHaveCount(0);
-});
-
 test("consumer report triage uses the Ledger decision panel", async ({
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("reports.new");
   await page.goto("/admin/reports");
   await expect(page.getByTestId("ledger-reports-workspace")).toBeVisible();
@@ -700,7 +511,7 @@ test("recall Ledger snapshot remains read only and shows truncation limits", asy
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("recall.snapshot");
   await page.goto("/admin/recall?lotId=11111111-1111-4111-8111-111111111111");
   await expect(page.getByTestId("ledger-recall-workspace")).toBeVisible();
@@ -770,7 +581,7 @@ for (const [decision, label] of [
   test(
     "consumer report baseline triage: " + decision,
     async ({ page, api }) => {
-      await api.useActor("case-manager");
+      await api.useActor("platform-admin");
       await api.scenario("reports.actions");
       await page.goto("/admin/reports");
       await page.getByRole("radio", { name: new RegExp("^" + label) }).check();
@@ -808,7 +619,7 @@ test("pending consumer report triage locks the selected record and keeps the exa
   page,
   api,
 }) => {
-  await api.useActor("case-manager");
+  await api.useActor("platform-admin");
   await api.scenario("reports.unknown");
   await page.goto("/admin/reports");
   await page
@@ -912,7 +723,7 @@ test("recall manual input fetches a snapshot only after the user submits", async
   page,
   api,
 }) => {
-  await api.useActor("platform-operator");
+  await api.useActor("platform-admin");
   await api.scenario("recall.snapshot");
   await page.goto("/admin/recall");
   await expect(
@@ -1014,28 +825,28 @@ test("Task7 Ledger route gallery fits all required widths and preserves dark Eng
   );
   const rows = [
     [
-      "case-manager",
+      "platform-admin",
       "cases.assigned",
       "/admin/cases",
       "Hồ sơ cần xác minh nguồn hàng",
       "cases",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "cases.create",
       "/admin/cases/new",
       "Thông tin hồ sơ",
       "case-create",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "cases.detail",
       "/admin/cases/11111111-1111-4111-8111-111111111111",
       "Yêu cầu đối soát thông tin lô hàng từ doanh nghiệp.",
       "case-detail",
     ],
     [
-      "privacy-officer",
+      "platform-admin",
       "privacy.scoped",
       "/admin/privacy",
       "IN_SCOPE_PRIVACY_RECORD",
@@ -1049,28 +860,14 @@ test("Task7 Ledger route gallery fits all required widths and preserves dark Eng
       "self-privacy",
     ],
     [
-      "case-manager",
-      "support.open",
-      "/admin/support",
-      "SUPPORT_IN_SCOPE_RECORD",
-      "support",
-    ],
-    [
-      "case-manager",
-      "support.open",
-      "/admin/support/11111111-1111-4111-8111-111111111111",
-      "SUPPORT_IN_SCOPE_RECORD",
-      "support-detail",
-    ],
-    [
-      "case-manager",
+      "platform-admin",
       "reports.new",
       "/admin/reports",
       "CONSUMER_REPORT_IN_SCOPE",
       "reports",
     ],
     [
-      "case-manager",
+      "platform-admin",
       "recall.snapshot",
       "/admin/recall?lotId=11111111-1111-4111-8111-111111111111",
       "LOT-RECALL-17",

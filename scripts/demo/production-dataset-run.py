@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Root operator runner for the 28-product dataset on a freshly reinstalled production.
+"""Root operator runner for the 227-product dataset on a freshly reinstalled production.
 
   python3 -I production-dataset-run.py --bundle <extracted bundle dir> [--resume]
 
@@ -37,6 +37,9 @@ def verify_bundle(bundle, sha):
         fail("Dataset bundle does not belong to the installed release")
     for name, digest in manifest["files"].items():
         path = (bundle / name).resolve()
+        # The one-off container is root without capabilities: it reads only root-owned files.
+        if path.stat().st_uid != 0:
+            fail(f"Dataset bundle file is not owned by root (chown -R root:root the bundle): {name}")
         if not path.is_relative_to(bundle.resolve()) or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             fail(f"Dataset bundle file differs: {name}")
     return manifest
@@ -113,18 +116,17 @@ def run(controller, args):
             env_file.unlink(missing_ok=True)
 
     for attempt in range(8):
-        code = container("full-seed.mjs")
+        code = container("dataset-seed.mjs")
         if code == 0:
             break
         if code != LEDGER_REQUIRED_EXIT:
-            fail(f"full-seed.mjs exited {code}; see {directory / 'seed.log'}, then --resume")
+            fail(f"dataset-seed.mjs exited {code}; see {directory / 'seed.log'}, then --resume")
         chain_ids = json.loads((run_directory / "ledger-required.json").read_text())["chainIds"]
         bind(controller, record, chain_ids)
         print(json.dumps({"phase": "ledger-bound", "chains": len(chain_ids)}), flush=True)
     else:
         fail("Seed kept requiring ledger bindings")
-    for script, extra in (("publish-fruit-presentation.mjs", ()), ("publish-fruit-news.mjs", ()),
-                          ("verify-seed.mjs", ("--fresh",) if not (run_directory / "receipt.json").exists() else ())):
+    for script, extra in (("verify-seed.mjs", ("--fresh",) if not (run_directory / "receipt.json").exists() else ())):
         code = container(script, extra)
         if code != 0:
             fail(f"{script} exited {code}; see {directory / 'seed.log'}, then --resume")

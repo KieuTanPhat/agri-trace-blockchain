@@ -159,8 +159,8 @@ describe('PostgreSQL auth session concurrency', { timeout: 20_000 }, () => {
   beforeEach(async () => {
     const role = await prisma.role.upsert({
       // Platform account: administrators only change platform accounts' status.
-      where: { code: 'COMPLIANCE_REVIEWER' },
-      create: { code: 'COMPLIANCE_REVIEWER', name: 'Compliance reviewer' },
+      where: { code: 'AUDITOR' },
+      create: { code: 'AUDITOR', name: 'Kiểm định' },
       update: {},
     });
     const organization = await prisma.organization.create({

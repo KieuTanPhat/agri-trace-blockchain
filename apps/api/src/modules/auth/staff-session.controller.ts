@@ -17,9 +17,19 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import { AuthService } from './auth.service.js';
+import { StaffPasswordResetService } from './staff-password-reset.service.js';
 import { assertNativeOrigin } from './mobile-auth.controller.js';
 import { MobileLogoutResultDto, MobileRefreshDto } from './mobile-auth.dto.js';
-import { StaffLoginDto, StaffSessionDto } from './staff-session.dto.js';
+import {
+  StaffPasswordResetRequestDto,
+  StaffPasswordResetConfirmDto,
+  StaffPasswordResetVerifyDto,
+  StaffPasswordResetVerifyResultDto,
+  StaffPasswordResetRequestResultDto,
+  StaffPasswordResetResultDto,
+  StaffLoginDto,
+  StaffSessionDto,
+} from './staff-session.dto.js';
 
 /** Closed by default, like consumer auth: production enables it explicitly. */
 @Injectable()
@@ -30,7 +40,10 @@ export class StaffSessionGuard implements CanActivate {
       throw new ServiceUnavailableException(
         'Ứng dụng nhân viên tạm chưa sẵn sàng',
       );
-    assertNativeOrigin(context.switchToHttp().getRequest<Request>(), this.config);
+    assertNativeOrigin(
+      context.switchToHttp().getRequest<Request>(),
+      this.config,
+    );
     return true;
   }
 }
@@ -44,7 +57,11 @@ export class StaffSessionGuard implements CanActivate {
 @ApiTags('staff-auth')
 @UseGuards(StaffSessionGuard)
 export class StaffSessionController {
-  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+  constructor(
+    @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(StaffPasswordResetService)
+    private readonly reset: StaffPasswordResetService,
+  ) {}
 
   @Post('login')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -52,6 +69,27 @@ export class StaffSessionController {
   login(@Body() input: StaffLoginDto) {
     const { previousRefreshToken, ...credentials } = input;
     return this.auth.loginStaff(credentials, previousRefreshToken);
+  }
+
+  @Post('password-reset/request')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @ApiDataResponse(StaffPasswordResetRequestResultDto, 201)
+  requestPasswordReset(@Body() input: StaffPasswordResetRequestDto) {
+    return this.reset.request(input);
+  }
+
+  @Post('password-reset/verify')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiDataResponse(StaffPasswordResetVerifyResultDto, 201)
+  verifyPasswordReset(@Body() input: StaffPasswordResetVerifyDto) {
+    return this.reset.verify(input);
+  }
+
+  @Post('password-reset/confirm')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiDataResponse(StaffPasswordResetResultDto, 201)
+  confirmPasswordReset(@Body() input: StaffPasswordResetConfirmDto) {
+    return this.reset.confirm(input);
   }
 
   @Post('refresh')

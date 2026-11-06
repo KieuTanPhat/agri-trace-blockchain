@@ -12,7 +12,6 @@ afterEach(() => vi.unstubAllEnvs());
 const row = (statuses: Array<'PENDING' | 'APPROVED' | 'REJECTED'>) => ({
   organizationId: 'isolated-organization',
   organization: {
-    participationModel: 'SINGLE',
     capabilityRequests: statuses.map((status) => ({
       code: 'FARM' as const,
       status,
@@ -63,16 +62,13 @@ describe('Deferred enterprise payments', () => {
       expect(findFirst).not.toHaveBeenCalled();
     },
   );
-  it('retains the payment prerequisite only when the operator explicitly re-enables it', async () => {
+  it('never makes activation wait for a plan, even with collection enabled (ADR-005)', async () => {
     vi.stubEnv('ENTERPRISE_PAYMENTS_ENABLED', 'true');
     const { tx, findFirst } = database();
     expect(serviceWorkspaceStage('ACTIVE')).toBe('ACTIVE');
-    await expect(assertActivationReady(tx, row(['APPROVED']))).rejects.toThrow(
-      'thanh toán',
-    );
-    findFirst.mockResolvedValue({ id: 'existing-paid-subscription' });
     await expect(
       assertActivationReady(tx, row(['APPROVED'])),
     ).resolves.toBeUndefined();
+    expect(findFirst).not.toHaveBeenCalled();
   });
 });

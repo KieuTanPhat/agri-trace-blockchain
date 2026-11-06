@@ -1,6 +1,6 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 
-export type LotCustodian = {
+type LotCustodian = {
   role: 'FARM_STAFF' | 'TRANSPORTER' | 'RETAILER';
   organizationId: string;
 };

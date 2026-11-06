@@ -10,7 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-export class MobilePhoneDto {
+class MobilePhoneDto {
   @ApiProperty({
     description: 'Vietnam phone, normalized to E.164',
     maxLength: 16,
@@ -43,7 +43,7 @@ export class MobileRefreshDto {
   @MaxLength(1024)
   refreshToken!: string;
 }
-export class MobileProofDto extends MobilePhoneDto {
+class MobileProofDto extends MobilePhoneDto {
   @ApiProperty({
     minLength: 100,
     maxLength: 8192,

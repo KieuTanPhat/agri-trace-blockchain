@@ -1,7 +1,7 @@
 import { isUUID } from 'class-validator';
 
 export const SESSION_COOKIE_NAME = 'agritrace_session';
-export const REFRESH_COOKIE_PREFIX = 'agritrace_refresh_';
+const REFRESH_COOKIE_PREFIX = 'agritrace_refresh_';
 
 function readCookie(name: string, header?: string): string | null {
   const value = header

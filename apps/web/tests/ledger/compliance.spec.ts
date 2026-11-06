@@ -19,7 +19,7 @@ for(const name of ["compliance.certificate","compliance.inspection"])registerSce
  return readScenario("production.baseline").handle(r,state);
 }});
 for(const kind of ["certificate","inspection"] as const)test(`${kind} correction validates its reason before freezing or sending`,async({page,api})=>{
- await api.useActor(kind==="certificate"?"org-owner":"compliance-reviewer");await api.scenario(`compliance.${kind}`);await page.goto("/compliance");
+ await api.useActor(kind==="certificate"?"org-owner":"auditor");await api.scenario(`compliance.${kind}`);await page.goto("/compliance");
  const row=page.getByRole("row").filter({hasText:kind==="certificate"?"VietGAP":"LOT-CORRECTION"});await row.getByRole("button",{name:"Đính chính",exact:true}).click();
  const dialog=page.getByRole("dialog"),submit=dialog.getByRole("button",{name:kind==="certificate"?"Nộp chứng nhận":"Ghi kiểm định",exact:true}),reason=dialog.getByLabel("Lý do đính chính",{exact:true});
  if(kind==="certificate"){await dialog.getByLabel("Tham chiếu tài liệu",{exact:true}).fill("corrected-document");await dialog.getByLabel("SHA-256",{exact:true}).fill("b".repeat(64));}

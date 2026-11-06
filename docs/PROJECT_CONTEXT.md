@@ -1,155 +1,163 @@
-# Current project context
+# Bối cảnh dự án hiện hành
 
-Updated 2026-10-17 with the local enterprise and distribution extension; the
-2026-10-14 hosted Hybrid release limits remain separate. Swagger generated from NestJS is the API contract;
-current AGT issues and the approved Hybrid plan define acceptance and ownership.
+Cập nhật tài liệu ngày 02/11/2026. Source, Prisma/SQL guard và Swagger sinh từ
+NestJS xác định implementation. Issue/acceptance đã duyệt xác định mục tiêu;
+evidence đúng SHA, môi trường và controller revision xác định nghiệm thu.
+Tài liệu này không xác nhận phiên bản đang chạy trên VPS.
 
-## Domain
+## Đọc theo tác vụ
 
-The model is `ProductionCycle → HarvestEvent → Lot → Shipment`. A cycle supports
-multiple harvests; each harvest creates its own Lot, QR, quantity movement, sensor
-window, trace event and outbox in one transaction. A Lot uses either a single
-Shipment (signed handover, transport IoT and shipment plan) or the organization
-holdings and multi-line distribution transfers, never both. Each distribution line keeps its original source Lot;
-splitting quantities does not create mixed or transformed Lots. Both paths retain
-an append-only quantity/custody history. Corrections append new evidence;
-existing hashed or signed data must not be edited.
+Đọc README gốc và tài liệu này khi bắt đầu thay đổi hành vi, sau đó chỉ mở phần
+liên quan. Tìm code bằng CodeGraph khi checkout có index. Không đọc toàn bộ docs,
+OpenAPI JSON hoặc inventory Ledger để lấy bối cảnh chung.
 
-Business actions use current account/session/organization, active capability,
-membership, grant and accepted assignment. ShipmentPlan revisions and consent
-are immutable. Consent ghi snapshot grant, membership epoch và capability
-revision; finalize từ chối khi bất kỳ giá trị nào đổi (kể cả rejoin hoặc
-regrant capability với cùng ORG_ADMIN) và khi consent thiếu snapshot (dữ liệu
-trước migration `20261021000000_hybrid_acceptance_epoch`), yêu cầu revision và
-consent mới. Quantity and custody checks run under the aggregate lock; a
-permission or optimistic-version rejection must not alter state or outbox.
+| Công việc | Tài liệu cần tra |
+| --- | --- |
+| Quyền, quantity/custody, trạng thái nghiệp vụ | [Business rules](core-business-rules.md) |
+| API/DTO và consumer | README phần API contract; source NestJS và `docs/openapi/` |
+| UI, auth/recovery, QR/camera/PWA, mobile | [Frontend](frontend.md), [harvest recovery](harvest-recovery.md) khi liên quan |
+| Transaction/outbox/Worker | [ADR-001](adr-001-modular-monolith-dedicated-worker.md) |
+| Tư cách tham gia, chủ chuỗi, đầu vào liên chuỗi | [ADR-005](adr-005-chain-owner-service-model.md) |
+| Cảm biến thửa, GPS xe, niêm phong hành trình, thiết bị ảo | [ADR-006](adr-006-iot-plot-vehicle-tracking.md) |
+| Binding, ledger permission, chữ ký c2 | [ADR-004](adr-004-hybrid-binding-and-signatures.md), phần cần dùng của [Hybrid runbook](hybrid-fabric-runbook.md) |
+| Migration và restore | [Database runbook](database-migration-runbook.md) |
+| CI, ma trận HYB-AC và kiểm chứng | [CI guide](ci.md) |
+| Release/controller/rollback | [Production runbook](production-runbook.md) |
+| Công việc hoặc acceptance còn mở | [Backlog](plans/backlog.md), rồi Issue liên quan |
+| Skill/reviewer hoặc nhánh Git | [Agent workflow](agent-workflow.md), [branch naming](branch-naming.md) |
 
-Login creates an independent session family under shared organization/account
-authority locks, so business readers do not cause an exclusive-lock queue.
-Refresh/logout retain exclusive account locking for family changes; account and
-organization disable still wait for those locks and revoke all affected sessions.
+## Cấu trúc và runtime
 
-Compliance reviewers belong to AUDITOR organizations, are assigned to the Farm,
-and cannot review their own submission. Public QR hides private data and exposes
-integrity, recall, expiry and missing-sensor warnings independently of proof.
-`VERIFIED` describes evidence, not product quality or independent certification.
+- `apps/web`: Next.js PWA cho công khai, doanh nghiệp và quản trị.
+- `apps/mobile`: Expo/React Native; consumer xem danh mục/QR, nhân viên làm việc
+  theo quyền và vụ được giao. Bundle export không chứng minh APK/SMS/camera thật.
+- `apps/api`: NestJS API và entrypoint Worker riêng, dùng chung PostgreSQL/Prisma.
+- `blockchain/gateway`, `blockchain/chaincode`: Fabric Gateway và smart contract.
+- `blockchain/network/hybrid`: mạng pilot và harness Fabric cách ly.
+- `deploy/ci`, `deploy/cd`, `deploy/edge`: rehearsal, controller/CD và ingress.
 
-## Hybrid source and release
+Node/npm theo `.node-version` và `package.json`; local Compose/CI dùng PostgreSQL
+18 đã pin. Không suy ra runtime của DB đang có từ cấu hình mới; nâng major phải
+theo database runbook. Docker local dùng ledger mô phỏng qua binding cùng đường
+nghiệp vụ, không phải bằng chứng commit Fabric.
 
-Processing from external receipts pins its chain/binding on the run rather than
-inventing a production-cycle origin. Migration
-`20261222000000_external_processing_event_scope` updates the two event scope
-guards for this case; cycle-derived events keep their original context checks.
-It changes no historical event/hash. An isolated PostgreSQL 18 regression covers
-completion/replay, mass-balance rejection, reservation concurrency/cancellation
-and correction logs; this does not establish real Fabric acceptance.
+## Mô hình nghiệp vụ
 
-The local extension includes five-step v2 registration with conditional legal
-profiles, genuine private supporting documents, service preferences, separate
-policy acknowledgements, catalog-bound two-level addresses and email OTP.
-Producer households/individuals may omit tax identifiers; production supports
-CROP only. Collection is deferred by default as of 28/10/2026: unless
-`ENTERPRISE_PAYMENTS_ENABLED=true`, admin reviews the enrollment and all
-capabilities, then explicitly activates temporary use without a paid plan.
-No payment/subscription records are fabricated. Paid-plan creation limits are
-deferred; free-participant limits and business authority checks remain.
-When collection is explicitly enabled, administrator review precedes service/peer-model selection,
-contract preview and simulated settlement. Settlement marks the order
-`PAID_SIMULATED` and queues its email; a separate platform-admin activation grants
-new business authority before the enterprise can configure a peer. The Worker
-delivers OTP/review/contract mail, using the local sink for test recipients and
-TLS for configured SMTP. Tier 1/2/3 membership and custom permissions never replace
-chain membership, capabilities or accepted assignments. Private screens use a
-permission-filtered system manager sidebar. The local service contract and payment
-are demonstration artifacts; NAPAS/QR collection and qualified contract signatures
-are not implemented. Existing admitted enrollments retain their earlier policy.
+Luồng sản xuất là `ProductionCycle → HarvestEvent → Lot → Shipment`. Một vụ có
+nhiều đợt thu hoạch; mỗi đợt tạo Lot/QR, quantity movement, sensor window,
+trace/outbox trong cùng transaction. Lô chọn đường Shipment hoặc holdings và
+distribution nhiều dòng/nhiều chặng; không dùng đồng thời hai đường.
 
-New partial distribution remains disabled on DUAL_SIGNED chains pending its own
-c2 integration and isolated Fabric acceptance. A local database or browser result
-does not establish real Fabric or production acceptance for that new protocol.
+Distribution giữ nguyên Lot nguồn khi chia lượng. Chế biến là nghiệp vụ khác:
+`ProcessingRun` liên kết nguyên liệu và lô thành phẩm, giữ lịch sử lineage/cân
+bằng. Phiếu nguyên liệu `AGRITRACE` theo lượng giao nhận thực tế; phiếu `EXTERNAL`
+là nguồn tự khai có chứng từ. Mẻ chỉ dùng nguồn ngoài giữ chain/binding lúc lập,
+không dựng vụ sản xuất giả. Chi tiết vòng đời, giữ chỗ và corrections ở business rules.
 
-Claude baseline `2f132e26dd26270b907a4a4c82070637c6a5536f` implements A chain
-scope, B immutable Fabric binding/permission registry and C independent Ed25519
-handover signatures. Baseline migrations number 17; the 14 migrations from main
-are unchanged. Repairs append migrations rather than changing these inputs.
+Tài khoản/session, tổ chức, capability, membership, grant và accepted assignment
+cùng quyết định quyền. Kiểm quyền dưới khóa và trước replay; Admin/Auditor không
+ghi nghiệp vụ thay doanh nghiệp. Read/list/count/proof dùng cùng scope.
 
-- A (envelope 3.0.0 / private hash 2.0.0) and c1 are retired: source, chaincode
-  and Gateway no longer write or read them, and migration
-  `20261213000000_retire_release_a_and_c1` refuses a database that still holds
-  them. Every event needs an ACTIVE chain binding.
-- B uses envelope 4.0.0 / private hash 3.0.0 and an immutable logical binding.
-- New C writes use c2 envelope 6.0.0 / private hash 5.0.0 and intent protocol 2.
-  The organization signature binds the business payload digest; ledger validation
-  reconstructs the private commitment from payload, metadata and assertion
-  digests. API/SQL/Worker require actual business content to equal the signed
-  payload. This source change does not establish deployment acceptance on the
-  production VPS.
-  Custody on a DUAL_SIGNED shipment
-  changes only after matching offer and confirmation. C does not silently fall
-  back when signer, registry, peer or orderer is unavailable.
-- Hosted A/B/C is the release scope. Signatures cover handover. Care/harvest keep
-  current authentication, and the UI must describe that trust level accurately.
-- A local three-org pilot proves technical isolation; actual external enterprise
-  CA/peer/admin/signer authority remains NotEvaluated.
-- The enterprise onboarding candidate adds public signup, operator review,
-  MANAGED_ORG/SELF_MANAGED_ORG requests and ledger-verified connection probes.
-  Admission defaults closed (`ENTERPRISE_ONBOARDING_ENABLED=false`). Signup does
-  not grant business access. This v1 uses operator-provisioned networks and an
-  exclusive enterprise MSP per network; it does not dynamically admit unlimited
-  Fabric organizations. External-host acceptance and production rollout remain
-  separate gates; see [the onboarding plan](plans/enterprise-onboarding.md).
+Domain write, command journal, trace/outbox, quyền, optimistic version và
+idempotency commit cùng transaction. Unknown outcome giữ body/key/signature gốc
+để đối soát, không dùng key mới. Không sửa hash, sự kiện hay proof để làm khớp.
 
-Source completion is not production acceptance. Inspect the current Git branch,
-worktree and SHA rather than inferring checkout state from this document.
-Remaining release safeguards, tests,
-restore/recovery and VPS smoke are tracked in
-[the current execution plan](plans/hybrid-production-readiness-2026-10-13.md).
-Per-run acceptance belongs in PR/Issue evidence and local artifacts. Earlier
-receipts are historical and cannot close the final candidate gates.
+ShipmentPlan giữ revision/consent bất biến. Consent chụp grant, membership epoch
+và capability revision; revoke/rejoin/regrant làm consent cũ mất hiệu lực.
+Finalize kiểm lại snapshot; hai plan tranh một Lot chỉ tạo được một Shipment.
 
-For Claude Code/Codex task routing and shared workflows, follow
-[AGENTS](../AGENTS.md) and [the agent guide](agent-workflow.md). Skills reference
-these maintained documents; they do not carry a second business-rule catalogue.
+Quantity dùng decimal và movement/custody append-only. Recall/expiry/FAILED không
+tự đưa hàng về chủ cũ. Mỗi thu hoạch chốt sensor window; dữ liệu đến muộn không
+được dùng để tính lại hash. Các mốc thời gian nghiệp vụ theo Asia/Ho_Chi_Minh.
 
-## Operations
+Vai Kiểm định (`AUDITOR`, gộp vai reviewer cũ từ 04/11/2026) thuộc tổ chức AUDITOR,
+chỉ ghi kiểm định trên Farm được phân công và không tự review submission. Grant
+`COMPLIANCE_REVIEWER` trên chuỗi (`ScopedRole`, Fabric) giữ nguyên mã cũ.
+QR công khai che dữ liệu riêng tư, hiện độc lập cảnh báo thu hồi, hết hạn, cảm
+biến và integrity. `VERIFIED` mô tả bằng chứng, không chứng nhận chất lượng.
 
-Main is the sole deployment source, through PR review and exact-SHA Application,
-Blockchain and Dependency CI. Dev deployment and nongtrace.site remain retired.
-The previous production receipt reports cleanup release8ae, channel agritrace
-sequence3. Re-read runtime and the migration catalog before rollout.
+## Doanh nghiệp và quản trị
 
-The new hosted network uses separate channel/MSP/CA/keys/volumes and a fresh DB.
-Migration 20261017000000_hybrid_fresh_install appends cleanup, refuses existing
-business history and removes empty historical exemptions. Never migrate legacy
-history or reuse legacy authority. API receives only metadata; Fabric
-signing/control identities belong to the Worker/operator with readonly mounts.
+Đăng ký hiện có năm bước, hồ sơ pháp lý theo loại, tài liệu riêng tư, địa chỉ
+theo catalog và OTP email; mật khẩu tạm buộc đổi. Admission mặc định đóng bằng
+`ENTERPRISE_ONBOARDING_ENABLED=false`; đăng ký không cấp quyền ghi truy xuất.
 
-After Hybrid SQL apply, the compatibility floor prevents old app rollback.
-Recovery holds writers and preserves journal/attempts, using a compatible image
-or explicit fix-forward. Restore rehearsal is required; database restore is not
-ordinary app rollback. Preserve hashes, keys, failed attempts and backup evidence.
+Mặc định hoãn thu tiền (`ENTERPRISE_PAYMENTS_ENABLED=false`): admin duyệt hồ sơ
+và từng capability, rồi kích hoạt dùng tạm bằng command riêng. Không tạo invoice,
+paid order hoặc subscription giả. Khi chủ động bật thu tiền, [SePay](sepay.md)
+xác thực callback theo hóa đơn, giữ receipt chống trùng và tự kích hoạt sau khi
+hồ sơ/năng lực đã được duyệt. Test mode ghi `SIMULATION`/`PAID_SIMULATED`, Live
+ghi `SEPAY`/`PAID`; provider acceptance là cổng riêng. Worker nhận mail outbox
+sau commit; hợp đồng mới merge từ mẫu PDF tĩnh, lưu đúng bytes/hash từ xem trước đến xác nhận và mail đính kèm. Có popup QR trên bản PDF và lịch sử giao dịch riêng tư theo chủ hồ sơ. Hợp đồng cũ giữ nguyên. Mẫu hiện dùng kiểm thử, chưa có chữ ký hợp đồng có chứng thư.
 
-Read [current business rules](core-business-rules.md), [ADR-004](adr-004-hybrid-binding-and-signatures.md),
-[Hybrid runbook](hybrid-fabric-runbook.md) and [production runbook](production-runbook.md).
-The owner authorized merge/deploy after validation. There is no two-hour cap,
-separate production canary or continuous observation/agent on-call obligation.
-The archived Batch specification and retired cutover receipts are dated history.
+Thành viên hai cấp (chủ doanh nghiệp cấp 1, nhân viên cấp 3 trực thuộc chủ; không còn cấp quản lý 2), nhóm quyền riêng, đối tác, danh mục và cơ sở không thay
+chain membership/capability/assignment. Chủ doanh nghiệp giữ vai nghiệp vụ theo
+loại tổ chức và là người duy nhất quản trị thành viên/nhóm quyền; nhân viên cấp 3 mang vai Nhân viên doanh nghiệp
+(`ENTERPRISE_STAFF`), hành động theo vai nghiệp vụ suy từ `organization.type`, với
+quyền chi tiết lấy từ nhóm quyền doanh nghiệp. Giao nhận có bốn transport mode; thời
+điểm ký/chuyển custody phụ thuộc mode. Đối chiếu business rules trước khi sửa.
+Đường distribution mới chưa mở trên DUAL_SIGNED nếu chưa có integration c2 và
+nghiệm thu Fabric riêng; không suy ra từ Shipment đã ký hiện hành.
 
-## Quản trị nền tảng (P0, 2026-10-18)
+Worker gửi OTP/review/contract mail. Mailpit và provider fixture chỉ chứng minh
+local delivery; SMTP hoặc SMS thật cần nghiệm thu riêng theo cấu hình thực.
 
-Migration `20261029000000_platform_governance` thêm `platform_audit` (nối băm,
-append-only), `platform_mfa`, `platform_approval` và các cột version/khóa tạm cho
-`app_user`, `organization`. Mã nằm ở `apps/api/src/modules/platform-governance`;
-quy tắc ở [business rules](core-business-rules.md). Biến cấu hình mới:
-`PLATFORM_SECRET_KEY`, `PLATFORM_MFA_MODE`, `PLATFORM_LOGIN_MAX_ATTEMPTS`,
-`PLATFORM_LOGIN_LOCK_MINUTES`. Phê duyệt hai bước đã gỡ (2026-10-25);
-`platform_approval` chỉ còn là lịch sử.
+Quản trị có audit nối hash append-only, MFA TOTP, kiểm soát tài khoản/tổ chức,
+vận hành chỉ đọc, hồ sơ sự cố, diễn tập thu hồi và hộp thư quyền dữ liệu mã hóa.
+Maker–checker đã gỡ; `platform_approval` chỉ giữ lịch sử. Nền tảng chỉ còn một
+vai Admin (`SYSTEM_ADMIN`, gộp các vai hẹp cũ từ 04/11/2026), không ghi nghiệp vụ.
 
-P1 bổ sung vận hành chỉ đọc, hồ sơ sự cố và diễn tập thu hồi. Migration
-`20261031000000_platform_privacy` thêm hộp thư quyền dữ liệu/hồ sơ vi phạm mã hóa;
-`20261101000000_platform_admin_roles` thêm ba vai hẹp cho vận hành, điều phối sự
-cố và dữ liệu cá nhân. API không cấp quyền ghi nghiệp vụ cho các vai này.
-Xem [quy tắc](core-business-rules.md), [giao diện](frontend.md) và
-[plan quản trị](plans/platform-governance.md) để phân biệt phần đã triển khai với
-đề xuất bảo trì/loại bỏ còn cần quyết định. Cảnh báo hạn khóa Ed25519/vân tay
-chứng thư vẫn ghi rõ dữ liệu chưa được theo dõi; không suy ra hạn từ trạng thái.
+Banner thông báo độc lập với khóa ghi của controller. UI không có quyền mở ghi,
+phát lại outbox, đổi binding hay chạy restore. Hạn Ed25519/vân tay chứng thư chưa
+được theo dõi không được suy ra từ trạng thái ACTIVE.
+
+## Fabric và chữ ký
+
+Chỉ hỗ trợ B (envelope 4.0.0 / private hash 3.0.0) và C c2 (6.0.0 / 5.0.0,
+`agritrace-intent/2`). A/c1 đã gỡ cả reader/writer; migration retirement từ chối
+DB còn dữ liệu đó. Giữ byte migration lịch sử, không thêm fallback A.
+
+Mỗi event chụp binding logic bất biến và permission epoch. Registry ledger
+xác nhận quyền trước khi mở ghi; revoke có drain/barrier hoặc emergency hold.
+Connection config không đổi đích của backlog. Worker ghi attempt/txId trước
+traffic, đối soát hoặc fence kết quả chưa rõ, giữ circuit breaker theo binding.
+
+c2 ràng chữ ký với actor/chain/event/entity, payload, nonce, expiry và versions.
+API/SQL/Worker kiểm nội dung nghiệp vụ thật khớp payload đã ký; chaincode kiểm
+commitment và chữ ký độc lập. DUAL_SIGNED chỉ đổi custody sau offer/confirm khớp.
+Lỗi signer/registry/peer/orderer không cho phép tự hạ xuống unsigned.
+
+API không nhận signing key. Worker chỉ có technical identity; owner/admin key
+thuộc operator, khóa tổ chức thuộc bên ký. Source dùng `AgritraceMSP` và `OrdererMSP`, một channel `agritrace`. Không cấp MSP hoặc peer riêng cho doanh nghiệp. Worker tự chuẩn bị binding `SERVICE` cho cả chuỗi riêng và chuỗi tạo thêm, chỉ mở quyền ghi sau xác nhận ledger. Một VPS/orderer không chứng minh HA; care/harvest giữ xác thực hiện hành. Nghiệm thu topology mới trên VPS chưa được thực hiện.
+
+## Vận hành và nghiệm thu
+
+`main` là nguồn production duy nhất. Dev deployment, `nongtrace.site` và UAT
+schema 2 đã retire. Controller hiện hành dùng config schema 3, manifest format 2,
+release `prod-*`, ghép Compose app + hybrid. Trước rollout phải xác minh revision
+controller đã cài, digest, image, migration catalog và state thực tế.
+
+Fresh install dùng DB/network riêng, không nhập account/history/proof/QR cũ.
+Backup nhất quán DB/ledger/CA/MSP/config/images, kiểm checksum và restore cách ly
+là quy trình mặc định. Reinstall bỏ dữ liệu chỉ áp dụng khi có ủy quyền rõ cho
+đúng target/generation và receipt theo runbook; quyết định cũ không cấp quyền mới.
+
+Sau SQL Hybrid, compatibility floor chặn image cũ. Khi lỗi, giữ writers đóng,
+journal/attempts và original command; resume cùng candidate hoặc fix-forward.
+Không restore riêng DB sau ledger commit. App rollback và data restore khác nhau.
+
+CI/source completion, local DB/browser, real Fabric, isolated restore và VPS
+smoke là các kết luận riêng. Ghi evidence đúng SHA/migration/network/controller;
+không biến mock, fixture, skipped test hoặc receipt cũ thành acceptance hiện tại.
+Xem ma trận HYB-AC trong CI và gate phát hành trong production runbook.
+
+## Tài liệu và phối hợp
+
+Skill nguồn ở `.agents/skills`; `.claude/skills` là bản sinh. Đổi nguồn thì chạy
+`npm run agents:sync`, `npm run agents:check`, `npm run test:agents`. Mỗi checkout
+một writer; không tự mở rộng task thành merge/publish/deploy hay sửa dữ liệu.
+
+Plan đã hoàn tất, đặc tả Batch và báo cáo từng phiên được tra qua Git. Backlog chỉ
+giữ việc còn mở và nguồn lịch sử; không cần đọc các bản cũ nếu task không liên quan.
+Kết quả từng lần chạy ở PR/Issue hoặc artifact local, không thêm báo cáo docs.
+Giữ secrets, credentials, evidence, memory và worktree ngoài commit.

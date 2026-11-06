@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export const PUBLIC_ENTERPRISE_TYPES = [
+const PUBLIC_ENTERPRISE_TYPES = [
   'FARM',
   'TRANSPORTER',
   'RETAILER',
@@ -20,10 +20,8 @@ export const PUBLIC_ENTERPRISE_TYPES = [
   'DISTRIBUTOR',
 ] as const;
 
-export type PublicEnterpiseType = (typeof PUBLIC_ENTERPRISE_TYPES)[number];
-export type PublicEnterpriseType = PublicEnterpiseType;
-
-export class PublicDirectoryQueryDto {
+type PublicEnterpiseType = (typeof PUBLIC_ENTERPRISE_TYPES)[number];
+class PublicDirectoryQueryDto {
   @ApiPropertyOptional({
     type: String,
     maxLength: 100,
@@ -72,10 +70,17 @@ export class PublicEnterprisesQueryDto extends PublicDirectoryQueryDto {
   type?: PublicEnterpiseType;
 }
 
+/** The owning organization; its name already appears on every public trace of its lots. */
+export class PublicProductEnterpriseDto {
+  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String }) name!: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Only an explicitly published logo.' }) logoUrl!: string | null;
+}
+
 export class PublicDirectoryProductDto {
+  @ApiProperty({ type: PublicProductEnterpriseDto, nullable: true }) enterprise!: PublicProductEnterpriseDto | null;
   @ApiProperty({enum:['SELLING','NOT_SELLING'],description:'SELLING when any active retailer holds saleable stock in an eligible lot.'}) saleStatus!:'SELLING'|'NOT_SELLING';
   @ApiProperty({type:String,nullable:true,description:'Only an explicitly published product image.'}) imageUrl!:string|null;
-  @ApiProperty({type:String,nullable:true,description:'Published indicative price in VND per defaultUnit; not a checkout price.'}) price!:string|null;
   @ApiProperty({type:String,nullable:true}) category!:string|null;
   @ApiProperty({type:String,nullable:true}) province!:string|null;
   @ApiProperty({type:String,nullable:true}) gtin!:string|null;
@@ -182,7 +187,7 @@ export class PublicEnterprisesPageDto {
   hasMore!: boolean;
 }
 
-export class PublicPageSizeDto {
+class PublicPageSizeDto {
   @ApiPropertyOptional({ type: Number, default: 20, minimum: 1, maximum: 50 })
   @Type(() => Number)
   @IsInt()

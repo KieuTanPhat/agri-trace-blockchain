@@ -62,3 +62,45 @@ export async function uploadCycleImage(
   );
   return result.record.id;
 }
+
+type PhotoSubject = {
+  entityType: "TRANSFER" | "LOT";
+  entityId: string;
+  kind: "TRANSFER_IMAGE" | "DAMAGE_IMAGE";
+  siteId?: string;
+  description: string;
+};
+
+/**
+ * Uploads handover or damage photos once each; `cache` maps a photo's uri to
+ * its evidence id so resending the command reuses the same photos and hashes.
+ */
+export async function uploadPhotos(
+  call: Call,
+  subject: PhotoSubject,
+  photos: Photo[],
+  cache: Map<string, string>,
+) {
+  const ids: string[] = [];
+  for (const [i, photo] of photos.entries()) {
+    let id = cache.get(photo.uri);
+    if (!id) {
+      const form = new FormData();
+      form.append("entityType", subject.entityType);
+      form.append("entityId", subject.entityId);
+      form.append("kind", subject.kind);
+      if (subject.siteId) form.append("siteId", subject.siteId);
+      form.append("description", `${subject.description} (${i + 1})`);
+      appendPhoto(form, photo);
+      const result = await call<{ record: { id: string } }>(
+        "/enterprise-workspace/evidence",
+        { form, idempotencyKey: newIdempotencyKey() },
+      );
+      id = result.record.id;
+      cache.set(photo.uri, id);
+    }
+    ids.push(id);
+  }
+  return ids;
+}
+

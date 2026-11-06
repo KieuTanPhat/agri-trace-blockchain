@@ -36,7 +36,7 @@ const currentSelect = {
 
 /** Plan payload is a coordination projection. Grant/user identifiers are not
  * included in HTTP responses; no raw partner metadata is read through here. */
-export function shipmentPlanReadWhere(
+function shipmentPlanReadWhere(
   actor: CommandActor,
   chainId: string,
 ): Prisma.ShipmentPlanWhereInput {

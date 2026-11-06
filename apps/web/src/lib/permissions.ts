@@ -1,17 +1,14 @@
-import type { Role } from "./types";
+import type { AuthUser, Role } from "./types";
 
-export const platformAdminLabels: Record<string, string> = {
-  SYSTEM_ADMIN: "Quản trị toàn nền tảng",
-  PLATFORM_OPERATOR: "Vận hành (chỉ đọc)",
-  PLATFORM_CASE_MANAGER: "Điều phối sự cố",
-  PLATFORM_PRIVACY_OFFICER: "Phụ trách dữ liệu cá nhân",
-};
+/** Role used for business decisions: an enterprise employee (ENTERPRISE_STAFF)
+ * acts as its organization type's business role; detailed permissions still
+ * come from the enterprise access projection. */
+export function actingRole(user: Pick<AuthUser, "role" | "businessRole">): Role {
+  return user.businessRole ?? user.role.code;
+}
+
 export function platformAdminHome(role?: Role): string | null {
-  if (role === "SYSTEM_ADMIN") return "/admin";
-  if (role === "PLATFORM_OPERATOR") return "/admin/operations";
-  if (role === "PLATFORM_CASE_MANAGER") return "/admin/cases";
-  if (role === "PLATFORM_PRIVACY_OFFICER") return "/admin/privacy";
-  return null;
+  return role === "SYSTEM_ADMIN" ? "/admin" : null;
 }
 
 export function canWriteFarm(role?: Role, productionAccess?: boolean): boolean {
@@ -25,31 +22,12 @@ export function canAccessManagementRoute(
 ): boolean {
   const within = (prefix: string) =>
     path === prefix || path.startsWith(prefix + "/");
+  // The retired simulator address has the same boundary as its redirect target.
+  if (within("/iot-simulator")) path = "/enterprise/devices";
   // Every signed-in account may change its own password.
   if (path === "/account/password" || path === "/account/privacy") return true;
   // Every platform account has a notifications page behind the header bell.
-  if (path === "/admin/notifications") return !!platformAdminHome(role);
-  if (role !== "SYSTEM_ADMIN" && platformAdminHome(role)) {
-    if (path === "/admin/security") return true;
-    if (role === "PLATFORM_OPERATOR")
-      return [
-        "/admin/operations",
-        "/admin/recall",
-        "/admin/ledger",
-        "/admin/monitoring",
-        "/admin/statistics",
-        "/admin/chains",
-        "/admin/lots",
-      ].includes(path);
-    if (role === "PLATFORM_CASE_MANAGER")
-      return (
-        within("/admin/cases") ||
-        within("/admin/support") ||
-        ["/admin/recall", "/admin/reports", "/admin/inbox", "/admin/lots"].includes(path)
-      );
-    if (role === "PLATFORM_PRIVACY_OFFICER") return path === "/admin/privacy";
-    return false;
-  }
+  if (path === "/admin/notifications") return role === "SYSTEM_ADMIN";
   // Auditors may read the platform audit log and nothing else under /admin.
   if (
     role === "AUDITOR" &&
@@ -101,7 +79,6 @@ export function canAccessManagementRoute(
         "/admin/ledger",
         "/admin/billing",
         "/admin/reports",
-        "/admin/support",
         "/admin/statistics",
         "/admin/monitoring",
         "/admin/security-alerts",
@@ -116,7 +93,6 @@ export function canAccessManagementRoute(
     [
       "SYSTEM_ADMIN",
       "AUDITOR",
-      "COMPLIANCE_REVIEWER",
       "IOT_DEVICE",
       "SYSTEM_ACTOR",
     ].includes(role)
@@ -130,7 +106,6 @@ export function canAccessManagementRoute(
     return false;
   if (within("/admin")) return false;
   if (within("/production-cycles") && productionAccess) return true;
-  if (within("/iot-simulator")) return canWriteFarm(role, productionAccess);
   if (within("/compliance"))
     return [
       "SYSTEM_ADMIN",
@@ -138,7 +113,6 @@ export function canAccessManagementRoute(
       "TRANSPORTER",
       "RETAILER",
       "AUDITOR",
-      "COMPLIANCE_REVIEWER",
     ].includes(role);
   if (within("/production-cycles")) {
     return [
@@ -147,7 +121,6 @@ export function canAccessManagementRoute(
       "TRANSPORTER",
       "RETAILER",
       "AUDITOR",
-      "COMPLIANCE_REVIEWER",
     ].includes(role);
   }
   return true;

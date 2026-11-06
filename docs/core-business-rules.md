@@ -1,8 +1,8 @@
 # Current business rules and acceptance boundaries
 
-Updated 2026-10-16. Use current source, SQL guards and generated Swagger for the
-implemented API, and current AGT issues for acceptance. The hosted Hybrid release
-is still undergoing validation; the rules below are requirements to preserve.
+Use current source, SQL guards and generated Swagger for the implemented API,
+and current AGT issues for acceptance. These rules preserve implementation
+boundaries; deployment acceptance requires exact-SHA runtime evidence.
 
 - A current authenticated account and session, organization, capability,
   membership, grant and accepted assignment authorize business actions. Check
@@ -71,7 +71,7 @@ is still undergoing validation; the rules below are requirements to preserve.
 
 Release tests must exercise these invariants on the exact candidate, including
 concurrency, restart, restore and direct ledger verification. See
-[the current release gates](plans/hybrid-production-readiness-2026-10-13.md).
+[the current release gates](production-runbook.md#cổng-nghiệm-thu-phát-hành).
 
 ## Enterprise workspace and source-preserving distribution
 
@@ -127,9 +127,11 @@ and privacy acknowledgements are separate required inputs; marketing is optional
 and defaults off. The server records the policy version and acceptance timestamp.
 New registration service preferences require TRACEABILITY; the form no longer
 offers QR_LABELS (label printing was retired on 26/10/2026), while the API still
-accepts it from drafts saved earlier. Other capabilities remain separate from signup preferences. A
-rate-limited, no-store public email availability check returns only a boolean;
-it never reserves an email or replaces atomic uniqueness at final registration.
+accepts it from drafts saved earlier. Other capabilities remain separate from signup preferences.
+Rate-limited, no-store public availability checks return only booleans. The form
+checks a business tax identifier before leaving the organization step and emails
+before leaving the contact step. They do not reserve identifiers or replace
+atomic uniqueness at final registration.
 
 Payment collection is deferred by default (`ENTERPRISE_PAYMENTS_ENABLED=false`,
 28/10/2026 decision). Approval alone does not grant business authority: every
@@ -143,27 +145,33 @@ shows temporary use and refuses quotation/order/payment commands. The optional
 flow below applies only after an operator explicitly enables collection.
 
 Approval alone does not grant business authority for new enrollments. An owner
-previews and acknowledges an immutable service quotation/contract, then local
-simulated settlement records `PAID_SIMULATED` and queues the contract email; it
-does not grant capabilities or organization roles. A separate SYSTEM_ADMIN
-activation command grants the approved business authority and records
-`ENTERPRISE_SERVICE_ACTIVATED`. Amounts come from the versioned server catalog,
-never the submitted client. Real payment and qualified contract signatures remain
-unimplemented. Existing enrollments retain their previous admission policy. SMTP
+previews and acknowledges an immutable service quotation/contract. A private, append-only PDF preview is merged from a versioned static template before acceptance; confirmation copies its exact bytes/hash to the order. Expired or changed previews cannot be accepted. Service history exposes only this owner organization's relevant steps; it does not grant platform audit access. Worker email attaches the same accepted PDF after confirmed settlement. Optional SePay
+settlement verifies the recipient, unique invoice code, exact server-side amount,
+transaction window and reviewed enrollment/capabilities. Receipt, invoice,
+subscription, contract, automatic activation and mail outbox share one commit.
+Test mode records `SIMULATION`/`PAID_SIMULATED`; Live records `SEPAY`/`PAID`.
+Retries cannot add another payment or extend the term twice. Automatic activation
+has a system audit actor and a deferred SQL check for its matching receipt; manual
+SYSTEM_ADMIN activation remains available under the existing policy. Amounts come
+from the versioned server catalog, never the submitted client. Qualified contract
+signatures remain separate work; PDF mail attachments use the accepted snapshot. The integration stays
+disabled by default and provider/production acceptance is not implied by local
+fixtures; see [SePay](sepay.md). Existing enrollments retain their previous admission policy. SMTP
 is Worker-only, requires TLS, and never relays reserved test recipients externally.
-A self-managed connection request follows service activation; neither approval,
-simulated settlement nor activation claims Fabric connection success.
+There is no enterprise peer hosting mode or connection request. Chain creation atomically enqueues shared-platform ledger provisioning. Approval, settlement and service activation do not claim ledger readiness: registry, credential and permission confirmation remain mandatory. Enterprises keep independent signing keys; AgritraceMSP operates peers, and OrdererMSP operates ordering on the shared agritrace channel.
 
 The enterprise extension keeps production → harvest → source Lot unchanged.
 New products are organization-owned; legacy shared products remain readable.
 Platform administrators can read catalog records but cannot create products,
 farms or plots. Enterprise administrators and delegated staff use current
 `catalog.manage` scope for those writes. Platform-created users are limited to
-system administrators and independent compliance reviewers; enterprise staff
+Admin (`SYSTEM_ADMIN`) and inspector (`AUDITOR`) accounts; enterprise staff
 must be created inside the approved enterprise hierarchy. Direct platform
 organization creation is limited to independent auditor organizations.
-Registration requires the five-step legal/account/activity/service profile. Admission
-grants only reviewed capabilities, ORG_ADMIN and CREATE_CHAIN; it never grants
+Registration requires the five-step legal/account/activity/service profile and is
+open only to `ENTERPRISE` and `COOPERATIVE` organizations. Admission grants only
+reviewed capabilities and ORG_ADMIN; CREATE_CHAIN follows an ACTIVE chain-owner
+subscription ([ADR-005](adr-005-chain-owner-service-model.md)). It never grants
 business access to another chain. Historical incomplete profiles remain flagged
 for reviewers; new API registrations require the complete profile and OTP proofs.
 Capability changes remain platform-reviewed.
@@ -209,7 +217,10 @@ Shipments are not converted or rewritten automatically. Shipment-flow Lot
 actions are hidden for allocated Lots. Organization-level `quantity.adjust`
 records physical sale/damage quantities and immutable movements; it does not
 create orders, payments, valuation, accounting or warehouse optimization.
-Carrier journal observations are labelled MANUAL, separate from IoT proofs.
+Carrier journal observations are labelled MANUAL, separate from IoT proofs, and
+carry no temperature (ADR-006). GPS positions of the carrying party's vehicle are
+recorded only inside the transit window and sealed with the DELIVERY attestation;
+see [ADR-006](adr-006-iot-plot-vehicle-tracking.md).
 Producer notices are explicit public projections. Recall notices block further
 distribution and sale without erasing the physical holding or its history.
 
@@ -243,7 +254,7 @@ ghi nghiệp vụ; phần này chỉ ràng buộc việc quản trị tài kho�
   hiện tại và lý do tối thiểu 10 ký tự. Khóa thu hồi mọi refresh session trong
   cùng transaction (cùng thứ tự khóa org → user như login/refresh). Không tự khóa
   chính mình; không vô hiệu hóa quản trị viên hoạt động cuối cùng. Admin chỉ đổi
-  trạng thái tài khoản nền tảng (SYSTEM_ADMIN, COMPLIANCE_REVIEWER).
+  trạng thái tài khoản nền tảng (SYSTEM_ADMIN, AUDITOR).
 - **Mật khẩu và phiên:** admin đặt mật khẩu tạm (không trả lại, không ghi nhật ký)
   buộc đổi ở lần đầu; token của tài khoản đó chỉ dùng được `/auth/me`,
   `/auth/change-password`, `/auth/logout(-all)`. Tự đổi mật khẩu thu hồi mọi phiên
@@ -361,8 +372,7 @@ trạng sau cả vòng đời hồ sơ.
 
 ## Diễn tập thu hồi (P1-4)
 
-`GET /platform-recall/:lotId` dành cho SYSTEM_ADMIN, AUDITOR,
-PLATFORM_OPERATOR và PLATFORM_CASE_MANAGER. Snapshot `RepeatableRead` đọc lô
+`GET /platform-recall/:lotId` dành cho SYSTEM_ADMIN và AUDITOR. Snapshot `RepeatableRead` đọc lô
 nguồn, lô con, phân bổ hiện tại và các chặng giao nhận; không ghi domain, cảnh
 báo, trace/outbox hoặc gửi thông báo. Chặng phân phối đã hủy không thuộc báo cáo.
 Lượng luân chuyển qua nhiều chặng không được cộng thành tồn kho; lượng giữ chỗ
@@ -373,8 +383,8 @@ Không trả địa chỉ giao hàng, liên hệ, payload hoặc chữ ký.
 ## Quyền dữ liệu cá nhân và hồ sơ vi phạm (P1-5)
 
 `/privacy-requests` nhận yêu cầu của tài khoản đang đăng nhập, luôn gắn người gửi
-từ phiên; chỉ chủ thể đọc hồ sơ của mình. SYSTEM_ADMIN và
-PLATFORM_PRIVACY_OFFICER xử lý qua `/platform-privacy`; AUDITOR và các vai khác
+từ phiên; chỉ chủ thể đọc hồ sơ của mình. SYSTEM_ADMIN xử lý qua
+`/platform-privacy`; AUDITOR và các vai khác
 không đọc hộp thư. Yêu cầu được xem xét, không tự xóa lịch sử truy xuất hoặc sửa
 event hash. Nội dung và phản hồi lưu AES-256-GCM với AAD theo từng bản ghi;
 journal chỉ giữ kết quả metadata, audit không giữ nội dung riêng tư. Ghi chú
@@ -400,13 +410,36 @@ người phụ trách đánh giá điều kiện và phạm vi thông báo theo 
 được đối chiếu riêng về an toàn thực phẩm; không dùng chúng để suy ra hạn xử lý
 mọi yêu cầu dữ liệu hoặc cấp quyền thu hồi lô cho admin.
 
-## Các vai quản trị hẹp (P2)
+## Bộ vai tài khoản (chốt 04/11/2026)
 
-SYSTEM_ADMIN giữ quyền quản trị đầy đủ. PLATFORM_OPERATOR chỉ đọc bảng vận hành
-và diễn tập; PLATFORM_CASE_MANAGER quản lý hồ sơ sự cố và đọc diễn tập;
-PLATFORM_PRIVACY_OFFICER chỉ xử lý hộp thư quyền dữ liệu/sự cố riêng tư. Cả ba
-có MFA tự phục vụ và khóa đăng nhập nền tảng, không có quyền user/org/grant/
-ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
+- Admin (`SYSTEM_ADMIN`): quản trị nền tảng, không ghi nghiệp vụ.
+- Năm vai doanh nghiệp `FARM_STAFF`, `TRANSPORTER`, `DISTRIBUTOR`, `PROCESSOR`,
+  `RETAILER` ứng với loại tổ chức; chủ doanh nghiệp (cấp 1 hoặc chưa phân cấp)
+  mang vai này.
+- Nhân viên doanh nghiệp (`ENTERPRISE_STAFF`): thành viên cấp 3 của tổ chức
+  nghiệp vụ. API suy vai nghiệp vụ từ `organization.type` (FARM → `FARM_STAFF`,
+  các loại khác cùng tên) mỗi request và khi kiểm tra lại actor trong transaction
+  của command; quyền chi tiết vẫn lấy từ `EnterpriseRole` qua `enterpriseAuthority`.
+  Nhân viên không thuộc tổ chức nghiệp vụ hoặc không ở cấp 3 bị từ chối.
+  `AuthUserDto.businessRole` trả vai nghiệp vụ đã suy để client hiển thị lệnh.
+  Migration `20270101000002_enterprise_staff_role` chuyển thành viên cấp 2/3 hiện có;
+  `20270101000004_single_staff_tier` bỏ cấp 2 (xem mục Thành viên hai cấp).
+- Kiểm định (`AUDITOR`): tổ chức kiểm định; ghi kiểm định chỉ trên nông trại được
+  phân công (migration `20270101000001_inspector_role_consolidation`).
+- `IOT_DEVICE`, `SYSTEM_ACTOR`: danh tính máy, không hiện trên giao diện.
+
+`ScopedRole` trên chuỗi (kể cả `COMPLIANCE_REVIEWER`), lịch sử sự kiện, event hash
+và proof Fabric giữ nguyên mã cũ.
+
+## Vai quản trị nền tảng (gộp 04/11/2026)
+
+Nền tảng chỉ có một vai Admin (`SYSTEM_ADMIN`). Ba vai hẹp cũ (vận hành, điều
+phối sự cố, phụ trách dữ liệu cá nhân) đã gộp vào Admin; migration
+`20270101000000_platform_admin_consolidation` chuyển tài khoản cũ sang `SYSTEM_ADMIN` rồi
+xóa mã cũ khỏi `app_role`. Admin có MFA tự phục vụ, khóa đăng nhập nền tảng và
+không ghi nghiệp vụ (sản xuất, lô, vận chuyển, chế biến). Không tự khóa chính
+mình và không vô hiệu hóa Admin hoạt động cuối cùng. Luồng maker–checker hiện đã
+gỡ; khi bật lại, người duyệt phải là một tài khoản Admin khác người đề xuất.
 
 ## Hồ sơ nghiệp vụ theo biểu mẫu bổ sung (19/10/2026)
 
@@ -435,12 +468,17 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   thành viên chuỗi, bên nhận giữ hàng hay người ký. Thành viên nội bộ có chức danh,
   liên hệ và phân công cơ sở/vùng; lời mời chuyển các trường này sang tài khoản chỉ
   sau khi được chấp nhận. Ảnh đại diện và giấy tờ thành viên là chứng cứ riêng tư.
-- Người quản lý trực tiếp quyết định thành viên được làm gì và ai quản lý họ.
-  Chỉ chủ quản đổi được, chỉ cho nhân viên cấp 3, sang quản lý cấp 2 đang hoạt
-  động (trực thuộc chủ quản) hoặc về chủ quản. Quản lý mới phải có mọi quyền và
-  phạm vi chuỗi/cơ sở của thành viên. Mỗi lần đổi ghi một dòng bất biến
-  `enterprise_supervisor_change`; trigger cấp bậc chỉ nhận cập nhật đi kèm dòng đó
-  trong cùng transaction. Thành viên bị thu hồi phiên và phải đăng nhập lại.
+- Thành viên hai cấp (04/11/2026): chủ doanh nghiệp (cấp 1) là người quản lý duy
+  nhất; mọi nhân viên (cấp 3) trực thuộc thẳng chủ. Không còn cấp quản lý 2 và
+  không còn lệnh đổi người quản lý. Chỉ chủ tạo/mời/sửa/khóa thành viên và tạo/sửa
+  nhóm quyền; nhóm quyền không được chứa `members.manage` hay `roles.manage` (API
+  trả 422). Request tạo thành viên/lời mời không còn trường `tier`. Nhân viên chỉ
+  thấy và ghi vụ được giao. Migration `20270101000004_single_staff_tier` chuyển cấp
+  2 thành nhân viên cấp 3, đưa nhân viên dưới quản lý cũ về trực thuộc chủ, thu hồi
+  lời mời đang chờ không còn hợp lệ, thêm ràng buộc cấp chỉ 1 hoặc 3 và trigger chỉ
+  cho phép người quản lý trực tiếp là chủ. Bảng `enterprise_supervisor_change` giữ
+  lịch sử cũ, không ghi thêm. Migration có `DISABLE TRIGGER` nên phải pin
+  `migration_reviews` trong config CD trước khi deploy.
 - Phiếu giao nhận mới yêu cầu giờ dự kiến lấy hàng có múi giờ; giờ giao dự kiến
   nếu có không được trước giờ lấy. Lịch và ghi chú tham gia snapshot đồng thuận
   của phiếu mới. Phiếu cũ có các cột mới `NULL` giữ snapshot/chữ ký trước đó.
@@ -449,18 +487,34 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
 - Từ 2026-10-26 phiếu giao nhận có `transport_mode`: `PLATFORM_CARRIER` (đơn vị
   vận chuyển trên AgriTrace, ba bên độc lập như trước), `EXTERNAL_CARRIER` (thuê
   xe ngoài; bên thuê là bên giao hoặc bên nhận và giữ vai trò người chở),
-  `SELF_DELIVERY` (bên giao tự chở) và `RECEIVER_PICKUP` (bên nhận tự lấy). Khi
+  `SELF_DELIVERY` (bên giao tự chở) và `RECEIVER_PICKUP` (bên nhận tự lấy, đã bỏ
+  từ 04/11/2026). Khi
   bên giao hoặc bên nhận kiêm người chở, mỗi bước chỉ cần chữ ký của các doanh
   nghiệp khác nhau tham gia bước đó (`distribution_phase_parties`); chỉ đơn vị
-  vận chuyển trên AgriTrace ghi quan sát cảm biến. Thông tin xe/tài xế nhập tay
+  vận chuyển trên AgriTrace ghi quan sát cảm biến (từ 04/11/2026 theo ADR-006:
+  mọi bên chở trừ thuê ngoài ghi nhật ký tay, không ghi nhiệt độ; tự giao được
+  chọn xe đã khai để gắn GPS). Thông tin xe/tài xế nhập tay
   nằm trong snapshot ký của phiếu không dùng `PLATFORM_CARRIER`; phiếu cũ giữ
   nguyên snapshot. Phiếu đi theo chuỗi của lô (không chọn chuỗi). Bên nhận hoặc
   đơn vị vận chuyển chưa ở chuỗi nhận lời mời khi phiếu được lập; chủ quản chấp
   nhận vào chuỗi trên phiếu. Nếu bên giao là chủ chuỗi, người chấp nhận được cấp
-  vai trò theo năng lực doanh nghiệp; nếu không, chủ chuỗi cấp vai trò như thường.
-  Chỉ ký được khi đã là thành viên hoạt động và quyền ledger đã đồng bộ. Bên nhận
-  gửi được yêu cầu lấy hàng (không giữ chỗ hàng); bên giao lập phiếu
-  `RECEIVER_PICKUP` từ yêu cầu hoặc từ chối.
+  vai trò theo năng lực doanh nghiệp; nếu không, quản trị doanh nghiệp giao chuỗi
+  cho nhân viên trong nhóm quyền thành viên. Doanh nghiệp không cấp hay thu hồi vai
+  trò nghiệp vụ theo chuỗi trực tiếp: vai trò đó sinh ra từ nhóm quyền gắn chuỗi khi
+  tạo hoặc sửa thành viên, và được dựng lại mỗi lần lưu. Nền tảng vẫn cấp trực tiếp
+  vai trò quản trị (quản trị tổ chức, tạo chuỗi, điều phối chuỗi, kiểm định).
+  Chỉ ký được khi đã là thành viên hoạt động và quyền ledger đã đồng bộ.
+- Tài xế khi tự chở (04/11/2026): phiếu `SELF_DELIVERY` mới bắt buộc chọn tài xế
+  (`driver_user_id`) là nhân viên đang hoạt động của bên giao, có quyền
+  `distribution.drive` (Lái xe) và `distribution.sign` trên chuỗi của lô và cơ sở
+  giao. API điền tên/số điện thoại tài xế từ hồ sơ thành viên; `driverUserId` vào
+  snapshot ký khi có. Phía bên chở, chỉ tài xế đó hoặc chủ doanh nghiệp ký lấy hàng,
+  ký giao hàng và gắn ảnh hai bước này; đồng thuận vẫn ký theo tổ chức. Phiếu tự chở
+  cũ không có tài xế giữ cách ký theo tổ chức. Mẫu nhóm quyền "Tài xế giao hàng" có
+  sẵn quyền Lái xe. Chế độ `RECEIVER_PICKUP` (bên nhận tự lấy) và yêu cầu lấy hàng
+  đã bỏ: migration `20270101000005_self_delivery_driver` từ chối chạy nếu còn phiếu
+  `RECEIVER_PICKUP`, xóa bảng `distribution_pickup_request` và loại mode này khỏi
+  ràng buộc. Bên nhận muốn tự lo vận chuyển dùng `EXTERNAL_CARRIER` do bên nhận thuê.
 - Phân bổ lượng chưa gắn cơ sở ghi ngay, không cần giao nhận vật lý. Chuyển hàng
   giữa hai cơ sở của cùng doanh nghiệp phải lập phiếu chuyển kho (`CK-…`): Chờ
   chuyển → Đang chuyển → Đã nhận/Chênh lệch, hoặc Hủy khi chưa xuất. Khi xuất,
@@ -475,6 +529,42 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
   Lượng cách ly phát sinh từ biên bản nhận hàng không có phiếu vẫn xử lý được trong
   phần chưa có phiếu. Phiếu chuyển và phiếu cách ly bất biến, chỉ đổi trạng thái hợp
   lệ; ảnh/chứng từ gắn qua chứng cứ `SITE_TRANSFER`/`QUARANTINE`.
+- Khóa ký bàn giao STANDARD là khóa cá nhân do thiết bị (app hoặc trình duyệt) tự
+  sinh khi thành viên có `distribution.sign` đăng nhập; không còn tạo khóa doanh
+  nghiệp bằng tay. Tài khoản cấp 1 xem và thu hồi mọi khóa của doanh nghiệp. Khóa
+  cá nhân chỉ ký được sau khi chủ tài khoản nhập mã OTP gửi tới email tài khoản
+  (mã 10 phút, tối đa 5 lần sai, 60 giây giữa hai lần gửi, 5 mã mỗi giờ), chỉ ký cho
+  chính chủ (guard SQL trên chữ ký) và bị thu hồi khi tài khoản ngừng hoạt động.
+  Máy chủ chỉ nhận khóa công khai và bằng chứng sở hữu, không nhận khóa riêng.
+- Bán lẻ và phân phối không tự khai sản phẩm gốc. Trang sản phẩm của họ gồm "Hàng
+  đang bán" (tự lấy từ lô đã nhận, gom theo sản phẩm, không sửa nguồn gốc) và "Nhãn
+  riêng": sản phẩm mang thương hiệu bên bán, khai sản phẩm nguồn là hàng đã nhận của
+  doanh nghiệp khác, không gắn vùng hay nhà xưởng. Nhãn riêng chỉ đóng gói (lệnh
+  `PACKING`, không phụ phẩm, không nguyên liệu ngoài) từ lô của sản phẩm nguồn đang
+  giữ, tại cơ sở của bên bán; lô mới có QR riêng và lô nguồn trong phả hệ, nên trang
+  quét hiện thương hiệu bên bán (khi sản phẩm được duyệt) và nguồn gốc thật. Guard SQL
+  giữ danh sách nguồn chỉ thêm, nguồn phải của doanh nghiệp khác và cờ nhãn riêng cố
+  định. Lượng giữ chỗ của lô tính cả nguyên liệu của lệnh chế biến đang chạy.
+- Không bắt buộc mọi bên dùng AgriTrace. Mỗi mắt xích có mức tin cậy: bàn giao có
+  chữ ký hai bên; nhà cung cấp xác nhận qua link (tùy chọn); bên nhận khai báo kèm
+  chứng từ. Bán lẻ và phân phối nhập hàng của nhà cung cấp ngoài AgriTrace bằng phiếu
+  nhập hàng ngoài: chọn nhà cung cấp trong danh bạ, số chứng từ, mã lô in trên chứng
+  từ (tùy chọn), bắt buộc ảnh chứng từ trước khi dùng. Hàng nhập ngoài ghi vào **sổ ghi
+  cửa hàng** (chuỗi riêng miễn phí, tự tạo khi duyệt năng lực bán lẻ hoặc phân phối,
+  không giới hạn số lô), không phải chọn chuỗi. Phiếu được đóng gói thành lô
+  của sản phẩm "hàng nhập ngoài" (cờ cố định, không trang thương hiệu). Mã lô khớp một
+  lô AgriTrace đã "xuất cho đơn vị ngoài hệ thống" thì phiếu nối về lô đó và trang quét
+  hiện nguồn gốc nối lại; không khớp thì nguồn gốc dừng ở nhà cung cấp.
+- Ảnh xác nhận giao nhận là chứng cứ riêng của các bên trong chuyến, không công khai:
+  - Lấy hàng/giao hàng: ảnh `TRANSFER_IMAGE` của một bên ký bước đó, tùy chọn, tối đa
+    6 ảnh mỗi bước. Chỉ gắn khi bước đang mở và chưa bên nào ký; mã băm danh sách ảnh
+    (`photosDigest`) nằm trong snapshot nên mọi chữ ký của bước (STANDARD và c2) đều
+    phủ ảnh. Gắn ảnh tăng phiên bản chặng, intent đã chuẩn bị trước đó hết hiệu lực.
+  - Biên bản thực nhận: bắt buộc ít nhất một ảnh của bên nhận khi có thiếu, từ chối
+    hoặc cách ly; mã băm ảnh nằm trong `receiptDigest`.
+  - Ghi hư hỏng (`DAMAGE`) bắt buộc ảnh `DAMAGE_IMAGE` của lô; cách ly được kèm ảnh.
+    Mã băm ảnh ghi trong sự kiện truy xuất. Guard SQL kiểm ảnh đúng chuyến, đúng tổ
+    chức và chặn thêm ảnh sau khi bước đã ký.
 - Sản phẩm có thêm nguyên liệu, nhà xưởng sản xuất (cơ sở của doanh nghiệp), nhà xuất
   khẩu/nhập khẩu/phân phối/vận chuyển và người quản lí (thành viên đang hoạt động).
   Nhật ký chăm sóc ghi người thực hiện (tài khoản đang ghi hoặc người phụ trách vụ)
@@ -483,27 +573,26 @@ ghi nghiệp vụ. Không tự chuyển quyền tài khoản hiện hữu.
 
 ## Mô hình tham gia, nhà chế biến và gói dịch vụ (19/10/2026)
 
-Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-processor-plan-2026-10-19.md).
+Việc còn mở: [backlog](plans/backlog.md).
 
 - Năng lực tổ chức thêm `PROCESSOR`, kèm vai trò chuỗi `PROCESSOR` (migration
   `20261213000005_processor_chain_role`, quyền ledger cho `LOT`) để nhà chế biến
   ghi sự kiện phân phối/chế biến qua binding như các khâu khác. Vai trò không
   thuộc chuỗi bị từ chối 409 khi ghi ledger.
-- Đăng ký chọn mô hình `SINGLE` (đúng một
-  hoạt động) hoặc `SUPPLY_CHAIN_ENTERPRISE` (tổ chức có đăng ký, ít nhất hai năng
-  lực). Mỗi hoạt động tạo một `capability_request`; admin duyệt/từ chối riêng.
+- Đăng ký chọn số năng lực tùy ý và tư cách `MEMBER` hoặc `CHAIN_OWNER`
+  ([ADR-005](adr-005-chain-owner-service-model.md)). Mỗi năng lực tạo một
+  `capability_request`; admin duyệt/từ chối riêng. Tổ chức đã kích hoạt xin thêm
+  năng lực qua `POST /capability-requests`.
   Đăng ký không cấp năng lực. Duyệt sau khi đã kích hoạt cấp năng lực ngay trong
   cùng lệnh có audit; trước kích hoạt thì bước kích hoạt cấp các năng lực đã duyệt.
   Hồ sơ cũ không có yêu cầu năng lực giữ hành vi cấp theo `activities`.
 - Năng lực chế biến cần loại hình chế biến, số và hạn giấy chứng nhận cơ sở đủ điều
   kiện ATTP (còn hiệu lực lúc đăng ký và lúc duyệt) cùng tài liệu `CERTIFICATE`.
-- Phân loại thương mại hiện hành (khi bật thu phí): có năng lực `FARM` hoặc mô hình doanh nghiệp chuỗi. Chỉ họ mua
-  gói, được cấp `CREATE_CHAIN` và phải có subscription `ACTIVE` trước khi kích hoạt.
-  Vận chuyển, chế biến, phân phối, bán lẻ tham gia miễn phí, chỉ có `ORG_ADMIN`,
-  ghi nghiệp vụ trong chuỗi được mời, theo hạn mức `billing.participantLimits`.
-  Trong giai đoạn hoãn thanh toán, không yêu cầu subscription để admin kích hoạt;
-  phân loại này vẫn giữ riêng với quyền nghiệp vụ. Yêu cầu đưa PROCESSOR độc lập
-  vào nhóm trả phí còn để sau khi tích hợp thanh toán, không đổi ngầm ở đợt này.
+- Chỉ `CHAIN_OWNER` mua gói. Kích hoạt (admin, sau khi duyệt năng lực) cấp
+  `ORG_ADMIN`; `CREATE_CHAIN` cấp khi subscription chuyển `ACTIVE`. `MEMBER` ghi
+  nghiệp vụ trong chuỗi được mời hoặc nhận lô, theo `billing.participantLimits`.
+  Gói theo quy mô với hạn mức `products`, `chains`, `partners`, `members`; vượt hạn
+  mức chặn tạo mới, không hạ gói thấp hơn mức đang dùng.
 - Bảng giá lưu `service_plan_version`; bản đã công bố bất biến, báo giá ghi
   `planVersionId`. Chấp nhận hợp đồng tạo subscription `PENDING_PAYMENT` và hóa
   đơn `INITIAL`; thanh toán (mô phỏng local hoặc admin xác nhận chuyển khoản) đổi
@@ -515,6 +604,25 @@ Kế hoạch: [admin-console-processor-plan-2026-10-19](plans/admin-console-proc
   `RESTRICTED` chặn kích hoạt sản phẩm, tạo chuỗi và thêm thành viên,
   nhưng không chặn giao nhận đang dở, đọc dữ liệu hay trang QR công khai. Hạn mức
   kiểm trong cùng transaction của lệnh tạo.
+- Chủ chuỗi hết hạn (`RESTRICTED`) không tạo vụ, lô hay lệnh chế biến mới trong
+  chuỗi của mình; lô và giao nhận đang dở vẫn hoàn tất.
+
+## Chủ chuỗi, đối tác và nguồn nguyên liệu (02/11/2026)
+
+Quyết định đầy đủ ở [ADR-005](adr-005-chain-owner-service-model.md).
+
+- Sản phẩm gắn vào chuỗi phải thuộc chủ chuỗi. Trang thương hiệu trên trang quét chỉ
+  hiện khi admin đã duyệt sản phẩm và tổ chức đã công bố hồ sơ.
+- Chủ chuỗi "loại" đối tác: `closing_at` chặn bàn giao mới; chỉ tạm ngừng khi đối tác
+  hết hàng và không còn giao nhận mở. Đối tác tự rời theo cùng điều kiện.
+- Bên giữ hàng cách ly ngay. Thu hồi công khai chỉ chủ chuỗi của lô phát động; đối
+  tác gửi đề xuất thu hồi. Lô có đầu vào liên chuỗi báo thêm chủ chuỗi gốc.
+- Phiếu nhập ngoài chọn nhà cung cấp trong danh bạ của tổ chức, có mức tin cậy
+  `DECLARED`/`EVIDENCED`/`SUPPLIER_CONFIRMED`; lô AgriTrace là `SELF_RECORDED`.
+- Bên giữ hàng ghi `EXTERNAL_DISPATCH` khi giao cho đơn vị ngoài hệ thống.
+- AgriTrace không lưu giá (03/11/2026): sản phẩm không có giá khuyến nghị, vật tư không
+  có đơn giá. Giá bán do cửa hàng quyết định trên POS/ERP của mình, giá mua bán giữa
+  doanh nghiệp nằm trên hóa đơn; nhập hàng ngoài chỉ giữ số và ảnh chứng từ.
 
 ## Chế biến (biến đổi lô)
 
@@ -528,8 +636,10 @@ nghiệm thu Fabric hoặc nguyên liệu có chứng nhận độc lập.
 
 - Lệnh chế biến do tổ chức có năng lực `PROCESSOR` lập tại cơ sở loại
   `PROCESSING`/`PACKING`, trong một chuỗi; quyền `processing.write` theo chuỗi và
-  cơ sở. Lô đầu vào phải cùng chuỗi, cùng đơn vị cơ sở, đang được tổ chức giữ tại
-  cơ sở (trừ phần giữ chỗ và cách ly), không hết hạn/thu hồi/khóa và đã đối soát.
+  cơ sở. Lô đầu vào cùng đơn vị cơ sở, đang được tổ chức giữ tại cơ sở (trừ phần
+  giữ chỗ và cách ly), không hết hạn/thu hồi/khóa và đã đối soát. Lô của chuỗi khác
+  được dùng khi tổ chức là thành viên `ACTIVE` của chuỗi gốc; lệnh khi đó ghim binding
+  của chuỗi lệnh và lưu liên kết kiểm chứng (ADR-005 mục 5).
 - Cân bằng khối lượng: Σ đầu vào = Σ lượng quy đổi của thành phẩm/phụ phẩm + Σ hao
   hụt, sai lệch tối đa `processing.massBalanceTolerancePercent` (mặc định 0%). API
   và constraint trigger DB cùng kiểm.
@@ -550,7 +660,8 @@ nghiệm thu Fabric hoặc nguyên liệu có chứng nhận độc lập.
   Lệnh hoàn tất hoặc hủy là bất biến; sai thì lập lệnh điều chỉnh mới.
 - Lô chế biến có `origin_type = TRANSFORMATION`, `harvest_id` rỗng và
   `processing_run_id`. Chuỗi và binding sổ cái của sự kiện lấy theo
-  `origin_cycle_id` của lệnh; các đầu vào không được thuộc binding khác nhau.
+  `origin_cycle_id` của lệnh; các đầu vào cùng chuỗi không được thuộc binding khác
+  nhau. Lệnh có đầu vào liên chuỗi không có `origin_cycle_id` và dùng binding đã ghim.
   Luồng gắn với vụ (shipment, kế hoạch giao hàng, chứng nhận vụ) không nhận lô
   chế biến.
 - Trang QR công khai của lô chế biến hiện lô nguyên liệu, nhà sản xuất (ẩn tên
@@ -559,7 +670,7 @@ nghiệm thu Fabric hoặc nguyên liệu có chứng nhận độc lập.
 
 ### Phiếu nhập và vòng đời lệnh (27/10/2026)
 
-Kế hoạch: [processing-receipts-lifecycle](plans/processing-receipts-lifecycle-2026-10-27.md).
+Đối chiếu contract `/api/processing-runs` sinh từ NestJS; việc còn mở ở [backlog](plans/backlog.md).
 Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lệnh lập từ ngày này.
 
 - **Phiếu nhập nguyên liệu** (`material_receipt`, không sửa/xóa):
@@ -603,15 +714,16 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
   audit; secret, khóa ký, cấu hình Fabric/controller không nằm trong đó.
 - Báo cáo vi phạm từ trang QR công khai: không đăng nhập, `requestId` chống gửi
   trùng, giới hạn `consumerReports.maxPerHour` theo băm có khóa của nguồn mạng (không
-  lưu IP). Liên hệ chỉ lưu khi có đồng ý và chỉ nhân sự xử lý (`SYSTEM_ADMIN`,
-  `PLATFORM_CASE_MANAGER`) thấy; `AUDITOR` không thấy. Khi chuyển hồ sơ sự cố, chủ lô
+  lưu IP). Liên hệ chỉ lưu khi có đồng ý và chỉ Admin (`SYSTEM_ADMIN`) thấy; `AUDITOR` không thấy. Khi chuyển hồ sơ sự cố, chủ lô
   nhận hồ sơ mà không kèm thông tin liên hệ.
 - Hủy hóa đơn khởi tạo sẽ phát hành ngay hóa đơn thay thế theo phiên bản gói trong
   hợp đồng đã chấp nhận, và gói vẫn ở trạng thái chờ thanh toán. Khi kỳ đã trả còn
   hiệu lực, chỉ gia hạn được cùng gói; đổi sang gói khác chỉ làm được sau khi kỳ hiện
   tại kết thúc (trong thời gian ân hạn).
-- Yêu cầu hỗ trợ có hạn phản hồi theo `support.reviewSlaHours` và ưu tiên; ghi chú
-  nội bộ không hiện cho doanh nghiệp; yêu cầu đã đóng không nhận trả lời.
+- Kênh yêu cầu hỗ trợ (ticket) giữa doanh nghiệp và nền tảng đã bỏ từ 04/11/2026:
+  migration `20270101000006_remove_support_desk` xóa `support_ticket`,
+  `support_message` và danh mục `TICKET_CATEGORY`; dòng audit cũ giữ nguyên. Cài đặt
+  `support.reviewSlaHours` giữ tên cũ, chỉ còn tính hạn xử lý báo cáo người tiêu dùng.
 - Thông báo hệ thống chỉ là banner theo đối tượng và thời gian (tối đa 90 ngày),
   độc lập với chế độ khóa ghi của controller.
 
@@ -620,9 +732,8 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
 - Nhóm quyền đã gán cho thành viên vẫn sửa được. Quyền mới có hiệu lực ngay cho
   mọi thành viên đang hoạt động trong nhóm, không thu hồi phiên; quyền theo chuỗi
   (`scoped_role_grant` CHAIN) của từng người được cấp lại theo nhóm như khi sửa
-  thành viên. Quản lý cấp 2 chỉ sửa được nhóm khi mọi người giữ nhóm đều do mình
-  quản lý, và không cấp quyền vượt quyền đang có. Người quản lý cấp 2 vẫn giới hạn
-  quyền thực tế của nhân viên cấp 3 theo `enterpriseAuthority`.
+  thành viên. Chỉ chủ doanh nghiệp sửa được nhóm quyền (từ 04/11/2026 không còn
+  quản lý cấp 2).
 - Tạo thành viên bắt buộc địa chỉ liên hệ và ít nhất một nhóm quyền (API trả 400 nếu
   thiếu).
 - `trace_evidence` vẫn bất biến. Gỡ ảnh sản phẩm ghi một dòng chỉ thêm vào
@@ -636,13 +747,13 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
 
 ## Chuỗi riêng, nhân viên của vụ và ràng buộc diện tích (26/10/2026)
 
-- **Chuỗi riêng.** Khi admin kích hoạt doanh nghiệp được cấp `CREATE_CHAIN` (có
-  năng lực `FARM` hoặc mô hình doanh nghiệp chuỗi), cùng lệnh kích hoạt tạo một
-  chuỗi `personal = true` (migration `20261215000000_personal_supply_chain`, tối
-  đa một chuỗi mỗi tổ chức). Chuỗi có hồ sơ nghiệp vụ `ACTIVE`, chủ doanh nghiệp là
-  thành viên, `CHAIN_MANAGER` và vai trò nghiệp vụ theo từng năng lực đã duyệt.
-  Chuỗi riêng không tính vào hạn mức `chains` của gói. Binding vẫn do vận hành
-  đăng ký ngoài API (xem Hybrid runbook); trước khi binding `ACTIVE`, chuỗi chưa
+- **Sổ ghi riêng** (chuỗi `personal = true`, ADR-005 mục 4): "Sổ ghi nông trại" cho
+  `FARM`, "Sổ ghi cửa hàng" cho `RETAILER`/`DISTRIBUTOR` không có `FARM`. Tạo trong
+  cùng lệnh khi một trong các năng lực đó có hiệu lực (kích hoạt hoặc duyệt năng lực
+  sau kích hoạt), tối đa một sổ mỗi tổ chức, cho cả thành viên lẫn chủ chuỗi. Sổ có hồ sơ
+  nghiệp vụ `ACTIVE`, tổ chức là thành viên, `CHAIN_MANAGER` và vai trò theo năng lực.
+  Sổ không tính vào hạn mức gói, chịu hạn mức năm `billing.farmLedgerLimits`. Binding
+  được cấp tự động qua `ledger_provisioning_job`; trước khi binding `ACTIVE`, sổ chưa
   nhận lệnh sản xuất. Doanh nghiệp đã kích hoạt trước đó được bổ sung bằng
   `node dist/operator/personal-chains.js`. Đối tác vào chuỗi qua phiếu giao như
   mọi chuỗi khác. Form tạo vụ ẩn ô chuỗi khi doanh nghiệp chỉ có một chuỗi và mặc
@@ -707,3 +818,42 @@ FOR_SALE, chuyến DELIVERED và availableQuantity > 0. Giao nhận mới đề 
 bị từ chối, đã tiêu thụ hoặc đã bán hết không đủ điều kiện. Hạn dùng theo ngày
 Việt Nam. Nếu không có nhà bán lẻ đáp ứng, hiển thị `Chưa bán`.
 Trạng thái sản phẩm tổng hợp không thay cảnh báo riêng của từng lô.
+
+### Quản trị danh mục gói dịch vụ
+
+`POST /platform-billing/plans` tạo gói và phiên bản DRAFT đầu tiên trong cùng
+transaction có audit/journal; mã gói không được tái sử dụng. Thêm gói không công
+bố, thu tiền hay cấp quyền. `POST /platform-billing/plans/:code/status` chỉ dành
+cho SYSTEM_ADMIN, yêu cầu Idempotency-Key, lý do và expectedStatus. Cùng khóa
+audit/plan với tạo phiên bản/công bố; quyết định trên trạng thái cũ trả 409.
+Ngừng cung cấp đổi service_plan.status thành RETIRED, không retire/sửa snapshot
+phiên bản đã công bố, không hủy thuê bao/hóa đơn/hợp đồng cũ. Danh mục chọn mua
+và gia hạn chỉ lấy ACTIVE có phiên bản PUBLISHED; mở lại gói chỉ có DRAFT chưa
+làm nó xuất hiện trong danh mục. Không công bố bản nháp khi gói đang ngừng cung cấp.
+
+### Khôi phục mật khẩu app nhân viên
+
+`POST /auth/staff/password-reset/request` và `/confirm` cùng gate
+STAFF_APP_AUTH_ENABLED/native origin, không nhận quyền của consumer hoặc owner.
+Challenge ràng buộc HMAC với requestId, userId, email và digest password hash
+tại lúc yêu cầu; lưu tối đa 5 lần sai và expiry 10 phút. Yêu cầu không đổi mật
+khẩu, không mở khóa tài khoản. Gửi mới thay mã cũ sau cooldown 60 giây, tối đa
+10 yêu cầu được cấp mã/ngày. Unknown/ineligible email nhận cùng thông báo.
+
+Xác nhận lấy lock audit → organization/user → challenge, đọc lại vai/trạng thái,
+email và snapshot mật khẩu; mật khẩu đã thay đổi từ lúc cấp mã làm proof vô hiệu.
+Mã sai tăng attempts trong transaction đã commit trước khi trả lỗi. Thành công
+tiêu thụ challenge, cập nhật bcrypt hash và passwordChangedAt/version, thu hồi
+tất cả refresh sessions và append audit cùng transaction. Không tạo session mới,
+không mở khóa role/platform hoặc bypass đổi mật khẩu. Migration mới chỉ thêm
+bảng recovery, liên kết outbox và mở rộng kind/scope; không sửa lịch sử cũ.
+
+### Audit nhân viên theo tổ chức (05/11/2026)
+
+Chủ doanh nghiệp có quyền quản lý thành viên được đọc lịch sử nhân viên hiện
+thuộc chính tổ chức mình. Quyền đọc không cấp cho nhân viên hoặc admin nền tảng
+qua endpoint doanh nghiệp. Chặn xem chéo cả danh sách, tìm kiếm và cursor; tổ
+chức lấy từ actor, đồng thời kiểm snapshot tổ chức của journal. Dùng nhật ký đã
+commit và audit tài khoản hiện có; không đổi hash/lịch sử hoặc lưu payload nhạy
+cảm chỉ để dựng trang. Trang chỉ đọc, không bao hàm mọi thao tác chưa được ghi
+nhật ký. Không nới phạm vi theo tham số organizationId phía client.

@@ -1,16 +1,17 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Schemas } from '../../../api/client';
 import { useSession, useSessionScope } from '../../../auth/session';
 import { PhotoSlot } from '../../../components/PhotoSlot';
-import { Button, Card, Field, GreenHeader, Loading, Notice, T } from '../../../components/ui';
+import { Button, Card, Field, Header, Loading, Notice, T } from '../../../components/staff/ui';
 import { qty } from '../../../lib/format';
 import { sendCommand, uploadCycleImage, type Photo } from '../../../lib/staffApi';
 import { useLoad } from '../../../lib/useApi';
 import { useSubmission } from '../../../lib/use-submission';
-import { color, font, noOutline } from '../../../theme/tokens';
+import { color, font, noOutline } from '../../../theme/staff';
 
 type Cycle = Schemas['CycleDetailDto'];
 type Result = Schemas['HarvestResultDto'];
@@ -36,7 +37,7 @@ function HarvestForm({ id }: { id: string }) {
   if (!cycle)
     return (
       <View style={{ flex: 1 }}>
-        <GreenHeader title="Ghi thu hoạch" back />
+        <Header title="Ghi thu hoạch" back />
         {loading ? <Loading /> : (
           <View style={{ padding: 16, gap: 12 }}>
             <Notice kind="error" title={loadError ?? 'Không tìm thấy mùa vụ'} />
@@ -86,7 +87,7 @@ function HarvestForm({ id }: { id: string }) {
   if (done)
     return (
       <View style={{ flex: 1, backgroundColor: color.bg }}>
-        <GreenHeader title="Ghi thu hoạch" back />
+        <Header title="Ghi thu hoạch" back />
         <View style={{ padding: 16, gap: 14 }}>
           {done === 'queued' ? (
             <Notice kind="warn" title="Lệnh đang chờ đối soát" body="Lệnh đã lưu trên máy với mã lệnh riêng và sẽ gửi lại khi có mạng." />
@@ -111,14 +112,21 @@ function HarvestForm({ id }: { id: string }) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: color.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }} keyboardShouldPersistTaps="handled">
-        <GreenHeader title="Ghi thu hoạch" back extraBottom={44}>
-          <T size={14.5} weight="bold" c="#fff" style={{ textAlign: 'center' }}>
+        <Header title="Ghi thu hoạch" back>
+          <T size={14.5} weight="bold" c={color.muted}>
             {cycle.product.productName} · {cycle.farm.name}
           </T>
-        </GreenHeader>
-        <View style={{ marginTop: -40, paddingHorizontal: 16, gap: 12 }}>
+        </Header>
+        <View style={{ marginTop: 16, paddingHorizontal: 16, gap: 12 }}>
           <Card style={{ padding: 16, gap: 12 }}>
-            <T size={15.5} weight="heavy">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Image source={require('../../../../assets/icons/harvest.png')} style={{ width: 52, height: 52 }} contentFit="contain" accessibilityLabel="Thu hoạch" />
+              <View style={{ flex: 1, gap: 2 }}>
+                <T size={15} weight="bold">Thu hoạch</T>
+                <T size={12} c={color.muted}>Nhập sản lượng của đợt này</T>
+              </View>
+            </View>
+            <T size={15} weight="bold">
               Khối lượng <T c={color.red}>*</T>
             </T>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, borderBottomWidth: 3, borderBottomColor: over ? color.red : color.green, paddingBottom: 4 }}>
@@ -137,7 +145,7 @@ function HarvestForm({ id }: { id: string }) {
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[10, 50, 100].map((step) => (
-                <Pressable key={step} accessibilityRole="button" onPress={() => setAmount(String((quantity || 0) + step).replace('.', ','))} style={{ flex: 1, height: 44, borderRadius: 12, backgroundColor: color.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+                <Pressable key={step} accessibilityRole="button" onPress={() => setAmount(String((quantity || 0) + step).replace('.', ','))} style={{ flex: 1, height: 40, borderRadius: 10, backgroundColor: color.greenTint, alignItems: 'center', justifyContent: 'center' }}>
                   <T size={15} weight="heavy" c={color.greenDeep}>
                     +{step} {unit}
                   </T>
@@ -149,13 +157,14 @@ function HarvestForm({ id }: { id: string }) {
             </T>
           </Card>
           <Card style={{ padding: 16, gap: 10 }}>
-            <T size={15.5} weight="heavy">
+            <T size={15} weight="bold">
               Ảnh tại vườn <T c={color.red}>*</T>
             </T>
             <View style={{ flexDirection: 'row', gap: 16 }}>
               <PhotoSlot label="Ảnh thu hoạch" photo={harvestPhoto} onChange={setHarvestPhoto} />
               <PhotoSlot label="Ảnh lô hàng" photo={lotPhoto} onChange={setLotPhoto} />
             </View>
+            <T size={12} c={color.redDeep}>Cần đủ cả hai ảnh trước khi lưu sự kiện thu hoạch.</T>
             <T size={13} c={color.muted}>
               Ảnh lưu riêng tư cho doanh nghiệp, không tự công khai.
             </T>

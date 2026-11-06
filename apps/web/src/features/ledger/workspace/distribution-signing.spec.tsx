@@ -6,7 +6,7 @@ import type {TransferDetail} from "@/lib/ledger/dist-types";
 const m=vi.hoisted(()=>({prepare:vi.fn(),request:vi.fn(),retry:vi.fn()}));
 vi.mock("@/lib/auth-store",()=>({useAuth:()=>({user:{id:"user",organizationId:"org"}})}));
 vi.mock("@/lib/use-pending-commands",()=>({usePendingCommands:()=>false}));
-vi.mock("@/lib/distribution-c2",()=>({signDistributionC2:m.prepare}));
+vi.mock("@/lib/distribution-c2",()=>({signDistributionC2:m.prepare,assertPhotosDigest:async()=>undefined}));
 vi.mock("@/lib/ledger/request",()=>({ledgerRequest:m.request}));
 vi.mock("@/lib/api-client",()=>({retryPendingCommand:m.retry}));
 vi.mock("@/lib/ledger/data",async()=>({useLedgerQueryClient:(await import("@tanstack/react-query")).useQueryClient}));

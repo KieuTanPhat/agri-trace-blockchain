@@ -2,7 +2,7 @@ import { harvestOf } from '../lots/lot-origin.js';
 import {
   assertBusinessActor,
   FARM_WRITE_ROLES,
-  COMPLIANCE_REVIEW_ROLES,
+  COMPLIANCE_REVIEW_COMMAND_ROLES,
 } from '../auth/business-write.policy.js';
 import {
   ForbiddenException,
@@ -56,7 +56,7 @@ export class ComplianceService {
 
   async createInspection(input: CreateInspectionDto, actor: Actor) {
     actor = effectiveCommandActor(actor);
-    assertBusinessActor(actor, COMPLIANCE_REVIEW_ROLES);
+    assertBusinessActor(actor, COMPLIANCE_REVIEW_COMMAND_ROLES);
     this.assertCorrectionInput(input);
     const inspectedAt = businessTimestamp(
       input.inspectedAt,
@@ -245,7 +245,7 @@ export class ComplianceService {
     actor: Actor,
   ) {
     actor = effectiveCommandActor(actor);
-    assertBusinessActor(actor, COMPLIANCE_REVIEW_ROLES);
+    assertBusinessActor(actor, COMPLIANCE_REVIEW_COMMAND_ROLES);
     if (!['APPROVED', 'REJECTED'].includes(input.status))
       throw new UnprocessableEntityException(
         'Quyết định chứng nhận không hợp lệ',

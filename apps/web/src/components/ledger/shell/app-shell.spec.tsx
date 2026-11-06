@@ -1,0 +1,24 @@
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { actorA } from "@/test/ledger-actors";
+import { LedgerConfirmProvider } from "../confirm-provider";
+import { LedgerAppShell } from "./app-shell";
+const mock = vi.hoisted(() => ({logout: vi.fn(), replace: vi.fn()}));
+vi.mock("next/navigation", () => ({usePathname: () => "/enterprise/service", useRouter: () => ({replace: mock.replace})}));
+vi.mock("@/lib/auth-store", () => ({useAuth: () => ({user: {...actorA.user, role: {...actorA.user.role, code: "ENTERPRISE_STAFF"}}, isLoading: false, privateAccessStatus: "ready", logout: mock.logout})}));
+vi.mock("@/lib/api-client", () => ({request: async () => ({stage:"ACTIVE", owner:false, primary:false, tier:3, permissions:[], capabilities:[]})}));
+beforeEach(() => {vi.clearAllMocks();mock.logout.mockResolvedValue(undefined);});
+afterEach(cleanup);
+it("keeps logout accessible to a staff account denied access to the service page", async () => {
+  const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
+  render(<QueryClientProvider client={client}><LedgerConfirmProvider><LedgerAppShell><div>PRIVATE_SERVICE</div></LedgerAppShell></LedgerConfirmProvider></QueryClientProvider>);
+  await screen.findByText("Không có quyền truy cập");
+  expect(screen.queryByText("PRIVATE_SERVICE")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Đăng xuất"})).not.toBeInTheDocument();
+  fireEvent.keyDown(screen.getByRole("button",{name:"Tài khoản"}),{key:"ArrowDown"});
+  fireEvent.click(await screen.findByRole("menuitem",{name:"Đăng xuất"}));
+  await waitFor(() => expect(mock.replace).toHaveBeenCalledWith("/login"));
+  expect(mock.logout).toHaveBeenCalledOnce();
+  client.clear();
+});

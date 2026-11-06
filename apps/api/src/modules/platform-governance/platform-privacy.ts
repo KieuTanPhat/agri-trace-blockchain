@@ -45,8 +45,8 @@ import {
   UpdatePrivacyTicketDto,
 } from './privacy.dto.js';
 
-export const privacyAad = (id: string) => `platform-privacy:${id}`;
-export const privacyEventAad = (id: string) => `platform-privacy-event:${id}`;
+const privacyAad = (id: string) => `platform-privacy:${id}`;
+const privacyEventAad = (id: string) => `platform-privacy-event:${id}`;
 function encryptionKey() {
   try {
     return platformSecretKey();
@@ -374,7 +374,7 @@ export class PrivacyRequestsController {
 @ApiTags('platform-privacy')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SYSTEM_ADMIN', 'PLATFORM_PRIVACY_OFFICER')
+@Roles('SYSTEM_ADMIN')
 @Controller('platform-privacy')
 export class PlatformPrivacyController {
   constructor(

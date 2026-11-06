@@ -1,3 +1,5 @@
+import { loadPlatformLedgerConfig, matchesPlatform } from './platform-ledger-config.js';
+import type { FabricNetworkBinding } from '../../generated/prisma/client.js';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import { X509Certificate, createHash } from 'node:crypto';
@@ -13,7 +15,7 @@ import {
   type IdentityRef,
 } from './binding-config.js';
 
-export type BindingRole = 'relayer' | 'controller' | 'admin';
+type BindingRole = 'relayer' | 'controller' | 'admin';
 
 /** The authoritative, immutable parts of a binding (from the database). */
 export interface BindingTarget {
@@ -53,11 +55,31 @@ export class BindingConnectionPool implements OnModuleDestroy {
   private readonly owners = new WeakMap<BindingConnection, PoolEntry>();
   private configs?: Map<string, BindingNodeConfig>;
   private configRevision?: string;
+  private readonly platformBindings = new Map<string, FabricNetworkBinding>();
+
+  public setPlatformBindings(bindings: FabricNetworkBinding[]): void {
+    this.platformBindings.clear();
+    for (const binding of bindings) this.platformBindings.set(binding.digest, binding);
+  }
+  public addPlatformBinding(binding: FabricNetworkBinding): void {
+    this.platformBindings.set(binding.digest, binding);
+  }
+  public fingerprint(target: BindingTarget, role: BindingRole): Promise<string> {
+    return this.identityFingerprint(target, role);
+  }
   /** Overridable for tests; re-read the operator file for new/changed bindings. */
   public environment: NodeJS.ProcessEnv = process.env;
 
   private load(): Map<string, BindingNodeConfig> {
     const parsed = loadBindingNodeConfigs(this.environment);
+    const platform = loadPlatformLedgerConfig(this.environment);
+    if (platform) {
+      for (const binding of this.platformBindings.values()) {
+        if (!matchesPlatform(platform, binding)) continue;
+        if (parsed.some(node => node.bindingDigest === binding.digest)) throw new Error('Duplicate platform binding configuration');
+        parsed.push({ ...platform.node, bindingDigest: binding.digest });
+      }
+    }
     const revision = createHash('sha256')
       .update(JSON.stringify(parsed))
       .digest('hex');

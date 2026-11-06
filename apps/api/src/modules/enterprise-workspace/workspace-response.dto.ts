@@ -38,12 +38,10 @@ export class WorkspaceOrganizationDto {
   status!: Enums.OrganizationStatus;
   @ApiProperty({ enum: Enums.OrganizationType, isArray: true })
   capabilities!: Enums.OrganizationType[];
-  @ApiProperty({ type: String, required: false, description: 'SINGLE or SUPPLY_CHAIN_ENTERPRISE' })
-  participationModel?: string;
+  @ApiProperty({ type: String, required: false, enum: ['MEMBER', 'CHAIN_OWNER'] })
+  participationStatus?: string;
   @ApiProperty({ type: String, nullable: true, required: false, description: 'Tax identifier from registration' })
   businessId?: string | null;
-  @ApiProperty({ type: String, nullable: true, required: false })
-  hostingMode?: string | null;
 }
 export class WorkspaceMemberSummaryDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
@@ -221,11 +219,25 @@ export class PartnerSearchListDto {
   @ApiProperty({ type: [PartnerSearchItemDto] }) items!: PartnerSearchItemDto[];
 }
 
+export class PartnerDirectoryItemDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() kind!: string;
+  @ApiProperty({ description: 'AGT organization code' }) agriTraceCode!: string;
+}
+export class PartnerDirectoryPageDto {
+  @ApiProperty({ type: [PartnerDirectoryItemDto] }) items!: PartnerDirectoryItemDto[];
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  nextCursor!: string | null;
+}
+
 export class EnterpriseSiteRecordDto {
   @ApiProperty({ type: String, nullable: true }) region!: string | null;
   @ApiProperty({ type: String, nullable: true }) ward!: string | null;
   @ApiProperty({ type: String, nullable: true }) areaM2!: string | null;
   @ApiProperty({ type: String, nullable: true }) coldAreaM2!: string | null;
+  @ApiProperty({ type: String, nullable: true }) latitude!: string | null;
+  @ApiProperty({ type: String, nullable: true }) longitude!: string | null;
   @ApiProperty({ type: String, nullable: true }) capacityKg!: string | null;
   @ApiProperty({ type: String, nullable: true }) expectedOutputTons!: string | null;
   @ApiProperty({ type: String, nullable: true }) manager!: string | null;
@@ -264,7 +276,6 @@ export class EnterpriseVehicleListDto {
 
 export class ProductionMaterialRecordDto {
   @ApiProperty({ type: String, nullable: true }) seedType!: string | null;
-  @ApiProperty({ type: String, nullable: true }) price!: string | null;
   @ApiProperty({ type: String, nullable: true }) origin!: string | null;
   @ApiProperty({ type: String, nullable: true }) manufacturer!: string | null;
   @ApiProperty({ type: String, nullable: true }) description!: string | null;

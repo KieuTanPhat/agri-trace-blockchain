@@ -4,7 +4,6 @@ import type { LedgerCommandContext } from "./command-context";
 type S = components["schemas"];
 export type PlatformUser = S["UserListDto"];
 export type Amendment = S["ProfileAmendmentListItemDto"];
-export type AmendmentDetail = S["ProfileAmendmentDetailDto"];
 export type AuditEntry = S["PlatformAuditEntryDto"];
 export type AuditVerify = S["PlatformAuditVerificationDto"];
 export type DirectoryItem = {
@@ -13,7 +12,7 @@ export type DirectoryItem = {
   type: string;
   status: string;
   version: number;
-  participationModel: string;
+  participationStatus: string;
   capabilities: string[];
   pendingCapabilities: string[];
   enrollmentId: string | null;
@@ -47,7 +46,6 @@ export type InboxKind =
   | "CAPABILITY"
   | "AMENDMENT"
   | "CONNECTION"
-  | "TICKET"
   | "CONSUMER_REPORT"
   | "CASE"
   | "INVOICE_OVERDUE";
@@ -71,7 +69,7 @@ export type LedgerDashboard = {
   organizations: {
     byType: Record<string, number>;
     byStatus: Record<string, number>;
-    byModel: Record<string, number>;
+    byParticipation: Record<string, number>;
     capabilities: Record<string, number>;
   };
   pending: LedgerInbox["summary"];
@@ -133,7 +131,6 @@ export type PlatformStatistics = {
     lots: number;
     processingRuns: number;
     scans: number;
-    tickets: number;
     revenue: number;
   }[];
   totals: {
@@ -156,7 +153,7 @@ export type PlanVersion = {
   publishedAt: string | null;
   createdAt: string;
 };
-export type ServicePlan = {
+type ServicePlan = {
   code: string;
   name: string;
   audience: string;
@@ -205,15 +202,14 @@ export type Invoice = {
 };
 export type Enrollment = S["EnterpriseEnrollmentViewDto"];
 export type CapabilityRequest = S["CapabilityRequestViewDto"];
-export type EnterpriseConnection = S["EnterpriseConnectionViewDto"];
 /** Aggregate fields supplied by AdminInsightsService.organization at the pinned baseline. */
-export type PlatformOrganization = {
+type PlatformOrganization = {
   id: string;
   name: string;
   type: string;
   status: "ACTIVE" | "INACTIVE";
   version: number;
-  participationModel: string;
+  participationStatus: string;
   createdAt: string;
   profile: S["EnterpriseProfileRecordDto"] | null;
   capabilities: {
@@ -227,14 +223,7 @@ export type PlatformOrganization = {
     id: string;
     status: string;
     stage: string;
-    hostingMode: string;
     createdAt: string;
-    connections: {
-      id: string;
-      chainId: string;
-      status: string;
-      createdAt: string;
-    }[];
   } | null;
   billing: {
     applies: boolean;
@@ -272,7 +261,6 @@ export type PlatformOrganization = {
     severity: string;
     status: string;
   }[];
-  tickets: { id: string; code: string; subject: string; status: string }[];
   audit: {
     sequence: number;
     action: string;
@@ -394,16 +382,6 @@ export const api = {
     ) =>
       write<CapabilityRequest>(
         `/capability-requests/${encodeURIComponent(id)}/review`,
-        input,
-        cmd,
-      ),
-    reviewConnection: (
-      id: string,
-      input: S["ReviewEnterpriseDto"],
-      cmd: LedgerCommandContext,
-    ) =>
-      write<EnterpriseConnection>(
-        `/enterprise-connections/${encodeURIComponent(id)}/review`,
         input,
         cmd,
       ),

@@ -498,7 +498,7 @@ export class PublicJourneyService {
               ? (record.name ?? 'Chăm sóc cây trồng')
               : eventSummary(e.eventType),
         time: e.eventTime.toISOString(),
-        facts: details,
+        facts: details.length ? details : routeFacts(e.eventType, data, line?.transfer.transportMode),
       });
     }
     if (c.shipment) {
@@ -638,4 +638,33 @@ export class PublicJourneyService {
       select: { content: true, mediaType: true },
     });
   }
+}
+
+/**
+ * ADR-006 public route summary: only distance, coverage and source of the
+ * sealed route; no stops or coordinates. Simulated devices are always labelled.
+ */
+function routeFacts(
+  eventType: string,
+  data: Record<string, unknown>,
+  transportMode: string | undefined,
+): { label: string; value: string }[] {
+  if (eventType !== 'DISTRIBUTION_DELIVERED') return [];
+  const seal = data.routeSeal;
+  if (!seal || typeof seal !== 'object' || Array.isArray(seal))
+    return transportMode === 'EXTERNAL_CARRIER'
+      ? [{ label: 'Định vị hành trình', value: 'Đơn vị vận chuyển bên ngoài, chỉ có thời điểm lấy và giao hàng' }]
+      : [];
+  const r = seal as Record<string, unknown>;
+  const source =
+    r.source === 'SIMULATED' || r.source === 'DEVICE'
+      ? 'Thiết bị GPS trên xe'
+      : 'Không có dữ liệu định vị';
+  const facts = [{ label: 'Định vị hành trình', value: source }];
+  if (r.source !== 'NONE' && typeof r.distanceM === 'number')
+    facts.push(
+      { label: 'Quãng đường ghi nhận', value: `${(r.distanceM / 1000).toFixed(1)} km` },
+      { label: 'Độ phủ tín hiệu', value: `${Math.round(Number(r.coveragePercent ?? 0))}%` },
+    );
+  return facts;
 }

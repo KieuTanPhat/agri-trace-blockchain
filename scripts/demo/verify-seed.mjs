@@ -63,6 +63,15 @@ async function check(name, fn) {
   console.log(`PASS ${name}`);
 }
 try {
+  if (target.mode === "production") {
+    // Real Fabric: wait until the Worker has delivered every committed event.
+    const deadline = Date.now() + 45 * 60_000;
+    while ((await db.blockchainOutbox.count({ where: { status: { not: "COMPLETED" } } })) > 0) {
+      assert.equal(await db.blockchainOutbox.count({ where: { status: "DEAD_LETTER" } }), 0, "Fabric rejected an event");
+      assert.ok(Date.now() < deadline, "Worker did not deliver every event to Fabric in time");
+      await new Promise((resolve) => setTimeout(resolve, 15_000));
+    }
+  }
   const counts = {};
   for (const model of [
     "role",
@@ -101,24 +110,27 @@ try {
     "blockchainOutbox",
     "blockchainProof",
     "commandCommit",
-    "supportTicket",
-    "supportMessage",
     "platformCase",
     "platformPrivacyTicket",
     "invoice",
     "subscription",
   ])
     counts[model] = await db[model].count();
+  // Production keeps the controller's technical smoke catalog beside the dataset.
+  const technical = target.mode === "production"
+    ? { farm: await db.farm.count({ where: { name: "Production technical farm" } }),
+        product: await db.product.count({ where: { productName: "Production technical product" } }) }
+    : { farm: 0, product: 0 };
   await check(
     "Coverage: human roles, organization types, hierarchy and media",
     async () => {
       assert.ok(
         counts.user >= 30 &&
-          counts.farm === 3 &&
-          counts.product === 28 &&
-          counts.productionCycle >= 15 &&
-          counts.lot >= 13 &&
-          counts.traceEvidence >= 120,
+          counts.farm - technical.farm === 11 &&
+          counts.product - technical.product === 227 &&
+          counts.productionCycle >= 194 &&
+          counts.lot >= 245 &&
+          counts.traceEvidence >= 900,
       );
       const roleCodes = (
         await db.role.findMany({
@@ -127,20 +139,16 @@ try {
       ).map((x) => x.code);
       for (const role of [
         "SYSTEM_ADMIN",
-        "PLATFORM_OPERATOR",
-        "PLATFORM_CASE_MANAGER",
-        "PLATFORM_PRIVACY_OFFICER",
         "FARM_STAFF",
         "TRANSPORTER",
         "DISTRIBUTOR",
         "RETAILER",
         "PROCESSOR",
         "AUDITOR",
-        "COMPLIANCE_REVIEWER",
       ])
         assert.ok(roleCodes.includes(role));
       assert.equal((await db.organization.groupBy({ by: ["type"] })).length, 6);
-      for (const tier of [1, 2, 3])
+      for (const tier of [1, 3])
         assert.ok(
           await db.user.count({
             where: { enterpriseTier: tier, accountStatus: "ACTIVE" },
@@ -161,7 +169,7 @@ try {
     );
     assert.equal(doublePath.length, 0);
     const invalid = await db.$queryRawUnsafe(
-      `SELECT l.lot_id FROM lot l WHERE EXISTS(SELECT 1 FROM lot_holding h WHERE h.lot_id=l.lot_id) AND l.available_quantity <> COALESCE((SELECT sum(h.quantity) FROM lot_holding h WHERE h.lot_id=l.lot_id),0)+COALESCE((SELECT sum(d.quantity) FROM distribution_line d JOIN distribution_transfer t ON t.id=d.transfer_id WHERE d.lot_id=l.lot_id AND t.status='IN_TRANSIT'),0)`,
+      `SELECT l.lot_id FROM lot l WHERE EXISTS(SELECT 1 FROM lot_holding h WHERE h.lot_id=l.lot_id) AND l.available_quantity <> COALESCE((SELECT sum(h.quantity) FROM lot_holding h WHERE h.lot_id=l.lot_id),0)+COALESCE((SELECT sum(d.quantity) FROM distribution_line d JOIN distribution_transfer t ON t.id=d.transfer_id WHERE d.lot_id=l.lot_id AND t.status='IN_TRANSIT'),0)+COALESCE((SELECT sum(r.quantity) FROM distribution_remainder r WHERE r.lot_id=l.lot_id),0)`,
     );
     assert.equal(invalid.length, 0);
     assert.equal(
@@ -251,16 +259,13 @@ try {
   );
   const expected = [
     "SYSTEM_ADMIN",
-    "PLATFORM_OPERATOR",
-    "PLATFORM_CASE_MANAGER",
-    "PLATFORM_PRIVACY_OFFICER",
     "FARM_STAFF",
     "TRANSPORTER",
     "DISTRIBUTOR",
     "RETAILER",
     "PROCESSOR",
+    "ENTERPRISE_STAFF",
     "AUDITOR",
-    "COMPLIANCE_REVIEWER",
   ];
   for (const role of expected)
     await check(`Real authentication: ${role}`, async () => {
@@ -286,7 +291,7 @@ try {
         cycleCode: "FORBIDDEN-SEED-CHECK",
         harvestUnit: "kg",
       };
-      for (const role of ["SYSTEM_ADMIN", "COMPLIANCE_REVIEWER"])
+      for (const role of ["SYSTEM_ADMIN", "AUDITOR"])
         assert.equal(
           (await request("/production-cycles", sessions[role], body)).status,
           403,
@@ -298,14 +303,14 @@ try {
     "Cross-organization and tier-3 access remain denied",
     async () => {
       const berry = accounts.users.find(
-          (x) => x.email === "berry.owner@example.test",
+          (x) => x.email === "e03-owner@demo.agritrace.dev",
         ),
         staff = accounts.users.find(
-          (x) => x.email === "farm.staff@example.test",
+          (x) => x.email === "e01-nv2@demo.agritrace.dev",
         );
       const b = await login(berry),
         s = await login(staff),
-        cycle = dataset.production.cycles.find((x) => x.key === "farm");
+        cycle = dataset.production.cycles.find((x) => x.key === "E01");
       assert.ok(
         [403, 404].includes(
           (await request(`/production-cycles/${cycle.id}`, b)).status,
@@ -352,7 +357,7 @@ try {
         const text = JSON.stringify(r.data);
         assert.equal(r.data.quantityReconciled, true);
         assert.equal(r.data.stateReconciled, true);
-        assert.ok(!text.includes("@example.test"));
+        assert.ok(!text.includes("@example.test") && !text.includes("@demo.agritrace.dev"));
         assert.ok(!/passwordHash|accessToken|privateKey/.test(text));
         assert.ok(!text.includes("HASH_MISMATCH"));
       }
@@ -369,7 +374,7 @@ try {
       assert.equal(audit.data.ok, true);
       assert.equal(audit.data.firstInvalid, null);
       assert.equal(
-        (await request("/platform-privacy", sessions.PLATFORM_PRIVACY_OFFICER))
+        (await request("/platform-privacy", sessions.SYSTEM_ADMIN))
           .status,
         200,
       );
@@ -385,7 +390,6 @@ try {
     ["shipment", "status"],
     ["distributionTransfer", "status"],
     ["processingRun", "status"],
-    ["supportTicket", "status"],
     ["enterpriseEnrollment", "status"],
   ])
     states[model] = await db[model].groupBy({ by: [field], _count: true });

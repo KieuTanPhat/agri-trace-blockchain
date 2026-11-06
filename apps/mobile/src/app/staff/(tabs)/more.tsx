@@ -1,96 +1,67 @@
+import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View } from 'react-native';
 import type { Schemas } from '../../../api/client';
 import { useSession } from '../../../auth/session';
-import { Icon, type IconName } from '../../../components/Icon';
-import { Card, GreenHeader, initialOf, Notice, T } from '../../../components/ui';
+import { Card, Header, initialOf, ListItem, Pill, Screen, Section, T } from '../../../components/staff/ui';
+import { useAccess } from '../../../lib/access';
 import { readQueue } from '../../../lib/queue';
-import { color } from '../../../theme/tokens';
+import { color, space } from '../../../theme/staff';
 
-function Item({ icon, tint, label, onPress, right, danger }: { icon: IconName; tint: string; label: string; onPress: () => void; right?: ReactNode; danger?: boolean }) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 52, paddingHorizontal: 16, backgroundColor: pressed ? color.bg : 'transparent' })}>
-      <Icon name={icon} size={26} color={tint} />
-      <T size={16} weight={danger ? 'heavy' : 'regular'} c={danger ? color.redDeep : color.ink} style={{ flex: 1 }}>
-        {label}
-      </T>
-      {right ?? <Icon name="chevron" size={20} color={color.faint} />}
-    </Pressable>
-  );
-}
-
+/** Account and every assigned feature (the same list as the tabs and Home). */
 export default function More() {
   const { user, signOut } = useSession<Schemas['AuthUserDto']>();
+  const { features, access } = useAccess();
   const [pending, setPending] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      setPending(0);
-      if(user)void readQueue(user).then((q) => setPending(q.length));
+      if (user) void readQueue(user).then((q) => setPending(q.length));
     }, [user]),
   );
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: color.bg }} contentContainerStyle={{ paddingBottom: 72 }}>
-      <GreenHeader title="Thêm" />
-      <View style={{ backgroundColor: '#fff', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: color.greenTint, alignItems: 'center', justifyContent: 'center' }}>
-          <T size={24} weight="heavy" c={color.greenDeep}>
-            {initialOf(user?.fullName)}
-          </T>
-        </View>
-        <View style={{ flex: 1, gap: 6 }}>
-          <T size={19} weight="heavy">
-            {user?.fullName}
-          </T>
-          <View style={{ alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 3, borderRadius: 999, backgroundColor: color.green }}>
-            <T size={13} weight="heavy" c="#fff">
+    <View style={{ flex: 1, backgroundColor: color.bg }}>
+      <Header title="Thêm" />
+      <Screen bottomInset={96}>
+        <Card style={{ padding: space.lg, flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: color.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+            <T size={20} weight="heavy" c={color.greenDeep}>
+              {initialOf(user?.fullName)}
+            </T>
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T size={16} weight="bold" numberOfLines={1}>
+              {user?.fullName}
+            </T>
+            <T size={13} c={color.muted} numberOfLines={1}>
               {user?.email}
             </T>
           </View>
-        </View>
-      </View>
-      <View style={{ padding: 16, gap: 12 }}>
-        {user?.mustChangePassword && <Notice kind="warn" title="Cần đổi mật khẩu" body="Đổi mật khẩu trên AgriTrace Web trước khi ghi nghiệp vụ." />}
-        <Card style={{ paddingVertical: 6 }}>
-          <T size={16.5} weight="heavy" style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
-            Công việc
-          </T>
-          <Item icon="leaf" tint={color.green} label="Mùa vụ được giao" onPress={() => router.push('/staff/journal')} />
-          <Item icon="scan" tint={color.blue} label="Quét mã lô" onPress={() => router.push('/staff/scan')} />
-          <Item icon="truck" tint={color.blue} label="Chuyến hàng" onPress={() => router.push('/staff/transfers')} />
+          <Pill label="Nhân viên" t="green" />
         </Card>
-        <Card style={{ paddingVertical: 6 }}>
-          <T size={16.5} weight="heavy" style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
-            Cá nhân
-          </T>
-          <Item
-            icon="sync"
-            tint="#14a3b8"
-            label="Lệnh chờ gửi"
-            onPress={() => router.push('/staff/sync')}
-            right={
-              pending ? (
-                <View style={{ minWidth: 24, height: 24, borderRadius: 12, backgroundColor: color.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }}>
-                  <T size={13} weight="heavy" c="#fff">
-                    {pending}
-                  </T>
-                </View>
-              ) : undefined
-            }
-          />
-          <Item
+        <Section title="Công việc">
+          {features.map((f, i) => (
+            <ListItem key={f.key} first={i === 0} icon={f.icon} t="green" title={f.label} subtitle={f.hint} onPress={() => router.push(f.href as never)} />
+          ))}
+        </Section>
+        <Section title="Thiết bị và tài khoản">
+          <ListItem first icon="sync" t="blue" title="Lệnh chờ gửi" subtitle="Lệnh đã ghi khi mất mạng hoặc chưa rõ kết quả" value={pending ? String(pending) : undefined} onPress={() => router.push('/staff/sync')} />
+          <ListItem icon="lock" t="gray" title="Đổi mật khẩu" onPress={() => router.push('/staff/password')} />
+          <ListItem
             icon="logout"
-            tint={color.red}
-            label="Đăng xuất"
-            danger
-            right={<View />}
+            t="red"
+            title="Đăng xuất"
             onPress={async () => {
               await signOut();
               router.replace('/staff/login');
             }}
           />
-        </Card>
-      </View>
-    </ScrollView>
+        </Section>
+        <T size={12} c={color.faint} style={{ textAlign: 'center' }}>
+          AgriTrace Nhân viên {Constants.expoConfig?.version ?? ''}
+          {access && access.stage !== 'ACTIVE' ? ` · ${access.stage}` : ''}
+        </T>
+      </Screen>
+    </View>
   );
 }
