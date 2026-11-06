@@ -93,11 +93,6 @@ async function signOut(page) {
   }
   await account.click();
   await page.getByRole("menuitem", { name: "Đăng xuất", exact: true }).click();
-  // Signing out asks once in the shared confirmation dialog.
-  await page
-    .getByRole("dialog", { name: "Đăng xuất", exact: true })
-    .getByRole("button", { name: "Đăng xuất", exact: true })
-    .click();
   await page.waitForURL((url) => url.pathname === "/login", { timeout });
 }
 
