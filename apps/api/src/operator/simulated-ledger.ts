@@ -26,7 +26,7 @@ const watch = process.argv[2] === '--watch' ? Number(process.argv[3]) : 0;
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: url }),
 });
-const once = () => prisma.$transaction((tx) => simulateLedger(tx));
+const once = () => prisma.$transaction((tx) => simulateLedger(tx), { timeout: 120_000 });
 try {
   do {
     const result = await once();

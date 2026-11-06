@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const PRODUCTION_ORIGIN = 'https://agritrace.dev';
 
+export const LEDGER_REQUIRED_EXIT = 75;
+
 export function seedTarget(environment = process.env) {
   const url = new URL(environment.DATABASE_URL);
   if (environment.AGRITRACE_PRODUCTION_DATASET === 'true') {
@@ -29,6 +31,13 @@ export function seedTarget(environment = process.env) {
     for (const id of baselineUserIds) assert.match(id, /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/);
     return { mode: 'production', run: '/dataset-run', assets: '/dataset-assets', apiBase: 'http://api:8080/api',
       databaseUrl: url.href, generation, baselineUserIds };
+  }
+  if (environment.AGRITRACE_SEED_REHEARSAL === 'true') {
+    assert.equal(url.hostname, '127.0.0.1');
+    assert.equal(url.pathname, '/agri_trace_rehearsal');
+    assert.equal(environment.FABRIC_ENABLED, 'false');
+    return { mode: 'local', run: `${root}.codex/seed-227/run`, assets: `${root}.codex/seed-227/assets`,
+      apiBase: environment.AGRITRACE_REHEARSAL_API, databaseUrl: url.href, baselineUserIds: [] };
   }
   assert.equal(environment.AGRITRACE_LOCAL_SEED_TARGET, 'agri-trace-demo-local/agri_trace');
   assert.equal(url.hostname, '127.0.0.1');

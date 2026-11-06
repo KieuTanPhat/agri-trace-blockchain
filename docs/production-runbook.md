@@ -115,10 +115,10 @@ Nếu gián đoạn, giữ journal và `recover` đúng candidate/generation; kh
 network/DB mới hoặc chuyển candidate để vượt lỗi. Sau verified, `reinstall` lặp
 lại bị từ chối vì target đã có current release.
 
-### Nạp bộ dữ liệu 28 sản phẩm sau khi cài lại
+### Nạp bộ dữ liệu 227 sản phẩm sau khi cài lại
 
 Chỉ dùng cho bản cài lại vừa verified, khi ghi đã mở (`open_after_smoke`). Trên
-máy có `.codex/fruit-assets`, checkout đúng SHA đang chạy rồi đóng gói:
+máy có `.codex/seed-227/assets`, checkout đúng SHA đang chạy rồi đóng gói:
 `node scripts/demo/production-dataset-bundle.mjs --out <thư mục trống>`. Gói chứa
 script `scripts/demo` lấy từ commit và ảnh đã chuẩn bị, không chứa ảnh gốc hay tài
 liệu tham chiếu. Chép gói lên VPS, rồi chạy bằng root:
@@ -130,8 +130,8 @@ production trong container một lần từ image API của release. Khi chuỗi
 binding, seed dừng với mã 75; runner gọi `bootstrap-production.mjs` thao tác
 `dataset-ledger` bằng operator container của controller đã cài, thêm Worker
 inventory bằng `add_worker_binding`, activate rồi chạy tiếp. Worker xác nhận quyền
-trên Fabric trước mỗi bước. Sau seed, runner đăng ảnh giới thiệu, ảnh bìa tin và
-chạy `verify-seed.mjs` (binding thật, mỗi event có proof). Lỗi giữa chừng thì sửa
+trên Fabric trước mỗi bước. Seed là `dataset-seed.mjs`, đọc `scripts/demo/dataset`; ảnh
+giới thiệu và tin đã nằm trong seed. Sau seed, runner chạy `verify-seed.mjs` (binding thật, mỗi event có proof). Lỗi giữa chừng thì sửa
 nguyên nhân rồi chạy lại với `--resume`; checkpoint giữ khóa và body gốc. Mật khẩu
 tài khoản demo nằm trong `run/accounts.json` (root-only), không gửi qua kênh chung.
 

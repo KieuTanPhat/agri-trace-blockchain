@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { freshProducts, processedProducts } from "./fruit-catalog.mjs";
 import {ensureSeedAccount,seedContentId} from "./seed-recovery.mjs";
 import {publishDirectoryProfiles} from "./publish-directory-profiles.mjs";
+import { seedTarget, LEDGER_REQUIRED_EXIT } from "./seed-target.mjs";
 import {
   createHash,
   randomUUID,
@@ -12,7 +13,6 @@ import {
   sign,
 } from "node:crypto";
 import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { hash } from "bcrypt";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../apps/api/dist/generated/prisma/client.js";

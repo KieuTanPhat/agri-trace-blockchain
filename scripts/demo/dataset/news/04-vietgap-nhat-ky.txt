@@ -1,0 +1,57 @@
+TITLE: VietGAP và cuốn nhật ký đồng ruộng: vì sao ghi chép lại quan trọng đến vậy
+SUMMARY: Nhiều người nghĩ VietGAP chủ yếu là chuyện phân bón và thuốc bảo vệ thực vật. Thực tế, một phần rất quan trọng của tiêu chuẩn này là hồ sơ, ghi chép và khả năng truy xuất. Bài viết giải thích vì sao và gợi ý cách ghi nhật ký gọn nhẹ.
+COVER: AnhChamSoc/lamco2.jpg
+BODY:
+Khi nói về thực hành nông nghiệp tốt, người ta thường nghĩ ngay đến việc đất sạch, nước sạch, dùng thuốc đúng cách và thu hoạch đúng thời điểm. Những việc đó tất nhiên là cốt lõi. Nhưng một người đi đánh giá chứng nhận thường dành không ít thời gian để làm một việc khác: đọc hồ sơ. Bởi vì trong thực hành nông nghiệp tốt, điều gì không được ghi lại thì rất khó chứng minh là đã làm.
+
+VietGAP là gì
+
+VietGAP là viết tắt của thực hành nông nghiệp tốt của Việt Nam. Với trồng trọt, tiêu chuẩn quốc gia thường được nhắc tới là TCVN 11892-1:2017, đưa ra các yêu cầu từ đánh giá và lựa chọn khu vực sản xuất, quản lý đất, nước, giống, phân bón, thuốc bảo vệ thực vật, đến thu hoạch, sơ chế, bảo quản, an toàn lao động và quản lý chất thải. Hiện cơ quan quản lý cũng đã đưa ra dự thảo bản tiêu chuẩn mới để lấy ý kiến, nên cơ sở sản xuất cần theo dõi phiên bản đang được áp dụng khi xin chứng nhận.
+
+Điểm đáng chú ý là tiêu chuẩn yêu cầu rõ về quản lý tài liệu và hồ sơ. Theo nội dung TCVN 11892-1:2017, cơ sở phải có quy định về lưu trữ, kiểm soát tài liệu và hồ sơ, với thời gian lưu giữ tối thiểu 12 tháng tính từ ngày thu hoạch. Cơ sở cũng cần có quy định truy xuất nguồn gốc giữa cơ sở với khách hàng và trong nội bộ, đồng thời vận hành thử trước khi áp dụng chính thức. Nói cách khác, tiêu chuẩn không chỉ yêu cầu có quy trình mà còn yêu cầu quy trình phải chạy được.
+
+Vì sao ghi chép lại quan trọng
+
+Với người trồng, nhật ký nhiều khi bị xem là gánh nặng giấy tờ. Nhưng hãy thử đặt vào một tình huống cụ thể. Một lô rau bị phát hiện có dư lượng cao. Nếu có nhật ký, người quản lý có thể nhìn thấy ngay loại thuốc đã dùng, ngày phun, thời gian cách ly và người thực hiện. Nguyên nhân có thể là do thu hoạch quá sớm, hoặc do thuốc từ thửa bên cạnh bay sang. Nếu không có nhật ký, tất cả chỉ còn là suy đoán, và cả tổ sản xuất phải chịu hậu quả.
+
+Ngoài chức năng phòng vệ, nhật ký còn là công cụ quản lý. Sau vài vụ, người trồng biết được công thức phân bón nào cho năng suất tốt, sâu bệnh thường xuất hiện vào thời điểm nào, chi phí mỗi vụ nằm ở đâu. Những kinh nghiệm vốn nằm trong đầu của người lâu năm được chuyển thành dữ liệu có thể chia sẻ cho thế hệ sau hoặc cho thành viên mới trong hợp tác xã.
+
+Những gì nên có trong nhật ký
+
+Một nhật ký đồng ruộng tốt không cần dài. Nó cần đúng và đều. Có thể chia thành sáu loại ghi chép chính.
+
+Thứ nhất là thông tin vụ: tên cây trồng, giống, thửa, ngày xuống giống và diện tích. Đây là phần khung, được khai một lần cho mỗi vụ.
+
+Thứ hai là vật tư đầu vào: loại phân bón, thuốc, nơi mua, số lô nếu có. Biết được nguồn vật tư giúp xác định nguyên nhân khi có lô vật tư lỗi.
+
+Thứ ba là công việc chăm sóc: tưới, làm cỏ, tỉa cành, bón phân. Mỗi lần ghi ngày, nội dung, người làm. Đừng cố viết dài, một dòng ngắn cùng một bức ảnh thường đủ.
+
+Thứ tư là phòng trừ sâu bệnh: dấu hiệu quan sát được, loại thuốc, liều lượng, ngày phun và thời gian cách ly. Đây là phần quan trọng nhất về an toàn thực phẩm.
+
+Thứ năm là thu hoạch: ngày, thửa, sản lượng, tình trạng, người chịu trách nhiệm. Phần này tạo ra lô hàng và là chỗ nối giữa ruộng đồng và chuỗi phân phối.
+
+Thứ sáu là bàn giao: lô đi đâu, số lượng bao nhiêu, ai nhận. Nếu thiếu phần này, việc truy xuất sẽ dừng ngay tại cổng trang trại.
+
+Những cái bẫy khi ghi chép
+
+Cái bẫy phổ biến nhất là ghi bù. Cuối vụ, chuẩn bị đánh giá, cả tổ ngồi lại điền nhật ký cho đủ. Các ngày ghi khít nhau một cách đáng ngờ, cùng nét bút, cùng màu mực. Người đánh giá có kinh nghiệm nhận ra điều này rất nhanh, và quan trọng hơn, dữ liệu ghi bù không còn giá trị để phân tích.
+
+Cái bẫy thứ hai là ghi quá nhiều. Biểu mẫu dài khiến người làm nản và bỏ cuộc sau vài tuần. Một biểu mẫu ngắn được ghi đều luôn tốt hơn một biểu mẫu đầy đủ nhưng bỏ trống.
+
+Cái bẫy thứ ba là không có người chịu trách nhiệm. Khi ai cũng có thể ghi thì thường không ai ghi. Ở mỗi tổ sản xuất nên có một người phụ trách kiểm tra nhật ký hằng tuần, nhắc nhở và giúp những thành viên ngại dùng công nghệ.
+
+Từ sổ tay đến điện thoại
+
+Việc dùng điện thoại mang lại ba lợi ích rõ rệt. Thời điểm ghi được hệ thống lưu tự động, nên nhật ký phản ánh đúng lúc công việc diễn ra. Ảnh chụp thay cho những dòng mô tả dài, rất phù hợp với người lớn tuổi hoặc người không quen viết. Dữ liệu không bị mất do mưa, ướt hay thất lạc, và có thể được cán bộ kỹ thuật xem từ xa.
+
+Tuy nhiên, chuyển đổi cần diễn ra từng bước. Một cách làm hợp lý là bắt đầu từ các công việc có rủi ro cao như phun thuốc và thu hoạch, sau đó mở rộng. Ở nơi sóng yếu, ứng dụng nên cho phép ghi ngoại tuyến và tự gửi khi có mạng. Việc giữ song song sổ giấy trong vài vụ đầu cũng không có gì sai, miễn là hai bên khớp nhau.
+
+Chứng nhận chỉ là một phần
+
+Một giấy chứng nhận VietGAP có thời hạn và có thể được kiểm tra lại. Điều quan trọng hơn tờ giấy là những thói quen mà quá trình chứng nhận tạo ra. Một người trồng đã quen ghi lại công việc của mình sẽ tự nhiên cẩn thận hơn với thời gian cách ly, kho vật tư và nguồn nước. Khi hợp tác xã có dữ liệu của mọi thành viên, việc thương lượng với nhà thu mua cũng dễ hơn vì có bằng chứng cụ thể.
+
+Người tiêu dùng khó có thể đứng ngoài ruộng để biết bó rau đã được chăm thế nào. Cuốn nhật ký, dù trên giấy hay trên điện thoại, là cách để câu chuyện ấy đi cùng sản phẩm tới tận tay họ. Vì thế, mỗi dòng ghi chép tưởng như nhỏ thực ra là một lời cam kết của người làm nông với người ăn.
+
+Nguồn tham khảo:
+TCVN 11892-1:2017, bản đăng tải: https://vnce.vn/Uploads/files/TCVN11892-1_2017_916963.pdf
+Hệ thống Pháp luật, Giới thiệu TCVN 11892-1:2017: https://hethongphapluat.com/tieu-chuan-quoc-gia-tcvn-11892-1-2017-ve-thuc-hanh-nong-nghiep-tot-vietgapphan-1-trong-trot.html
