@@ -183,6 +183,13 @@ async function api(
       command.definitiveValidationFailure = true;
       await journal(label);
     }
+    // A missing ledger permission is a definite rejection that the API replays
+    // for this key, so the retry after the grant is confirmed needs a new one.
+    if (command && response.status === 409 && result.error?.message === "Chưa có quyền ledger cho vai trò này") {
+      command.rejectedKeys = [...(command.rejectedKeys ?? []), command.key];
+      command.key = randomUUID();
+      await journal(label);
+    }
     throw new Error(
       `${response.status} ${method} ${route}: ${JSON.stringify(result.message ?? result.error ?? result).slice(0, 1400)}`,
     );
