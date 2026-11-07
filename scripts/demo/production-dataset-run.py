@@ -126,10 +126,10 @@ def run(controller, args):
         print(json.dumps({"phase": "ledger-bound", "chains": len(chain_ids)}), flush=True)
     else:
         fail("Seed kept requiring ledger bindings")
-    for script, extra in (("verify-seed.mjs", ("--fresh",) if not (run_directory / "receipt.json").exists() else ())):
-        code = container(script, extra)
-        if code != 0:
-            fail(f"{script} exited {code}; see {directory / 'seed.log'}, then --resume")
+    extra = ("--fresh",) if not (run_directory / "receipt.json").exists() else ()
+    code = container("verify-seed.mjs", extra)
+    if code != 0:
+        fail(f"verify-seed.mjs exited {code}; see {directory / 'seed.log'}, then --resume")
     print(json.dumps({"result": "passed", "release": record["id"], "generation": generation,
                       "accounts": str(run_directory / "accounts.json")}), flush=True)
 
