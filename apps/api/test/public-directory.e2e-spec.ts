@@ -63,6 +63,7 @@ describe('Public directory / real PostgreSQL and HTTP', () => {
       db.product.create({
         data: {
           productName: `${tag} ${name}`,
+          organizationId: farmOrg.id,
           variety: 'Giống kiểm thử',
           defaultUnit: 'kg',
           description: 'Public description',

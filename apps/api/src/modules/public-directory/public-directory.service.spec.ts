@@ -113,6 +113,9 @@ describe('Public directory', () => {
     expect(query).not.toContain('currentState');
     expect(query).not.toContain('expiryDate');
   });
+  it('keeps products without an owner out of the directory', () => {
+    expect(JSON.stringify(publicLotWhere())).toContain('"organizationId":{"not":null}');
+  });
   it('produces null terminal cursors, including for empty results', () => {
     expect(directoryPage([], 20)).toEqual({
       items: [],

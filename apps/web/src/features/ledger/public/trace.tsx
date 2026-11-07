@@ -21,7 +21,8 @@ const proof={VERIFIED:["Đã lưu, không sửa được","ok"],PENDING:["Đang 
 const card="rounded-2xl";
 /** Cảnh báo của lô bằng lời thường; hết hạn và lệch số lượng đã có ô riêng ở trên. */
 const WARNING_LABEL:Record<string,string>={RECALLED:"Lô đang bị thu hồi",DAMAGED:"Lô bị hư hỏng",REJECTED:"Lô bị từ chối nhận",NO_DATA:"Chưa có dữ liệu nhiệt độ, độ ẩm",SENSOR_INTEGRITY_WARNING:"Dữ liệu nhiệt độ, độ ẩm có điểm bất thường",LATE_READINGS:"Một số số đo nhiệt độ, độ ẩm được gửi muộn"};
-const SHOWN_ELSEWHERE={EXPIRED:1,QUANTITY_MISMATCH:1,STATE_MISMATCH:1};
+// NO_DATA only means the plot has no sensor, so it is not a consumer warning.
+const SHOWN_ELSEWHERE={EXPIRED:1,QUANTITY_MISMATCH:1,STATE_MISMATCH:1,NO_DATA:1};
 export function PublicTraceContent({lot,photo}:{lot:PublicLotTrace;photo?:string|null}){
 return <>
 <Container className="flex flex-col gap-1.5 pt-7"><span className="text-[12px] font-semibold tracking-[0.16em] text-(--pub-accent-ink) uppercase">{t("Kết quả truy xuất")}</span><div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{lot.lotName??lot.productName}</h1><div className="flex flex-wrap gap-2"><Badge tone={LOT_STATE_TONE[lot.currentState]??"neutral"}>{LOT_STATE_LABEL[lot.currentState]??lot.currentState}</Badge></div></div><p className="text-[14px] text-ink-2">{lot.productName} · <span className="font-mono">{lot.lotCode}</span></p></Container>

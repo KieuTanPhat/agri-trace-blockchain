@@ -11,7 +11,7 @@ export const CYCLE_STATE_LABEL: Record<string, string> = localized({
 export const CYCLE_STATE_TONE: Record<string, Tone> = { CREATED: "info", PLANTED: "brand", GROWING: "ok", COMPLETED: "neutral", CANCELLED: "danger" };
 
 export const LOT_STATE_LABEL: Record<string, string> = localized({
-  HARVESTED: "Tại nơi sản xuất",
+  HARVESTED: "Đã thu hoạch",
   IN_TRANSPORT: "Đang vận chuyển",
   ARRIVED: "Đã đến nơi nhận",
   RETAIL_RECEIVED: "Bán lẻ đã nhận",

@@ -377,6 +377,8 @@ export class ProductionCyclesService {
         entityId: cycle.id,
         cycleId: cycle.id,
         eventType: 'PRODUCTION_CYCLE_CREATED',
+        // A season entered after it began keeps its real start in the timeline.
+        eventTime: cycle.startDate && cycle.startDate < new Date() ? cycle.startDate : undefined,
         actor,
         businessData: {
           cycleCode: cycle.cycleCode,

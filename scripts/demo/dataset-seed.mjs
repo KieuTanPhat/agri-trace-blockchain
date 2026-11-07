@@ -824,11 +824,16 @@ async function deviceFor(key, kind, deviceCode, name, bind) {
   return deviceState[deviceCode];
 }
 async function deviceUpload(device, kind, records) {
-  const body = { deviceCode: device.deviceCode, sentAt: new Date().toISOString(), [kind]: records };
-  const message = Buffer.concat([Buffer.from("agritrace:iot-device:1", "utf8"), Buffer.from([0]), Buffer.from(canonicalize(body), "utf8")]);
-  const signature = sign(null, message, device.privateKeyPem).toString("base64url");
-  const response = await fetch(`${base}/iot/v2/ingest/${kind}`, { method: "POST", headers: { "content-type": "application/json", "x-device-signature": signature }, body: JSON.stringify(body) });
-  if (!response.ok) throw new Error(`Device ${device.deviceCode} ${kind}: ${response.status} ${(await response.text()).slice(0, 300)}`);
+  for (let attempt = 1; ; attempt++) {
+    const body = { deviceCode: device.deviceCode, sentAt: new Date().toISOString(), [kind]: records };
+    const message = Buffer.concat([Buffer.from("agritrace:iot-device:1", "utf8"), Buffer.from([0]), Buffer.from(canonicalize(body), "utf8")]);
+    const signature = sign(null, message, device.privateKeyPem).toString("base64url");
+    const response = await fetch(`${base}/iot/v2/ingest/${kind}`, { method: "POST", headers: { "content-type": "application/json", "x-device-signature": signature }, body: JSON.stringify(body) });
+    if (response.ok) break;
+    // Repeated sequences are ignored by ingest, so a failed batch is safe to resend.
+    if (response.status >= 500 && attempt < 4) { await new Promise((done) => setTimeout(done, attempt * 5000)); continue; }
+    throw new Error(`Device ${device.deviceCode} ${kind}: ${response.status} ${(await response.text()).slice(0, 300)}`);
+  }
   await save("devices", deviceState);
 }
 async function sensorHistory(c, plantedAt, lastDay) {
