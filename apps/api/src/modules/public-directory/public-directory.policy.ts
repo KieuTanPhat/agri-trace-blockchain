@@ -8,7 +8,9 @@ export function publicLotWhere(
   return {
     AND: [
       { traceQr: { isNot: null } },
-      { product: { is: { status: 'ACTIVE' } } },
+      // Every enterprise product has an owner; the operator's unowned smoke
+      // catalog stays reachable by QR but out of the public directory.
+      { product: { is: { status: 'ACTIVE', organizationId: { not: null } } } },
       { organization: { is: { status: 'ACTIVE' } } },
       {
         OR: [
