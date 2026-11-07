@@ -16,6 +16,7 @@ import { appendFile, readFile, readdir, writeFile, mkdir, rename } from "node:fs
 import { hash } from "bcrypt";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../apps/api/dist/generated/prisma/client.js";
+import { requestLedgerGrant } from "../../apps/api/dist/modules/ledger/ledger-permissions.js";
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -180,6 +181,13 @@ async function api(
       result.error?.code === "VALIDATION_ERROR"
     ) {
       command.definitiveValidationFailure = true;
+      await journal(label);
+    }
+    // A missing ledger permission is a definite rejection that the API replays
+    // for this key, so the retry after the grant is confirmed needs a new one.
+    if (command && response.status === 409 && result.error?.message === "Chưa có quyền ledger cho vai trò này") {
+      command.rejectedKeys = [...(command.rejectedKeys ?? []), command.key];
+      command.key = randomUUID();
       await journal(label);
     }
     throw new Error(
@@ -785,7 +793,19 @@ await step("delegation", async () => {
 // confirms requested ledger grants. In production the root operator binds the
 // new chains on the real ledger (this run exits for it), then the Worker
 // confirms the grants on Fabric.
+// Activation requests a permission for each grant that already exists, so a
+// grant this seed writes after the Worker bound its chain needs its own request.
+async function requestMissingLedgerGrants() {
+  const grants = await db.$queryRaw`
+    SELECT g.grant_id AS id, g.user_id AS "userId", g.organization_id AS "organizationId", g.chain_id AS "chainId", g.role::text AS role, p.active_binding_digest AS digest
+      FROM scoped_role_grant g
+      JOIN chain_ledger_profile p ON p.chain_id = g.chain_id AND p.active_binding_digest IS NOT NULL
+      LEFT JOIN ledger_permission l ON l.binding_digest = p.active_binding_digest AND l.user_id = g.user_id AND l.role::text = g.role::text
+     WHERE g.scope = 'CHAIN' AND g.revoked_at IS NULL AND l.user_id IS NULL`;
+  for (const { digest, ...grant } of grants) await db.$transaction((tx) => requestLedgerGrant(tx, grant, digest));
+}
 async function ledgerSettled(timeoutMs = target.mode === "production" ? 900_000 : 60_000) {
+  await requestMissingLedgerGrants();
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const unboundChains = await db.$queryRaw`
