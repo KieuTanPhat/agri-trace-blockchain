@@ -98,11 +98,12 @@ def run(controller, args):
         with os.fdopen(descriptor, "w") as file:
             file.write("\n".join([f"DATABASE_URL={database}", "APP_ENV=production",
                                   "AGRITRACE_PRODUCTION_DATASET=true", f"AGRITRACE_INSTALLATION_GENERATION={generation}",
+                                  "NODE_OPTIONS=--max-old-space-size=1536",
                                   f"PUBLIC_TRACE_BASE_URL={controller.config['origin']}/trace"]) + "\n")
         bundle = args.bundle.resolve()
         command = ["docker", "run", "--rm", "--user", "0:0", "--network", controller.project + "_default",
                    "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
-                   "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m", "--memory", "768m", "--cpus", "1",
+                   "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m", "--memory", "2g", "--cpus", "1",
                    "--env-file", str(env_file),
                    "--mount", f"type=bind,src={bundle / 'scripts' / 'demo'},dst=/app/scripts/demo,readonly",
                    "--mount", f"type=bind,src={bundle / 'assets'},dst=/dataset-assets,readonly",
