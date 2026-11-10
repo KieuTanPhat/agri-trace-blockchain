@@ -3,6 +3,15 @@
 }
 (application) {
     encode gzip
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        Referrer-Policy strict-origin-when-cross-origin
+        Permissions-Policy "camera=(self), geolocation=(self), microphone=()"
+        X-XSS-Protection 0
+        -Server
+        -X-Powered-By
+    }
     @docs path /api/docs /api/docs/* /api/docs-json /api/docs-yaml
     handle @docs {
         respond "Not found" 404
@@ -19,6 +28,8 @@
 }
 
 agritrace.dev, www.agritrace.dev, nongtrace.site {
+    # HTTPS only; do not advertise HSTS on the HTTP rehearsal or IP redirect.
+    header Strict-Transport-Security "max-age=31536000"
     import application prod-api prod-web
 }
 

@@ -15,8 +15,8 @@ export class RequestIdMiddleware implements NestMiddleware {
     const header = request.headers['x-request-id'];
 
     const requestId =
-      typeof header === 'string' && header.trim()
-        ? header.trim()
+      typeof header === 'string' && /^[A-Za-z0-9._-]{1,128}$/.test(header)
+        ? header
         : randomUUID();
 
     request.requestId = requestId;
@@ -26,7 +26,8 @@ export class RequestIdMiddleware implements NestMiddleware {
       this.logger.log('HTTP request completed', {
         requestId,
         method: request.method,
-        path: request.originalUrl,
+        // URLs can contain reset tokens or personal query parameters.
+        path: request.originalUrl.split('?')[0],
         statusCode: response.statusCode,
         durationMs: Date.now() - startedAt,
       });

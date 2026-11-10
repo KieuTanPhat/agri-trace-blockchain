@@ -21,3 +21,15 @@ it("routes the client Host when standalone Next exposes its internal URL",()=>{
  expect(result.status).toBe(307);
  expect(result.headers.get("location")).toBe("https://nongtrace.site/register?source=customer");
 });
+it('replaces untrusted nonces and sends a matching, non-cacheable render policy',()=>{
+ vi.stubEnv('NODE_ENV','production');
+ const make=()=>proxy(new NextRequest('https://agritrace.dev/trace/test',{headers:{'x-nonce':'attacker-nonce','content-security-policy':"script-src *"}}));
+ const first=make(),second=make();
+ const nonce=first.headers.get('x-middleware-request-x-nonce');
+ expect(nonce).toBeTruthy();
+ expect(nonce).not.toBe('attacker-nonce');
+ expect(nonce).not.toBe(second.headers.get('x-middleware-request-x-nonce'));
+ expect(first.headers.get('content-security-policy')).toBe(first.headers.get('x-middleware-request-content-security-policy'));
+ expect(first.headers.get('content-security-policy')).toContain(`'nonce-${nonce}'`);
+ expect(first.headers.get('cache-control')).toContain('no-store');
+});

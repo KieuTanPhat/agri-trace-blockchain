@@ -8,11 +8,15 @@ import { ApiResponseInterceptor } from './common/api/api-response.interceptor.js
 import { GlobalExceptionFilter } from './common/exception/global-exception.filter.js';
 import { createApplicationLogger } from './common/logging/app-logger.js';
 import { createOpenApiDocument } from './common/api/openapi.js';
+import { securityHeaders } from './common/security/security-headers.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: createApplicationLogger(),
+    bodyParser: false,
   });
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  app.use(securityHeaders);
   app.useBodyParser('json',{limit:'1mb'});
   app.enableShutdownHooks();
   const trustProxyHops = process.env.TRUST_PROXY_HOPS;
