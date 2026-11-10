@@ -53,6 +53,29 @@ test('repository migration checksums are SHA-256 of each migration.sql in name o
   for (const digest of Object.values(checksums)) assert.match(digest, /^[a-f0-9]{64}$/);
 });
 
+test('production transport and payment settings reach the right runtime without enabling collection', () => {
+  const edge = readFileSync(new URL('../edge/Caddyfile', import.meta.url), 'utf8');
+  const rehearsal = proxyCaddyfile(edge);
+  assert.match(edge, /Strict-Transport-Security "max-age=31536000"/);
+  assert.ok(!rehearsal.includes('Strict-Transport-Security'), 'HTTP must not set HSTS');
+  for (const header of ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy', 'Permissions-Policy'])
+    assert.ok(rehearsal.includes(header), `Rehearsal must exercise ${header}`);
+  const compose = readFileSync(new URL('../../docker-compose.app.yml', import.meta.url), 'utf8');
+  const api = compose.split('\n  api:\n')[1].split('\n  worker:\n')[0];
+  const worker = compose.split('\n  worker:\n')[1].split('\n  web:\n')[0];
+  for (const variable of ['SEPAY_MODE', 'SEPAY_BANK', 'SEPAY_ACCOUNT_NUMBER', 'SEPAY_ACCOUNT_HOLDER', 'SEPAY_VIRTUAL_ACCOUNT', 'SEPAY_WEBHOOK_KEY']) {
+    assert.ok(api.includes(`${variable}:`));
+    assert.ok(!worker.includes(`${variable}:`), 'Worker does not need payment secrets');
+  }
+  assert.ok(api.includes('${SEPAY_MODE:-disabled}'));
+  assert.ok(api.includes('ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}'), 'Admission must be operator-controlled and closed by default');
+  assert.ok(!compose.includes('SEPAY_MERCHANT_SECRET'), 'Bank webhooks do not need Merchant/Gateway credentials');
+  assert.ok(api.includes('ENTERPRISE_PAYMENT_SIMULATION_ENABLED: "false"'));
+  assert.ok(!api.includes('SMTP_PASSWORD:'));
+  assert.ok(worker.includes('SMTP_PASSWORD:'));
+  assert.ok(worker.includes('${ENTERPRISE_WEB_BASE_URL:-https://nongtrace.site}'));
+});
+
 test('applied migrations must match the repository exactly and be finished', () => {
   const expected = { a: '1'.repeat(64), b: '2'.repeat(64) };
   const row = (name, checksum, extra = {}) => ({ migration_name: name, checksum, finished_at: '2026-01-01', rolled_back_at: null, ...extra });

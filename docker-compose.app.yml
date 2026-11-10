@@ -51,7 +51,17 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       JWT_EXPIRES_IN: 1h
       JWT_REFRESH_EXPIRES_DAYS: "7"
+      # Enterprise registration admission; closed until the operator opens it.
+      ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
       ENTERPRISE_PAYMENTS_ENABLED: ${ENTERPRISE_PAYMENTS_ENABLED:-false}
+      ENTERPRISE_PAYMENT_SIMULATION_ENABLED: "false"
+      # SePay bank webhooks; disabled until the operator configures the receiver.
+      SEPAY_MODE: ${SEPAY_MODE:-disabled}
+      SEPAY_BANK: ${SEPAY_BANK:-}
+      SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
+      SEPAY_ACCOUNT_HOLDER: ${SEPAY_ACCOUNT_HOLDER:-}
+      SEPAY_VIRTUAL_ACCOUNT: ${SEPAY_VIRTUAL_ACCOUNT:-}
+      SEPAY_WEBHOOK_KEY: ${SEPAY_WEBHOOK_KEY:-}
       PLATFORM_SECRET_KEY: ${PLATFORM_SECRET_KEY:-}
       PLATFORM_MFA_MODE: ${PLATFORM_MFA_MODE:-OPTIONAL}
       PLATFORM_LOGIN_MAX_ATTEMPTS: ${PLATFORM_LOGIN_MAX_ATTEMPTS:-5}
@@ -95,7 +105,7 @@ services:
       SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      ENTERPRISE_WEB_BASE_URL: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}
+      ENTERPRISE_WEB_BASE_URL: ${ENTERPRISE_WEB_BASE_URL:-https://nongtrace.site}
       FABRIC_ENABLED: "false"
       NODE_OPTIONS: --max-old-space-size=${WORKER_HEAP_MB:-320}
     command: [node, apps/api/dist/worker-main.js]

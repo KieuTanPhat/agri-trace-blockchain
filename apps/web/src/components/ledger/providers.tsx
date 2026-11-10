@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { setNonce } from "get-nonce";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/lib/auth-store";
 import { getAuthorizationScope } from "@/lib/auth-scope";
@@ -66,7 +67,12 @@ function AuthorizationBoundary({ children }: { children: React.ReactNode }) {
     </ScopeQueryProvider>
   );
 }
-export function LedgerProviders({ children }: { children: React.ReactNode }) {
+export function LedgerProviders({ children, nonce }: { children: React.ReactNode; nonce?: string }) {
+  if (nonce && typeof document !== 'undefined') {
+    // Keep dynamically injected Radix scroll-lock styles on the document nonce,
+    // including after a client-side router refresh renders a new RSC response.
+    setNonce(document.querySelector<HTMLScriptElement>('script[nonce]')?.nonce || nonce);
+  }
   return (
     <AuthProvider>
       <AuthorizationBoundary>
