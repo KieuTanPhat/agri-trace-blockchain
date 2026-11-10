@@ -4,11 +4,15 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
-import { expoWebSecurityHeaders, webSecurityHeaders } from "./src/lib/security-headers";
 
 // Sonner injects one fixed stylesheet at module load, before React mounts.
 // Allow those exact bytes rather than allowing every inline <style> element.
 const require = createRequire(import.meta.url);
+// `next start <dir>` transpiles this file but resolves relative imports from
+// the process cwd, so load sibling sources by absolute path.
+const { expoWebSecurityHeaders, webSecurityHeaders } = require(
+  fileURLToPath(new URL("./src/lib/security-headers.ts", import.meta.url)),
+) as typeof import("./src/lib/security-headers");
 const sonnerSource = readFileSync(require.resolve("sonner"), "utf8");
 const sonnerStyles = [...sonnerSource.matchAll(/__insertCSS\(("(?:[^"\\]|\\.)*")\)/g)];
 if (sonnerStyles.length !== 1) throw new Error("Review Sonner inline CSS for CSP after dependency changes");
