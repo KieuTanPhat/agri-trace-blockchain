@@ -109,12 +109,44 @@ export class SepayService {
       },
       orderBy: { receivedAt: 'desc' },
     });
+    const matched =
+      invoice.status === 'PAID'
+        ? await this.db.sepayWebhookReceipt.findFirst({
+            where: {
+              invoiceId: invoice.id,
+              mode: config.mode,
+              outcome: 'MATCHED',
+            },
+            orderBy: { receivedAt: 'desc' },
+          })
+        : null;
+    const paymentAudit = matched
+      ? await this.db.platformAudit.findFirst({
+          where: {
+            subjectType: 'SEPAY_WEBHOOK_RECEIPT',
+            subjectId: matched.id,
+            action: 'SEPAY_WEBHOOK_RECEIVED',
+          },
+          select: { details: true },
+        })
+      : null;
+    const amounts = paymentAudit?.details;
+    const amountDetail = (key: string) =>
+      amounts &&
+      typeof amounts === 'object' &&
+      !Array.isArray(amounts) &&
+      typeof amounts[key] === 'string' &&
+      /^\d+$/.test(amounts[key])
+        ? amounts[key]
+        : null;
     const capabilities = enrollment.organization.capabilityRequests;
     const ready =
       !capabilities.some((r) => r.status === 'PENDING') &&
       capabilities.some((r) => r.status === 'APPROVED');
     return {
       enabled: true,
+      receivedAmount: amountDetail('receivedAmount'),
+      excessAmount: amountDetail('excessAmount'),
       mode: config.mode,
       invoiceId: invoice.id,
       invoiceNumber: invoice.number,
@@ -205,6 +237,22 @@ export class SepayService {
               transactionId: String(transaction.id),
               invoiceId: invoice?.id ?? null,
               outcome,
+              receivedAmount: sepayRecipientMatches(transaction, config)
+                ? String(transaction.transferAmount)
+                : null,
+              appliedAmount:
+                outcome === 'MATCHED' ? invoice!.amount.toString() : '0',
+              excessAmount:
+                outcome === 'MATCHED'
+                  ? (
+                      BigInt(transaction.transferAmount) - invoice!.amount
+                    ).toString()
+                  : null,
+              currency: 'VND',
+              bank: transaction.gateway,
+              bankReference: transaction.referenceCode ?? null,
+              transactionDate: transaction.transactionDate,
+              recipientMatched: sepayRecipientMatches(transaction, config),
             },
           });
         };
@@ -216,7 +264,7 @@ export class SepayService {
           return record('REVIEW_REQUIRED', 'INVOICE_ALREADY_PROCESSED');
         if (
           invoice.currency !== 'VND' ||
-          invoice.amount !== BigInt(transaction.transferAmount)
+          BigInt(transaction.transferAmount) < invoice.amount
         )
           return record('REVIEW_REQUIRED', 'AMOUNT_OR_CURRENCY_MISMATCH');
         const posted = Date.parse(
@@ -234,7 +282,7 @@ export class SepayService {
             profile: true,
             capabilityRequests: true,
             enterpriseEnrollment: {
-              include: { serviceOrder: true, owner: true },
+              include: { owner: true },
             },
           },
         });
@@ -260,7 +308,11 @@ export class SepayService {
           !['PENDING_PAYMENT', 'ACTIVE'].includes(subscription.status)
         )
           return record('REVIEW_REQUIRED', 'SUBSCRIPTION_NOT_PAYABLE');
-        const order = enrollment.serviceOrder;
+        const order = subscription.sourceOrderId
+          ? await tx.enterpriseServiceOrder.findUnique({
+              where: { id: subscription.sourceOrderId },
+            })
+          : null;
         if (
           invoice.kind === 'INITIAL' &&
           (!order ||
@@ -332,7 +384,12 @@ export class SepayService {
             amount: invoice.amount.toString(),
           },
         });
-        return record('MATCHED', 'INVOICE_SETTLED');
+        return record(
+          'MATCHED',
+          BigInt(transaction.transferAmount) > invoice.amount
+            ? 'INVOICE_SETTLED_WITH_EXCESS'
+            : 'INVOICE_SETTLED',
+        );
       },
       { maxWait: 5000, timeout: 15000 },
     );

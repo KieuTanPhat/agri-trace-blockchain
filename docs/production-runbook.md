@@ -178,7 +178,9 @@ smoke). Người dùng nghiệp vụ khác vẫn nhận 503 trên candidate chư
 scope domain vẫn kiểm từng command. Kiểm health/Web/PWA/login/roles/refresh/logout/CORS; care, harvest/Lot/
 QR, ShipmentPlan consent, pickup/arrival có chữ ký Ed25519 hai bên, receive,
 original-key replay, outbox, stored evidence, direct Fabric event/proof/VALID và
-public QR. Private keys/command receipts nằm trong `shared/smoke/<sha>` root-only.
+public QR. Public QR reads respect HTTP 429/Retry-After with at most three bounded
+retries (180 seconds total wait); persistent limits still fail verification and do not
+relax the API rate limit. Private keys/command receipts nằm trong `shared/smoke/<sha>` root-only.
 
 Sau smoke thành công đánh dấu verified/current và mở ghi theo policy. Kiểm runtime
 SHA/images, OOM/restarts, Pending/dead-letter và HTTPS sau deploy. Đây là hậu kiểm

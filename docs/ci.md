@@ -310,8 +310,9 @@ npm run audit:dependencies -- workspace dependency-evidence
 npm run check:chaincode:standalone -- dependency-evidence
 ```
 
-Dependency tooling được pin `minimatch@11.0.3` và mobile `glob@14.0.3` để vá
-GHSA-g3hv-75wg-m249/GHSA-3g3m-2fjr-6pw4. Các consumer callable cũ
+Dependency tooling được pin `minimatch@11.0.3` để vá GHSA-g3hv-75wg-m249.
+Expo 58.0.26 dùng `tinyglobby`, lockfile mobile không còn `glob`; override và
+kiểm tra tương thích Glob đã được gỡ cùng dependency đó. Các consumer callable cũ
 (ESLint/import/React, Redocly) dùng adapter có source tại
 `apps/mobile/compat/minimatch-legacy`; matching vẫn chạy engine upstream 11.
 `makeRe(...).test()` là predicate an toàn, không sinh lại RegExp đã bị upstream

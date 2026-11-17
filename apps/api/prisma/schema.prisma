@@ -755,7 +755,7 @@ model EnterpriseEnrollment {
   updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  serviceOrder EnterpriseServiceOrder?
+  serviceOrders EnterpriseServiceOrder[]
   contractPreviews ServiceContractPreview[]
   messages EnterpriseMail[]
   @@map("enterprise_enrollment")
@@ -847,7 +847,7 @@ model ServiceContractPreview {
 
 model EnterpriseServiceOrder {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  enrollmentId String @unique @map("enrollment_id") @db.Uuid
+  enrollmentId String @map("enrollment_id") @db.Uuid
   planCode String @map("plan_code") @db.VarChar(30)
   billingEmail String @map("billing_email") @db.VarChar(255)
   billingName String @map("billing_name") @db.VarChar(255)
@@ -864,7 +864,9 @@ model EnterpriseServiceOrder {
   paidAt DateTime? @map("paid_at") @db.Timestamptz(6)
   version Int @default(0)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
   enrollment EnterpriseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  @@index([enrollmentId, createdAt])
   @@map("enterprise_service_order")
 }
 

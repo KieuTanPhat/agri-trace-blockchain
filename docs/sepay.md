@@ -18,7 +18,8 @@ Phạm vi: backend Web, hóa đơn/gói dịch vụ và giao diện doanh nghi�
    Chọn xác thực API Key: `Authorization: Apikey <SEPAY_WEBHOOK_KEY>`; callback
    không nhận Bearer token của người dùng và không yêu cầu Idempotency-Key giả.
 5. Máy chủ kiểm tiền vào, ngân hàng, tài khoản/VA, mã hóa đơn duy nhất, số tiền
-   bằng đúng hóa đơn và ngày giao dịch trong kỳ cho phép. Thiếu/thừa tiền, sai mã,
+   ít nhất bằng hóa đơn và ngày giao dịch trong kỳ cho phép. Tiền dư vẫn thanh toán
+   và kích hoạt; audit lưu số thực nhận, số phân bổ vào hóa đơn và phần dư. Thiếu tiền, sai mã,
    hồ sơ chưa sẵn sàng hoặc hóa đơn đã xử lý được giữ để đối soát, không tự cộng kỳ.
 6. Receipt, thanh toán, thuê bao, trạng thái hợp đồng, quyền đã được duyệt,
    audit và mail outbox commit trong một PostgreSQL transaction. Receipt
@@ -31,6 +32,20 @@ Phạm vi: backend Web, hóa đơn/gói dịch vụ và giao diện doanh nghi�
 Test mode ghi `SIMULATION`/`PAID_SIMULATED`, không tính là tiền thật. Live ghi
 `SEPAY`/`PAID`; không đổi lịch sử thanh toán mô phỏng thành thật. Thanh toán thật
 không biến hóa đơn mô phỏng hiện có thành hóa đơn điện tử đã phát hành.
+
+Chủ hồ sơ có thể `POST /enterprise-service/orders/cancel` với `orderId` và
+`version` để chọn lại gói trước thanh toán. Lệnh hủy hóa đơn/thuê bao chờ trả,
+chuyển hợp đồng sang `CANCELLED`, giữ PDF và audit; đơn mới có hóa đơn/mã QR mới.
+Đã có receipt cần đối soát hoặc khoản thu thì không được hủy. Migration
+`20270101000012_service_order_reselection` phải đi cùng API mới; bản cũ giả định
+mỗi hồ sơ chỉ có một hợp đồng, không dùng làm app rollback sau khi đã chọn lại gói.
+
+Admin/Auditor đọc `GET /platform-billing/bank-transfers` (phân trang 50 dòng,
+lọc môi trường/kết quả/tổ chức/mã SePay hoặc số hóa đơn). Trang **Hóa đơn →
+Lịch sử chuyển tiền** hiển thị thực nhận, thanh toán gói, tiền dư và mã ngân hàng.
+Các giao dịch cũ chỉ lưu hash trả `null` cho số thực nhận chưa biết, không suy ra
+hoặc sửa lịch sử. Hoàn tiền được đối chiếu và thực hiện qua ngân hàng; trang này
+không tự chuyển tiền và tiền dư không có nghĩa là đã hoàn.
 
 ## Cấu hình thử nghiệm
 

@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsInt,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   Min,
@@ -57,6 +58,10 @@ export class ServiceOrderInput extends ServiceQuoteInput {
   @Matches(/^[a-f0-9]{64}$/)
   contractDigest!: string;
 }
+export class ServiceCancelInput {
+  @ApiProperty({ format: 'uuid' }) @IsUUID() orderId!: string;
+  @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
+}
 export class ServicePaymentInput {
   @ApiProperty({ minimum: 0 }) @IsInt() @Min(0) version!: number;
   @ApiProperty({
@@ -90,7 +95,9 @@ export class ServiceOrderView {
     string | null;
   @ApiPropertyOptional({ type: String, nullable: true }) templateVersion!:
     string | null;
-  @ApiProperty({ enum: ['AWAITING_PAYMENT', 'PAID_SIMULATED', 'PAID'] })
+  @ApiProperty({
+    enum: ['AWAITING_PAYMENT', 'PAID_SIMULATED', 'PAID', 'CANCELLED'],
+  })
   status!: string;
   @ApiProperty() version!: number;
   @ApiProperty({ format: 'date-time' }) acceptedAt!: string;

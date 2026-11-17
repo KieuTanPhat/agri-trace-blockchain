@@ -35,6 +35,7 @@ import {
 } from './billing-core.js';
 import type {
   ConfirmPaymentInput,
+  BankTransferQuery,
   CreateServicePlanInput,
   ServicePlanStatusInput,
   EnterpriseInvoicePayInput,
@@ -56,6 +57,85 @@ export class BillingService {
   constructor(private readonly db: PrismaService) {}
 
   // ---------- Platform administration ----------
+  async bankTransfers(query: BankTransferQuery) {
+    const rows = await this.db.sepayWebhookReceipt.findMany({
+      where: {
+        ...(query.mode ? { mode: query.mode } : {}),
+        ...(query.outcome ? { outcome: query.outcome } : {}),
+        ...(query.organizationId
+          ? { invoice: { organizationId: query.organizationId } }
+          : {}),
+        ...(query.q
+          ? {
+              OR: [
+                { transactionId: { contains: query.q } },
+                {
+                  invoice: {
+                    number: { contains: query.q, mode: 'insensitive' as const },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        invoice: {
+          select: {
+            number: true,
+            amount: true,
+            organization: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: [{ receivedAt: 'desc' }, { id: 'desc' }],
+      skip: query.offset,
+      take: 51,
+    });
+    const page = rows.slice(0, 50);
+    const audits = await this.db.platformAudit.findMany({
+      where: {
+        action: 'SEPAY_WEBHOOK_RECEIVED',
+        subjectType: 'SEPAY_WEBHOOK_RECEIPT',
+        subjectId: { in: page.map((r) => r.id) },
+      },
+      select: { subjectId: true, details: true },
+    });
+    const details = new Map(audits.map((a) => [a.subjectId, a.details]));
+    return {
+      items: page.map((r) => {
+        const value = details.get(r.id);
+        const d =
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? value
+            : {};
+        const text = (key: string) =>
+          typeof d[key] === 'string' ? (d[key] as string) : null;
+        const money = (key: string) => {
+          const v = text(key);
+          return v && /^\d+$/.test(v) ? v : null;
+        };
+        return {
+          id: r.id,
+          transactionId: r.transactionId,
+          mode: r.mode,
+          outcome: r.outcome,
+          reason: r.reason,
+          receivedAt: r.receivedAt.toISOString(),
+          invoiceNumber: r.invoice?.number ?? null,
+          organizationName: r.invoice?.organization.name ?? null,
+          invoiceAmount: r.invoice?.amount.toString() ?? null,
+          receivedAmount: money('receivedAmount'),
+          appliedAmount: money('appliedAmount'),
+          excessAmount: money('excessAmount'),
+          bank: text('bank'),
+          bankReference: text('bankReference'),
+          transactionDate: text('transactionDate'),
+        };
+      }),
+      nextOffset: rows.length > 50 ? query.offset + 50 : null,
+    };
+  }
+
   async plans() {
     const plans = await this.db.servicePlan.findMany({
       include: { versions: { orderBy: { version: 'desc' } } },

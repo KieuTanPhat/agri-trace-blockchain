@@ -1697,6 +1697,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/enterprise-service/orders/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["EnterpriseServiceController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/enterprise-service/payment-simulation": {
         parameters: {
             query?: never;
@@ -3577,6 +3593,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["PlatformAuditController_verify"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform-billing/bank-transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PlatformBillingController_bankTransfers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5802,6 +5834,28 @@ export interface components {
             role: components["schemas"]["AuthRoleDto"];
             /** Format: date-time */
             updatedAt: string;
+        };
+        BankTransferListView: {
+            items: components["schemas"]["BankTransferView"][];
+            nextOffset: number | null;
+        };
+        BankTransferView: {
+            appliedAmount: string | null;
+            bank: string | null;
+            bankReference: string | null;
+            excessAmount: string | null;
+            id: string;
+            invoiceAmount: string | null;
+            invoiceNumber: string | null;
+            mode: string;
+            organizationName: string | null;
+            outcome: string;
+            reason: string;
+            receivedAmount: string | null;
+            /** Format: date-time */
+            receivedAt: string;
+            transactionDate: string | null;
+            transactionId: string;
         };
         BillingListDto: {
             items: Record<string, never>[];
@@ -10396,6 +10450,7 @@ export interface components {
             bank: string | null;
             dueAt: string | null;
             enabled: boolean;
+            excessAmount?: string | null;
             invoiceId: string | null;
             invoiceNumber: string | null;
             /** @enum {string|null} */
@@ -10403,6 +10458,7 @@ export interface components {
             paidAt: string | null;
             paymentCode: string | null;
             qrUrl: string | null;
+            receivedAmount?: string | null;
             reviewMessage: string | null;
             serviceActive: boolean;
             simulated: boolean;
@@ -10427,6 +10483,11 @@ export interface components {
             transferAmount: number;
             /** @enum {string} */
             transferType: "in" | "out";
+        };
+        ServiceCancelInput: {
+            /** Format: uuid */
+            orderId: string;
+            version: number;
         };
         ServiceCatalogView: {
             checkedAt: string;
@@ -10491,7 +10552,7 @@ export interface components {
                 [key: string]: unknown;
             };
             /** @enum {string} */
-            status: "AWAITING_PAYMENT" | "PAID_SIMULATED" | "PAID";
+            status: "AWAITING_PAYMENT" | "PAID_SIMULATED" | "PAID" | "CANCELLED";
             templateVersion?: string | null;
             version: number;
         };
@@ -24608,6 +24669,128 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ServiceOrderInput"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ServiceOrderView"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    EnterpriseServiceController_cancel: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceCancelInput"];
             };
         };
         responses: {
@@ -40900,6 +41083,128 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["PlatformAuditVerificationDto"];
+                        requestId: string;
+                        /** @enum {boolean} */
+                        success: true;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+            /** @description Error envelope from GlobalExceptionFilter */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelopeDto"];
+                };
+            };
+        };
+    };
+    PlatformBillingController_bankTransfers: {
+        parameters: {
+            query?: {
+                mode?: "test" | "live";
+                offset?: number;
+                organizationId?: string;
+                outcome?: "MATCHED" | "IGNORED" | "REVIEW_REQUIRED";
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BankTransferListView"];
                         requestId: string;
                         /** @enum {boolean} */
                         success: true;

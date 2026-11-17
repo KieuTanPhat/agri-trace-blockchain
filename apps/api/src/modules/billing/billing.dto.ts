@@ -255,3 +255,54 @@ export class RevenueReportDto {
   @ApiProperty() expiringIn30Days!: number;
   @ApiProperty() note!: string;
 }
+
+export class BankTransferQuery {
+  @ApiPropertyOptional({ enum: ['test', 'live'] })
+  @IsOptional()
+  @IsIn(['test', 'live'])
+  mode?: string;
+  @ApiPropertyOptional({ enum: ['MATCHED', 'IGNORED', 'REVIEW_REQUIRED'] })
+  @IsOptional()
+  @IsIn(['MATCHED', 'IGNORED', 'REVIEW_REQUIRED'])
+  outcome?: string;
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  organizationId?: string;
+  @ApiPropertyOptional({ maxLength: 120 })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(120)
+  q?: string;
+  @ApiPropertyOptional({ minimum: 0, maximum: 100000, default: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100000)
+  offset: number = 0;
+}
+export class BankTransferView {
+  @ApiProperty() id!: string;
+  @ApiProperty() transactionId!: string;
+  @ApiProperty() mode!: string;
+  @ApiProperty() outcome!: string;
+  @ApiProperty() reason!: string;
+  @ApiProperty({ format: 'date-time' }) receivedAt!: string;
+  @ApiProperty({ type: String, nullable: true }) invoiceNumber!: string | null;
+  @ApiProperty({ type: String, nullable: true }) organizationName!:
+    string | null;
+  @ApiProperty({ type: String, nullable: true }) invoiceAmount!: string | null;
+  @ApiProperty({ type: String, nullable: true }) receivedAmount!: string | null;
+  @ApiProperty({ type: String, nullable: true }) appliedAmount!: string | null;
+  @ApiProperty({ type: String, nullable: true }) excessAmount!: string | null;
+  @ApiProperty({ type: String, nullable: true }) bank!: string | null;
+  @ApiProperty({ type: String, nullable: true }) bankReference!: string | null;
+  @ApiProperty({ type: String, nullable: true }) transactionDate!:
+    string | null;
+}
+export class BankTransferListView {
+  @ApiProperty({ type: [BankTransferView] }) items!: BankTransferView[];
+  @ApiProperty({ type: Number, nullable: true }) nextOffset!: number | null;
+}

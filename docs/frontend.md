@@ -471,8 +471,13 @@ localStorage/public URL. Payment/activation truth comes from checkout polling; e
 status comes from the outbox. Existing deferred-access screens and local simulation
 fallback remain available under their feature flags. Test 1440/390 widths, keyboard
 selection, PDF download fallback, close/reopen, refresh, pending/error/review states,
-server-confirmed success and account isolation. Browser automation is currently
-blocked by the host; API/unit/PDF rendering checks do not substitute UI acceptance.
+server-confirmed success and account isolation. Fixture UI checks do not substitute
+live payment/SMTP acceptance. The three-step progress control shows plan/contract,
+payment, then PDF email delivery; future steps remain disabled. Before payment,
+"Chọn gói khác" confirms cancellation of the current invoice and accepted order,
+then returns to selection without discarding the old contract history. The admin
+invoice page includes paginated bank-transfer history and received/applied/excess
+amounts for manual refund reconciliation.
 
 ### Quản lý tài khoản người dùng
 

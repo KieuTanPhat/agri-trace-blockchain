@@ -22,6 +22,7 @@ import { Guard } from "@/components/ledger/kit/guard";
 import { EmptyState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge, Status } from "@/components/ledger/kit/status";
 
+import { BankTransfers } from "./bank-transfers";
 import { t as tr } from "@/lib/ledger/i18n";
 const confirmSchema = z.object({ reference: z.string().trim().min(4, { error: () => tr("Tối thiểu 4 ký tự") }).max(120), reason: reason() });
 const voidSchema = z.object({ reason: reason() });
@@ -88,6 +89,7 @@ function Invoices() {
         <div className="overflow-hidden rounded-md border border-line bg-card">
           <DataTable rows={q.data} loading={q.isLoading} error={q.error} onRetry={() => q.refetch()} columns={columns} rowKey={(i) => i.id} onRowClick={(i) => setDetail(i.id)} selectedKey={detailId} empty={<EmptyState title={tr("Không có hóa đơn")} />} />
         </div>
+        <BankTransfers />
       </PageBody>
 
       <Sheet open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>

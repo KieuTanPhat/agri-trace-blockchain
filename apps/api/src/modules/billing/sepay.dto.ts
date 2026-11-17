@@ -23,6 +23,10 @@ export class SepayWebhookAcknowledgement {
 }
 
 export class SepayCheckoutView {
+  @ApiPropertyOptional({ type: String, nullable: true }) receivedAmount?:
+    string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) excessAmount?:
+    string | null;
   @ApiProperty() enabled!: boolean;
   @ApiProperty({ enum: ['test', 'live'], nullable: true }) mode!:
     'test' | 'live' | null;

@@ -121,7 +121,7 @@ export async function enterpriseAuthority(
     where: { id: actor.sub },
     include: {
       organization: {
-        include: { enterpriseEnrollment: { include: { serviceOrder: true } } },
+        include: { enterpriseEnrollment: true },
       },
       enterpriseRoles: { include: { role: true } },
     },

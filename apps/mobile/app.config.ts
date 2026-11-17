@@ -58,6 +58,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-dev-client',
       'expo-secure-store',
       'expo-font',
+      'expo-status-bar',
       'expo-image',
       ['expo-splash-screen', {
         image: app.icon,

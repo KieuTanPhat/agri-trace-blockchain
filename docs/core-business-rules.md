@@ -146,10 +146,14 @@ flow below applies only after an operator explicitly enables collection.
 
 Approval alone does not grant business authority for new enrollments. An owner
 previews and acknowledges an immutable service quotation/contract. A private, append-only PDF preview is merged from a versioned static template before acceptance; confirmation copies its exact bytes/hash to the order. Expired or changed previews cannot be accepted. Service history exposes only this owner organization's relevant steps; it does not grant platform audit access. Worker email attaches the same accepted PDF after confirmed settlement. Optional SePay
-settlement verifies the recipient, unique invoice code, exact server-side amount,
+settlement verifies the recipient, unique invoice code, received amount at least equal to the server-side invoice,
 transaction window and reviewed enrollment/capabilities. Receipt, invoice,
 subscription, contract, automatic activation and mail outbox share one commit.
 Test mode records `SIMULATION`/`PAID_SIMULATED`; Live records `SEPAY`/`PAID`.
+Excess transfers allocate only the invoice amount and retain received/excess amounts in
+immutable audit for manual bank reconciliation. An unpaid contract may be cancelled
+with its pending subscription and invoices, preserving the PDF/history before a new
+selection; any matched or review-required bank receipt prevents cancellation.
 Retries cannot add another payment or extend the term twice. Automatic activation
 has a system audit actor and a deferred SQL check for its matching receipt; manual
 SYSTEM_ADMIN activation remains available under the existing policy. Amounts come

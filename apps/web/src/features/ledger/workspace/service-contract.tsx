@@ -118,6 +118,7 @@ export function ContractPdf({
 const labels: Record<string, string> = {
   SERVICE_PLAN_SELECTED: "Đã chọn gói dịch vụ",
   SERVICE_CONTRACT_PREVIEWED: "Đã lập bản PDF để kiểm tra",
+  SERVICE_CONTRACT_CANCELLED: "Đã hủy hợp đồng để đổi gói",
   SERVICE_CONTRACT_ACCEPTED: "Đã xác nhận hợp đồng",
   SERVICE_PAYMENT_CONFIRMED: "Đã xác nhận thanh toán",
   SERVICE_PAYMENT_SIMULATED: "Đã thanh toán mô phỏng",
@@ -131,10 +132,13 @@ export function ContractHistory({
   return (
     <Section title={tr("Lịch sử giao dịch")} bodyClassName="p-4">
       {history.length ? (
-        <ol className="space-y-4">
+        <ol className="ml-2 border-l border-line">
           {history.map((h) => (
-            <li key={h.id} className="flex items-start gap-3 text-sm">
-              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-brand" />
+            <li key={h.id} className="relative pb-6 pl-6 text-sm last:pb-0">
+              <span
+                aria-hidden
+                className={`absolute -left-2 top-0.5 flex size-4 items-center justify-center rounded-full border-4 border-surface ${h.action === "SERVICE_CONTRACT_CANCELLED" ? "bg-warn-dot" : "bg-brand"}`}
+              />
               <div>
                 <p className="font-medium">
                   {tr(labels[h.action] ?? h.action)}

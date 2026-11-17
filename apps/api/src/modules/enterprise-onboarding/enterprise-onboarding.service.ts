@@ -67,7 +67,6 @@ const INCLUDE = {
     },
   },
   owner: { select: { fullName: true, email: true } },
-  serviceOrder: true,
 };
 const receipt = (id: string) => ({
   enrollmentId: id,
@@ -466,6 +465,7 @@ export async function authorizeEnterpriseCommand(
       'ENTERPRISE_SERVICE_ORDER',
       'ENTERPRISE_SERVICE_PAY',
   'ENTERPRISE_SERVICE_PREVIEW',
+      'ENTERPRISE_SERVICE_CANCEL',
       'ENTERPRISE_UPGRADE_OWNER',
       'ENTERPRISE_CAPABILITY_REQUEST',
     ].includes(input.operation)
@@ -483,6 +483,7 @@ export async function authorizeEnterpriseCommand(
     'ENTERPRISE_SERVICE_ORDER',
     'ENTERPRISE_SERVICE_PAY',
   'ENTERPRISE_SERVICE_PREVIEW',
+      'ENTERPRISE_SERVICE_CANCEL',
     'ENTERPRISE_UPGRADE_OWNER',
     'ENTERPRISE_CAPABILITY_REQUEST',
   ].includes(input.operation);
