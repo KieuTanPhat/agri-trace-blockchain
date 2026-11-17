@@ -23,9 +23,11 @@ const evidence = path.resolve(
 );
 const logs = path.join(evidence, "chaincode");
 mkdirSync(logs, { recursive: true });
-const stage = mkdtempSync(
+// npm resolves file: dependencies against the real cwd. On macOS /var is a
+// symlink; use the same canonical path for --prefix and the staged package.
+const stage = realpathSync(mkdtempSync(
   path.join(tmpdir(), "agri-trace-standalone-chaincode-"),
-);
+));
 
 function run(name, args, cwd) {
   console.log(`standalone-chaincode/${name}: running`);

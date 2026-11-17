@@ -2,6 +2,7 @@
 // Every advisory at or above `moderate` fails unless listed here and unexpired.
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { auditPatchedMatcher } from './picomatch-audit.mjs';
 
 // The SDK lockfile now contains patched node-forge 1.4.2; its former dated
 // exception is retired. Any new moderate-or-higher advisory fails by default.
@@ -10,20 +11,36 @@ export const exceptions = [];
 const rank = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 
 export function evaluateAudit(report, now = new Date(), allowed = exceptions) {
+  // Registry/network errors also produce JSON, but are not audit reports.
+  // Missing advisories in an error response must never count as a clean audit.
+  if (!report || report.error || !report.vulnerabilities ||
+      typeof report.vulnerabilities !== 'object' || Array.isArray(report.vulnerabilities))
+    return ['Mobile audit failed: npm did not return a valid vulnerability report.'];
   const failures = [];
-  for (const entry of Object.values(report.vulnerabilities ?? {}))
+  for (const entry of Object.values(report.vulnerabilities)) {
+    if (!entry || !Array.isArray(entry.via)) {
+      failures.push('Mobile audit failed: malformed vulnerability entry.');
+      continue;
+    }
     for (const via of entry.via)
-      if (typeof via === 'object' && rank[via.severity] >= rank.moderate) {
+      if (via && typeof via === 'object' && rank[via.severity] >= rank.moderate) {
         const id = via.url?.split('/').pop();
         const exception = allowed.find(e => e.id === id && e.package === via.name);
         if (!exception) failures.push(`${via.name} ${id} (${via.severity}): ${via.title}`);
         else if (now >= new Date(`${exception.expires}T00:00:00Z`))
           failures.push(`${via.name} ${id}: exception expired on ${exception.expires}`);
       }
+  }
   return failures;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    await auditPatchedMatcher(process.cwd());
+  } catch (error) {
+    console.error(`Patched picomatch audit failed: ${error.message}`);
+    process.exit(1);
+  }
   let output;
   try {
     output = execSync('npm audit --workspaces=false --json', { encoding: 'utf8', maxBuffer: 64 << 20 });

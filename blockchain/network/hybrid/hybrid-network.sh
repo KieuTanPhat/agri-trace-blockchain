@@ -299,6 +299,8 @@ build_cc_image() {
   rm -rf "${stage}"; mkdir -p "${stage}"
   cp "${src}/package.json" "${src}/package-lock.json" "${stage}/"
   cp -r "${src}/dist" "${stage}/dist"
+  mkdir -p "${stage}/src/vendor"
+  cp -r "${src}/src/vendor/picomatch-safe" "${stage}/src/vendor/picomatch-safe"
   # umask 077 makes the staged files unreadable to the image's non-root user.
   chmod -R a+rX "${stage}"
   docker build -q -t "${CC_IMAGE}" -f "${HERE}/ccaas/Dockerfile" "${stage}" >/dev/null

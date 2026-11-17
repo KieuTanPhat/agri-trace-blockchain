@@ -41,7 +41,8 @@
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
     "minimatch": "file:./compat/minimatch-legacy",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "picomatch": "file:compat/picomatch-safe"
   },
   "scripts": {
     "start": "expo start",
@@ -50,13 +51,14 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "check": "npm run typecheck && npm run lint && npm run test:compat && expo install --check",
-    "test:compat": "node --test compat/dependencies.test.cjs"
+    "test:compat": "node --test compat/dependencies.test.cjs && node --test compat/picomatch-safe/test/security.test.cjs"
   },
   "private": true,
   "overrides": {
     "@grpc/grpc-js": "1.14.6",
     "zod": "4.6.7",
     "minimatch@<9": "$minimatch",
-    "minimatch@>=9 <11": "11.0.3"
+    "minimatch@>=9 <11": "11.0.3",
+    "picomatch": "$picomatch"
   }
 }
