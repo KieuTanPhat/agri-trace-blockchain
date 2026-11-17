@@ -198,7 +198,7 @@ export class AdminInsightsService {
       include: {
         capabilities: { where: { revokedAt: null }, select: { code: true } },
         capabilityRequests: { where: { status: 'PENDING' }, select: { code: true } },
-        enterpriseEnrollment: { include: { serviceOrder: true } },
+        enterpriseEnrollment: true,
         profile: { select: { province: true } },
         _count: { select: { users: true, ownedChains: true, chainMemberships: true } },
       },
@@ -246,7 +246,7 @@ export class AdminInsightsService {
         profile: true,
         capabilities: true,
         capabilityRequests: { orderBy: { createdAt: 'asc' } },
-        enterpriseEnrollment: { include: { serviceOrder: true } },
+        enterpriseEnrollment: true,
         ownedChains: { select: { id: true, name: true, code: true, businessProfile: { select: { state: true } } } },
         chainMemberships: { include: { chain: { select: { id: true, name: true, code: true } } } },
         enterpriseSites: { select: { id: true, name: true, kind: true, status: true } },

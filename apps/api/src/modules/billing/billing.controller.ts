@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
@@ -20,6 +21,8 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { BillingService } from './billing.service.js';
 import {
   BillingListDto,
+  BankTransferQuery,
+  BankTransferListView,
   BillingReasonInput,
   BillingRecordDto,
   ConfirmPaymentInput,
@@ -63,8 +66,8 @@ abstract class CommandController {
   }
 }
 
-/** Service catalog, subscriptions, invoices and revenue. Payments are either
- * simulated (local only) or confirmed manually against a bank reference. */
+/** Service catalog, subscriptions, invoices and revenue. Payments use authenticated
+ * SePay receipts; local simulation and audited manual confirmation are separate. */
 @ApiTags('platform-billing')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -167,6 +170,14 @@ export class PlatformBillingController extends CommandController {
   @ApiDataResponse(BillingListDto)
   invoices(@Query() query: InvoiceQuery) {
     return this.service.invoices(query);
+  }
+
+  @Roles('SYSTEM_ADMIN', 'AUDITOR')
+  @Get('bank-transfers')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiDataResponse(BankTransferListView)
+  bankTransfers(@Query() query: BankTransferQuery) {
+    return this.service.bankTransfers(query);
   }
 
   @Roles('SYSTEM_ADMIN')

@@ -236,11 +236,13 @@ try {
     const qrs = (await db.query('SELECT lot_id,trace_token FROM trace_qr')).rows;
     assert.ok(qrs.length > 0);
     for (const qr of qrs) {
-      const trace = await http('/public/trace/' + qr.trace_token);
+      const response = await smokeRead(input.origin + '/api/public/trace/' + qr.trace_token);
+      assert.equal(response.status, 200, 'Public QR API status ' + response.status);
+      const trace = (await response.json()).data;
       assert.equal(trace.lotId, qr.lot_id); assert.equal(trace.proofStatus, 'VERIFIED');
       assert.ok(trace.timeline.every(e => e.proofStatus === 'VERIFIED'));
       assert.equal(trace.quantityReconciled, true); assert.equal(trace.stateReconciled, true);
-      assert.equal((await fetch(input.origin + '/trace/' + qr.trace_token)).status, 200);
+      assert.equal((await smokeRead(input.origin + '/trace/' + qr.trace_token)).status, 200);
     }
     const counts = {};
     for (const table of ['app_user', 'organization', 'farm', 'plot', 'product', 'production_cycle', 'harvest_event', 'lot', 'shipment', 'trace_event', 'blockchain_outbox', 'blockchain_proof'])

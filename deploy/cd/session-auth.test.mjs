@@ -1,6 +1,32 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {readSessionCredential, sessionRequest} from './session-auth.mjs';
+import {readSessionCredential, sessionRequest, smokeRead} from './session-auth.mjs';
+
+test('public smoke reads respect Retry-After and retry the identical URL', async () => {
+  const calls = [], pauses = [];
+  const responses = [new Response('', {status: 429, headers: {'Retry-After': '12'}}), new Response('{}')];
+  const result = await smokeRead('https://example.test/api/public/trace/same', {
+    fetcher: async url => { calls.push(url); return responses.shift(); },
+    sleep: async ms => pauses.push(ms),
+  });
+  assert.equal(result.status, 200);
+  assert.deepEqual(pauses, [12250]);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0], calls[1]);
+});
+
+test('public smoke reads stop on persistent limits and never retry other failures', async () => {
+  for (const status of [401, 403, 500]) {
+    let calls = 0;
+    const response = await smokeRead('https://example.test', {fetcher: async () => { calls++; return new Response('', {status}); }});
+    assert.equal(response.status, status); assert.equal(calls, 1);
+  }
+  let calls = 0;
+  assert.equal((await smokeRead('https://example.test', {
+    fetcher: async () => { calls++; return new Response('', {status: 429, headers: {'Retry-After': '1'}}); }, sleep: async () => {},
+  })).status, 429);
+  assert.equal(calls, 4);
+});
 
 const id = '11111111-1111-4111-8111-111111111111';
 const response = (...cookies) => ({headers: {getSetCookie: () => cookies}});

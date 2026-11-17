@@ -22,6 +22,7 @@ import {
   EnterpriseAccessView,
   ServiceCatalogView,
   ServiceOrderInput,
+  ServiceCancelInput,
   ServiceOrderView,
   ServicePaymentInput,
   ServicePreviewView,
@@ -134,6 +135,27 @@ export class EnterpriseServiceController {
         payload: input,
       },
       () => this.service.create(req.user, input),
+    );
+  }
+  @Post('enterprise-service/orders/cancel')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(ServiceOrderView, 201)
+  cancel(
+    @Req() req: AuthenticatedRequest,
+    @Body() input: ServiceCancelInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.idem.executeCommand(
+      {
+        idempotencyKey: key,
+        requesterId: req.user.sub,
+        actor: req.user,
+        responseStatus: 201,
+        operation: 'ENTERPRISE_SERVICE_CANCEL',
+        requestType: 'COMMAND',
+        payload: input,
+      },
+      () => this.service.cancel(req.user, input),
     );
   }
   @Post('enterprise-service/upgrade')

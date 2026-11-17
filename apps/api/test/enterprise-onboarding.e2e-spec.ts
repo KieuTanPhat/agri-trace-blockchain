@@ -816,6 +816,45 @@ const prisma = new PrismaClient({
         }),
       ).toBe(1);
     });
+    it('cancels only an unpaid order, preserves its PDF and replaces it with a newly selected plan', async () => {
+      const a = await register();
+      await approve(a.enrollment.id).expect(201);
+      const input = { planCode: 'OWNER_START', billingName: 'Đơn vị đổi gói', billingEmail: a.input.email,
+        billingAddress: '123 Địa chỉ kiểm thử', catalogVersion: await catalogVersion(a.token) };
+      const preview = (await post('/enterprise-service/preview', input, a.token).expect(201)).body.data;
+      const order = (await post('/enterprise-service/orders', { ...input, accepted: true, contractDigest: preview.contractDigest }, a.token).expect(201)).body.data;
+      const sub = await prisma.subscription.findUniqueOrThrow({ where: { sourceOrderId: order.id } });
+      await post('/enterprise-service/orders/cancel', { orderId: order.id, version: 99 }, a.token).expect(409);
+      const key = randomUUID(), cancel = { orderId: order.id, version: order.version };
+      const first = (await post('/enterprise-service/orders/cancel', cancel, a.token, key).expect(201)).body.data;
+      expect((await post('/enterprise-service/orders/cancel', cancel, a.token, key).expect(201)).body.data).toEqual(first);
+      expect(first.status).toBe('CANCELLED');
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: sub.id } })).status).toBe('CANCELLED');
+      expect((await prisma.invoice.findMany({ where: { subscriptionId: sub.id } })).every(i => i.status === 'VOID')).toBe(true);
+      const old = await prisma.enterpriseServiceOrder.findUniqueOrThrow({ where: { id: order.id } });
+      expect(old.contractPdfHash).toBe(preview.pdfSha256);
+      expect(old.contractDigest).toBe(order.contractDigest);
+      await expect(prisma.enterpriseServiceOrder.update({ where: { id: order.id }, data: { status: 'AWAITING_PAYMENT', cancelledAt: null, version: { increment: 1 } } })).rejects.toThrow();
+      await post('/enterprise-service/orders', { ...input, accepted: true, contractDigest: preview.contractDigest }, a.token).expect(409);
+      const nextInput = { ...input, planCode: 'OWNER_GROWTH' };
+      const next = (await post('/enterprise-service/preview', nextInput, a.token).expect(201)).body.data;
+      const replacement = (await post('/enterprise-service/orders', { ...nextInput, accepted: true, contractDigest: next.contractDigest }, a.token).expect(201)).body.data;
+      expect(replacement.id).not.toBe(order.id);
+      expect(replacement.planCode).toBe('OWNER_GROWTH');
+      expect((await get('/enterprise-service', a.token).expect(200)).body.data.order.id).toBe(replacement.id);
+      expect(await prisma.enterpriseServiceOrder.count({ where: { enrollmentId: a.enrollment.id } })).toBe(2);
+      const newSub = await prisma.subscription.findUniqueOrThrow({ where: { sourceOrderId: replacement.id } });
+      const invoice = await prisma.invoice.findFirstOrThrow({ where: { subscriptionId: newSub.id } });
+      await prisma.sepayWebhookReceipt.create({ data: { mode: 'test', transactionId: String(Date.now()),
+        invoiceId: invoice.id, outcome: 'REVIEW_REQUIRED', reason: 'AMOUNT_OR_CURRENCY_MISMATCH', payloadHash: 'f'.repeat(64) } });
+      await post('/enterprise-service/orders/cancel', { orderId: replacement.id, version: replacement.version }, a.token).expect(409);
+      const history = (await get('/platform-billing/bank-transfers?mode=test&q=' + invoice.number, admin).expect(200)).body.data;
+      expect(history.items).toHaveLength(1);
+      expect(history.items[0].receivedAmount).toBeNull();
+      expect(history.items[0].excessAmount).toBeNull();
+      await get('/platform-billing/bank-transfers', a.token).expect(403);
+
+    });
     it('binds simulated payment to the contract without granting access, then activates once', async () => {
       const a = await register(),
         other = await register();

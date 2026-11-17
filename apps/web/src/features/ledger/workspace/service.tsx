@@ -13,7 +13,11 @@ import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { fmtMoney } from "@/lib/ledger/format";
 import { t as tr } from "@/lib/ledger/i18n";
 import { useLedgerServiceDraft } from "@/components/ledger/workspace/service-draft";
-import { CommandForm } from "@/components/ledger/kit/command-dialog";
+import { ServiceProgress } from "./service-progress";
+import {
+  CommandDialog,
+  CommandForm,
+} from "@/components/ledger/kit/command-dialog";
 import { TextField } from "@/components/ledger/kit/form-fields";
 import {
   PageHeader,
@@ -151,7 +155,8 @@ export default function ServicePage({
     { owner } = useWorkspaceAccess(),
     { draft, setDraft } = useLedgerServiceDraft();
   const [paymentOpen, setPaymentOpen] = useState(view === "payment"),
-    [pdfReady, setPdfReady] = useState(false);
+    [pdfReady, setPdfReady] = useState(false),
+    [changePlanOpen, setChangePlanOpen] = useState(false);
   const q = useQuery({
     queryKey: ["ws-service"],
     queryFn: wapi.service,
@@ -178,7 +183,7 @@ export default function ServicePage({
     order = data.order,
     preview = order ? null : (draft?.preview ?? data.latestPreview),
     input = draft?.input ?? data.latestPreview?.input;
-  const paid = order && order.status !== "AWAITING_PAYMENT";
+  const paid = !!order && ["PAID", "PAID_SIMULATED"].includes(order.status);
   const contractMail = data.emails?.find((e) => e.kind === "CONTRACT");
   if (
     data.stage === "TEMPORARY_ACCESS" ||
@@ -232,30 +237,77 @@ export default function ServicePage({
   return (
     <>
       <PageHeader
-        title={tr(view === "quote" ? "Chọn dịch vụ" : "Hợp đồng dịch vụ")}
+        title={tr(
+          paid
+            ? "Dịch vụ đã thanh toán"
+            : view === "quote"
+              ? "Chọn dịch vụ"
+              : view === "payment"
+                ? "Thanh toán dịch vụ"
+                : "Hợp đồng dịch vụ",
+        )}
         description={tr(
           "Chọn gói → Kiểm tra hợp đồng PDF → Thanh toán và kích hoạt",
         )}
       />
       <PageBody className="min-w-0 space-y-5">
-        <nav
-          aria-label={tr("Các bước đăng ký dịch vụ")}
-          className="flex flex-wrap gap-4 border-b border-line pb-4 text-sm"
-        >
-          {[
-            ["/enterprise/service", "1. Chọn dịch vụ"],
-            ["/enterprise/service/contract", "2. Hợp đồng"],
-            ["/enterprise/service/payment", "3. Thanh toán"],
-          ].map(([href, label]) => (
-            <Link
-              key={href}
-              href={href}
-              className="text-brand underline-offset-4 hover:underline"
+        <ServiceProgress
+          accepted={!!order}
+          paid={paid}
+          mailSent={contractMail?.status === "SENT"}
+          hasPreview={!!preview}
+          view={view}
+        />
+        {order && !paid && owner && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface p-4">
+            <p className="text-sm text-ink-2">
+              {tr(
+                "Bạn có thể đổi gói khi chưa thanh toán. Hóa đơn hiện tại sẽ được hủy.",
+              )}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPaymentOpen(false);
+                setChangePlanOpen(true);
+              }}
             >
-              {tr(label)}
-            </Link>
-          ))}
-        </nav>
+              {tr("Chọn gói khác")}
+            </Button>
+          </div>
+        )}
+        {order && !paid && (
+          <CommandDialog
+            open={changePlanOpen}
+            onOpenChange={setChangePlanOpen}
+            title={tr("Đổi gói dịch vụ")}
+            description={tr(
+              "Hủy hóa đơn chưa thanh toán để chọn gói mới. Hợp đồng cũ được giữ trong lịch sử. Nếu bạn đã chuyển tiền, hãy giữ đơn hiện tại để đối soát.",
+            )}
+            endpoint="POST /enterprise-service/orders/cancel"
+            schema={z.object({})}
+            defaultValues={{}}
+            submitLabel={tr("Hủy đơn và chọn gói mới")}
+            invalidate={[["ws-service"], ["ws-billing"], ["sepay-checkout"]]}
+            run={(_, cmd) =>
+              wapi.cancelService(
+                { orderId: order.id, version: order.version },
+                cmd,
+              )
+            }
+            onDone={() => {
+              setChangePlanOpen(false);
+              setDraft(null);
+              router.push("/enterprise/service");
+            }}
+          >
+            {() => (
+              <p className="text-sm">
+                {tr("Không dùng lại mã QR của hóa đơn cũ sau khi đổi gói.")}
+              </p>
+            )}
+          </CommandDialog>
+        )}
         {view === "quote" && !order && (
           <>
             <ParticipationPanel />
@@ -429,6 +481,11 @@ export default function ServicePage({
                     {order?.contractText}
                   </pre>
                 </>
+              )}
+              {preview && (
+                <Button asChild variant="outline">
+                  <Link href="/enterprise/service">{tr("Chọn gói khác")}</Link>
+                </Button>
               )}
               {preview && input && owner && (
                 <>

@@ -32,6 +32,7 @@ import {
 import { lockPlatformAudit } from '../platform-governance/platform-audit.js';
 import type {
   ServiceOrderInput,
+  ServiceCancelInput,
   ServicePaymentInput,
   ServiceQuoteInput,
 } from './service-order.dto.js';
@@ -101,7 +102,7 @@ async function enrollmentOwner(
     where: { ownerId: actor.sub! },
     include: {
       organization: { include: { profile: true } },
-      serviceOrder: true,
+      serviceOrders: { orderBy: { createdAt: 'desc' as const }, take: 1 },
     },
   });
   if (!row || row.organizationId !== actor.organizationId)
@@ -110,7 +111,13 @@ async function enrollmentOwner(
     );
   if (lock)
     await db.$queryRaw`SELECT id FROM enterprise_enrollment WHERE id=${row.id}::uuid FOR UPDATE`;
-  return row;
+  const latestOrder = row.serviceOrders[0];
+  return {
+    ...row,
+    serviceOrder:
+      latestOrder?.status === 'CANCELLED' ? null : (latestOrder ?? null),
+    lastCancelledAt: latestOrder?.cancelledAt ?? null,
+  };
 }
 /** Prices come from the published plan version; the quotation records that
  * version id. */
@@ -166,7 +173,6 @@ export class EnterpriseServiceService {
     const row = actor.organizationId
       ? await this.db.enterpriseEnrollment.findUnique({
           where: { organizationId: actor.organizationId },
-          include: { serviceOrder: true },
         })
       : null;
     // Organizations provisioned by the platform operator have no enrollment.
@@ -234,6 +240,9 @@ export class EnterpriseServiceService {
             enrollmentId: row.id,
             createdBy: actor.sub!,
             expiresAt: { gt: new Date() },
+            ...(row.lastCancelledAt
+              ? { createdAt: { gt: row.lastCancelledAt } }
+              : {}),
           },
           orderBy: { createdAt: 'desc' },
         });
@@ -245,6 +254,7 @@ export class EnterpriseServiceService {
             'SERVICE_PLAN_SELECTED',
             'SERVICE_CONTRACT_PREVIEWED',
             'SERVICE_CONTRACT_ACCEPTED',
+            'SERVICE_CONTRACT_CANCELLED',
             'SERVICE_PAYMENT_SIMULATED',
             'SERVICE_PAYMENT_CONFIRMED',
             'ENTERPRISE_SERVICE_ACTIVATED',
@@ -413,6 +423,8 @@ export class EnterpriseServiceService {
         preview.enrollmentId !== row.id ||
         preview.createdBy !== actor.sub ||
         preview.expiresAt <= new Date() ||
+        (row.lastCancelledAt !== null &&
+          preview.createdAt <= row.lastCancelledAt) ||
         preview.sourceDigest !== sourceDigest ||
         canonicalSha256(preview.input) !== canonicalSha256(quoteInput(input))
       )
@@ -466,6 +478,84 @@ export class EnterpriseServiceService {
           amount: saved.amount,
           contractDigest: saved.contractDigest,
           pdfSha256: saved.contractPdfHash,
+        },
+      });
+      return orderView(saved);
+    });
+  }
+  cancel(actor: CommandActor, input: ServiceCancelInput) {
+    return commandTransaction(this.db, async (tx) => {
+      const row = await enrollmentOwner(tx, actor, true);
+      assertEnterprisePaymentsEnabled();
+      const order = row.serviceOrder;
+      if (
+        row.status !== 'APPROVED' ||
+        !order ||
+        order.id !== input.orderId ||
+        order.version !== input.version ||
+        order.status !== 'AWAITING_PAYMENT'
+      )
+        throw new ConflictException(
+          'Hợp đồng đã thay đổi hoặc đã thanh toán; tải lại trước khi đổi gói',
+        );
+      const subscription = await tx.subscription.findUnique({
+        where: { sourceOrderId: order.id },
+      });
+      if (!subscription || subscription.status !== 'PENDING_PAYMENT')
+        throw new ConflictException('Dịch vụ đã được xử lý; không thể đổi gói');
+      const invoices = await tx.invoice.findMany({
+        where: { subscriptionId: subscription.id },
+      });
+      if (
+        invoices.some((i) => i.status === 'PAID') ||
+        (await tx.sepayWebhookReceipt.findFirst({
+          where: {
+            invoiceId: { in: invoices.map((i) => i.id) },
+            outcome: { in: ['MATCHED', 'REVIEW_REQUIRED'] },
+          },
+        }))
+      )
+        throw new ConflictException(
+          'Đã có giao dịch chuyển tiền; liên hệ quản trị để đối soát trước khi đổi gói',
+        );
+      for (const invoice of invoices.filter((i) => i.status === 'ISSUED')) {
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            status: 'VOID',
+            voidReason: 'Khách hàng đổi gói trước thanh toán',
+            version: { increment: 1 },
+          },
+        });
+      }
+      const now = new Date();
+      await tx.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: now,
+          version: { increment: 1 },
+        },
+      });
+      const saved = await tx.enterpriseServiceOrder.update({
+        where: { id: order.id },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: now,
+          version: { increment: 1 },
+        },
+      });
+      await appendPlatformAudit(tx, {
+        actor,
+        action: 'SERVICE_CONTRACT_CANCELLED',
+        subjectType: 'SERVICE_ORDER',
+        subjectId: order.id,
+        organizationId: row.organizationId,
+        reason: 'Khách hàng đổi gói trước thanh toán',
+        details: {
+          planCode: order.planCode,
+          invoiceIds: invoices.map((i) => i.id),
+          contractDigest: order.contractDigest,
         },
       });
       return orderView(saved);

@@ -1,5 +1,25 @@
 // Concatenated with verify-hosted.mjs by the installed controller; no worker-image changes needed.
 import cookieAssert from 'node:assert/strict';
+import {setTimeout as smokeDelay} from 'node:timers/promises';
+
+// Public QR verification may exhaust the normal per-IP window on a populated
+// installation. Respect it; never exempt the verifier from production limits.
+// Only safe reads are retried. Commands retain their persisted key and outcome.
+export async function smokeRead(url, {fetcher = fetch, sleep = smokeDelay, now = Date.now} = {}) {
+  let waited = 0;
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetcher(url, {signal: AbortSignal.timeout(30_000)});
+    if (response.status !== 429 || attempt >= 3) return response;
+    const retry = response.headers.get('retry-after');
+    const seconds = retry && /^\d+$/.test(retry) ? Number(retry) : NaN;
+    const ms = Number.isFinite(seconds) ? seconds * 1000 : retry ? Date.parse(retry) - now() : 60_000;
+    const pause = Math.max(1000, ms + 250);
+    if (!Number.isFinite(pause) || pause > 65_000 || waited + pause > 180_000) return response;
+    await response.body?.cancel();
+    waited += pause;
+    await sleep(pause);
+  }
+}
 
 export function readSessionCredential(response, data, previous, requireFamily = false) {
   const cookies = new Map((previous?.cookie ?? '').split('; ').filter(Boolean).map(pair => pair.split('=')));

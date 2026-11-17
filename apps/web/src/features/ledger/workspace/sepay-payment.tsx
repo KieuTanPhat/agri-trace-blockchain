@@ -135,6 +135,18 @@ export function SepayPayment({
                 : "Đang chờ hoàn tất điều kiện kích hoạt dịch vụ; liên hệ quản trị nếu trạng thái chưa cập nhật.",
             )}
           </Callout>
+          {data.excessAmount && Number(data.excessAmount) > 0 && (
+            <Callout title={tr("Có tiền chuyển dư")}>
+              {tr(
+                "Đã nhận {p0}, thanh toán gói {p1}. Tiền dư {p2} được lưu để đối soát; liên hệ quản trị nếu muốn hoàn lại.",
+                {
+                  p0: fmtMoney(Number(data.receivedAmount)),
+                  p1: fmtMoney(data.amount ?? 0),
+                  p2: fmtMoney(Number(data.excessAmount)),
+                },
+              )}
+            </Callout>
+          )}
           {data.paidAt && (
             <p className="text-sm text-ink-2">
               {tr("Thời điểm xác nhận")}: {fmtDateTime(data.paidAt)}
