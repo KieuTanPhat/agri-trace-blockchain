@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { auditPatchedMatcher } from "./ci/picomatch-audit.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const scope = process.argv[2] ?? "workspace";
@@ -77,6 +78,15 @@ for (const target of ["workspace", "chaincode"].filter(
     }
   }
   const extra = target === "chaincode" ? ["--workspaces=false"] : [];
+  try {
+    const matcher = await auditPatchedMatcher(cwd);
+    writeFileSync(path.join(directory, "picomatch-upstream.json"), JSON.stringify(matcher, null, 2) + "\n");
+    console.log(`${target}/patched-picomatch-upstream: PASS`);
+  } catch (error) {
+    failed = true;
+    writeFileSync(path.join(directory, "picomatch-upstream.json"), JSON.stringify({ error: error.message }) + "\n");
+    console.error(`${target}/patched-picomatch-upstream: FAIL ${error.message}`);
+  }
   const results = [];
   // Keep the full dependency gate, including build/lint tools. Both high and
   // moderate advisories are in AGT-002's scope; production is audited separately.

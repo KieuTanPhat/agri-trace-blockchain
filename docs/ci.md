@@ -324,6 +324,22 @@ ngoại lệ advisory nào. Đây không phải bỏ qua audit bằng đổi tê
 Audit standalone dùng `npm audit --workspaces=false --package-lock-only
 --audit-level=moderate` trong `blockchain/chaincode`.
 
+GHSA-fc5q-39xc-vjpf chưa có bản vá upstream tại ngày 18/11/2026. Các lockfile dùng
+fork riêng `@agritrace/picomatch-safe@4.0.7 (patch agritrace.1)`, có source và giấy phép MIT
+tại `apps/mobile/compat/picomatch-safe` và bản sao giống hệt trong
+`blockchain/chaincode/src/vendor/picomatch-safe` để chaincode vẫn cài độc lập.
+`UPSTREAM.json` ghi tarball/integrity gốc và checksum source đã vá. Parser chuyển
+nhánh extglob lặp có wildcard không giới hạn sang literal, kể cả khi tắt giới hạn
+đệ quy; những mẫu này có thể không còn match như trước. Đây là bản vá do dự án
+duy trì, không phải bản vá chính thức hay chứng nhận toàn bộ matcher an toàn.
+Không thêm ngoại lệ audit. Check Mobile/chaincode chạy hồi quy ReDoS trong process
+con có timeout; `test:ci` kiểm hai bản source giống nhau và consumer thật dùng fork.
+Audit vẫn truy vấn tên upstream `picomatch@4.0.7`: chỉ nhận diện advisory đã vá sau
+khi đối chiếu checksum parser và chạy hồi quy; advisory moderate/high/critical khác
+hoặc lỗi registry tiếp tục chặn CI. Không lấy việc đổi tên fork làm bằng chứng an toàn.
+Docker copy fork trước `npm ci`; thay fork chọn mọi gate. Khi upstream phát hành
+bản sửa, bỏ fork/override sau khi chạy lại các kiểm tra này.
+
 `npm run check` cần `DATABASE_URL` và `TEST_DATABASE_URL` trỏ tới database
 test riêng đã chạy migration. Không dùng database nghiệp vụ để chạy E2E.
 Lệnh này chạy `test:ci` trước các workspace. `test:ci` gồm test chọn job,

@@ -3,6 +3,13 @@ const assert=require('node:assert/strict');
 const {createRequire}=require('node:module');
 const legacy=require('minimatch');
 
+test('Expo, Metro and glob consumers use the reviewed picomatch fork',()=>{
+ for(const pkg of ['@expo/cli','@expo/metro-config','tinyglobby','micromatch','jest-util']){
+  const consumer=createRequire(require.resolve(pkg));
+  assert.equal(consumer('picomatch/package.json').name,'@agritrace/picomatch-safe',pkg);
+ }
+});
+
 test('legacy lint API uses patched upstream engine without a second matcher',()=>{
  const engine=createRequire(require.resolve('./minimatch-legacy/index.cjs'));
  const upstream=engine('minimatch-engine');

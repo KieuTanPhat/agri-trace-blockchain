@@ -1,0 +1,19 @@
+{
+  "description": "Blazing fast and accurate glob matcher written in JavaScript, with no dependencies and full support for standard and extended Bash glob features, including braces, extglobs, POSIX brackets, and regular expressions.",
+  "main": "index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12"
+  },
+  "sideEffects": false,
+  "name": "@agritrace/picomatch-safe",
+  "version": "4.0.7",
+  "private": true,
+  "files": [
+    "index.js",
+    "posix.js",
+    "lib",
+    "LICENSE",
+    "UPSTREAM.json"
+  ]
+}

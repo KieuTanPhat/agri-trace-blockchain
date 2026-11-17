@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "runtime:load": "node -e \"require('./dist/index.js')\"",
-    "check": "npm run typecheck && npm run test:coverage && npm run build && npm run runtime:load"
+    "check": "npm run test:matcher && npm run typecheck && npm run test:coverage && npm run build && npm run runtime:load",
+    "test:matcher": "node --test src/vendor/picomatch-safe/test/security.test.cjs"
   },
   "dependencies": {
     "fabric-contract-api": "2.5.8",
@@ -28,6 +29,10 @@
     "@types/node": "24.13.4",
     "@vitest/coverage-v8": "4.1.12",
     "typescript": "5.9.3",
-    "vitest": "4.1.12"
+    "vitest": "4.1.12",
+    "picomatch": "file:src/vendor/picomatch-safe"
+  },
+  "overrides": {
+    "picomatch": "$picomatch"
   }
 }

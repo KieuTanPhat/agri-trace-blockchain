@@ -52,7 +52,7 @@ test('shared dependency adapter selects every consuming gate and ships before Do
   assert.ok(Object.values(classifyChanges(['apps/mobile/compat/minimatch-legacy/index.cjs'])).every(Boolean));
   for (const file of ['apps/api/Dockerfile', 'apps/web/Dockerfile']) {
     const source = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
-    const copy = source.indexOf('COPY apps/mobile/compat/minimatch-legacy apps/mobile/compat/minimatch-legacy');
+    const copy = source.indexOf('COPY apps/mobile/compat apps/mobile/compat');
     assert.ok(copy >= 0 && copy < source.indexOf('npm ci'), file);
   }
 });
@@ -240,4 +240,11 @@ test('mobile audit allows only listed, unexpired advisories', () => {
   assert.equal(evaluateAudit(report([advisory('forge', 'GHSA-b', 'moderate')]), before, allowed).length, 1);
   assert.deepEqual(evaluateAudit(report([advisory('forge', 'GHSA-c', 'low')]), before, allowed), []);
   assert.equal(evaluateAudit(report([advisory('node-forge', 'GHSA-86w9-cpqp-85rv', 'moderate')]), before).length, 1);
+});
+
+test('mobile audit fails closed on registry errors and incomplete reports', () => {
+  for (const report of [null, {}, {error:{code:'ENOTFOUND'}},
+    {error:{code:'EAUDIT'},vulnerabilities:{}}, {vulnerabilities:[]},
+    {vulnerabilities:{x:{}}}]) assert.ok(evaluateAudit(report).length > 0);
+  assert.deepEqual(evaluateAudit({vulnerabilities:{}}), []);
 });
