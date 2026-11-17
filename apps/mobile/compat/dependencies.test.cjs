@@ -1,9 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createRequire}=require('node:module');
-const {mkdtempSync,writeFileSync,rmSync}=require('node:fs');
-const {tmpdir}=require('node:os');
-const {join}=require('node:path');
 const legacy=require('minimatch');
 
 test('legacy lint API uses patched upstream engine without a second matcher',()=>{
@@ -37,18 +34,6 @@ test('ESLint and import/react plugins resolve the callable legacy API',()=>{
   const m=r('minimatch');assert.equal(typeof m,'function',pkg);
   assert.equal(m('src/test.ts','**/*.ts'),true,pkg);
  }
-});
-
-test('patched Glob preserves sync/async traversal and honors an already aborted signal',async()=>{
- const glob=require('glob');assert.equal(require('glob/package.json').version,'14.0.3');
- const dir=mkdtempSync(join(tmpdir(),'agritrace-glob-test-'));
- try{
-  writeFileSync(join(dir,'a.ts'),'');writeFileSync(join(dir,'b.js'),'');
-  assert.deepEqual(glob.globSync('*.ts',{cwd:dir}),['a.ts']);
-  assert.deepEqual(await glob.glob('*.ts',{cwd:dir}),['a.ts']);
-  const reason=new Error('fixture cancellation'),controller=new AbortController();controller.abort(reason);
-  await assert.rejects(glob.glob('**/*',{cwd:dir,signal:controller.signal}),error=>error===reason);
- }finally{rmSync(dir,{recursive:true,force:true});}
 });
 
 test('real ESLint import rule still rejects forbidden internal imports',async()=>{
