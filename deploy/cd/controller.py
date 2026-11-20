@@ -26,6 +26,9 @@ PolicyError, require = policy.PolicyError, policy.require
 # Must match the definition committed by blockchain/network/production/provision.py.
 ENDORSEMENT_POLICY = "OR('AgritraceMSP.peer')"
 ENDORSEMENT_VALIDATION_PARAMETER = "Ch4SCBIGCAESAggAGhISEAoMQWdyaXRyYWNlTVNQEAM="
+# Full retained-ledger/QR verification grows with the production dataset and
+# respects public Retry-After. Keep a finite budget distinct from bootstrap.
+HOSTED_VERIFICATION_TIMEOUT = 20 * 60
 
 
 def atomic_json(filename, data):
@@ -63,8 +66,16 @@ class Controller:
     def run(self, label, args, data=None, timeout=240, env=None, output=None):
         # Resolved Compose and credentials never reach stdout or diagnostic logs.
         self.phase = label
-        result = subprocess.run(args, input=data, stdout=output or subprocess.PIPE, stderr=subprocess.PIPE,
-                                timeout=timeout, env=env)
+        try:
+            result = subprocess.run(args, input=data, stdout=output or subprocess.PIPE, stderr=subprocess.PIPE,
+                                    timeout=timeout, env=env)
+        except subprocess.TimeoutExpired:
+            # TimeoutExpired contains the command and partial output, which may
+            # contain private operator details. Report only the trusted phase.
+            with self.log.open("ab") as log:
+                os.chmod(self.log, 0o600)
+                log.write(f"{datetime.datetime.now(datetime.timezone.utc).isoformat()} {label} timeout={timeout}s\n".encode())
+            raise PolicyError(f"CD operation timed out at {label} after {timeout}s; inspect private VPS diagnostics") from None
         with self.log.open("ab") as log:
             os.chmod(self.log, 0o600)
             log.write(f"{datetime.datetime.now(datetime.timezone.utc).isoformat()} {label} exit={result.returncode}\n".encode())
@@ -1004,7 +1015,7 @@ class Controller:
         require(result.get("result") == "passed", "Hosted production bootstrap did not complete")
         return result
 
-    def hosted_operator(self, record, payload, program, label, smoke_directory=None):
+    def hosted_operator(self, record, payload, program, label, smoke_directory=None, timeout=720):
         image = record["manifest"]["api"]
         # This one-off operator uses the same reviewed platform roles. The API
         # never receives them; configuration and secret references use stdin.
@@ -1020,7 +1031,7 @@ class Controller:
             command += ["--mount", f"type=bind,src={smoke_directory},dst=/smoke"]
         command += [image, *program]
         payload["databaseUrl"] = f"postgresql://{self.environment['POSTGRES_USER']}:{self.environment['POSTGRES_PASSWORD']}@{address}:5432/{self.environment['POSTGRES_DB']}?schema=public"
-        return json.loads(self.run(label, command, json.dumps(payload).encode(), timeout=720))
+        return json.loads(self.run(label, command, json.dumps(payload).encode(), timeout=timeout))
 
     def verify_hosted(self, record, write=False):
         directory = self.base / "shared" / "smoke" / record["sha"]
@@ -1043,7 +1054,8 @@ class Controller:
             enrolled = self.hosted_operator(record, dict(payload, stage="enroll"), program, "smoke-key-enrollment", directory)
             require(enrolled.get("result") == "passed", "Smoke key enrollment failed")
             self.bootstrap_hosted(record, enrolled["keyRefs"])
-        result = self.hosted_operator(record, dict(payload, stage="verify" if write else "read"), program, "hosted-production-smoke", directory)
+        result = self.hosted_operator(record, dict(payload, stage="verify" if write else "read"), program, "hosted-production-smoke", directory,
+                                      timeout=HOSTED_VERIFICATION_TIMEOUT)
         require(result.get("result") == "passed", "Hosted production smoke failed")
         return result
 

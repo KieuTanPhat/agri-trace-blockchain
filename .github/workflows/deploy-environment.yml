@@ -104,7 +104,9 @@ jobs:
       name: production
       url: ${{ vars.CD_PUBLIC_ORIGIN }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    # Baseline + candidate verification each have a bounded 20-minute budget;
+    # reserve time for snapshot/readiness and verified rollback on failure.
+    timeout-minutes: 90
     permissions: {contents: read, actions: read, packages: read}
     env:
       CD_ENVIRONMENT: production
@@ -133,10 +135,11 @@ jobs:
       - if: always()
         run: node deploy/cd/send.mjs status
       - name: Retrieve encrypted recovery snapshot
+        id: recovery_snapshot
         if: always() && env.OPERATION != 'recover' && env.OPERATION != 'forward' && env.OPERATION != 'reinstall'
         run: node deploy/cd/send.mjs backup "$TARGET_SHA"
       - name: Store encrypted off-VPS snapshot
-        if: always() && env.OPERATION != 'recover' && env.OPERATION != 'forward' && env.OPERATION != 'reinstall'
+        if: always() && steps.recovery_snapshot.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ needs.gate.outputs.prefix }}-encrypted-backup-${{ needs.gate.outputs.target }}-${{ github.run_attempt }}
