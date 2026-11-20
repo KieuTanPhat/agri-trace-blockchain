@@ -9,6 +9,7 @@
   "overrides": {
     "postcss": "8.5.28",
     "deepmerge-ts": "8.0.2",
+    "effect": "3.22.1",
     "mysql2": "3.24.4",
     "undici": "6.29.1",
     "body-parser": "2.4.0",
