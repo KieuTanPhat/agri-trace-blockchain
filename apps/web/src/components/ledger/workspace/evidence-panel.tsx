@@ -25,6 +25,7 @@ import { useFilePreviews } from "./photo-picker";
 export const EVIDENCE_KIND_LABEL: Record<string, string> = localized({
   OTHER: "Khác",
   PRODUCT_IMAGE: "Ảnh sản phẩm",
+  PRODUCT_DECLARATION: "Tài liệu công bố sản phẩm",
   INSPECTION_IMAGE: "Ảnh kiểm tra",
   AREA_IMAGE: "Ảnh vùng sản xuất",
   LAND_CERTIFICATE: "Giấy quyền sử dụng đất",
@@ -56,7 +57,7 @@ const EVIDENCE_KINDS: Partial<Record<EvidenceEntity, string[]>> = {
   TRANSFER: ["TRANSFER_IMAGE", "INSPECTION_IMAGE", "OTHER"],
   QUARANTINE: ["QUARANTINE_IMAGE", "INSPECTION_IMAGE", "CERTIFICATE_IMAGE", "OTHER"],
   CYCLE_DRAFT: ["CYCLE_IMAGE", "CERTIFICATE_IMAGE", "OTHER"],
-  PRODUCT: ["PRODUCT_IMAGE", "INSPECTION_IMAGE", "OTHER"],
+  PRODUCT: ["PRODUCT_IMAGE", "PRODUCT_DECLARATION", "QUALITY_CERTIFICATE", "INSPECTION_IMAGE", "OTHER"],
   FARM: ["LAND_CERTIFICATE", "OTHER"],
   SITE: ["SITE_IMAGE", "BUSINESS_LICENSE", "QUALITY_CERTIFICATE", "INSPECTION_IMAGE", "OTHER"],
   MATERIAL: ["SEED_IMAGE", "MATERIAL_IMAGE", "CERTIFICATE_IMAGE", "INSPECTION_IMAGE", "OTHER"],
@@ -89,23 +90,26 @@ export function EvidencePanel({
   title = tr("Ảnh & chứng từ"),
   onChanged,
   onlyIds,
+  onlyKinds,
 }: {
   entityType: EvidenceEntity;
   entityId: string;
   canManage: boolean;
   /** Loại bắt buộc để hoàn tất hồ sơ: hiển thị đã có/thiếu. */
-  required?: { kind: string; min: number }[];
+  required?: { kind: string; min: number; alternatives?: string[]; label?: string }[];
   title?: string;
   onChanged?: () => void;
   /** Chỉ hiện các chứng cứ này (bản hiện hành sau đính chính), ví dụ ảnh của một nhật ký. */
   onlyIds?: string[];
+  /** Lọc danh sách và loại được tải lên khi chia hồ sơ thành các mục riêng. */
+  onlyKinds?: string[];
 }) {
   const key = ["ws-evidence", entityType, entityId];
   const q = useQuery({ queryKey: key, queryFn: () => wapi.evidence({ entityType, entityId }) });
   const upload = useDialog<{ supersedes?: Evidence }>();
   const withdraw = useDialog<Evidence>();
   const [view, setView] = useState<Evidence | null>(null);
-  const kinds = EVIDENCE_KINDS[entityType] ?? ["OTHER"];
+  const kinds = (EVIDENCE_KINDS[entityType] ?? ["OTHER"]).filter((kind) => !onlyKinds || onlyKinds.includes(kind));
   const superseded = new Set((q.data ?? []).map((e) => e.supersedesId).filter(Boolean));
   const byId = new Map((q.data ?? []).map((e) => [e.id, e]));
   // A correction replaces the photo it supersedes, so follow the chain back to the original id.
@@ -114,7 +118,7 @@ export function EvidencePanel({
     for (let i = 0; cur.supersedesId && byId.has(cur.supersedesId) && i < 50; i++) cur = byId.get(cur.supersedesId)!;
     return cur.id;
   };
-  const rows = (q.data ?? []).filter((e) => !superseded.has(e.id) && (!onlyIds || onlyIds.includes(rootOf(e))));
+  const rows = (q.data ?? []).filter((e) => !superseded.has(e.id) && (!onlyIds || onlyIds.includes(rootOf(e))) && (!onlyKinds || onlyKinds.includes(e.kind)));
   const count = (kind: string) => rows.filter((e) => e.kind === kind).length;
 
   return (
@@ -131,11 +135,12 @@ export function EvidencePanel({
       {required && required.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label={tr("Yêu cầu để hoàn tất")}>
           {required.map((r) => {
-            const ok = count(r.kind) >= r.min;
+            const total = count(r.kind) + (r.alternatives ?? []).reduce((sum, kind) => sum + count(kind), 0);
+            const ok = total >= r.min;
             return (
               <li key={r.kind}>
                 <Badge tone={ok ? "ok" : "warn"} dot>
-                  {EVIDENCE_KIND_LABEL[r.kind] ?? r.kind} {count(r.kind)}/{r.min}
+                  {r.label ?? EVIDENCE_KIND_LABEL[r.kind] ?? r.kind} {total}/{r.min}
                 </Badge>
               </li>
             );

@@ -145,6 +145,9 @@ export const EN: Record<string, string> = {
   "Ảnh không bị xóa mà chỉ thôi hiển thị. Sản phẩm đang bán cần giữ ít nhất ba ảnh sản phẩm.":
     "The photo is not deleted, only hidden. A product on sale must keep at least three product photos.",
   "Ảnh kiểm tra": "Inspection photo",
+  "Ảnh kiểm tra / tài liệu khác": "Inspection photos / other documents",
+  "Tài liệu công bố sản phẩm": "Product declaration document",
+  "Công bố hoặc chứng nhận": "Declaration or quality certificate",
   "Ảnh sản phẩm": "Product photos",
   "Ảnh vật tư": "Material photo",
   "Ảnh vùng sản xuất": "Area photo",

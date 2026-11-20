@@ -317,8 +317,9 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                     </div>
                   ))}
               </dl>
-              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} required={[{ kind: "PRODUCT_IMAGE", min: 1 }]} title={tr("Ảnh sản phẩm")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
-              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} required={[{ kind: "PRODUCT_DECLARATION", min: 1 }]} title={tr("Công bố sản phẩm / chứng nhận chất lượng")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
+              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} onlyKinds={["PRODUCT_IMAGE"]} required={[{ kind: "PRODUCT_IMAGE", min: 1 }]} title={tr("Ảnh sản phẩm")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
+              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} onlyKinds={["PRODUCT_DECLARATION", "QUALITY_CERTIFICATE"]} required={[{ kind: "PRODUCT_DECLARATION", alternatives: ["QUALITY_CERTIFICATE"], label: tr("Công bố hoặc chứng nhận"), min: 1 }]} title={tr("Công bố sản phẩm / chứng nhận chất lượng")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
+              <EvidencePanel entityType="PRODUCT" entityId={p.id} canManage={canEvidence} onlyKinds={["INSPECTION_IMAGE", "OTHER"]} title={tr("Ảnh kiểm tra / tài liệu khác")} onChanged={() => qc.invalidateQueries({ queryKey: ["ws-catalog"] })} />
               <section className="flex flex-col gap-2"><h3 className="text-[13px] font-semibold">{tr("Lô liên quan")}</h3>{lots.error ? <ErrorState error={lots.error} onRetry={()=>lots.refetch()}/> : <p className="text-sm text-ink-2">{lots.data?.filter(l=>l.productName===p.productName).length ?? "…"} {tr("lô")}</p>}</section>
               <section className="flex flex-col gap-2">
                 <h3 className="text-[13px] font-semibold">{tr("Lịch sử phiên bản")}</h3>
