@@ -32,6 +32,43 @@ class DomainDelivery(unittest.TestCase):
     def environment(self, record):
         return module.policy.read_env(self.base / "cd/records" / record["id"] / "origin.env")
 
+    def test_timeout_reports_the_phase_without_private_command_or_partial_output(self):
+        self.controller.storage.mkdir()
+        private = "private-command-and-credential"
+        expired = module.subprocess.TimeoutExpired(["node", private], 1200, output=private.encode(), stderr=private.encode())
+        with patch.object(module.subprocess, "run", side_effect=expired):
+            with self.assertRaisesRegex(PolicyError, "hosted-production-smoke after 1200s") as caught:
+                self.controller.run("hosted-production-smoke", ["node", private], data=private.encode(), timeout=1200)
+        self.assertEqual(self.controller.phase, "hosted-production-smoke")
+        self.assertNotIn(private, str(caught.exception))
+        log = self.controller.log.read_text()
+        self.assertIn("hosted-production-smoke timeout=1200s", log)
+        self.assertNotIn(private, log)
+        self.assertEqual(self.controller.log.stat().st_mode & 0o777, 0o600)
+
+    def test_retained_baseline_and_candidate_get_a_full_verification_budget(self):
+        bootstrap = self.base / "bootstrap.json"
+        bootstrap.write_text(json.dumps({"connections": {"relayer": {}}}))
+        self.controller.config.update(bootstrap=str(bootstrap), smoke={"chainId": SHA_B})
+        self.controller.fabric["channels"] = ["agritrace"]
+        self.controller.run = MagicMock(return_value=json.dumps([{
+            "Config": {"Labels": {"com.docker.compose.project": self.controller.project}},
+            "NetworkSettings": {"Networks": {self.controller.project + "_default": {"IPAddress": "127.0.0.1"}}},
+        }]).encode())
+        self.controller.bootstrap_hosted = MagicMock()
+        record = dict(self.record, sha=SHA_B)
+        for write in (False, True):
+            with self.subTest(write=write):
+                self.controller.smoke_writes = write
+                results = [{"result": "passed", "keyRefs": []}, {"result": "passed"}] if write else [{"result": "passed"}]
+                self.controller.hosted_operator = MagicMock(side_effect=results)
+                self.assertEqual(self.controller.verify_hosted(record, write), {"result": "passed"})
+                call = self.controller.hosted_operator.call_args
+                self.assertEqual(call.args[1]["stage"], "verify" if write else "read")
+                self.assertEqual(call.kwargs["timeout"], 1200)
+                if write:
+                    self.assertNotIn("timeout", self.controller.hosted_operator.call_args_list[0].kwargs)
+
     def test_release_environment_pins_origin_images_network_and_closed_writers(self):
         command = self.controller.dc(self.record, "config")
         values = self.environment(self.record)

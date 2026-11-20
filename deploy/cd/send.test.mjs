@@ -8,6 +8,12 @@ import test from 'node:test';
 
 const sender=fileURLToPath(new URL('./send.mjs',import.meta.url));
 const sha='a'.repeat(40);
+test('only uploads a completed recovery download while retaining a strict missing-file check',()=>{
+  const workflow=readFileSync(new URL('../../.github/workflows/deploy-environment.yml',import.meta.url),'utf8');
+  assert.match(workflow,/name: Retrieve encrypted recovery snapshot\s+id: recovery_snapshot/);
+  assert.match(workflow,/name: Store encrypted off-VPS snapshot\s+if: always\(\) && steps\.recovery_snapshot\.outcome == 'success'/);
+  assert.match(workflow,/if-no-files-found: error/);
+});
 function fixture(t){
   const root=mkdtempSync(path.join(os.tmpdir(),'cd transport '));
   t.after(()=>rmSync(root,{recursive:true,force:true}));

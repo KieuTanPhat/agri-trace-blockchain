@@ -182,6 +182,12 @@ public QR. Public QR reads respect HTTP 429/Retry-After with at most three bound
 retries (180 seconds total wait); persistent limits still fail verification and do not
 relax the API rate limit. Private keys/command receipts nằm trong `shared/smoke/<sha>` root-only.
 
+Mỗi lần kiểm toàn bộ ledger/QR có giới hạn 20 phút, tách khỏi bootstrap 12 phút.
+Job delivery có tối đa 90 phút để đủ baseline, snapshot, candidate và rollback khi lỗi.
+Timeout ghi rõ phase/thời gian, không in command hay payload riêng tư. Nếu baseline
+chưa xong thì chưa có snapshot của candidate; bước upload artifact chỉ chạy sau khi
+tải snapshot thành công. Điều kiện bắt buộc backup trước migrate vẫn giữ nguyên.
+
 Sau smoke thành công đánh dấu verified/current và mở ghi theo policy. Kiểm runtime
 SHA/images, OOM/restarts, Pending/dead-letter và HTTPS sau deploy. Đây là hậu kiểm
 trong lần triển khai; không có giai đoạn canary hay giám sát định kỳ riêng.
