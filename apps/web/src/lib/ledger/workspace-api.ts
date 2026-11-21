@@ -43,10 +43,11 @@ export const wapi = {
   withdrawAmendment: (id: string, input: S["ProfileVersionInput"], cmd: LedgerCommandContext) => post(root + "/profile/amendments/" + encodeURIComponent(id) + "/withdraw", input, cmd),
   evidence: (subject: { entityType: string; entityId: string; siteId?: string }) => items<V.Evidence>(root + "/evidence?" + new URLSearchParams(Object.entries(subject).filter(([, value]) => !!value))),
   evidenceContent: (id: string) => ledgerRequest<S["EvidenceContentDto"]>(root + "/evidence/" + encodeURIComponent(id) + "/content"),
-  uploadEvidence: (input: { file: File; entityType: string; entityId: string; kind: string; description: string; supersedesId?: string; siteId?: string }, cmd: LedgerCommandContext) => {
+  uploadEvidence: (input: { file: File; entityType: string; entityId: string; kind: string; description: string; supersedesId?: string; siteId?: string } & Pick<S["EvidenceUploadDocumentation"], "public" | "publicationConfirmed">, cmd: LedgerCommandContext) => {
     const body = new FormData();
     body.set("file", input.file);
     for (const [key, value] of Object.entries(input)) if (key !== "file" && typeof value === "string" && value) body.set(key, value);
+    for (const key of ["public", "publicationConfirmed"] as const) if (input[key] !== undefined) body.set(key, String(input[key]));
     return ledgerRequest<S["WorkspaceRecordDto"]>(root + "/evidence", { method: "POST", headers: { "Idempotency-Key": cmd.idempotencyKey }, body });
   },
   withdrawEvidence: (id: string, input: S["EvidenceWithdrawalInput"], cmd: LedgerCommandContext) => post(root + "/evidence/" + encodeURIComponent(id) + "/withdraw", input, cmd),

@@ -15,6 +15,7 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
             { href: "/admin/enterprises", get label() { return tr("Hồ sơ đăng ký"); }, count: ["ENROLLMENT", "CAPABILITY", "CONNECTION"], get keywords() { return tr("enrollment duyệt hồ sơ năng lực kích hoạt"); } },
             { href: "/admin/enterprises/amendments", get label() { return tr("Điều chỉnh hồ sơ"); }, count: ["AMENDMENT"], get keywords() { return tr("amendment sửa hồ sơ"); } },
             { href: "/admin/directory", get label() { return tr("Danh bạ tổ chức"); }, get keywords() { return tr("tổ chức doanh nghiệp organization"); } },
+            { href: "/admin/products", get label() { return tr("Sản phẩm & thương hiệu"); }, keywords: "product sản phẩm duyệt thương hiệu công bố chứng nhận approval brand" },
             { href: "/admin/chains", get label() { return tr("Chuỗi cung ứng"); }, readOnly: true, keywords: "supply chain" },
         ]
     },
