@@ -174,7 +174,11 @@ export async function commandTransaction<T>(
       });
     }
     return response;
-  }, options);
+  // Match command authorization's finite 20s budget. A cold instance or a
+  // short-lived scope lock must not exhaust Prisma's implicit 5s timeout in
+  // the middle of the atomic domain/journal write. Callers can still tighten
+  // or extend their own budget; unknown outcomes are never retried here.
+  }, { maxWait: 5000, timeout: 20000, ...options });
   if (context) context.committed = true;
   return result;
 }
