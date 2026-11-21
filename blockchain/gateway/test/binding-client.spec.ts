@@ -158,7 +158,7 @@ describe("BindingLedgerClient and RegistryOperator", () => {
     expect(new Set(propose.mock.calls.map(call => call[3])).size).toBe(1);
   });
 
-  const contract = () => {
+  const contract = (outcomes: Array<number | Error> = []) => {
     const calls: Array<{ name: string; args: string[] }> = [];
     const newProposal = vi.fn((name: string, options: { arguments: string[] }) => {
       calls.push({ name, args: options.arguments });
@@ -166,10 +166,14 @@ describe("BindingLedgerClient and RegistryOperator", () => {
         getTransactionId: () => "abc",
         endorse: async () => ({
           getTransactionId: () => "abc",
-          getResult: () => new TextEncoder().encode(JSON.stringify({ proposalId: "p".repeat(64), status: "OPEN" })),
+          getResult: () => new TextEncoder().encode(JSON.stringify({ proposalId: "p".repeat(64), kind: "SIGNING_KEY_REGISTER", status: name === "ExecuteRegistryChange" ? "EXECUTED" : "OPEN" })),
           getBytes: () => new Uint8Array(),
           submit: async () => ({
-            getStatus: async () => ({ transactionId: "abc", successful: true, blockNumber: 7n, code: 0 }),
+            getStatus: async () => {
+              const code = outcomes.shift() ?? 0;
+              if (code instanceof Error) throw code;
+              return { transactionId: "abc", successful: code === 0, blockNumber: 7n, code };
+            },
           }),
         }),
       };
@@ -180,6 +184,41 @@ describe("BindingLedgerClient and RegistryOperator", () => {
     };
     return { calls, client: new BindingLedgerClient(gateway as never, { channelName: "hybrid-b", chaincodeName: "agritrace", contractName: "AgriTraceContract" }) };
   };
+
+  it.each([
+    ["propose", 11, [11]], ["approve", 11, [0, 11]], ["execute", 11, [0, 0, 11]],
+    ["propose", 12, [12]], ["approve", 12, [0, 12]], ["execute", 12, [0, 0, 12]],
+  ] as const)("resumes through the actual binding adapter after %s validation code %i", async (_stage, _code, outcomes) => {
+    const { client, calls } = contract([...outcomes]);
+    const operator = new RegistryOperator(client, { AgritraceMSP: client });
+    const payload = { keyRef: "original-key", publicKey: "public-key" };
+    expect(await operator.apply("SIGNING_KEY_REGISTER", payload, ["AgritraceMSP"], "0", "original-nonce")).toMatchObject({ status: "EXECUTED" });
+    const proposals = calls.filter(call => call.name === "ProposeRegistryChange");
+    expect(proposals).toHaveLength(2);
+    expect(proposals.map(call => JSON.parse(call.args[0]))).toEqual(Array(2).fill({
+      kind: "SIGNING_KEY_REGISTER", payload, expectedRevision: "0", nonce: "original-nonce",
+    }));
+  });
+
+  it("preserves a confirmed invalid outcome as a typed SDK error at the adapter boundary", async () => {
+    const { client } = contract([10]);
+    try {
+      await client.invoke("ProposeRegistryChange", ["{}"]);
+      throw new Error("Expected invalid commit to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CommitError);
+      expect(classifyFabricError(error)).toMatchObject({ kind: "COMMIT_INVALID", validationCode: "ENDORSEMENT_POLICY_FAILURE", unknownOutcome: false });
+    }
+  });
+
+  it("does not resubmit after an unknown commit status through the actual binding adapter", async () => {
+    const error = new CommitStatusError({ ...grpc, code: 14, message: "status unavailable" });
+    const { client, calls } = contract([error]);
+    const operator = new RegistryOperator(client, { AgritraceMSP: client });
+    await expect(operator.apply("SIGNING_KEY_REGISTER", {}, ["AgritraceMSP"])).rejects.toBe(error);
+    expect(calls).toHaveLength(1);
+    expect(classifyFabricError(error)).toMatchObject({ kind: "COMMIT_STATUS", unknownOutcome: true });
+  });
 
   it("exposes the transaction id before any network traffic so the attempt can be persisted", () => {
     const { client } = contract();
