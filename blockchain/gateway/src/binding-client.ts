@@ -6,6 +6,7 @@ import {
   type Contract,
   type Network,
   type Proposal,
+  type Status,
   type Transaction,
 } from "@hyperledger/fabric-gateway";
 
@@ -116,7 +117,7 @@ export interface CommitOutcome {
   successful: boolean;
   blockNumber: bigint;
   /** Fabric validation code (0 = VALID). */
-  code: number;
+  code: Status["code"];
   status: string;
 }
 
@@ -190,7 +191,11 @@ export class BindingLedgerClient {
     const endorsed = await this.prepare(name, args).endorse();
     const outcome = await endorsed.submit();
     if (!outcome.successful)
-      throw new Error(`Transaction ${outcome.transactionId} committed as ${outcome.status}`);
+      throw new CommitError({
+        transactionId: outcome.transactionId,
+        code: outcome.code,
+        message: `Transaction ${outcome.transactionId} committed as ${outcome.status}`,
+      });
     return parse(endorsed.result);
   }
 
