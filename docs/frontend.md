@@ -4,6 +4,13 @@ Web dùng Next.js 16.4.2, React 19.3.0 và Tailwind 4. Chạy bằng Node 24.22.
 npm 12.1.0 theo README. `scripts/run-next.mjs` chạy Next native SWC/Turbopack;
 production build và start từ chối các cờ mock. API client không có fallback dữ liệu mẫu.
 
+Trong chi tiết lô, bên sản xuất có quyền `evidence.manage` được chọn **Công khai
+ảnh** trên ảnh lô còn riêng tư. Web kiểm hash và cho xem trước, yêu cầu xác nhận
+công khai rồi dùng command tải chứng cứ hiện có để lưu bản ảnh công khai thay
+thế; bản cũ, bytes/hash và lịch sử không bị sửa. Ảnh đã công khai có nhãn rõ ràng.
+Không tự công khai khi thu hoạch hoặc khi tạo QR; ứng dụng nhân viên dùng ảnh lô
+công khai nên chưa có ảnh công khai thì endpoint ảnh vẫn trả 404.
+
 Khi mở Next dev qua IP LAN, truyền `NEXT_DEV_ALLOWED_HOSTS=<IP-Mac>` (hostname/IP,
 không có protocol/port) cùng lệnh `npm run dev --workspace apps/web -- --hostname
 0.0.0.0`. Next chỉ cho phép các host dev được chỉ định và loopback; không dùng

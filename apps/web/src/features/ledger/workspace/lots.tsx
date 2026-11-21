@@ -128,6 +128,7 @@ function Lots({route}:{route:import("@/lib/ledger/route-input").LedgerRouteInput
 
 function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { user } = useSession();
+  const { can } = useWorkspaceAccess();
   const now = useNow();
   const q = useQuery({ queryKey: ["ws-lot", id], queryFn: () => opsApi.lot(id!), enabled: !!id });
   const orgs = useQuery({ queryKey: ["organizations"], queryFn: opsApi.organizations, enabled: !!id });
@@ -256,7 +257,7 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                   ))}
                 </ol>
               </section>
-              {isFarm && <EvidencePanel entityType="LOT" entityId={l.lotId} canManage={false} title={tr("Ảnh & chứng từ lô")} />}
+              {isFarm && <EvidencePanel entityType="LOT" entityId={l.lotId} canManage={false} canPublish={can("evidence.manage")} title={tr("Ảnh & chứng từ lô")} />}
             </div>
 
             {cmd.target === "createShipment" && (

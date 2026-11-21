@@ -21,6 +21,7 @@ import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 import { useEvidenceObjectUrl } from "./image-gallery";
 import { useFilePreviews } from "./photo-picker";
+import { LotImagePublication } from "./lot-image-publication";
 
 export const EVIDENCE_KIND_LABEL: Record<string, string> = localized({
   OTHER: "Khác",
@@ -86,6 +87,7 @@ export function EvidencePanel({
   entityType,
   entityId,
   canManage,
+  canPublish = false,
   required,
   title = tr("Ảnh & chứng từ"),
   onChanged,
@@ -95,6 +97,8 @@ export function EvidencePanel({
   entityType: EvidenceEntity;
   entityId: string;
   canManage: boolean;
+  /** Source-lot ownership and evidence.manage are checked by the caller and API. */
+  canPublish?: boolean;
   /** Loại bắt buộc để hoàn tất hồ sơ: hiển thị đã có/thiếu. */
   required?: { kind: string; min: number; alternatives?: string[]; label?: string }[];
   title?: string;
@@ -108,6 +112,7 @@ export function EvidencePanel({
   const q = useQuery({ queryKey: key, queryFn: () => wapi.evidence({ entityType, entityId }) });
   const upload = useDialog<{ supersedes?: Evidence }>();
   const withdraw = useDialog<Evidence>();
+  const publish = useDialog<Evidence>();
   const [view, setView] = useState<Evidence | null>(null);
   const kinds = (EVIDENCE_KINDS[entityType] ?? ["OTHER"]).filter((kind) => !onlyKinds || onlyKinds.includes(kind));
   const superseded = new Set((q.data ?? []).map((e) => e.supersedesId).filter(Boolean));
@@ -165,6 +170,7 @@ export function EvidencePanel({
                   <Badge tone="neutral" dot={false}>{EVIDENCE_KIND_LABEL[e.kind] ?? e.kind}</Badge>
                   {entityType === "PRODUCT" && i === 0 && e.kind === "PRODUCT_IMAGE" && <Badge tone="brand" dot={false}>{tr("Ảnh chính")}</Badge>}
                   {e.supersedesId && <Badge tone="info" dot={false}>{tr("Bản đính chính")}</Badge>}
+                  {entityType === "LOT" && e.kind === "LOT_IMAGE" && <Badge tone={e.public ? "ok" : "neutral"} dot={false}>{e.public ? tr("Công khai") : tr("Riêng tư")}</Badge>}
                 </span>
                 <span className="text-[13px]">{e.description}</span>
                 <span className="truncate font-mono text-[11px] text-ink-2">
@@ -173,6 +179,7 @@ export function EvidencePanel({
               </div>
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <Button size="xs" variant="ghost" onClick={() => setView(e)}>{tr("Xem")}</Button>
+                {canPublish && entityType === "LOT" && e.kind === "LOT_IMAGE" && !e.public && ["image/png", "image/jpeg"].includes(e.mediaType) && <Button size="xs" variant="outline" onClick={() => publish.open(e)}>{tr("Công khai ảnh")}</Button>}
                 {canManage && <Button size="xs" variant="ghost" onClick={() => upload.open({ supersedes: e })}>{tr("Đính chính")}</Button>}
                 {canManage && entityType === "PRODUCT" && <Button size="xs" variant="ghost" className="text-danger" onClick={() => withdraw.open(e)}>{tr("Gỡ")}</Button>}
               </span>
@@ -239,6 +246,7 @@ export function EvidencePanel({
         </CommandDialog>
       )}
       <EvidenceViewer evidence={view} onClose={() => setView(null)} />
+      {canPublish && publish.target && <LotImagePublication key={publish.target.id} {...publish.props} evidence={publish.target} onDone={onChanged} />}
     </section>
   );
 }
