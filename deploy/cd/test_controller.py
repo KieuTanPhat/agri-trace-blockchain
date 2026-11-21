@@ -46,6 +46,25 @@ class DomainDelivery(unittest.TestCase):
         self.assertNotIn(private, log)
         self.assertEqual(self.controller.log.stat().st_mode & 0o777, 0o600)
 
+    def test_api_failure_logs_are_private_bounded_and_do_not_replace_the_phase(self):
+        self.controller.phase = "hosted-production-smoke"
+        completed = module.subprocess.CompletedProcess([], 0, stdout=b"x" * (300 * 1024), stderr=b"private-api-diagnostic")
+        with patch.object(module.subprocess, "run", return_value=completed) as run:
+            self.controller.capture_api_failure(self.record, self.controller.phase)
+        filename = self.controller.storage / "records" / self.record["id"] / "api-failure.log"
+        self.assertEqual(filename.stat().st_mode & 0o777, 0o600)
+        self.assertLess(filename.stat().st_size, 257 * 1024)
+        self.assertIn(b"private-api-diagnostic", filename.read_bytes())
+        self.assertEqual(self.controller.phase, "hosted-production-smoke")
+        self.assertEqual(run.call_args.args[0][-1], self.controller.project + "-api-1")
+        self.assertEqual(run.call_args.kwargs["timeout"], 15)
+
+    def test_api_diagnostic_timeout_cannot_stop_rollback(self):
+        with patch.object(module.subprocess, "run", side_effect=module.subprocess.TimeoutExpired(["docker"], 15)):
+            self.controller.capture_api_failure(self.record, "hosted-production-smoke")
+        filename = self.controller.storage / "records" / self.record["id"] / "api-failure.log"
+        self.assertIn("rollback continues", filename.read_text())
+
     def test_retained_baseline_and_candidate_get_a_full_verification_budget(self):
         bootstrap = self.base / "bootstrap.json"
         bootstrap.write_text(json.dumps({"connections": {"relayer": {}}}))
@@ -400,6 +419,9 @@ class Rehearsal(Controller):
         self.writers_running = True
         self.data = {"result": "passed", "counts": {"trace_event": 40}, "fingerprints": {"event": "unchanged"}, "canary": None}
 
+    def capture_api_failure(self, record, failed_phase):
+        self.calls.append("diagnostic-" + record["id"])
+
     def preflight(self, record):
         self.calls.append("preflight")
 
@@ -554,6 +576,8 @@ class DeliveryFailureRecovery(unittest.TestCase):
         self.assertEqual(self.controller.state()["current"], self.old["id"])
         self.assertIn("start-" + self.old["id"], self.controller.calls)
         self.assertEqual(self.controller.data["fingerprints"], {"event": "unchanged"})
+        diagnostic = self.controller.calls.index("diagnostic-" + self.candidate["id"])
+        self.assertEqual(self.controller.calls[diagnostic + 1], "stop-" + self.candidate["id"])
         self.assertFalse(any("restore" in call or "down" in call for call in self.controller.calls))
 
     def test_backup_failure_resumes_old_and_never_runs_migration(self):

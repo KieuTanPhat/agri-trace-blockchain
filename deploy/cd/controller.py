@@ -87,6 +87,28 @@ class Controller:
     def state(self):
         return json.loads((self.storage / "state.json").read_text())
 
+    def capture_api_failure(self, record, failed_phase):
+        """Keep private evidence before Compose replaces the failed API.
+
+        Diagnostics are best effort: their failure must never prevent rollback.
+        Do not use run(), change the failed phase, or expose logs on delivery stdout.
+        """
+        try:
+            directory = self.storage / "records" / record["id"]
+            directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+            filename = directory / "api-failure.log"
+            with filename.open("ab") as log:
+                os.chmod(filename, 0o600)
+                log.write(f"{datetime.datetime.now(datetime.timezone.utc).isoformat()} phase={failed_phase}\n".encode())
+                try:
+                    result = subprocess.run(["docker", "logs", "--timestamps", "--tail", "200", self.project + "-api-1"],
+                                            capture_output=True, timeout=15)
+                    log.write((result.stdout + result.stderr)[-256 * 1024:])
+                except (OSError, subprocess.SubprocessError):
+                    log.write(b"API diagnostics unavailable; rollback continues\n")
+        except OSError:
+            pass
+
     def fresh_write_mode(self, record):
         # A smoke session opens writes only for the reviewed technical smoke
         # accounts (CANARY); business users stay at 503 on an unverified candidate.
@@ -680,6 +702,7 @@ class Controller:
             return {"result": "passed", "release": candidate["id"], "counts": evidence["counts"], "chaincodeSequence": chaincode["sequence"]}
         except Exception as error:
             failed_phase = self.phase
+            self.capture_api_failure(candidate, failed_phase)
             try:
                 with self.stop_on_failure(old):
                     self.stop(candidate)

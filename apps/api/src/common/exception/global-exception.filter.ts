@@ -3,6 +3,7 @@ import {
   Catch,
   HttpException,
   HttpStatus,
+  Logger,
   type ExceptionFilter,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
@@ -11,6 +12,8 @@ import type { RequestWithId } from '../request/request-id.middleware.js';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
     const response = http.getResponse<Response>();
@@ -19,6 +22,25 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const status = this.getStatus(exception);
     const message = this.getMessage(exception);
     const code = this.getErrorCode(exception, status);
+    if (status >= 500) {
+      const error = exception as { code?: unknown; name?: unknown } | null;
+      const route: unknown = request.route?.path;
+      // Prisma messages/metadata can contain SQL, credentials and user data.
+      // Keep only bounded identifiers so private diagnostics survive rollback.
+      this.logger.error('Unhandled HTTP request failure', {
+        requestId: request.requestId,
+        method: request.method,
+        path: typeof route === 'string' ? route : '[unmatched]',
+        statusCode: status,
+        errorType:
+          typeof error?.name === 'string' && /^[A-Za-z][A-Za-z0-9]{0,79}$/.test(error.name)
+            ? error.name
+            : 'UnknownError',
+        ...(typeof error?.code === 'string' && /^P\d{4}$/.test(error.code)
+          ? { prismaCode: error.code }
+          : {}),
+      });
+    }
     if (status === 429 && exception instanceof HttpException) {
       const body = exception.getResponse();
       if (

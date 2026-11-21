@@ -187,6 +187,9 @@ Job delivery có tối đa 90 phút để đủ baseline, snapshot, candidate v�
 Timeout ghi rõ phase/thời gian, không in command hay payload riêng tư. Nếu baseline
 chưa xong thì chưa có snapshot của candidate; bước upload artifact chỉ chạy sau khi
 tải snapshot thành công. Điều kiện bắt buộc backup trước migrate vẫn giữ nguyên.
+Trước rollback, controller giữ tối đa 200 dòng log API trong
+`cd/records/prod-<sha>/api-failure.log` (root-only, mode 0600). Log lỗi 5xx có
+requestId và mã Prisma, không ghi SQL/payload; không đưa file private này lên CI công khai.
 
 Sau smoke thành công đánh dấu verified/current và mở ghi theo policy. Kiểm runtime
 SHA/images, OOM/restarts, Pending/dead-letter và HTTPS sau deploy. Đây là hậu kiểm
