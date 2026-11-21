@@ -134,6 +134,10 @@ Worker claim bằng lease, pin binding trước network traffic và dùng propos
 credential ACTIVE rồi kích hoạt binding và xếp permission grants. Chỉ quyền đã
 confirmed trên ledger mới mở ghi nghiệp vụ. Retry/restart giữ binding/proposal cũ;
 không dùng idempotency key mới để né kết quả chưa rõ. Job hoàn tất bất biến.
+Registry operator tiếp tục cùng nonce/proposal tối đa ba lượt khi Fabric xác nhận
+transaction INVALID do MVCC/phantom conflict. `PROPOSAL_NOT_OPEN` chỉ được coi là
+đã hoàn tất khi đọc lại đúng proposal thấy EXECUTED; lỗi policy/quyền và kết quả
+commit chưa rõ không được tự gửi lại.
 
 Trang ledger của chuỗi hiển thị `PREPARING`, `READY` hoặc `NEEDS_ATTENTION`.
 READY không thay thế kiểm capability/membership/assignment và allowedCommands.

@@ -253,7 +253,7 @@ try {
       externalPartnerAuthority: 'NotEvaluated', refreshLogout: true, storedEvidence: 'passed' }));
   }
 } catch (error) {
-  console.error(`Hosted production smoke failed at ${phase}; ${error instanceof assert.AssertionError ? error.message : 'inspect private state and reconcile original command keys'}`);
+  console.error(`Hosted production smoke failed at ${phase}; ${error instanceof assert.AssertionError ? error.message : JSON.stringify(smokeFailureDetails(error))}`);
   process.exitCode = 1;
 } finally {
   for (const connection of connections) connection.close();

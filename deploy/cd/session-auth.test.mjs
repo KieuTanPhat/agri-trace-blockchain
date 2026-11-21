@@ -1,6 +1,34 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {readSessionCredential, sessionRequest, smokeRead} from './session-auth.mjs';
+import {readSessionCredential, sessionRequest, smokeRead, smokeFailureDetails} from './session-auth.mjs';
+
+test('public GET transport and body timeouts retry the identical URL with a finite budget', async () => {
+  const calls = [], pauses = [];
+  let attempt = 0;
+  const response = await smokeRead('https://example.test/trace/original', {
+    fetcher: async (url, options) => {
+      calls.push(url); assert.equal(options.method, undefined);
+      if (attempt++ === 0) throw new TypeError('fetch failed');
+      if (attempt === 2) return new Response(new ReadableStream({start(c) {c.error(new DOMException('body timeout', 'TimeoutError'));}}));
+      return new Response('{"verified":true}');
+    }, sleep: async ms => pauses.push(ms),
+  });
+  assert.deepEqual(await response.json(), {verified: true});
+  assert.deepEqual(calls, Array(3).fill('https://example.test/trace/original'));
+  assert.deepEqual(pauses, [250, 500]);
+  let failures = 0;
+  const error = new TypeError('fetch failed');
+  await assert.rejects(smokeRead('https://example.test', {
+    fetcher: async () => {failures++; throw error;}, sleep: async () => {},
+  }), e => e === error);
+  assert.equal(failures, 4);
+});
+
+test('read diagnostics omit private URLs, payloads and raw error messages', () => {
+  const error = new TypeError('fetch failed at private-url-and-password', {cause: {code: 'ETIMEDOUT'}});
+  assert.deepEqual(smokeFailureDetails(error), {errorType: 'TypeError', networkCode: 'ETIMEDOUT'});
+  assert.deepEqual(smokeFailureDetails({name: 'private-secret', cause: {code: 'private-password'}}), {errorType: 'UnknownError'});
+});
 
 test('public smoke reads respect Retry-After and retry the identical URL', async () => {
   const calls = [], pauses = [];

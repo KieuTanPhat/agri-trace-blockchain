@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { hash, compare } from 'bcrypt';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../dist/generated/prisma/client.js';
-import { connectGateway, BindingLedgerClient, RegistryOperator, certificateFingerprint } from '../../../blockchain/gateway/dist/index.js';
+import { connectGateway, BindingLedgerClient, RegistryOperator, certificateFingerprint, classifyFabricError } from '../../../blockchain/gateway/dist/index.js';
 import { registerBinding, activateBinding } from '../dist/modules/ledger/ledger-bindings.js';
 import { onboardBindingOnLedger, mirrorCredential } from '../dist/modules/ledger/ledger-onboarding.js';
 import { registerSigningKeyOnLedger, activateSigningKey, setHandoverMode } from '../dist/modules/ledger/ledger-signing.js';
@@ -198,7 +198,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const chunks = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
   if (Buffer.concat(chunks).length > 64 * 1024) throw Error('Bootstrap input too large');
-  bootstrapProduction(JSON.parse(Buffer.concat(chunks).toString())).then(result => console.log(JSON.stringify(result))).catch(() => {
-    console.error('Production bootstrap failed; no credential was printed and existing state was preserved'); process.exitCode = 1;
+  bootstrapProduction(JSON.parse(Buffer.concat(chunks).toString())).then(result => console.log(JSON.stringify(result))).catch(error => {
+    const failure = classifyFabricError(error);
+    // SDK/Prisma messages can contain private config, SQL or certificate data.
+    console.error(JSON.stringify({ message: 'Production bootstrap failed', fabricKind: failure.kind,
+      validationCode: failure.validationCode, chaincodeCode: failure.chaincodeCode, unknownOutcome: failure.unknownOutcome,
+      ...(typeof error?.code === 'string' && /^P\d{4}$/.test(error.code) ? { prismaCode: error.code } : {}) }));
+    process.exitCode = 1;
   });
 }
