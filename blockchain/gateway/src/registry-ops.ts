@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 
-import type { BindingLedgerClient } from "./binding-client.js";
+import { classifyFabricError, type BindingLedgerClient } from "./binding-client.js";
 
 export const REGISTRY_KINDS = [
   "CHANNEL_BOOTSTRAP",
@@ -76,12 +77,31 @@ export class RegistryOperator {
     expectedRevision = "0",
     nonce: string = randomUUID(),
   ): Promise<RegistryProposalView> {
-    const proposalId = await this.propose(kind, payload, expectedRevision, nonce);
-    // Resume after an unknown outcome: a proposal that already executed is
-    // reported as it is, never applied or approved a second time.
-    const existing = (await this.controller.getRegistryProposal(proposalId)) as RegistryProposalView;
-    if (existing.status === "EXECUTED") return existing;
-    for (const msp of approvers) await this.approve(proposalId, msp);
-    return this.execute(proposalId);
+    let proposalId: string | undefined;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        proposalId = await this.propose(kind, payload, expectedRevision, nonce);
+        // A concurrent Worker may have finished the same stable proposal.
+        const existing = (await this.controller.getRegistryProposal(proposalId)) as RegistryProposalView;
+        if (existing.status === "EXECUTED") return existing;
+        for (const msp of approvers) await this.approve(proposalId, msp);
+        return await this.execute(proposalId);
+      } catch (error) {
+        const failure = classifyFabricError(error);
+        if (proposalId && failure.kind === "CHAINCODE" && failure.chaincodeCode === "PROPOSAL_NOT_OPEN") {
+          // The winner can execute between our OPEN read and approval/execute.
+          // Only positive ledger evidence for this exact proposal is success.
+          const confirmed = await this.controller.getRegistryProposal(proposalId) as RegistryProposalView;
+          if (confirmed.proposalId === proposalId && confirmed.kind === kind && confirmed.status === "EXECUTED") return confirmed;
+          throw error;
+        }
+        // These validation codes confirm this transaction made no ledger
+        // writes. Resume the identical governed proposal, never a new nonce.
+        // Unknown commit outcomes and policy/authorization errors still stop.
+        if (attempt >= 2 || failure.kind !== "COMMIT_INVALID" ||
+            !["MVCC_READ_CONFLICT", "PHANTOM_READ_CONFLICT"].includes(failure.validationCode ?? "")) throw error;
+        await delay(250 * (attempt + 1));
+      }
+    }
   }
 }

@@ -8,7 +8,22 @@ import {setTimeout as smokeDelay} from 'node:timers/promises';
 export async function smokeRead(url, {fetcher = fetch, sleep = smokeDelay, now = Date.now} = {}) {
   let waited = 0;
   for (let attempt = 0; ; attempt++) {
-    const response = await fetcher(url, {signal: AbortSignal.timeout(30_000)});
+    let response;
+    try {
+      response = await fetcher(url, {signal: AbortSignal.timeout(30_000)});
+      if (response.status === 200) {
+        // Keep body timeouts inside the same bounded GET retry. JSON parsing
+        // and all proof/state assertions still happen in the caller.
+        const body = await response.arrayBuffer();
+        return new Response(body, {status: response.status, statusText: response.statusText, headers: response.headers});
+      }
+    } catch (error) {
+      const transient = ['AbortError', 'TimeoutError'].includes(error?.name) ||
+        (error instanceof TypeError && error.message === 'fetch failed');
+      if (!transient || attempt >= 3) throw error;
+      await sleep(250 * (attempt + 1));
+      continue;
+    }
     if (response.status !== 429 || attempt >= 3) return response;
     const retry = response.headers.get('retry-after');
     const seconds = retry && /^\d+$/.test(retry) ? Number(retry) : NaN;
@@ -19,6 +34,14 @@ export async function smokeRead(url, {fetcher = fetch, sleep = smokeDelay, now =
     waited += pause;
     await sleep(pause);
   }
+}
+
+export function smokeFailureDetails(error) {
+  const names = ['AbortError', 'TimeoutError', 'TypeError', 'SyntaxError', 'Error', 'AssertionError'];
+  const codes = ['UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_SOCKET',
+    'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN', 'ENOTFOUND', 'ENETUNREACH', 'EHOSTUNREACH'];
+  return {errorType: names.includes(error?.name) ? error.name : 'UnknownError',
+    ...(codes.includes(error?.cause?.code) ? {networkCode: error.cause.code} : {})};
 }
 
 export function readSessionCredential(response, data, previous, requireFamily = false) {

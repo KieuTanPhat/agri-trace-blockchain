@@ -181,6 +181,8 @@ original-key replay, outbox, stored evidence, direct Fabric event/proof/VALID v�
 public QR. Public QR reads respect HTTP 429/Retry-After with at most three bounded
 retries (180 seconds total wait); persistent limits still fail verification and do not
 relax the API rate limit. Private keys/command receipts nằm trong `shared/smoke/<sha>` root-only.
+GET công khai đọc hết response trước khi chuyển lô; lỗi kết nối/timeout được thử lại
+cùng URL tối đa ba lần, không thử lại HTTP 4xx/5xx khác 429 hoặc bỏ kiểm proof.
 
 Mỗi lần kiểm toàn bộ ledger/QR có giới hạn 20 phút, tách khỏi bootstrap 12 phút.
 Job delivery có tối đa 90 phút để đủ baseline, snapshot, candidate và rollback khi lỗi.

@@ -92,6 +92,72 @@ describe("certificateFingerprint", () => {
 });
 
 describe("BindingLedgerClient and RegistryOperator", () => {
+  it.each(["propose", "approve", "execute"] as const)("resumes the same proposal after a confirmed MVCC conflict in %s", async stage => {
+    const controller = { getRegistryProposal: vi.fn().mockResolvedValue({ proposalId: "same", status: "OPEN" }) };
+    const operator = new RegistryOperator(controller as unknown as BindingLedgerClient, {});
+    const propose = vi.spyOn(operator, "propose").mockResolvedValue("same");
+    const approve = vi.spyOn(operator, "approve").mockResolvedValue();
+    const execute = vi.spyOn(operator, "execute").mockResolvedValue({ proposalId: "same", kind: "SIGNING_KEY_REGISTER", status: "EXECUTED" });
+    const conflict = new CommitError({ code: 11, transactionId: "invalid", message: "mvcc" });
+    ({ propose, approve, execute })[stage].mockRejectedValueOnce(conflict);
+    const payload = { keyRef: "original-key", publicKey: "public-key" };
+    expect(await operator.apply("SIGNING_KEY_REGISTER", payload, ["AgritraceMSP"], "0", "original-nonce")).toMatchObject({ status: "EXECUTED" });
+    expect(propose.mock.calls).toEqual([
+      ["SIGNING_KEY_REGISTER", payload, "0", "original-nonce"],
+      ["SIGNING_KEY_REGISTER", payload, "0", "original-nonce"],
+    ]);
+  });
+
+  it("returns the concurrent winner's receipt without approving or executing it again", async () => {
+    const winner = { proposalId: "same", kind: "SIGNING_KEY_REGISTER", status: "EXECUTED", executedTxId: "winning-tx" } as const;
+    const controller = { getRegistryProposal: vi.fn().mockResolvedValueOnce({ status: "OPEN" }).mockResolvedValue(winner) };
+    const operator = new RegistryOperator(controller as unknown as BindingLedgerClient, {});
+    vi.spyOn(operator, "propose").mockResolvedValue("same");
+    const approve = vi.spyOn(operator, "approve").mockResolvedValue();
+    const execute = vi.spyOn(operator, "execute").mockRejectedValue(new CommitError({ code: 12, transactionId: "invalid", message: "phantom conflict" }));
+    expect(await operator.apply("SIGNING_KEY_REGISTER", {}, ["AgritraceMSP"], "0", "original")).toEqual(winner);
+    expect(approve).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconciles PROPOSAL_NOT_OPEN only when the exact proposal is confirmed EXECUTED", async () => {
+    const error = new EndorseError({ ...grpc, message: "failed to endorse transaction",
+      details: [detail("chaincode response 500, PROPOSAL_NOT_OPEN: proposal is already executed")] });
+    const winner = { proposalId: "same", kind: "SIGNING_KEY_REGISTER", status: "EXECUTED", executedTxId: "winning-tx" } as const;
+    for (const confirmed of [winner, { ...winner, status: "OPEN" }, { ...winner, proposalId: "foreign" }]) {
+      const controller = { getRegistryProposal: vi.fn().mockResolvedValueOnce({ status: "OPEN" }).mockResolvedValue(confirmed) };
+      const operator = new RegistryOperator(controller as unknown as BindingLedgerClient, {});
+      const propose = vi.spyOn(operator, "propose").mockResolvedValue("same");
+      vi.spyOn(operator, "approve").mockRejectedValue(error);
+      const execute = vi.spyOn(operator, "execute");
+      const result = operator.apply("SIGNING_KEY_REGISTER", {}, ["AgritraceMSP"], "0", "original");
+      if (confirmed === winner) expect(await result).toEqual(winner);
+      else await expect(result).rejects.toBe(error);
+      expect(propose).toHaveBeenCalledTimes(1);
+      expect(execute).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each([
+    new CommitError({ code: 10, transactionId: "invalid", message: "endorsement policy failure" }),
+    new CommitStatusError({ ...grpc, code: 14, message: "unknown commit outcome" }),
+    new Error("transport unavailable"),
+  ])("does not retry policy rejection or an unknown outcome", async error => {
+    const operator = new RegistryOperator({} as BindingLedgerClient, {});
+    const propose = vi.spyOn(operator, "propose").mockRejectedValue(error);
+    await expect(operator.apply("SIGNING_KEY_REGISTER", {}, ["AgritraceMSP"])).rejects.toBe(error);
+    expect(propose).toHaveBeenCalledTimes(1);
+  });
+
+  it("bounds retries when MVCC conflicts persist and keeps a generated nonce stable", async () => {
+    const operator = new RegistryOperator({} as BindingLedgerClient, {});
+    const error = new CommitError({ code: 11, transactionId: "invalid", message: "mvcc" });
+    const propose = vi.spyOn(operator, "propose").mockRejectedValue(error);
+    await expect(operator.apply("SIGNING_KEY_REGISTER", {}, ["AgritraceMSP"])).rejects.toBe(error);
+    expect(propose).toHaveBeenCalledTimes(3);
+    expect(new Set(propose.mock.calls.map(call => call[3])).size).toBe(1);
+  });
+
   const contract = () => {
     const calls: Array<{ name: string; args: string[] }> = [];
     const newProposal = vi.fn((name: string, options: { arguments: string[] }) => {
