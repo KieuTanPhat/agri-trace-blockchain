@@ -10,7 +10,9 @@
 //   node scripts/demo/iot-simulator/simulator.mjs
 //   AGRITRACE_API_URL=http://localhost:8080/api IOT_SIM_PORT=8097 node ...
 //
-// The control panel listens on 127.0.0.1 only.
+// The control panel listens on 127.0.0.1 by default. IOT_SIM_HOST changes the
+// bind address (for a container behind an authenticating reverse proxy only):
+// the panel itself has no login.
 import { createServer } from 'node:http';
 import { generateKeyPairSync, createPrivateKey, sign, randomUUID } from 'node:crypto';
 import { copyFile, mkdir, readFile, rename, writeFile, readdir } from 'node:fs/promises';
@@ -24,6 +26,7 @@ import { planRoute } from './route-planner.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const API = (process.env.AGRITRACE_API_URL ?? 'http://localhost:8080/api').replace(/\/$/, '');
 const PORT = Number(process.env.IOT_SIM_PORT ?? 8097);
+const HOST = process.env.IOT_SIM_HOST || '127.0.0.1';
 const STATE_DIR = resolve(process.env.IOT_SIM_STATE_DIR ?? join(here, '../../../.iot-simulator'));
 const STATE_FILE = join(STATE_DIR, 'state.json');
 const DOMAIN = 'agritrace:iot-device:1';
@@ -503,7 +506,7 @@ const panelServer = createServer(async (req, res) => {
   } catch (e) {
     send(400, { error: e.message });
   }
-}).listen(PORT, '127.0.0.1', () => {
-  console.log(`Thiết bị ảo AgriTrace: http://127.0.0.1:${panelServer.address().port}  →  API ${API}`);
+}).listen(PORT, HOST, () => {
+  console.log(`Thiết bị ảo AgriTrace: http://${HOST}:${panelServer.address().port}  →  API ${API}`);
   console.log(`Trạng thái và khóa thử nghiệm lưu tại ${STATE_FILE}`);
 });

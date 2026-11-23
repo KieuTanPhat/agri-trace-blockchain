@@ -17,7 +17,9 @@ npm run demo:iot
 
 Mặc định API là `http://localhost:8080/api`, bảng điều khiển ở
 `http://127.0.0.1:8097` (chỉ nghe localhost). Đổi bằng `AGRITRACE_API_URL`,
-`IOT_SIM_PORT`, `IOT_SIM_STATE_DIR`. Trạng thái và khóa thử nghiệm lưu ở
+`IOT_SIM_PORT`, `IOT_SIM_STATE_DIR`, `IOT_SIM_HOST`. Bảng điều khiển không có
+đăng nhập: chỉ đặt `IOT_SIM_HOST` khác localhost khi chạy trong container nằm sau
+reverse proxy có xác thực, không mở cổng thẳng ra mạng. Trạng thái và khóa thử nghiệm lưu ở
 `.iot-simulator/` (đã nằm trong `.gitignore`); không dùng khóa này cho thiết bị thật.
 
 ## Kịch bản
