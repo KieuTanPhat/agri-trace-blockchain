@@ -177,6 +177,116 @@ describe('Public journey boundaries', () => {
       status: 404,
     });
   });
+  describe('photos recorded by the farm', () => {
+    const cycleId = '66666666-6666-4666-8666-666666666666',
+      carePhoto = '77777777-7777-4777-8777-777777777777',
+      lateCarePhoto = '88888888-8888-4888-8888-888888888888',
+      harvestPhoto = '99999999-9999-4999-8999-999999999999',
+      corrected = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      harvestTime = new Date('2026-11-23T10:00:00Z');
+    type Row = { id: string; supersedesId?: string | null; kind: string };
+    function farmFixture(opts: { privacy?: string; details?: boolean; rows?: Row[] } = {}) {
+      const f = fixture();
+      const rows: Row[] = opts.rows ?? [
+        { id: carePhoto, kind: 'CARE_IMAGE' },
+        { id: lateCarePhoto, kind: 'CARE_IMAGE' },
+        { id: harvestPhoto, kind: 'HARVEST_IMAGE' },
+      ];
+      f.db.organization.findMany.mockResolvedValue([
+        {
+          id: org,
+          name: 'Công ty A',
+          type: 'FARM',
+          directoryPublications: [
+            { presentation: { publicDirectory: { published: true, traceDetailsPublished: opts.details ?? true } } },
+          ],
+        },
+      ]);
+      f.db.enterpriseSite.findMany.mockResolvedValue([]);
+      // The service asks only for care up to the harvest; the late log is excluded there.
+      f.db.careRecord.findMany.mockImplementation(async (q: { where: { eventTime: { lte: Date } } }) =>
+        [
+          { id: 'care-1', name: 'Tỉa cành', eventTime: new Date('2026-10-01T00:00:00Z'), evidenceIds: [carePhoto] },
+          { id: 'care-2', name: 'Tích hợp IOT', eventTime: new Date('2026-11-24T00:00:00Z'), evidenceIds: [lateCarePhoto] },
+        ].filter((c) => c.eventTime <= q.where.eventTime.lte),
+      );
+      f.db.traceEvidence.findMany.mockImplementation(
+        async (q: { where: { id?: { in: string[] }; supersedesId?: { in: string[] } } }) => {
+          if (q.where.supersedesId) return [];
+          const all = rows.map((r) => ({
+            ...r,
+            supersedesId: r.supersedesId ?? null,
+            organizationId: org,
+            entityType: 'CYCLE',
+            entityId: cycleId,
+          }));
+          return q.where.id ? all.filter((r) => q.where.id!.in.includes(r.id)) : all;
+        },
+      );
+      const lot = {
+        ...f.lot,
+        initialStorageSiteId: null,
+        harvest: {
+          id: 'harvest',
+          cycleId,
+          harvestTime,
+          quantity: 100,
+          unit: 'kg',
+          evidenceIds: [harvestPhoto],
+          cycle: { id: cycleId, farmId: 'farm-1', name: 'Lựu - vụ 2026', cycleCode: 'VU-LUU45', farm: { privacy: opts.privacy ?? 'PUBLIC', name: 'Vùng Đơn Dương' } },
+        },
+      } as unknown as PublicLot;
+      f.db.traceQr.findUnique.mockResolvedValue({ lotId, lot });
+      return { ...f, lot };
+    }
+    it('shows care photos up to the harvest and this harvest photo in the farm stage', async () => {
+      const f = farmFixture();
+      const [farm] = await f.service.build(f.lot, [], [], 'trace');
+      expect(farm).toMatchObject({ id: 'farm:farm-1', stage: 'Trồng và thu hoạch' });
+      expect(farm.photos).toEqual([
+        { id: carePhoto, url: `/public/trace/trace/media/${carePhoto}`, caption: 'Tỉa cành' },
+        { id: harvestPhoto, url: `/public/trace/trace/media/${harvestPhoto}`, caption: 'Thu hoạch' },
+      ]);
+      await expect(f.service.image('trace', carePhoto)).resolves.toHaveProperty('mediaType', 'image/jpeg');
+      await expect(f.service.image('trace', lateCarePhoto)).rejects.toMatchObject({ status: 404 });
+    });
+    it('shows the current replacement of a corrected photo', async () => {
+      const f = farmFixture({
+        rows: [
+          { id: carePhoto, kind: 'CARE_IMAGE' },
+          { id: corrected, kind: 'CARE_IMAGE', supersedesId: carePhoto },
+          { id: harvestPhoto, kind: 'HARVEST_IMAGE' },
+        ],
+      });
+      const [farm] = await f.service.build(f.lot, [], [], 'trace');
+      expect(farm.photos.map((p) => p.id)).toEqual([corrected, harvestPhoto]);
+    });
+    it.each([
+      { privacy: 'PRIVATE', details: true },
+      { privacy: 'PUBLIC', details: false },
+    ])('keeps recorded photos private when privacy=$privacy details=$details', async (opts) => {
+      const f = farmFixture(opts);
+      const groups = await f.service.build(f.lot, [], [], 'trace');
+      expect(groups.flatMap((g) => g.photos)).toEqual([]);
+      await expect(f.service.image('trace', carePhoto)).rejects.toMatchObject({ status: 404 });
+    });
+    it('leaves care logged after the harvest out of this lot', async () => {
+      const f = farmFixture();
+      const event = (id: string, eventType: string, eventTime: Date, lot: string | null = null) =>
+        ({ id, eventType, eventTime, lotId: lot, entityId: id, businessData: {}, actorOrganizationId: org }) as never;
+      const [farm] = await f.service.build(
+        f.lot,
+        [
+          event('before', 'CARE_RECORDED', new Date('2026-10-01T00:00:00Z')),
+          event('harvest', 'HARVEST_RECORDED', harvestTime, lotId),
+          event('after', 'CARE_RECORDED', new Date('2026-11-24T00:00:00Z')),
+        ],
+        [],
+        'trace',
+      );
+      expect(farm.entries.map((e) => e.id)).toEqual(['before', 'harvest']);
+    });
+  });
   it.each([
     { entityType: 'LOT', entityId: 'sibling', kind: 'LOT_IMAGE' },
     { entityType: 'FARM', entityId: site, kind: 'LAND_CERTIFICATE' },

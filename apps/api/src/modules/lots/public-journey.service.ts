@@ -61,9 +61,72 @@ export function publishedJourneyMedia(
       organizationId,
     }));
 }
+const RECORDED_FARM_MEDIA_LIMIT = 24;
 @Injectable()
 export class PublicJourneyService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
+  /** Photos the farm attached to this lot's own harvest and to the care logs
+   * recorded up to that harvest. Shown only when the farm is public and the
+   * company publishes cultivation details; a correction shows its current
+   * replacement. They pass the same evidence checks as published media. */
+  private async recordedFarmMedia(
+    lot: PublicLot,
+    orgs: { id: string; directoryPublications: { presentation: unknown }[] }[],
+    sites: { id: string; farmId: string | null }[],
+    care: { id: string; name: string | null; eventTime: Date; evidenceIds: string[] }[],
+    privateFarm: boolean,
+  ): Promise<Media[]> {
+    const harvest = lot.harvest;
+    if (!harvest || privateFarm) return [];
+    const farmOrg = orgs.find((o) => o.id === lot.farmOrgId);
+    if (
+      publication(farmOrg?.directoryPublications[0]?.presentation)
+        .traceDetailsPublished !== true
+    )
+      return [];
+    const sources = [
+      ...[...care]
+        .sort((a, b) => a.eventTime.getTime() - b.eventTime.getTime())
+        .flatMap((c) =>
+          c.evidenceIds.map((id) => ({ id, caption: c.name?.trim() || 'Chăm sóc cây trồng' })),
+        ),
+      ...harvest.evidenceIds.map((id) => ({ id, caption: 'Thu hoạch' })),
+    ];
+    if (!sources.length) return [];
+    const rows = await this.db.traceEvidence.findMany({
+      where: {
+        organizationId: lot.farmOrgId,
+        entityType: 'CYCLE',
+        entityId: harvest.cycleId,
+        kind: { in: ['CARE_IMAGE', 'HARVEST_IMAGE'] },
+      },
+      select: { id: true, supersedesId: true },
+    });
+    const current = (id: string) => {
+      for (let seen = 0, next = id; seen < 20; seen++) {
+        const replacement = rows.find((r) => r.supersedesId === next);
+        if (!replacement) return rows.some((r) => r.id === next) ? next : null;
+        next = replacement.id;
+      }
+      return null;
+    };
+    const farmSite = sites.find((s) => s.farmId === harvest.cycle.farmId);
+    const groupKey = farmSite ? `site:${farmSite.id}` : `farm:${harvest.cycle.farmId}`;
+    const media: Media[] = [];
+    for (const source of sources) {
+      const evidenceId = current(source.id);
+      if (!evidenceId || media.some((m) => m.evidenceId === evidenceId)) continue;
+      media.push({
+        evidenceId,
+        lotId: lot.id,
+        groupKey,
+        caption: source.caption,
+        organizationId: lot.farmOrgId,
+      });
+      if (media.length >= RECORDED_FARM_MEDIA_LIMIT) break;
+    }
+    return media;
+  }
   private async context(
     lot: PublicLot,
     events: PublicTraceEvent[],
@@ -125,7 +188,7 @@ export class PublicJourneyService {
           })
         : Promise.resolve([]),
     ]);
-    const media = orgs.flatMap((o) =>
+    const published = orgs.flatMap((o) =>
       publishedJourneyMedia(
         o.directoryPublications[0]?.presentation,
         lot.id,
@@ -134,6 +197,11 @@ export class PublicJourneyService {
     );
     const harvest = lot.harvest,
       privateFarm = !!harvest && harvest.cycle.farm.privacy !== 'PUBLIC';
+    const recorded = await this.recordedFarmMedia(lot, orgs, sites, care, privateFarm);
+    const media = [
+      ...published,
+      ...recorded.filter((r) => !published.some((p) => p.evidenceId === r.evidenceId)),
+    ];
     const rows = media.length
       ? await this.db.traceEvidence.findMany({
           where: {
@@ -410,6 +478,14 @@ export class PublicJourneyService {
     for (const e of events) {
       if (
         ['EVIDENCE_ATTACHED', 'SENSOR_READING_RECORDED'].includes(e.eventType)
+      )
+        continue;
+      // Care recorded after this lot was harvested belongs to later lots.
+      if (
+        harvest &&
+        e.lotId === null &&
+        e.eventType === 'CARE_RECORDED' &&
+        e.eventTime > harvest.harvestTime
       )
         continue;
       const data = object(e.businessData),
