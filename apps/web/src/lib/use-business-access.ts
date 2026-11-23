@@ -30,7 +30,10 @@ export function useBusinessAccess(user: AuthUser | null) {
     if (!user) return;
     let active = true;
     let running = false;
-    let recheck = false;
+    // Returning to a tab fires focus, pageshow and visibilitychange together;
+    // the queued recheck keeps the strongest request instead of upgrading a
+    // background check to a foreground one, which would blank the page.
+    let recheck: false | "background" | "foreground" = false;
     let previous: string | undefined;
     let productionAccess: boolean | undefined;
     const forget = () =>
@@ -47,7 +50,7 @@ export function useBusinessAccess(user: AuthUser | null) {
           status: "checking",
         });
       if (running) {
-        recheck = true;
+        recheck = foreground || recheck === "foreground" ? "foreground" : "background";
         return;
       }
       running = true;
@@ -86,8 +89,9 @@ export function useBusinessAccess(user: AuthUser | null) {
       } finally {
         running = false;
         if (recheck && active) {
+          const foregroundRecheck = recheck === "foreground";
           recheck = false;
-          void check(true);
+          void check(foregroundRecheck);
         }
       }
     };

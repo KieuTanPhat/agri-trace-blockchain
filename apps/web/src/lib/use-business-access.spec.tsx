@@ -121,6 +121,25 @@ describe("Current business permission refresh", () => {
       expect(vi.mocked(request).mock.calls.length).toBe(calls + 1),
     );
   });
+  it("never blanks the page when focus, pageshow and visibilitychange arrive together", async () => {
+    const { result } = renderHook(() => useBusinessAccess(user));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    const slow = deferred<{ accessRevision: string }>();
+    vi.mocked(request).mockReturnValueOnce(slow.promise);
+    const statuses: string[] = [];
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("pageshow"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    statuses.push(result.current.status);
+    const calls = vi.mocked(request).mock.calls.length;
+    await act(async () => slow.resolve({ accessRevision: first }));
+    statuses.push(result.current.status);
+    await waitFor(() => expect(vi.mocked(request).mock.calls.length).toBe(calls + 1));
+    statuses.push(result.current.status);
+    expect(statuses).toEqual(["ready", "ready", "ready"]);
+  });
   it("clears scope cache on logout/unmount and rejects missing revision", async () => {
     const { result, unmount } = renderHook(() => useBusinessAccess(user));
     await waitFor(() => expect(result.current.status).toBe("ready"));
