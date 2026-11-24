@@ -108,8 +108,9 @@ function useOptions() {
     farms: (catalog.data?.farms ?? []).filter((f) => f.status === "ACTIVE" && f.evidenceComplete),
     plots: (catalog.data?.plots ?? []).filter((p) => p.status === "ACTIVE"),
     products: (catalog.data?.products ?? []).filter((p) => p.status === "ACTIVE" && p.evidenceComplete && p.organizationId===actor?.organizationId),
-    // The personal chain comes first so it is the default for a new cycle.
-    chains: [...(chains.data ?? [])].sort((a, b) => Number(!!b.personal) - Number(!!a.personal)),
+    // Only chains where the signed-in user holds the production role; the
+    // personal chain comes first so it is the default for a new cycle.
+    chains: (chains.data ?? []).filter((c) => !c.myRoles || c.myRoles.includes("FARM_STAFF")).sort((a, b) => Number(!!b.personal) - Number(!!a.personal)),
     seeds: (materials.data ?? []).filter((m) => m.kind === "SEED" && m.status === "ACTIVE" && m.evidenceComplete),
     inputs: (materials.data ?? []).filter((m) => m.status === "ACTIVE"),
     members: (members.data ?? []).filter((m) => m.accountStatus === "ACTIVE"),

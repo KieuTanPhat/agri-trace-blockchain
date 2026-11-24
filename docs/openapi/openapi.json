@@ -2251,6 +2251,13 @@
             "format": "uuid",
             "type": "string"
           },
+          "myRoles": {
+            "description": "Chain roles the caller holds (list only)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "name": {
             "type": "string"
           },
