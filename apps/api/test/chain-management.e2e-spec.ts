@@ -169,9 +169,14 @@ describe('Chain management with real PostgreSQL authorization and command journa
       ownerKey,
     ).expect(201);
     chainId = created.body.data.id;
-    // Business chain roles come from member permission groups, never a direct grant.
+    // Business chain roles are never a direct grant; the owner already works
+    // its own stage of the new chain (production), so it holds that role.
     await role('owner', 'owner', 'FARM_STAFF', chainId).expect(403);
-    await memberGroupRole('owner', 'FARM_STAFF', chainId);
+    expect(
+      await prisma.scopedRoleGrant.count({
+        where: { chainId, userId: actors.owner.id, role: 'FARM_STAFF', revokedAt: null },
+      }),
+    ).toBe(1);
     const replay = await post(
       'owner',
       'supply-chains',
