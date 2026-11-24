@@ -5,7 +5,7 @@ import { SUPPLY_STAGES } from './dto.js';
 
 type Stage = (typeof SUPPLY_STAGES)[number];
 /** Chain business role the owner holds for each approved stage. */
-const STAGE_ROLE: Record<Stage, 'FARM_STAFF' | 'PROCESSOR' | 'TRANSPORTER' | 'DISTRIBUTOR' | 'RETAILER'> = {
+export const STAGE_ROLE: Record<Stage, 'FARM_STAFF' | 'PROCESSOR' | 'TRANSPORTER' | 'DISTRIBUTOR' | 'RETAILER'> = {
   FARM: 'FARM_STAFF',
   PROCESSOR: 'PROCESSOR',
   TRANSPORTER: 'TRANSPORTER',

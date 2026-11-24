@@ -223,10 +223,11 @@ function Body<S extends z.ZodType<FieldValues>>({
       }
       recoveryId.current = err.recoveryId ?? recoveryId.current;
       // A response alone cannot release the original request. Inspect the
-      // journal for validation/conflict failures without resending a command.
+      // journal for validation, permission and conflict failures without
+      // resending a command; a refused command then frees the form.
       let reconciled = false;
       let committed = false;
-      if (err.recoveryId && [400, 409, 422].includes(err.status))
+      if (err.recoveryId && [400, 403, 409, 422].includes(err.status))
         try {
           result = await inspectPendingCommand(err.recoveryId);
           committed = true;
