@@ -6228,6 +6228,8 @@ export interface components {
             description: string | null;
             /** Format: uuid */
             id: string;
+            /** @description Chain roles the caller holds (list only) */
+            myRoles?: string[];
             name: string;
             note: string | null;
             /** Format: uuid */

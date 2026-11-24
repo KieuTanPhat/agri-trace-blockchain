@@ -24,6 +24,7 @@ import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
 import { assertPartnerSlot, partnerHasWork } from './chain-membership-rules.js';
 import { createPartnerInvitation, listPartnerInvitations, type PartnerInvitationInput } from './partner-invitations.js';
+import { ensureOwnerStageRoles } from './owner-stage-roles.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -201,10 +202,16 @@ export class SupplyChainsService {
         take: 200,
       });
     const context = await this.context(actor);
-    return this.prisma.supplyChain.findMany({
+    const chains = await this.prisma.supplyChain.findMany({
       where: { id: { in: context.memberships.map((m) => m.chainId) } },
       orderBy: { createdAt: 'desc' },
     });
+    // The caller's own chain roles, so forms offer only chains it can act in.
+    const grants = await this.prisma.scopedRoleGrant.findMany({
+      where: { userId: actor.sub!, scope: 'CHAIN', revokedAt: null, chainId: { in: chains.map((c) => c.id) } },
+      select: { chainId: true, role: true },
+    });
+    return chains.map((c) => ({ ...c, myRoles: grants.filter((g) => g.chainId === c.id).map((g) => g.role) }));
   }
   async get(actor: CommandActor, id: string) {
     if (actor.role === 'SYSTEM_ADMIN') {
@@ -458,6 +465,8 @@ export class SupplyChainsService {
           role: 'CHAIN_MANAGER',
         },
       });
+      // The owner also works its own stages of the model (e.g. production).
+      await ensureOwnerStageRoles(tx, chain, actor.sub!);
       await this.audit(tx, actor, 'CREATE_CHAIN', chain.id, 0, chain.id);
       for (const organizationId of others) {
         const member = await tx.chainMembership.create({

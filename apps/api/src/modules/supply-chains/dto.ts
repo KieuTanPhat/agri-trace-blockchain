@@ -142,6 +142,8 @@ export class ChainRecordDto {
   @ApiProperty({ type: Boolean, description: 'Free farm ledger created when the FARM capability takes effect (ADR-005)' }) personal!: boolean;
   @ApiProperty({ type: Number }) version!: number;
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
+  @ApiProperty({ type: [String], required: false, description: 'Chain roles the caller holds (list only)' })
+  myRoles?: string[];
 }
 export class LedgerPermissionCountsDto {
   @ApiProperty({ type: Number }) active!: number;
