@@ -38,7 +38,7 @@ import { BUSINESS_CAPABILITIES, lockChainScope } from '../supply-chains/chain-po
 import { requestLedgerGrant } from '../ledger/ledger-permissions.js';
 import { assertPartnerSlot } from '../supply-chains/chain-membership-rules.js';
 import { sealRoute } from '../iot/route-seal.js';
-import { transferRoute } from '../iot/route-read.js';
+import { arrivalNeedsReason, transferRoute } from '../iot/route-read.js';
 import type {
   TransferInput,
   TransferSignature,
@@ -46,6 +46,7 @@ import type {
   TransferVersion,
   TraceNoticeInput,
   TransferObservationInput,
+  TransferArrivalInput,
   HoldingDispositionInput,
   SiteAllocationInput,
   QuarantineInput,
@@ -132,6 +133,15 @@ export function driverMaySign(
     primary ||
     actor.sub === t.driverUserId
   );
+}
+/** The carrying side confirms arrival while in transit: for self delivery the
+ * named driver (or the owner), otherwise the carrier organization's signers. */
+export function arrivalAllowed(
+  t: Pick<DistributionTransfer, 'carrierId' | 'driverUserId' | 'status'> & { arrival?: { id: string } | null },
+  actor: CommandActor,
+  primary: boolean,
+) {
+  return t.status === 'IN_TRANSIT' && !t.arrival && actor.organizationId === t.carrierId && driverMaySign(t, 'DELIVERY', actor, primary);
 }
 const domainMessage = (domain: string, body: unknown) =>
   Buffer.from(`${domain}\0${canonicalize(body)}`, 'utf8');
@@ -307,7 +317,7 @@ export class DistributionService {
           actor.organizationId ?? '00000000-0000-0000-0000-000000000000',
         ),
       },
-      include: { lines: true, attestations: true },
+      include: { lines: true, attestations: true, arrival: { select: { id: true } } },
     });
     if (!t) throw new NotFoundException('Không tìm thấy giao nhận');
     const site =
@@ -347,7 +357,8 @@ export class DistributionService {
       ...(canAttach ? [`PHOTOS_${photoPhase}`] : []),
       ...(authority.primary && membership?.status === 'INVITED' && t.status === 'PROPOSED' && actor.organizationId !== t.senderId ? ['JOIN_CHAIN'] : []),
       ...(has('distribution.sign') && membership?.status === 'ACTIVE' ? phases.filter(p => !signed.has(p)) : []),
-      ...(has('distribution.sign') && t.receiverId === actor.organizationId && t.status === 'IN_TRANSIT' && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
+      ...(has('distribution.sign') && t.receiverId === actor.organizationId && t.status === 'IN_TRANSIT' && !!t.arrival && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
+      ...(has('distribution.sign') && membership?.status === 'ACTIVE' && arrivalAllowed(t, actor, authority.primary) ? ['ARRIVE'] : []),
       ...(has('distribution.write') && t.senderId === actor.organizationId && ['PROPOSED','READY'].includes(t.status) ? ['CANCEL'] : []),
       ...(has('distribution.write') && t.transportMode !== 'EXTERNAL_CARRIER' && t.carrierId === actor.organizationId && t.status === 'IN_TRANSIT' ? ['OBSERVE'] : []),
       ...(has('distribution.write') && t.carrierId === actor.organizationId && t.status === 'DELIVERED' ? ['RETURN'] : []),
@@ -364,6 +375,11 @@ export class DistributionService {
           ownerIsSender: chain?.ownerOrganizationId === t.senderId,
         },
         receipt: await this.db.distributionReceipt.findUnique({ where: { transferId: id } }),
+        arrival: await this.db.distributionArrival.findUnique({
+          where: { transferId: id },
+          select: { source: true, arrivedAt: true, reason: true, organizationId: true },
+        }),
+        arrivalNeedsReason: allowedActions.includes('ARRIVE') ? await arrivalNeedsReason(this.db, t) : false,
         photos: await this.db.distributionHandoverPhoto.findMany({ where: { transferId: id }, select: { phase: true, evidenceId: true, sha256: true, organizationId: true, createdAt: true }, orderBy: { createdAt: 'asc' } }),
         remainders: await this.db.distributionRemainder.findMany({ where: { transferId: id } }),
         returns: await Promise.all((await this.db.distributionReturn.findMany({ where: { transferId: id }, orderBy: { createdAt: 'asc' } })).map(async r => {
@@ -872,7 +888,7 @@ export class DistributionService {
   prepareC2(actor:CommandActor,id:string,input:DistributionC2Prepare) {
     return commandTransaction(this.db,async tx=>{
       await tx.$queryRaw`SELECT id FROM distribution_transfer WHERE id=${id}::uuid FOR UPDATE`;
-      const t=await tx.distributionTransfer.findUniqueOrThrow({where:{id},include:{lines:true,attestations:true}});
+      const t=await tx.distributionTransfer.findUniqueOrThrow({where:{id},include:{lines:true,attestations:true,arrival:{select:{id:true}}}});
       if(![t.senderId,t.receiverId,t.carrierId].includes(actor.organizationId!))throw new NotFoundException();
       const site=(actor.organizationId===t.senderId?t.senderSiteId:actor.organizationId===t.carrierId?t.carrierSiteId:t.receiverSiteId)??undefined;
       const auth=await enterpriseAuthority(tx,actor,'distribution.sign',t.chainId,site,true);
@@ -883,12 +899,12 @@ export class DistributionService {
       return prepareC2(tx,t,actor,auth.scope,input.phase,distributionSnapshot(t),input.keyRef,r??undefined);
     });
   }
-  private phaseAllowed(t:DistributionTransfer & {attestations:{phase:string;epoch:number}[]},phase:string,org:string) {
+  private phaseAllowed(t:DistributionTransfer & {attestations:{phase:string;epoch:number}[];arrival?:{id:string}|null},phase:string,org:string) {
     const current=t.attestations.filter(a=>a.epoch===t.attestationEpoch);
     const consents=phaseParties(t,'CONSENT').length;
     if(phase==='CONSENT')return t.status==='PROPOSED'||(t.attestationEpoch>0 && ['READY','IN_TRANSIT'].includes(t.status) && current.filter(a=>a.phase==='CONSENT').length<consents);
     if(t.attestationEpoch>0&&current.filter(a=>a.phase==='CONSENT').length!==consents)return false;
-    return phase==='PICKUP'?t.status==='READY'&&phaseParties(t,'PICKUP').includes(org):t.status==='IN_TRANSIT'&&phaseParties(t,'DELIVERY').includes(org)&&(!t.receiverSiteId||!!t.receiptDigest);
+    return phase==='PICKUP'?t.status==='READY'&&phaseParties(t,'PICKUP').includes(org):t.status==='IN_TRANSIT'&&!!t.arrival&&phaseParties(t,'DELIVERY').includes(org)&&(!t.receiverSiteId||!!t.receiptDigest);
   }
   renewConsent(actor:CommandActor,id:string,input:ConsentRenewInput) {
    return commandTransaction(this.db,async tx=>{
@@ -907,7 +923,7 @@ export class DistributionService {
       await tx.$queryRaw`SELECT id FROM distribution_transfer WHERE id=${id}::uuid FOR UPDATE`;
       const t = await tx.distributionTransfer.findUnique({
         where: { id },
-        include: { lines: true, attestations: true },
+        include: { lines: true, attestations: true, arrival: { select: { id: true } } },
       });
       if (
         !t ||
@@ -940,6 +956,8 @@ export class DistributionService {
         );
       if (!driverMaySign(t, input.phase, actor, auth.primary))
         throw new ForbiddenException('Chỉ tài xế được chỉ định hoặc chủ doanh nghiệp ký bước này');
+      if (input.phase === 'DELIVERY' && !t.arrival)
+        throw new ConflictException('Xe chưa tới nơi nhận; xác nhận đã tới trước khi ký giao hàng');
       if (input.phase === 'DELIVERY' && t.receiverSiteId && !t.receiptDigest)
         throw new ConflictException('Bên nhận cần lập biên bản thực nhận trước khi hai bên ký');
       const expiry = Date.parse(input.expiresAt);
@@ -1216,6 +1234,46 @@ export class DistributionService {
         source: 'MANUAL',
       });
       return { record: observation };
+    });
+  }
+  arrive(actor: CommandActor, id: string, input: TransferArrivalInput) {
+    return commandTransaction(this.db, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM distribution_transfer WHERE id=${id}::uuid FOR UPDATE`;
+      const t = await tx.distributionTransfer.findUnique({ where: { id }, include: { lines: true, arrival: { select: { id: true } } } });
+      if (!t || ![t.senderId, t.carrierId, t.receiverId].includes(actor.organizationId!)) throw new NotFoundException('Không tìm thấy giao nhận');
+      const auth = await enterpriseAuthority(tx, actor, 'distribution.sign', t.chainId, t.carrierSiteId ?? undefined, true);
+      if (t.version !== input.version) throw new ConflictException('Giao nhận đã thay đổi; tải lại trước khi xác nhận');
+      if (t.arrival) throw new ConflictException('Chặng đã được xác nhận tới nơi');
+      if (!arrivalAllowed(t, actor, auth.primary))
+        throw new ForbiddenException('Chỉ bên chở hàng (tài xế được chỉ định hoặc chủ doanh nghiệp) xác nhận đã tới khi đang vận chuyển');
+      const reason = input.reason?.trim() || null;
+      if (!reason && (await arrivalNeedsReason(tx, t)))
+        throw new UnprocessableEntityException('GPS của xe chưa ghi nhận xe tới nơi nhận; ghi lý do khi xác nhận đã tới');
+      if ((input.latitude == null) !== (input.longitude == null))
+        throw new UnprocessableEntityException('Vị trí cần đủ vĩ độ và kinh độ');
+      const arrivedAt = new Date();
+      const arrival = await tx.distributionArrival.create({
+        data: {
+          transferId: id,
+          source: 'MANUAL',
+          organizationId: actor.organizationId!,
+          userId: actor.sub!,
+          reason,
+          latitude: input.latitude ?? null,
+          longitude: input.longitude ?? null,
+          arrivedAt,
+        },
+      });
+      // Arrival confirmed by a person is a transport journal entry on the ledger.
+      await this.events(tx, t, actor, 'DISTRIBUTION_OBSERVED', {
+        arrivalId: arrival.id,
+        eventTime: arrivedAt.toISOString(),
+        note: reason ? `Xác nhận đã tới nơi nhận: ${reason}` : 'Xác nhận đã tới nơi nhận',
+        source: 'MANUAL',
+        kind: 'ARRIVAL',
+        ...(input.latitude != null ? { latitude: input.latitude.toFixed(6), longitude: input.longitude!.toFixed(6) } : {}),
+      });
+      return { record: arrival };
     });
   }
   notice(actor: CommandActor, input: TraceNoticeInput) {
@@ -1497,8 +1555,9 @@ export class DistributionService {
   actualReceipt(actor: CommandActor, id: string, input: ActualReceiptInput) {
     return commandTransaction(this.db, async tx => {
       await tx.$queryRaw`SELECT id FROM distribution_transfer WHERE id=${id}::uuid FOR UPDATE`;
-      const t = await tx.distributionTransfer.findUniqueOrThrow({ where: { id }, include: { lines: true } });
+      const t = await tx.distributionTransfer.findUniqueOrThrow({ where: { id }, include: { lines: true, arrival: { select: { id: true } } } });
       if (t.receiverId !== actor.organizationId) throw new ForbiddenException('Chỉ bên nhận lập biên bản');
+      if (t.status === 'IN_TRANSIT' && !t.arrival) throw new ConflictException('Xe chưa tới nơi nhận; chỉ lập biên bản sau khi xác nhận đã tới');
       await enterpriseAuthority(tx, actor, 'distribution.sign', t.chainId, t.receiverSiteId ?? undefined, true);
       if (t.status !== 'IN_TRANSIT' || t.version !== input.version || t.receiptDigest || await tx.distributionAttestation.count({ where: { transferId: id, phase: 'DELIVERY' } })) throw new ConflictException('Biên bản chỉ lập một lần trước chữ ký nhận hàng; tải lại giao nhận');
       if (new Set(input.lines.map(l => l.lotId)).size !== t.lines.length || input.lines.length !== t.lines.length) throw new ConflictException('Biên bản phải có đủ từng dòng lô');
@@ -1626,7 +1685,7 @@ export class DistributionService {
       const readable = await enterpriseAuthority(this.db, actor, 'distribution.read');
       const rows = await this.db.distributionTransfer.findMany({
         where: { ...enterpriseTransferWhere(actor, readable), status: { in: ['PROPOSED', 'READY', 'IN_TRANSIT', 'DELIVERED'] } },
-        include: { attestations: true },
+        include: { attestations: true, arrival: { select: { id: true } } },
         orderBy: { createdAt: 'asc' },
         take: 200,
       });
@@ -1637,7 +1696,8 @@ export class DistributionService {
         const signed = new Set(t.attestations.filter(a => a.organizationId === org && a.epoch === t.attestationEpoch).map(a => a.phase));
         const actions = [
           ...(has('distribution.sign') ? ['CONSENT', 'PICKUP', 'DELIVERY'].filter(p => this.phaseAllowed(t, p, org) && driverMaySign(t, p, actor, readable.primary) && !signed.has(p)) : []),
-          ...(has('distribution.sign') && t.receiverId === org && t.status === 'IN_TRANSIT' && t.receiverSiteId && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
+          ...(has('distribution.sign') && t.receiverId === org && t.status === 'IN_TRANSIT' && t.receiverSiteId && t.arrival && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
+          ...(has('distribution.sign') && arrivalAllowed(t, actor, readable.primary) ? ['ARRIVE'] : []),
         ];
         if (t.status === 'DELIVERED' && [t.senderId, t.carrierId].includes(org)) {
           const open = await this.db.distributionReturn.findMany({ where: { transferId: t.id, status: 'PROPOSED' } });

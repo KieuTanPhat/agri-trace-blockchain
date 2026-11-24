@@ -27,6 +27,7 @@ import {
   TransferSignature,
   TransferVersion,
   TransferObservationInput,
+  TransferArrivalInput,
   TraceNoticeInput,
   HoldingDispositionInput,
   DistributionOptionsDto,
@@ -245,6 +246,19 @@ export class DistributionController {
   ) {
     return this.run(req, key, 'DIST_OBSERVE', { id, ...dto }, () =>
       this.service.observe(req.user, id, dto),
+    );
+  }
+  @Post('transfers/:id/arrival')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiDataResponse(WorkspaceRecordDto, 201)
+  arrive(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TransferArrivalInput,
+    @IdempotencyKey() key: string,
+  ) {
+    return this.run(req, key, 'DIST_ARRIVE', { id, ...dto }, () =>
+      this.service.arrive(req.user, id, dto),
     );
   }
 }

@@ -9,10 +9,11 @@ import type { Tone } from '../../../theme/staff';
 
 type Task = { transferId: string; action: string; status: string; origin: string; destination: string; role: string; createdAt: string };
 const ACTION: Record<string, { label: string; t: Tone; web?: boolean }> = {
-  CONSENT: { label: 'Ký xác nhận', t: 'orange' },
+  CONSENT: { label: 'Ký đồng thuận', t: 'orange' },
   PICKUP: { label: 'Ký lấy hàng', t: 'blue' },
   DELIVERY: { label: 'Ký giao nhận', t: 'green' },
   ACTUAL_RECEIPT: { label: 'Ghi lượng thực nhận', t: 'purple' },
+  ARRIVE: { label: 'Xác nhận đã tới', t: 'blue' },
   SIGN_RETURN: { label: 'Ký trả hàng · làm trên Web', t: 'gray', web: true },
   RECONCILE_REMAINDER: { label: 'Đối soát phần còn lại · làm trên Web', t: 'gray', web: true },
 };

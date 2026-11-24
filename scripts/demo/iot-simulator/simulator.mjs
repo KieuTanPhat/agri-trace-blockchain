@@ -223,7 +223,7 @@ function tickGps(device, at, dt) {
   // Cold start: no fix until the receiver has locked satellites.
   if (at.getTime() - device.bootAt < 40_000) return;
   const moving = (device.trip?.speed ?? 0) > 1;
-  const every = moving ? 10_000 : 120_000;
+  const every = Date.now() < (device.burstUntil ?? 0) ? 5_000 : moving ? 10_000 : 120_000;
   if (at.getTime() - (device.lastFixAt ?? 0) < every) return;
   device.lastFixAt = at.getTime();
   device.queue.push(gpsFix(device, at));
@@ -415,9 +415,21 @@ async function action(device, a, body) {
     case 'signal_on': device.signal = true; log(device, `Có sóng lại: gửi bù ${device.queue.length} bản ghi`); break;
     case 'stop': if (device.trip) { device.trip.manualStop = true; log(device, 'Xe dừng (ngoài kế hoạch)'); } break;
     case 'resume': if (device.trip) { device.trip.manualStop = false; device.trip.stopUntil = null; log(device, 'Xe chạy tiếp'); } break;
-    case 'finish': if (device.trip) { device.trip.progress = routes.get(device.trip.routeId).length - 200; log(device, 'Tua tới gần điểm nhận (chỉ để demo)'); } break;
+    case 'arrive':
+      // Demo shortcut: the vehicle is placed at the receiver site and reports a
+      // few quick fixes there. AgriTrace flags the jump, re-anchors on the
+      // consistent fixes and records the GPS arrival.
+      if (device.trip) {
+        const route = routes.get(device.trip.routeId);
+        device.trip.progress = route.length;
+        device.trip.speed = 0;
+        device.trip.manualStop = false;
+        device.trip.stopUntil = null;
+        device.burstUntil = Date.now() + 60_000;
+        log(device, 'Đưa xe tới điểm nhận (demo): gửi nhanh vài vị trí để AgriTrace ghi nhận đã tới');
+      }
+      break;
     case 'end_trip': device.parked = device.trip?.position ?? device.parked; device.trip = null; log(device, 'Kết thúc chuyến, xe đỗ'); break;
-    case 'unplug': device.power = 'BATTERY'; log(device, 'Rút nguồn xe: chạy pin dự phòng'); break;
     case 'plug': device.power = 'MAINS'; device.bootAt = Date.now(); log(device, 'Cắm lại nguồn: khởi động lại, chờ bắt vệ tinh'); break;
     case 'spoof': device.spoofNext = true; log(device, 'Điểm GPS tiếp theo sẽ bị giả mạo (nhảy ~50 km)'); break;
     case 'sensor_adjust': {
@@ -450,11 +462,6 @@ async function action(device, a, body) {
     case 'auto': device.mode = 'AUTO'; if (device.trip && !device.trip.transferId) device.trip = null; log(device, 'Chế độ tự động: chạy theo phiếu giao nhận trong AgriTrace'); await dispatch(device); break;
     case 'manual': device.mode = 'MANUAL'; log(device, 'Chế độ thủ công: tự chọn tuyến để demo'); break;
     case 'sync': await dispatch(device); break;
-    case 'replay':
-      if (!device.lastBody) throw new Error('Chưa có gói nào để gửi lại');
-      log(device, 'Gửi lại nguyên gói đã ký trước đó (replay)');
-      await upload(device, [], { replay: device.lastBody });
-      break;
     case 'forge': {
       const records = device.kind === 'GPS_TRACKER' ? [gpsFix(device, new Date())] : readingsAt(device, new Date());
       log(device, 'Gửi gói ký bằng khóa lạ (giả mạo thiết bị)');

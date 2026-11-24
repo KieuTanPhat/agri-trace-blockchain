@@ -40,6 +40,7 @@ const ACTION_LABEL: Record<string, string> = localized({
   PICKUP: "Ký lấy hàng",
   DELIVERY: "Ký giao hàng",
   ACTUAL_RECEIPT: "Lập biên bản thực nhận",
+  ARRIVE: "Xác nhận đã tới",
   PHOTOS_PICKUP: "Chụp ảnh lấy hàng",
   PHOTOS_DELIVERY: "Chụp ảnh giao hàng",
   CANCEL: "Hủy chặng",
@@ -458,6 +459,17 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                   {tr("Doanh nghiệp bạn đã vào chuỗi nhưng chưa có vai trò ký. Chủ chuỗi cấp vai trò ở trang thành viên chuỗi.")}
                 </Callout>
               )}
+              {t.status === "IN_TRANSIT" && (t.arrival ? (
+                <Callout tone="ok" title={tr("Xe đã tới nơi nhận")}>
+                  {tr("{p0} lúc {p1}.", { p0: t.arrival.source === "GPS" ? tr("GPS trên xe ghi nhận") : tr("Bên chở xác nhận"), p1: fmtDateTime(t.arrival.arrivedAt) })}
+                  {t.arrival.reason ? ` ${tr("Lý do: {p0}.", { p0: t.arrival.reason })}` : ""}{" "}
+                  {t.receipt ? tr("Bên chở và bên nhận ký giao hàng để hoàn tất.") : tr("Bên nhận lập biên bản thực nhận, sau đó bên chở và bên nhận ký giao hàng.")}
+                </Callout>
+              ) : (
+                <Callout tone="info" title={tr("Xe chưa tới nơi nhận")}>
+                  {tr("Biên bản thực nhận và chữ ký giao hàng mở sau khi xe tới: GPS trên xe tự ghi nhận khi xe vào gần cơ sở nhận, hoặc bên chở bấm Xác nhận đã tới.")}
+                </Callout>
+              ))}
               {t.allowedActions.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {t.allowedActions.map((a) => (
@@ -557,6 +569,24 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
 
             {(act.target==="CONSENT"||act.target==="PICKUP"||act.target==="DELIVERY")&&<DistributionSignature transfer={t} phase={act.target} props={act.props}/>}
             {act.target === "ACTUAL_RECEIPT" && <ReceiptDialog t={t} props={act.props} invalidate={invalidate} />}
+            {act.target === "ARRIVE" && (
+              <CommandDialog
+                {...act.props}
+                title={tr("Xác nhận đã tới nơi nhận")}
+                endpoint="POST /distribution/transfers/:id/arrival"
+                description={t.arrivalNeedsReason
+                  ? tr("GPS trên xe chưa ghi nhận xe tới cơ sở nhận. Ghi lý do (ví dụ GPS mất sóng); lý do được lưu cùng lịch sử chặng.")
+                  : tr("Xác nhận xe đã tới cơ sở nhận. Sau đó bên nhận lập biên bản thực nhận và hai bên ký giao hàng.")}
+                schema={z.object({ reason: t.arrivalNeedsReason ? reason10.max(500) : z.union([z.literal(""), reason10.max(500)]) })}
+                defaultValues={{ reason: "" }}
+                version={t.version}
+                submitLabel={tr("Xác nhận đã tới")}
+                invalidate={invalidate}
+                run={(v, cmd) => distApi.arrive(t.id, { version: t.version, ...(v.reason.trim() ? { reason: v.reason.trim() } : {}) }, cmd)}
+              >
+                {(f) => <TextAreaField control={f.control} name="reason" label={t.arrivalNeedsReason ? tr("Lý do") : tr("Ghi chú (không bắt buộc)")} max={500} />}
+              </CommandDialog>
+            )}
             {(act.target === "PHOTOS_PICKUP" || act.target === "PHOTOS_DELIVERY") && <HandoverPhotosDialog t={t} phase={act.target === "PHOTOS_PICKUP" ? "PICKUP" : "DELIVERY"} props={act.props} invalidate={invalidate} />}
             {act.target === "JOIN_CHAIN" && (
               <CommandDialog {...act.props} title={tr("Chấp nhận vào chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" })} endpoint="POST /distribution/transfers/:id/join-chain" description={t.chainAccess?.ownerIsSender ? tr("Lô thuộc chuỗi của bên giao. Doanh nghiệp bạn trở thành thành viên và tài khoản của bạn được cấp vai trò ký theo năng lực; quyền ký dùng được sau khi đồng bộ sổ cái.") : tr("Doanh nghiệp bạn trở thành thành viên chuỗi của lô. Chủ chuỗi cần cấp vai trò ký cho tài khoản của bạn trước khi ký đồng thuận.")} schema={z.object({})} defaultValues={{}} version={t.version} submitLabel={tr("Chấp nhận")} invalidate={invalidate} run={(_, cmd) => distApi.joinChain(t.id, { version: t.version }, cmd)}>

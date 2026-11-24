@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -8,6 +8,7 @@ import {
   IsDateString,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -239,6 +240,29 @@ export class TransferObservationInput {
   @MinLength(3)
   @MaxLength(1000)
   note!: string;
+}
+export class TransferArrivalInput extends TransferVersion {
+  @ApiPropertyOptional({
+    maxLength: 500,
+    description: 'Required when the vehicle GPS can judge arrival but has not seen the vehicle at the receiver site',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(10)
+  @MaxLength(500)
+  reason?: string;
+  @ApiPropertyOptional({ minimum: -90, maximum: 90, description: 'Phone location of the confirming person, if shared' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
+  @ApiPropertyOptional({ minimum: -180, maximum: 180 })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
 }
 export class TransferSignature extends TransferVersion {
   @ApiProperty({ enum: ['CONSENT', 'PICKUP', 'DELIVERY'] })

@@ -36,7 +36,7 @@ export function webSecurityHeaders(env: NodeJS.ProcessEnv = process.env, nonce?:
     `style-src ${styleSources}`,
     // Attributes cannot authorize <style> elements or executable scripts.
     "style-src-attr 'unsafe-inline'",
-    `img-src 'self' data: blob: https://tile.openstreetmap.org https://vietqr.app ${[...new Set(apiOrigins)].join(' ')}`.trim(),
+    `img-src 'self' data: blob: https://vietqr.app ${[...new Set(apiOrigins)].join(' ')}`.trim(),
     "font-src 'self' data:",
     `connect-src 'self' ${[...new Set(apiOrigins)].join(' ')}${development ? ' ws: wss:' : ''}`.trim(),
     "frame-src 'self' blob:",

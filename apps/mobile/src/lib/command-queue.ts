@@ -19,13 +19,14 @@ type Input = Pick<QueuedCommand, "key" | "path" | "body" | "label" | "detail">;
 const TRANSFER_OPERATIONS: Record<string, string> = {
   sign: "DIST_SIGN",
   receipt: "DIST_RECEIPT",
+  arrival: "DIST_ARRIVE",
   photos: "DIST_PHOTOS",
   "c2/prepare": "DIST_C2_PREPARE",
   "c2/submit": "DIST_C2_SUBMIT",
 };
 export function commandIdentity(command: Pick<QueuedCommand, "path" | "body">) {
   // Same operation names and payload shape as the Web command recovery.
-  const transfer = /^\/distribution\/transfers\/([^/]+)\/(sign|receipt|photos|c2\/prepare|c2\/submit)$/.exec(command.path);
+  const transfer = /^\/distribution\/transfers\/([^/]+)\/(sign|receipt|arrival|photos|c2\/prepare|c2\/submit)$/.exec(command.path);
   if (transfer)
     return { operation: TRANSFER_OPERATIONS[transfer[2]], payload: { ...command.body, id: transfer[1] } };
   if (command.path === "/distribution/quantities")
