@@ -13,7 +13,7 @@ export default function Products(){
   const query=params.q??'';
   const setQuery=(value:string)=>router.setParams({q:value});
   const [province,setProvince]=useState(''),[category,setCategory]=useState(''),[sort,setSort]=useState('default');
-  const page=useLoad(()=>loadDirectory<DirectoryProduct>('products'),[],{key:'public:directory:products',staleTimeMs:60_000});
+  const page=useLoad(()=>loadDirectory<DirectoryProduct>('products'),[],{key:'public:directory:products',staleTimeMs:5*60_000});
   useReloadOnFocus(page.reloadIfStale);
   const all=page.data??[];
   const provinces=[...new Set(all.map(p=>p.province).filter((s):s is string=>!!s))].sort();

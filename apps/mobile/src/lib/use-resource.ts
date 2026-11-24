@@ -13,7 +13,14 @@ export type ResourceCacheOptions = { key: string; staleTimeMs: number };
 type CachedResource = { value: unknown; updatedAt: number };
 const resourceCache = new Map<string, CachedResource>();
 const resourceLoads = new Map<string, Promise<unknown>>();
-const MAX_CACHED_RESOURCES = 40;
+const MAX_CACHED_RESOURCES = 120;
+/** A stale entry is still shown at once while it is refreshed in the background. */
+const MAX_STALE_MS = 30 * 60_000;
+
+function readStaleResource(key: string) {
+  const cached = resourceCache.get(key);
+  return cached && Date.now() - cached.updatedAt < MAX_STALE_MS ? cached : null;
+}
 
 function readFreshResource(key: string, staleTimeMs: number) {
   const cached = resourceCache.get(key);
@@ -65,9 +72,10 @@ export function useResource<T>(
   // The cache entry covers the same inputs as the read itself.
   const cacheKey = cacheOptions ? key : null;
   const staleTimeMs = cacheOptions?.staleTimeMs ?? 0;
+  // Fresh or stale, a cached value renders at once; a stale one refreshes quietly.
   const initialCached =
     cacheKey && staleTimeMs > 0
-      ? readFreshResource(cacheKey, staleTimeMs)
+      ? readStaleResource(cacheKey)
       : null;
   const [state, setState] = useState<{
     key: string;
@@ -124,12 +132,11 @@ export function useResource<T>(
             setState({ key: requestKey, data, error: null, loading: false });
         },
         (error) => {
+          // A failed background refresh keeps what is already on screen.
           if (requests.current.current(request))
-            setState({
-              key: requestKey,
-              data: null,
-              error: errorText(error),
-              loading: false,
+            setState((previous) => {
+              const kept = previous.key === requestKey ? previous.data : null;
+              return { key: requestKey, data: kept, error: kept === null ? errorText(error) : null, loading: false };
             });
         },
       );
@@ -178,7 +185,7 @@ export function useResource<T>(
   );
   const freshForCurrentKey =
     cacheKey && staleTimeMs > 0
-      ? readFreshResource(cacheKey, staleTimeMs)
+      ? readStaleResource(cacheKey)
       : null;
   const visible = state.key === key
     ? state

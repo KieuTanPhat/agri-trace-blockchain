@@ -16,7 +16,9 @@ function RemoteDirectoryPhoto({uri,label,fit}:{uri:string;label:string;fit:'cont
   const source=attempt?`${uri}${uri.includes('?')?'&':'?'}retry=${attempt}`:uri;
   if(failed)return <Pressable accessibilityRole="button" accessibilityLabel={`Tải lại ảnh ${label}`} onPress={event=>{event.stopPropagation();setFailed(false);setLoading(true);setAttempt(value=>value+1);}} style={{width:'100%',height:'100%',alignItems:'center',justifyContent:'center',gap:3,backgroundColor:'#f1f5f3'}}><Icon name="image" color="#7f9589" size={19}/><T size={11} c="#568067">Tải lại</T></Pressable>;
   return <View style={{width:'100%',height:'100%'}}>
-    <Image key={source} source={{uri:source}} cachePolicy="none" recyclingKey={source} transition={0} accessibilityLabel={label} style={{width:'100%',height:'100%'}} contentFit={fit} onLoad={()=>setLoading(false)} onError={()=>{if(attempt===0)setAttempt(1);else{setLoading(false);setFailed(true);}}}/>
+    {/* The URL carries the image version, so disk caching never shows a stale photo;
+        a failed load retries twice with a short pause before offering "Tải lại". */}
+    <Image key={source} source={{uri:source}} cachePolicy="memory-disk" recyclingKey={source} transition={0} accessibilityLabel={label} style={{width:'100%',height:'100%'}} contentFit={fit} onLoad={()=>setLoading(false)} onError={()=>{if(attempt<2)setTimeout(()=>setAttempt(value=>value+1),attempt?2000:800);else{setLoading(false);setFailed(true);}}}/>
     {loading&&<View pointerEvents="none" style={{position:'absolute',inset:0,alignItems:'center',justifyContent:'center',backgroundColor:'#f5f8f6'}}><ActivityIndicator size="small" color="#6a9a7a" accessibilityLabel={`Đang tải ảnh ${label}`}/></View>}
   </View>;
 }

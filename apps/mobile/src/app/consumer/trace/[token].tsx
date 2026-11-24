@@ -19,10 +19,19 @@ type Lot = Schemas['PublicLotDto'];
  * declared withdrawal periods) sit apart from ordinary data; there is no
  * "verified" badge. Re-opening a history entry always fetches fresh data.
  */
+/** Readable lot warnings; RECALLED and EXPIRED are shown elsewhere. */
+const WARNING_TEXT: Record<string, string> = {
+  DAMAGED: 'Lô đã được ghi nhận hư hỏng.',
+  REJECTED: 'Lô bị từ chối khi giao nhận.',
+  QUANTITY_MISMATCH: 'Số lượng của lô đang chờ đối soát.',
+  STATE_MISMATCH: 'Trạng thái của lô đang chờ đối soát.',
+  SENSOR_INTEGRITY_WARNING: 'Dữ liệu cảm biến của vụ không còn toàn vẹn.',
+};
+
 export default function Trace() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const [tab, setTab] = useState<'journey' | 'lot' | 'certs'>('journey');
-  const { data: lot, error, loading, reload } = useLoad(() => api<Lot>(`/public/trace/${encodeURIComponent(token ?? '')}`), [token]);
+  const { data: lot, error, loading, reload } = useLoad(() => api<Lot>(`/public/trace/${encodeURIComponent(token ?? '')}`), [token], { key: `public:trace:${token}`, staleTimeMs: 60_000 });
   useEffect(() => {
     if (lot && token) void rememberView(token, lot.productName,lot.imageUrl);
   }, [lot, token]);
@@ -49,10 +58,10 @@ export default function Trace() {
   const state = LOT_STATE[lot.currentState] ?? { label: lot.currentState, t: 'blue' as const };
   const producer = lot.journey?.find(group => group.company?.id === lot.farmOrg.organizationId)?.company;
   const producerName = producer?.name ?? lot.farmOrg.name;
+  // Expiry is shown compactly under the name; warning codes become readable text.
   const alerts = [
     ...(lot.currentState === 'RECALLED' ? ['Lô hàng đã bị thu hồi. Ngừng sử dụng và liên hệ nơi bán.'] : []),
-    ...(lot.isExpired ? [`Lô hàng đã hết hạn${lot.expiryDate ? ` từ ${date(lot.expiryDate)}` : ''}.`] : []),
-    ...lot.warnings,
+    ...lot.warnings.flatMap((code) => (WARNING_TEXT[code] ? [WARNING_TEXT[code]] : [])),
     ...(lot.productionWarnings ?? []),
   ];
 
@@ -74,6 +83,7 @@ export default function Trace() {
           {lot.productName}
         </T>
         {lot.lotName ? <T c={color.muted}>{lot.lotName}</T> : null}
+        {lot.isExpired ? <T size={13} c={color.red}>{`Hết hạn sử dụng${lot.expiryDate ? ` từ ${date(lot.expiryDate)}` : ''}`}</T> : null}
         <Pressable accessibilityRole="button" accessibilityLabel="Xem doanh nghiệp sản xuất" onPress={() => router.push(`/consumer/enterprise/${lot.farmOrg.organizationId}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{width:42,height:42,borderRadius:9,overflow:'hidden'}}><DirectoryPhoto url={producer?.logoUrl} label={producerName}/></View>
           <View style={{ flex: 1 }}>
@@ -100,7 +110,7 @@ export default function Trace() {
 
       <View style={{ padding: 16, gap: 14 }}>
         {alerts.map((text) => (
-          <Notice key={text} kind={lot.currentState === 'RECALLED' || lot.isExpired ? 'error' : 'warn'} title={text} />
+          <Notice key={text} kind={lot.currentState === 'RECALLED' ? 'error' : 'warn'} title={text} />
         ))}
 
         {tab === 'journey' && (

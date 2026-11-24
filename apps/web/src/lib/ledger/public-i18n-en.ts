@@ -268,7 +268,7 @@ export const PUBLIC_EN: Record<string, string> = {
   "Đang chờ xác nhận sổ cái": "Awaiting ledger confirmation",
   "Cảnh báo tính toàn vẹn": "Integrity warning",
   "Sổ cái chưa khả dụng": "Ledger unavailable",
-  "Đã quá hạn": "Expired",
+  "Hết hạn sử dụng": "Expired",
   "Thông tin lô cần được đối soát tính toàn vẹn.": "This lot's information needs an integrity reconciliation.",
   "Thông báo thu hồi": "Recall notice",
   "Cảnh báo": "Warning",
