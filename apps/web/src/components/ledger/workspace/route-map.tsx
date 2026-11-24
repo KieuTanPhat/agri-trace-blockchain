@@ -6,6 +6,15 @@ import type { MapPlace, RoutePoint } from "@/lib/ledger/iot-api";
 import { t as tr } from "@/lib/ledger/i18n";
 
 type LatLng = [number, number];
+/** Same rule as the API: faster than 180 km/h over more than 500 m is a jump. */
+function jumped(a: RoutePoint, b: RoutePoint) {
+  const rad = Math.PI / 180;
+  const h = Math.sin(((b.latitude - a.latitude) * rad) / 2) ** 2
+    + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(((b.longitude - a.longitude) * rad) / 2) ** 2;
+  const meters = 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(h)));
+  const seconds = Math.max(1, Math.abs(Date.parse(b.recordedAt) - Date.parse(a.recordedAt)) / 1000);
+  return meters > 500 && meters / 1000 / (seconds / 3600) > 180;
+}
 const has = (p: MapPlace): p is { name: string; latitude: number; longitude: number } =>
   !!p && p.latitude !== null && p.longitude !== null;
 
@@ -24,7 +33,8 @@ export function RouteMap({ points, origin, destination, live }: { points: RouteP
     void import("leaflet").then((L) => {
       if (disposed || !host.current || map.current) return;
       map.current = L.map(host.current, { zoomControl: true, attributionControl: true }).setView([10.8, 106.7], 9);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      // Same-origin tile proxy: works on networks that cannot resolve the OSM host.
+      L.tileLayer("/map-tiles/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map.current);
@@ -51,7 +61,14 @@ export function RouteMap({ points, origin, destination, live }: { points: RouteP
     const valid = points.filter((p) => p.validity === "VALID");
     const line: LatLng[] = valid.map((p) => [p.latitude, p.longitude]);
     const bounds: LatLng[] = [...line];
-    if (line.length > 1) L.polyline(line, { color: "#1f7a4d", weight: 4, opacity: 0.85 }).addTo(g);
+    // A re-anchored GPS jump is lost track: the line breaks instead of crossing it.
+    const segments: LatLng[][] = [];
+    valid.forEach((p, i) => {
+      if (i === 0 || jumped(valid[i - 1], p)) segments.push([]);
+      segments[segments.length - 1].push([p.latitude, p.longitude]);
+    });
+    for (const segment of segments)
+      if (segment.length > 1) L.polyline(segment, { color: "#1f7a4d", weight: 4, opacity: 0.85 }).addTo(g);
     for (const p of points.filter((x) => x.validity !== "VALID"))
       L.circleMarker([p.latitude, p.longitude], { radius: 5, color: p.validity === "ANOMALY" ? "#b42318" : "#8a6d1d", weight: 2, fillOpacity: 0.6 })
         .bindTooltip(p.validity === "ANOMALY" ? tr("Điểm bất thường ({p0})", { p0: p.anomalyCode ?? "" }) : tr("Điểm đến muộn sau niêm phong"))

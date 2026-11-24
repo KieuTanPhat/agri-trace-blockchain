@@ -25,6 +25,15 @@ function place(site: Site, fallbackName: string): TransferPlace {
   return { name: site?.name ?? fallbackName, latitude: null, longitude: null, source: null };
 }
 
+/** The receiver site's own map point; a province point never proves arrival. */
+export async function siteArrivalPoint(db: Prisma.TransactionClient, siteId: string | null) {
+  if (!siteId) return null;
+  const site = await db.enterpriseSite.findUnique({ where: { id: siteId }, select: { latitude: true, longitude: true } });
+  return site?.latitude != null && site.longitude != null
+    ? { latitude: Number(site.latitude.toString()), longitude: Number(site.longitude.toString()) }
+    : null;
+}
+
 /**
  * Pickup and delivery points of a transfer and the planned distance (ADR-006).
  * A site without a map point falls back to a representative province point, so a

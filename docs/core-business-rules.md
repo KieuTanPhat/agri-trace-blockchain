@@ -225,6 +225,14 @@ Carrier journal observations are labelled MANUAL, separate from IoT proofs, and
 carry no temperature (ADR-006). GPS positions of the carrying party's vehicle are
 recorded only inside the transit window and sealed with the DELIVERY attestation;
 see [ADR-006](adr-006-iot-plot-vehicle-tracking.md).
+Xác nhận đã tới (`distribution_arrival`, chỉ ghi thêm, một bản ghi mỗi chặng, có
+SQL guard) phải có trước biên bản thực nhận và mọi chữ ký DELIVERY. GPS trên xe tự
+ghi khi một điểm hợp lệ vào trong 300 m quanh tọa độ riêng của cơ sở nhận; nếu
+không, bên chở xác nhận (tài xế được chỉ định hoặc chủ doanh nghiệp khi tự chở;
+bên thuê xe khi thuê ngoài). Khi GPS đang theo dõi xe và đánh giá được nhưng chưa
+thấy xe tới, người xác nhận phải ghi lý do; xác nhận tay được ghi thành sự kiện
+`DISTRIBUTION_OBSERVED` nguồn MANUAL. Sau một cú nhảy GPS, ba điểm liên tiếp nhất
+quán thì hành trình được neo lại; đoạn nhảy không bao giờ tính vào quãng đường.
 Producer notices are explicit public projections. Recall notices block further
 distribution and sale without erasing the physical holding or its history.
 

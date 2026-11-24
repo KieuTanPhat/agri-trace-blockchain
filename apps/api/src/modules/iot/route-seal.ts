@@ -15,6 +15,12 @@ export const ROUTE_RULES = {
   stationaryRadiusM: 150,
   /** Within this distance of the receiver site the vehicle has arrived. */
   arrivalRadiusM: 300,
+  /**
+   * After a jump, this many consecutive mutually consistent points re-anchor the
+   * route: the last of them is valid again (a fix re-acquired far away after a
+   * tunnel or a cold start). The jump itself is never counted as distance.
+   */
+  reanchorPoints: 3,
 } as const;
 
 export type RoutePoint = {
@@ -59,6 +65,35 @@ export function classifyPosition(
   return kmh > ROUTE_RULES.maxPlausibleKmh && meters > 500 ? 'JUMP' : null;
 }
 
+/** Two fixes that a vehicle cannot connect at a plausible speed. */
+export function isJump(
+  a: Pick<RoutePoint, 'recordedAt' | 'latitude' | 'longitude'>,
+  b: Pick<RoutePoint, 'recordedAt' | 'latitude' | 'longitude'>,
+) {
+  return classifyPosition(a, { ...b, accuracyM: null }) === 'JUMP';
+}
+
+/**
+ * Validity of a new fix given the previous VALID fix and the jump anomalies
+ * stored after it (oldest first). Returns the code to store and whether the fix
+ * re-anchors the route.
+ */
+export function classifyWithReanchor(
+  previous: Pick<RoutePoint, 'recordedAt' | 'latitude' | 'longitude'> | null,
+  jumps: Pick<RoutePoint, 'recordedAt' | 'latitude' | 'longitude'>[],
+  point: Pick<RoutePoint, 'recordedAt' | 'latitude' | 'longitude' | 'accuracyM'>,
+): { code: string | null; reanchored: boolean } {
+  const code = classifyPosition(previous, point);
+  if (code !== 'JUMP') return { code, reanchored: false };
+  const need = ROUTE_RULES.reanchorPoints - 1;
+  const chain = jumps.slice(-need);
+  const consistent =
+    chain.length === need &&
+    chain.every((p, i) => i === 0 || !isJump(chain[i - 1], p)) &&
+    !isJump(chain[chain.length - 1], point);
+  return consistent ? { code: null, reanchored: true } : { code, reanchored: false };
+}
+
 type RouteSummary = {
   pointCount: number;
   anomalyCount: number;
@@ -81,8 +116,9 @@ export function summarizeRoute(
     .sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
   const anomalyCount = points.filter((p) => p.validity === 'ANOMALY').length;
   let distance = 0;
+  // A re-anchored jump between two valid points is lost track, not distance.
   for (let i = 1; i < valid.length; i++)
-    distance += distanceMeters(valid[i - 1], valid[i]);
+    if (!isJump(valid[i - 1], valid[i])) distance += distanceMeters(valid[i - 1], valid[i]);
   const marks = [start, ...valid.map((p) => p.recordedAt), end];
   const gaps: RouteSummary['gaps'] = [];
   let uncovered = 0;

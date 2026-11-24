@@ -24,6 +24,7 @@ export const distApi={
  signReturn:(v:string,r:string,b:S["ReturnSignatureInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/returns/"+id(r)+"/sign",b,c),
  renewConsent:(v:string,b:S["ConsentRenewInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/consent-renewal",b,c),
  observe:(v:string,b:S["TransferObservationInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/journal",b,c),
+ arrive:(v:string,b:S["TransferArrivalInput"],c:LedgerCommandContext)=>post("/transfers/"+id(v)+"/arrival",b,c),
  allocate:(v:S["SiteAllocationInput"],c:LedgerCommandContext)=>post("/allocations",v,c),quarantine:(v:S["QuarantineInput"],c:LedgerCommandContext)=>post("/quarantine",v,c),dispose:(v:S["HoldingDispositionInput"],c:LedgerCommandContext)=>post("/quantities",v,c),notice:(v:S["TraceNoticeInput"],c:LedgerCommandContext)=>post("/notices",v,c),
  siteTransfers:()=>items<SiteTransferView>("/site-transfers"),createSiteTransfer:(v:S["SiteTransferInput"],c:LedgerCommandContext)=>post("/site-transfers",v,c),
  dispatchSiteTransfer:(v:string,b:S["SiteTransferVersion"],c:LedgerCommandContext)=>post("/site-transfers/"+id(v)+"/dispatch",b,c),receiveSiteTransfer:(v:string,b:S["SiteTransferReceiptInput"],c:LedgerCommandContext)=>post("/site-transfers/"+id(v)+"/receive",b,c),resolveSiteTransfer:(v:string,b:S["SiteTransferResolutionInput"],c:LedgerCommandContext)=>post("/site-transfers/"+id(v)+"/resolve",b,c),cancelSiteTransfer:(v:string,b:S["SiteTransferVersion"],c:LedgerCommandContext)=>post("/site-transfers/"+id(v)+"/cancel",b,c),

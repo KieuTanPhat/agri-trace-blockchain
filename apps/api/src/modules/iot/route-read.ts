@@ -2,7 +2,7 @@ import type {
   DistributionTransfer,
   Prisma,
 } from '../../generated/prisma/client.js';
-import { transferPlaces } from './transfer-places.js';
+import { siteArrivalPoint, transferPlaces } from './transfer-places.js';
 import {
   decimalNumber,
   distanceMeters,
@@ -20,7 +20,7 @@ const MAX_POINTS = 2000;
  * receiver site. Positions keep their original recorded instants.
  */
 export async function transferRoute(db: Prisma.TransactionClient, t: DistributionTransfer) {
-  const [vehicle, tracker, rows, seal, places] = await Promise.all([
+  const [vehicle, tracker, rows, seal, places, arrival] = await Promise.all([
     t.vehicleId
       ? db.enterpriseVehicle.findUnique({ where: { id: t.vehicleId }, select: { id: true, registration: true, kind: true } })
       : null,
@@ -37,6 +37,10 @@ export async function transferRoute(db: Prisma.TransactionClient, t: Distributio
     }),
     db.distributionRouteSeal.findUnique({ where: { transferId: t.id } }),
     transferPlaces(db, t),
+    db.distributionArrival.findUnique({
+      where: { transferId: t.id },
+      select: { source: true, arrivedAt: true, reason: true, organizationId: true, latitude: true, longitude: true },
+    }),
   ]);
   const points: (RoutePoint & {
     speedKmh: number | null;
@@ -79,8 +83,9 @@ export async function transferRoute(db: Prisma.TransactionClient, t: Distributio
     warnings.push({ code: 'LONG_STOP', from: s.from.toISOString(), to: s.to.toISOString(), seconds: s.seconds });
   const anomalies = points.filter((p) => p.validity === 'ANOMALY').length;
   if (anomalies) warnings.push({ code: 'ANOMALY_POINTS', seconds: anomalies });
-  const arrived =
+  const nearDestination =
     !!last && !!destinationPoint && distanceMeters(last, destinationPoint) <= ROUTE_RULES.arrivalRadiusM;
+  const trackable = t.transportMode !== 'EXTERNAL_CARRIER' && !!t.vehicleId && !!tracker;
   const step = Math.max(1, Math.ceil(points.length / MAX_POINTS));
   const shown = points.filter((p, i) => p.validity !== 'VALID' || i % step === 0 || i === points.length - 1);
   return {
@@ -95,7 +100,17 @@ export async function transferRoute(db: Prisma.TransactionClient, t: Distributio
     origin,
     destination,
     planned,
-    arrived,
+    arrived: !!arrival,
+    nearDestination,
+    arrival: arrival && {
+      source: arrival.source,
+      arrivedAt: arrival.arrivedAt,
+      reason: arrival.reason,
+      latitude: decimalNumber(arrival.latitude),
+      longitude: decimalNumber(arrival.longitude),
+    },
+    // A carrier confirming arrival against a GPS that can judge it gives a reason.
+    arrivalNeedsReason: !arrival && trackable && !!destinationPoint && !nearDestination,
     lastPosition: last && {
       recordedAt: last.recordedAt,
       latitude: last.latitude,
@@ -126,4 +141,24 @@ export async function transferRoute(db: Prisma.TransactionClient, t: Distributio
       anomalyCode: p.anomalyCode,
     })),
   };
+}
+
+/**
+ * Whether a carrier confirming arrival must give a reason: the vehicle GPS can
+ * judge arrival (tracked vehicle, receiver site with its own map point) and its
+ * latest valid fix is not within the arrival radius.
+ */
+export async function arrivalNeedsReason(db: Prisma.TransactionClient, t: DistributionTransfer) {
+  if (t.transportMode === 'EXTERNAL_CARRIER' || !t.vehicleId) return false;
+  const [tracker, destination, last] = await Promise.all([
+    db.iotDevice.findFirst({ where: { vehicleId: t.vehicleId, status: 'ACTIVE' }, select: { id: true } }),
+    siteArrivalPoint(db, t.receiverSiteId),
+    db.distributionPosition.findFirst({
+      where: { transferId: t.id, validity: 'VALID' },
+      orderBy: [{ recordedAt: 'desc' }, { deviceSequence: 'desc' }],
+      select: { latitude: true, longitude: true },
+    }),
+  ]);
+  if (!tracker || !destination) return false;
+  return !last || distanceMeters({ latitude: Number(last.latitude), longitude: Number(last.longitude) }, destination) > ROUTE_RULES.arrivalRadiusM;
 }

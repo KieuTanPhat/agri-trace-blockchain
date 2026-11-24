@@ -27,6 +27,7 @@ const TASK_ACTION: Record<string, string> = localized({
   PICKUP: "Ký lấy hàng",
   DELIVERY: "Ký giao nhận hàng",
   ACTUAL_RECEIPT: "Ghi lượng thực nhận",
+  ARRIVE: "Xác nhận đã tới",
   SIGN_RETURN: "Ký trả hàng",
   RECONCILE_REMAINDER: "Đối soát hàng còn lại",
 });

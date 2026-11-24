@@ -35,10 +35,13 @@ reverse proxy có xác thực, không mở cổng thẳng ra mạng. Trạng th�
    phát. Cơ sở thiếu tọa độ dùng điểm đại diện tỉnh/thành trong catalog của repo.
    Không có mạng OSRM thì chạy tuyến ước lượng có nhãn. Xe đang chở không đổi GPS.
 5. Tạo sự cố để xem hệ thống phản ứng: mất sóng/có sóng lại (gửi bù), dừng bất
-   thường (> 30 phút), rút nguồn (chạy pin), GPS bị giả mạo (điểm bất thường),
-   gửi lại gói cũ (trùng), giả chữ ký (bị từ chối), tạo khóa mới (cần đổi khóa
-   trong AgriTrace).
-6. Ký nhận hàng: hành trình được niêm phong vào sự kiện `DISTRIBUTION_DELIVERED`;
+   thường (> 30 phút), GPS bị giả mạo (điểm bất thường), giả chữ ký (bị từ chối).
+   Tạo khóa mới trong mục Nâng cao thì cần đổi khóa trong AgriTrace.
+6. Nút **Đã tới** (demo) đưa xe tới điểm nhận và gửi nhanh vài vị trí. AgriTrace
+   đánh dấu cú nhảy là bất thường, nhận lại vị trí sau 3 điểm nhất quán và ghi
+   "đã tới" nếu cơ sở nhận có tọa độ; nếu không, bên chở bấm Xác nhận đã tới.
+   Bên nhận chỉ lập biên bản thực nhận và các bên chỉ ký giao hàng sau khi đã tới.
+7. Ký nhận hàng: hành trình được niêm phong vào sự kiện `DISTRIBUTION_DELIVERED`;
    thiết bị tự kết thúc chuyến. Điểm gửi sau đó được đánh dấu muộn và không đổi băm.
 
 Mục **Nâng cao** giữ chạy tuyến thủ công, nạp lịch sử và quản lý khóa. Nhận lại

@@ -369,10 +369,9 @@ function incidents(d) {
   return `<div class="row">
     ${d.manualSignal ? `<button class="button" onclick="act('${d.id}','signal_off')">Mất sóng</button>` : `<button class="button" onclick="act('${d.id}','signal_on')">Có sóng lại</button>`}
     ${gps && d.trip ? (d.trip.stopped ? `<button class="button" onclick="act('${d.id}','resume')">Chạy tiếp</button>` : `<button class="button" onclick="act('${d.id}','stop')">Dừng bất thường</button>`) : ''}
-    ${gps && d.trip ? `<button class="button" onclick="act('${d.id}','finish')">Tua gần điểm nhận</button>` : ''}
-    ${gps ? (d.power === 'MAINS' ? `<button class="button" onclick="act('${d.id}','unplug')">Rút nguồn</button>` : `<button class="button" onclick="act('${d.id}','plug')">Cắm nguồn</button>`) : ''}
+    ${gps && d.trip && !d.trip.arrivedAt ? `<button class="button" onclick="act('${d.id}','arrive')">Đã tới</button>` : ''}
+    ${gps && d.power !== 'MAINS' ? `<button class="button" onclick="act('${d.id}','plug')">Cắm nguồn</button>` : ''}
     ${gps ? `<button class="button" onclick="act('${d.id}','spoof')">GPS giả mạo</button>` : `<button class="button" onclick="act('${d.id}','drought')">${d.drought ? 'Hết khô hạn' : 'Khô hạn'}</button><button class="button" onclick="act('${d.id}','irrigate')">Tưới</button>`}
-    <button class="button" onclick="act('${d.id}','replay')">Gửi lại gói cũ</button>
     <button class="button" onclick="act('${d.id}','forge')">Giả chữ ký</button>
   </div>`;
 }

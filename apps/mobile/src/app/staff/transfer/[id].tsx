@@ -15,9 +15,27 @@ import { currentAttestations, transferStatus, type TransferDetail } from '../../
 import { useLoad, useReloadOnFocus } from '../../../lib/useApi';
 import { color } from '../../../theme/staff';
 
-type Detail = TransferDetail & SignableTransfer & { allowedActions: string[]; receiverSiteId?: string | null; photos?: { phase: string; evidenceId: string }[] };
+type Arrival = { source: 'GPS' | 'MANUAL'; arrivedAt: string; reason: string | null };
+type Detail = TransferDetail & SignableTransfer & {
+  allowedActions: string[];
+  receiverSiteId?: string | null;
+  photos?: { phase: string; evidenceId: string }[];
+  arrival?: Arrival | null;
+  arrivalNeedsReason?: boolean;
+  receipt?: unknown;
+};
+type Route = {
+  trackable: boolean;
+  tracker: { deviceCode: string; simulated: boolean; lastSeenAt: string | null } | null;
+  source: 'DEVICE' | 'SIMULATED' | 'NONE';
+  planned: { distanceM: number } | null;
+  lastPosition: { recordedAt: string; speedKmh: number | null } | null;
+  summary: { pointCount: number; anomalyCount: number; distanceM: number; coveragePercent: number } | null;
+  nearDestination?: boolean;
+};
+const km = (m: number) => `${(m / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km`;
 type ReceiptRow = { received: string; rejected: string; quarantined: string };
-const PHASE: Record<string, string> = { CONSENT: 'Ký xác nhận bàn giao', PICKUP: 'Ký lấy hàng', DELIVERY: 'Ký giao nhận hàng' };
+const PHASE: Record<string, string> = { CONSENT: 'Ký đồng thuận', PICKUP: 'Ký lấy hàng', DELIVERY: 'Ký giao nhận hàng' };
 const PHOTO_PHASE: Record<string, string> = { PICKUP: 'Ảnh lúc lấy hàng', DELIVERY: 'Ảnh lúc giao hàng' };
 const DEC = /^\d{1,11}(\.\d{1,3})?$/;
 type Message = { kind: 'success' | 'error' | 'warn'; title: string; body?: string };
@@ -28,7 +46,13 @@ export default function TransferScreen() {
   const { data, error, loading, reload } = useLoad(
     () => call<{ record: Detail }>(`/distribution/transfers/${encodeURIComponent(id)}`), [id],
   );
+  const route = useLoad(
+    () => call<{ record: Route }>(`/distribution/transfers/${encodeURIComponent(id)}/route`), [id],
+  );
   useReloadOnFocus(reload);
+  useReloadOnFocus(route.reload);
+  const [arriving, setArriving] = useState(false);
+  const [arrivalReason, setArrivalReason] = useState('');
   const [phase, setPhase] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Record<string, ReceiptRow> | null>(null);
   const [handoverPhotos, setHandoverPhotos] = useState<Photo[]>([]);
@@ -123,6 +147,28 @@ export default function TransferScreen() {
     }
   }
 
+  async function confirmArrival() {
+    if (!user || busy) return;
+    const text = arrivalReason.trim();
+    if (transfer!.arrivalNeedsReason ? text.length < 10 : text.length > 0 && text.length < 10)
+      return setMessage({ kind: 'error', title: 'Lý do tối thiểu 10 ký tự.' });
+    setBusy(true);
+    setMessage(null);
+    try {
+      await finish(await sendCommand(call, user, {
+        path: `/distribution/transfers/${transfer!.id}/arrival`, label: 'Xác nhận đã tới', detail: `${transfer!.origin} → ${transfer!.destination}`,
+        body: { version: transfer!.version, ...(text ? { reason: text } : {}) },
+      }), 'Đã xác nhận xe tới nơi nhận.');
+      setArriving(false);
+      setArrivalReason('');
+      await route.reload();
+    } catch (cause) {
+      setMessage({ kind: 'error', title: errorText(cause) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submitReceipt() {
     if (!user || !receipt || busy) return;
     const lines = receiptRows.map(({ lotId, received, rejected, quarantined }) => ({ lotId, received, rejected, quarantined }));
@@ -167,6 +213,44 @@ export default function TransferScreen() {
           <Notice kind="warn" title="Điện thoại chưa có khóa ký đang hoạt động"
             body="Tạo khóa ký trên điện thoại này, chờ kích hoạt rồi ký lại."
             action={<Button label="Thiết lập khóa ký" onPress={() => router.push(`/staff/signing?chainId=${transfer.chainId}`)} />} />
+        )}
+        {transfer.status === 'IN_TRANSIT' && (transfer.arrival ? (
+          <Notice kind="success" title="Xe đã tới nơi nhận"
+            body={`${transfer.arrival.source === 'GPS' ? 'GPS trên xe ghi nhận' : 'Bên chở xác nhận'} lúc ${dateTime(transfer.arrival.arrivedAt)}.${transfer.arrival.reason ? ` Lý do: ${transfer.arrival.reason}.` : ''} ${transfer.receipt ? 'Hai bên ký giao nhận hàng để hoàn tất.' : 'Chờ bên nhận ghi lượng thực nhận, sau đó hai bên ký giao nhận hàng.'}`} />
+        ) : (
+          <Notice kind="info" title="Xe chưa tới nơi nhận"
+            body="Ghi lượng thực nhận và ký giao nhận hàng mở sau khi xe tới: GPS trên xe tự ghi nhận khi vào gần cơ sở nhận, hoặc bên chở bấm Xác nhận đã tới." />
+        ))}
+        {route.data?.record && (route.data.record.tracker || route.data.record.summary) && (
+          <Card style={{ padding: 16, gap: 6 }}>
+            <T size={16} weight="heavy">Hành trình xe</T>
+            {route.data.record.tracker && <Row first icon="truck" label="Thiết bị GPS" value={route.data.record.tracker.deviceCode} mono />}
+            <Row icon="info" label="Nguồn vị trí" value={route.data.record.source === 'SIMULATED' ? 'Thiết bị mô phỏng' : route.data.record.source === 'DEVICE' ? 'Thiết bị thật' : 'Chưa có điểm'} />
+            {route.data.record.summary && (
+              <Row icon="location" label="Đã đi" value={`${km(route.data.record.summary.distanceM)}${route.data.record.planned ? ` / ~${km(route.data.record.planned.distanceM)}` : ''}`} />
+            )}
+            {route.data.record.lastPosition && (
+              <Row icon="clock" label="Cập nhật cuối" value={`${dateTime(route.data.record.lastPosition.recordedAt)}${route.data.record.lastPosition.speedKmh != null ? ` · ${Math.round(route.data.record.lastPosition.speedKmh)} km/h` : ''}`} />
+            )}
+            {!!route.data.record.summary?.anomalyCount && (
+              <T size={13} c={color.muted}>{route.data.record.summary.anomalyCount} điểm GPS bất thường không tính vào hành trình.</T>
+            )}
+          </Card>
+        )}
+        {transfer.allowedActions.includes('ARRIVE') && !receipt && !phase && (
+          arriving ? (
+            <Card style={{ padding: 16, gap: 10 }}>
+              <T size={16} weight="heavy">Xác nhận đã tới nơi nhận</T>
+              <T size={13} c={color.muted}>{transfer.arrivalNeedsReason
+                ? 'GPS trên xe chưa ghi nhận xe tới cơ sở nhận. Ghi lý do (ví dụ GPS mất sóng); lý do được lưu cùng lịch sử chuyến.'
+                : 'Sau khi xác nhận, bên nhận ghi lượng thực nhận và hai bên ký giao nhận hàng.'}</T>
+              <Field label={transfer.arrivalNeedsReason ? 'Lý do' : 'Ghi chú (không bắt buộc)'} value={arrivalReason} onChangeText={setArrivalReason} />
+              <Button label="Xác nhận đã tới" icon="location" loading={busy} disabled={busy} onPress={() => void confirmArrival()} />
+              <Button label="Hủy" kind="outline" disabled={busy} onPress={() => setArriving(false)} />
+            </Card>
+          ) : (
+            <Button label="Xác nhận đã tới" icon="location" onPress={() => { setArriving(true); setMessage(null); }} />
+          )
         )}
         {canReceive && !receipt && (
           <Button label="Ghi lượng thực nhận" icon="box" onPress={() => { setReceipt(Object.fromEntries(transfer.lines.map((l) => [l.lotId, { received: l.quantity, rejected: '0', quarantined: '0' }]))); setReason('Nhận đủ hàng, bao bì nguyên vẹn'); setMessage(null); }} />
@@ -240,7 +324,7 @@ export default function TransferScreen() {
             <T size={13} c={color.muted}>{dateTime(signature.createdAt)}</T>
           </Card>
         ))}
-        <Button label="Tải lại chuyến hàng" kind="outline" loading={loading} onPress={() => void reload()} />
+        <Button label="Tải lại chuyến hàng" kind="outline" loading={loading} onPress={() => { void reload(); void route.reload(); }} />
       </View>
     </ScrollView>
   );

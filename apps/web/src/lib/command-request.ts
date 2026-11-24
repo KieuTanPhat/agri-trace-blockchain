@@ -68,11 +68,11 @@ export function commandRequest(
   if(profileAmendment&&method==='POST')return result(profileAmendment[3]==='review'?'ENTERPRISE_PROFILE_REVIEW':'EW_PROFILE_WITHDRAW',{id:profileAmendment[2]});
   const transfer = match(
     path,
-    `/distribution/transfers/(${uuid})/(sign|cancel|journal|receipt|returns|consent-renewal|join-chain|c2/prepare|c2/submit)`,
+    `/distribution/transfers/(${uuid})/(sign|cancel|journal|receipt|arrival|returns|consent-renewal|join-chain|c2/prepare|c2/submit)`,
   );
   if (transfer && method === "POST")
     return result(
-      ({receipt:'DIST_RECEIPT',returns:'DIST_RETURN','consent-renewal':'DIST_RENEW_CONSENT','c2/prepare':'DIST_C2_PREPARE','c2/submit':'DIST_C2_SUBMIT'} as Record<string,Operation>)[transfer[2]] ?? (transfer[2] === "sign"
+      ({receipt:'DIST_RECEIPT',arrival:'DIST_ARRIVE',returns:'DIST_RETURN','consent-renewal':'DIST_RENEW_CONSENT','c2/prepare':'DIST_C2_PREPARE','c2/submit':'DIST_C2_SUBMIT'} as Record<string,Operation>)[transfer[2]] ?? (transfer[2] === "sign"
         ? "DIST_SIGN"
         : transfer[2] === "journal"
           ? "DIST_OBSERVE"

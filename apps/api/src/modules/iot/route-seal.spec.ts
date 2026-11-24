@@ -1,6 +1,7 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import {
   classifyPosition,
+  classifyWithReanchor,
   distanceMeters,
   longStops,
   routeDigest,
@@ -23,6 +24,23 @@ const point = (minutes: number, latitude: number, longitude: number, validity = 
 });
 
 describe('route seal (ADR-006)', () => {
+  it('re-anchors after consistent fixes far away and never counts the jump as distance', () => {
+    const previous = point(0, 10.8, 106.7);
+    const far = [point(1, 11.8, 106.7, 'ANOMALY'), point(2, 11.8001, 106.7, 'ANOMALY')];
+    // A lone jump and a jump followed by too few consistent fixes stay anomalies.
+    expect(classifyWithReanchor(previous, [], { ...point(1, 11.8, 106.7), accuracyM: 5 })).toEqual({ code: 'JUMP', reanchored: false });
+    expect(classifyWithReanchor(previous, far.slice(0, 1), { ...point(2, 11.8001, 106.7), accuracyM: 5 })).toEqual({ code: 'JUMP', reanchored: false });
+    // Fixes that disagree with each other never re-anchor (spoofing keeps flagging).
+    expect(classifyWithReanchor(previous, [far[0], point(2, 12.5, 106.7, 'ANOMALY')], { ...point(3, 11.8002, 106.7), accuracyM: 5 }).code).toBe('JUMP');
+    expect(classifyWithReanchor(previous, far, { ...point(3, 11.8002, 106.7), accuracyM: 5 })).toEqual({ code: null, reanchored: true });
+    // Poor accuracy is judged before any re-anchoring.
+    expect(classifyWithReanchor(previous, far, { ...point(3, 11.8002, 106.7), accuracyM: 500 }).code).toBe('LOW_ACCURACY');
+    const summary = summarizeRoute([previous, point(1, 10.801, 106.7), ...far, point(3, 11.8002, 106.7), point(4, 11.8012, 106.7)], at(0), at(4));
+    expect(summary.pointCount).toBe(4);
+    expect(summary.distanceM).toBeGreaterThan(200);
+    expect(summary.distanceM).toBeLessThan(250);
+  });
+
   it('measures great-circle distance', () => {
     // Roughly 1.11 km per 0.01 degree of latitude.
     expect(distanceMeters({ latitude: 10.77, longitude: 106.7 }, { latitude: 10.78, longitude: 106.7 })).toBeCloseTo(1112, -1);

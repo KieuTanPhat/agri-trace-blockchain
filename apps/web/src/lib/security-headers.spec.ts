@@ -15,7 +15,8 @@ describe('Web browser security policy', () => {
     expect(policy['script-src']).not.toContain("'unsafe-inline'");
     expect(policy['style-src']).not.toContain("'unsafe-inline'");
     expect(policy['img-src']).not.toContain('https:');
-    expect(policy['img-src']).toContain('https://tile.openstreetmap.org');
+    // Map tiles come through the same-origin proxy, not the public tile host.
+    expect(policy['img-src']).not.toContain('https://tile.openstreetmap.org');
     expect(policy['img-src']).toContain('https://vietqr.app');
     expect(policy['script-src']).not.toContain('https://vietqr.app');
     expect(policy['connect-src']).not.toContain('https://vietqr.app');

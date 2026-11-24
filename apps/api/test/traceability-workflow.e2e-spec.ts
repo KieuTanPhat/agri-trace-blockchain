@@ -927,7 +927,32 @@ const prisma = new PrismaClient({
       const forged = await sendPositions([{ sequence: 14, recordedAt: at(5), latitude: 10.802, longitude: 106.7 }], generateKeyPairSync('ed25519').privateKey);
       expect(forged.status).toBe(401);
       const route = (await get(`/distribution/transfers/${transfer.id}/route`, 'selfReceiver').expect(200)).body.data.record;
-      expect(route).toMatchObject({ trackable: true, source: 'SIMULATED', summary: { pointCount: 3, anomalyCount: 1 } });
+      expect(route).toMatchObject({ trackable: true, source: 'SIMULATED', arrived: false, arrivalNeedsReason: true, summary: { pointCount: 3, anomalyCount: 1 } });
+      // Arrival comes first: no receipt and no delivery signature before it.
+      await post(`/distribution/transfers/${transfer.id}/receipt`, {
+        version: transfer.version,
+        reason: 'Lập biên bản khi xe chưa tới nơi nhận',
+        lines: [{ lotId: lot.id, received: '0.600', rejected: '0', quarantined: '0' }],
+      }, 'selfReceiver').expect(409);
+      expect((await signPhase('farm', farmOrgId, 'DELIVERY')).status).toBe(409);
+      // Only the carrying side confirms; the GPS still sees the vehicle away,
+      // so a person confirming must give a reason.
+      await post(`/distribution/transfers/${transfer.id}/arrival`, { version: transfer.version }, 'selfReceiver').expect(403);
+      await post(`/distribution/transfers/${transfer.id}/arrival`, { version: transfer.version }).expect(422);
+      // A fix re-acquired far away (tunnel, cold start) is a jump until enough
+      // consistent fixes re-anchor the route; the jump is never distance. The
+      // re-anchored fix at the receiver site records the GPS arrival.
+      const reacquired = await sendPositions([
+        { sequence: 20, recordedAt: at(10_000), latitude: 10.86, longitude: 106.77, accuracyM: 6 },
+        { sequence: 21, recordedAt: at(10_001), latitude: 10.8601, longitude: 106.77, accuracyM: 6 },
+        { sequence: 22, recordedAt: at(10_002), latitude: 10.8602, longitude: 106.77, accuracyM: 6 },
+      ]);
+      expect(reacquired.body.data).toMatchObject({ accepted: 3, anomalies: 2, arrived: true });
+      const arrivedRoute = (await get(`/distribution/transfers/${transfer.id}/route`, 'selfReceiver').expect(200)).body.data.record;
+      expect(arrivedRoute).toMatchObject({ arrived: true, arrival: { source: 'GPS' }, summary: { pointCount: 4, anomalyCount: 3 } });
+      expect(arrivedRoute.summary.distanceM).toBeLessThan(500);
+      await post(`/distribution/transfers/${transfer.id}/arrival`, { version: transfer.version, reason: 'Xác nhận lại lần nữa cho chắc' }).expect(409);
+      await expect(prisma.$executeRaw`UPDATE distribution_arrival SET reason = 'sửa' WHERE transfer_id = ${transfer.id}::uuid`).rejects.toThrow(/append-only/);
       // Handover photos: a short receipt needs the receiver's photo, a photo of
       // another organization is refused, and delivery photos enter the snapshot
       // every delivery signature covers.
@@ -977,7 +1002,7 @@ const prisma = new PrismaClient({
       expect(transfer.status).toBe('DELIVERED');
       expect((await readAssignment().expect(200)).body.data.trip).toBeNull();
       const seal = await prisma.distributionRouteSeal.findUniqueOrThrow({ where: { transferId: transfer.id } });
-      expect(seal).toMatchObject({ source: 'SIMULATED', pointCount: 3, anomalyCount: 1 });
+      expect(seal).toMatchObject({ source: 'SIMULATED', pointCount: 4, anomalyCount: 3 });
       const delivered = await prisma.traceEvent.findFirstOrThrow({
         where: { lotId: lot.id, eventType: 'DISTRIBUTION_DELIVERED' },
       });

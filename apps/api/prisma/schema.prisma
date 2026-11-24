@@ -1099,6 +1099,7 @@ model DistributionTransfer {
   attestations DistributionAttestation[]
   positions DistributionPosition[]
   routeSeal DistributionRouteSeal?
+  arrival DistributionArrival?
   photos DistributionHandoverPhoto[]
   @@index([senderId, status])
   @@index([receiverId, status])
@@ -1172,6 +1173,27 @@ model DistributionObservation {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   @@index([transferId,eventTime])
   @@map("distribution_observation")
+}
+
+/// Arrival at the receiver site, set once: by the vehicle GPS entering the
+/// arrival radius or confirmed by the carrying party (with a reason when the
+/// GPS disagrees). The receipt and delivery signatures require it.
+model DistributionArrival {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transferId     String               @unique(map: "ux_distribution_arrival_transfer") @map("transfer_id") @db.Uuid
+  /// GPS | MANUAL
+  source         String               @db.VarChar(10)
+  organizationId String?              @map("organization_id") @db.Uuid
+  userId         String?              @map("user_id") @db.Uuid
+  deviceId       String?              @map("device_id") @db.Uuid
+  reason         String?              @db.VarChar(500)
+  latitude       Decimal?             @db.Decimal(9, 6)
+  longitude      Decimal?             @db.Decimal(9, 6)
+  arrivedAt      DateTime             @map("arrived_at") @db.Timestamptz(6)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  transfer       DistributionTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+
+  @@map("distribution_arrival")
 }
 
 /// Append-only GPS positions of the vehicle carrying a transfer (ADR-006).

@@ -20,10 +20,11 @@ type Task = { transferId: string; action: string; origin: string; destination: s
 const SHORT = { staleTimeMs: 20_000 };
 const TONES: Tone[] = ['green', 'blue', 'orange', 'purple'];
 const ACTION: Record<string, { label: string; t: Tone }> = {
-  CONSENT: { label: 'Ký xác nhận', t: 'orange' },
+  CONSENT: { label: 'Ký đồng thuận', t: 'orange' },
   PICKUP: { label: 'Ký lấy hàng', t: 'blue' },
   DELIVERY: { label: 'Ký giao nhận', t: 'green' },
   ACTUAL_RECEIPT: { label: 'Ghi thực nhận', t: 'purple' },
+  ARRIVE: { label: 'Xác nhận đã tới', t: 'blue' },
 };
 const WEEKDAY = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 

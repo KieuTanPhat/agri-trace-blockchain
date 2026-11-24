@@ -320,6 +320,7 @@ const OPERATIONS: Record<string, EnterprisePermission> = {
   EW_SITE_TRANSFER_RESOLVE: 'inventory.manage',
   EW_SITE_TRANSFER_CANCEL: 'inventory.manage',
   DIST_RECEIPT: 'distribution.sign',
+  DIST_ARRIVE: 'distribution.sign',
   DIST_PHOTOS: 'distribution.sign',
   EW_DEVICE_KEY_REQUEST: 'distribution.sign',
   DIST_C2_PREPARE: 'distribution.sign',

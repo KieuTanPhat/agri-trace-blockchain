@@ -8,16 +8,16 @@ import { commandTransaction, lockAggregate } from '../../common/idempotency/comm
 import { businessTimestamp } from '../../common/timestamp.js';
 import type { IotDevice, Prisma } from '../../generated/prisma/client.js';
 import { markLateReading, validateSensorTime } from './harvest-sensor-window.js';
-import { classifyPosition } from './route-seal.js';
+import { classifyPosition, classifyWithReanchor, distanceMeters, ROUTE_RULES } from './route-seal.js';
 import { sentAtWithinSkew, verifyDeviceSignature } from './device-signature.js';
 import type { DeviceAssignmentInput, SignedPositionsInput, SignedReadingsInput } from './device-dto.js';
-import { transferPlaces } from './transfer-places.js';
+import { siteArrivalPoint, transferPlaces } from './transfer-places.js';
 
 const RUNNING_STATES = ['PLANTED', 'GROWING'];
 /** Device clocks may run slightly ahead; later instants are refused. */
 const FUTURE_TOLERANCE_MS = 2 * 60_000;
 
-type Result = { accepted: number; duplicates: number; ignored: number; late: number; anomalies: number; rejected: number };
+type Result = { accepted: number; duplicates: number; ignored: number; late: number; anomalies: number; rejected: number; arrived?: boolean };
 const empty = (): Result => ({ accepted: 0, duplicates: 0, ignored: 0, late: 0, anomalies: 0, rejected: 0 });
 
 function parseInstant(value: string): Date | null {
@@ -181,8 +181,10 @@ export class DeviceIngestService {
       // Serialize with the DELIVERY seal, which locks the same row.
       if (active) await tx.$queryRaw`SELECT id FROM distribution_transfer WHERE id=${active.id}::uuid FOR UPDATE`;
       const transit = active
-        ? await tx.distributionTransfer.findUnique({ where: { id: active.id }, select: { id: true, status: true, inTransitAt: true } })
+        ? await tx.distributionTransfer.findUnique({ where: { id: active.id }, select: { id: true, status: true, inTransitAt: true, receiverSiteId: true, arrival: { select: { id: true } } } })
         : null;
+      // Arrival is judged only against the receiver site's own map point.
+      let arrivalPoint = transit && !transit.arrival ? await siteArrivalPoint(tx, transit.receiverSiteId) : null;
       const delivered = vehicleId
         ? await tx.distributionTransfer.findMany({
             where: { vehicleId, status: { in: ['DELIVERED'] }, deliveredAt: { not: null } },
@@ -192,12 +194,19 @@ export class DeviceIngestService {
           })
         : [];
       let previous: { recordedAt: Date; latitude: number; longitude: number } | null = null;
+      let jumps: { recordedAt: Date; latitude: number; longitude: number }[] = [];
       if (transit) {
         const last = await tx.distributionPosition.findFirst({
           where: { transferId: transit.id, validity: 'VALID' },
           orderBy: [{ recordedAt: 'desc' }, { deviceSequence: 'desc' }],
         });
         previous = last && { recordedAt: last.recordedAt, latitude: Number(last.latitude), longitude: Number(last.longitude) };
+        const trailing = await tx.distributionPosition.findMany({
+          where: { transferId: transit.id, anomalyCode: 'JUMP', ...(last ? { recordedAt: { gt: last.recordedAt } } : {}) },
+          orderBy: [{ recordedAt: 'desc' }, { deviceSequence: 'desc' }],
+          take: ROUTE_RULES.reanchorPoints,
+        });
+        jumps = trailing.reverse().map((j) => ({ recordedAt: j.recordedAt, latitude: Number(j.latitude), longitude: Number(j.longitude) }));
       }
       const items = [...body.positions].sort((a, b) =>
         Date.parse(a.recordedAt) - Date.parse(b.recordedAt) || a.sequence - b.sequence,
@@ -234,10 +243,23 @@ export class DeviceIngestService {
             result.accepted++;
             continue;
           }
-          const code = classifyPosition(previous, { ...p, recordedAt });
+          const fix = { recordedAt, latitude: p.latitude, longitude: p.longitude };
+          const { code } = classifyWithReanchor(previous, jumps, { ...fix, accuracyM: p.accuracyM });
           await tx.distributionPosition.create({ data: { ...base, transferId: transit.id, validity: code ? 'ANOMALY' : 'VALID', anomalyCode: code } });
-          if (code) result.anomalies++;
-          else previous = { recordedAt, latitude: p.latitude, longitude: p.longitude };
+          if (code) {
+            result.anomalies++;
+            if (code === 'JUMP') jumps = [...jumps, fix].slice(-ROUTE_RULES.reanchorPoints);
+          } else {
+            previous = fix;
+            jumps = [];
+            if (arrivalPoint && distanceMeters(fix, arrivalPoint) <= ROUTE_RULES.arrivalRadiusM) {
+              await tx.distributionArrival.create({
+                data: { transferId: transit.id, source: 'GPS', deviceId: device.id, latitude: p.latitude, longitude: p.longitude, arrivedAt: recordedAt },
+              });
+              arrivalPoint = null;
+              result.arrived = true;
+            }
+          }
           result.accepted++;
           continue;
         }
