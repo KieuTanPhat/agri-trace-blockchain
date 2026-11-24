@@ -943,9 +943,9 @@ const prisma = new PrismaClient({
       // consistent fixes re-anchor the route; the jump is never distance. The
       // re-anchored fix at the receiver site records the GPS arrival.
       const reacquired = await sendPositions([
-        { sequence: 20, recordedAt: at(10_000), latitude: 10.86, longitude: 106.77, accuracyM: 6 },
-        { sequence: 21, recordedAt: at(10_001), latitude: 10.8601, longitude: 106.77, accuracyM: 6 },
-        { sequence: 22, recordedAt: at(10_002), latitude: 10.8602, longitude: 106.77, accuracyM: 6 },
+        { sequence: 20, recordedAt: at(5), latitude: 10.86, longitude: 106.77, accuracyM: 6 },
+        { sequence: 21, recordedAt: at(6), latitude: 10.8601, longitude: 106.77, accuracyM: 6 },
+        { sequence: 22, recordedAt: at(7), latitude: 10.8602, longitude: 106.77, accuracyM: 6 },
       ]);
       expect(reacquired.body.data).toMatchObject({ accepted: 3, anomalies: 2, arrived: true });
       const arrivedRoute = (await get(`/distribution/transfers/${transfer.id}/route`, 'selfReceiver').expect(200)).body.data.record;
