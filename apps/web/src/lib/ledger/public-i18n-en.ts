@@ -106,6 +106,8 @@ export const PUBLIC_EN: Record<string, string> = {
   "Gửi phản ánh nếu thông tin chưa đúng hoặc nghi hàng giả.": "Send a report if the information looks wrong or you suspect a counterfeit.",
   "Tra cứu nguồn gốc trong vài giây": "Check the origin in seconds",
   "Quét mã truy xuất": "Scan a trace code",
+  "Đưa mã QR trên bao bì vào khung hình; thông tin lô hiện ngay khi đọc được mã.": "Hold the QR code on the package in the frame; the lot opens as soon as it is read.",
+  "Hoặc nhập mã truy xuất": "Or enter the trace code",
   "Kết nối với AgriTrace": "Get in touch with AgriTrace",
   "Tư vấn triển khai truy xuất cho doanh nghiệp và chuỗi cung ứng.": "Advice on rolling out traceability for businesses and supply chains.",
 
@@ -266,7 +268,7 @@ export const PUBLIC_EN: Record<string, string> = {
   "Đang chờ xác nhận sổ cái": "Awaiting ledger confirmation",
   "Cảnh báo tính toàn vẹn": "Integrity warning",
   "Sổ cái chưa khả dụng": "Ledger unavailable",
-  "Đã quá hạn": "Expired",
+  "Hết hạn sử dụng": "Expired",
   "Thông tin lô cần được đối soát tính toàn vẹn.": "This lot's information needs an integrity reconciliation.",
   "Thông báo thu hồi": "Recall notice",
   "Cảnh báo": "Warning",

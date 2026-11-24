@@ -12,6 +12,7 @@ import { cn } from "@/lib/ledger/utils";
 import { LanguageSwitch, useLocale } from "../locale";
 import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "../ui/sheet";
+import { ScanDialog } from "../scan-dialog";
 
 const LOGO_RATIO = 720 / 212;
 
@@ -161,12 +162,12 @@ function Header({ path }: { path: string }) {
         <DesktopNav path={path} />
         <div className="flex items-center gap-2">
           <LanguageSwitch />
-          <Button asChild className="hidden sm:inline-flex">
-            <Link href={customerHref("/scan")}>
+          <ScanDialog>
+            <Button className="hidden sm:inline-flex">
               <ScanLine />
               {pt("Quét mã")}
-            </Link>
-          </Button>
+            </Button>
+          </ScanDialog>
           <MobileNav path={path} />
         </div>
       </div>

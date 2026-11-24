@@ -5,7 +5,7 @@ import {LedgerPublicShell} from "@/components/ledger/shell/public-shell";
 import {setLocale} from "@/lib/ledger/i18n";
 import {pt} from "@/lib/ledger/public-i18n";
 import {SITE_CONTACT} from "@/lib/site-contact";
-vi.mock("next/navigation",()=>({usePathname:()=>"/"}));
+vi.mock("next/navigation",()=>({usePathname:()=>"/",useRouter:()=>({push:()=>undefined})}));
 vi.mock("next/image",()=>({default:({alt}:{alt:string})=><span role="img" aria-label={alt}/>}));
 afterEach(()=>{cleanup();setLocale("vi");document.documentElement.className="";});
 const hrefs=()=>screen.getAllByRole("link").map(a=>a.getAttribute("href"));

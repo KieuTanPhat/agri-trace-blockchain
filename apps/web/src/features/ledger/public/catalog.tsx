@@ -17,6 +17,7 @@ import { Button } from "@/components/ledger/ui/button";
 import { Input } from "@/components/ledger/ui/input";
 import { TraceQrImage, useTraceQr } from "@/components/ledger/workspace/trace-qr";
 import { Container, Reveal, SectionHeading } from "./blocks";
+import { ScanDialog } from "@/components/ledger/scan-dialog";
 
 export const ORG_TYPE: Record<string, string> = { FARM: "Nông trại", PROCESSOR: "Nhà chế biến", DISTRIBUTOR: "Nhà phân phối", RETAILER: "Nhà bán lẻ", TRANSPORTER: "Vận chuyển", AUDITOR: "Kiểm định" };
 
@@ -443,12 +444,12 @@ export function ProductDetail({ id }: { id: string }) {
                 </Link>
               </Button>
             )}
-            <Button asChild variant="outline">
-              <Link href={customerHref("/scan")}>
+            <ScanDialog>
+              <Button variant="outline">
                 <ScanLine />
                 {pt("Quét mã trên bao bì")}
-              </Link>
-            </Button>
+              </Button>
+            </ScanDialog>
           </div>
         </div>
         </div>

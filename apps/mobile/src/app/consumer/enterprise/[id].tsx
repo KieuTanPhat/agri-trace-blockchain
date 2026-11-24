@@ -31,14 +31,14 @@ function EnterpriseDetail({ id }: { id: string }) {
         `/public/enterprises/${id}?limit=50`,
       ),
     [id],
-    { key: `public:enterprise:${id}`, staleTimeMs: 60_000 },
+    { key: `public:enterprise:${id}`, staleTimeMs: 5 * 60_000 },
   );
   useReloadOnFocus(reloadIfStale);
   if (!data || data.id !== id)
     return (
       <View style={{ flex: 1, backgroundColor: dc.bg }}>
         <DirectoryHeader title="Doanh nghiệp" query="" onQuery={() => {}} />
-        {loading ? (
+        {loading && !data ? (
           <Loading />
         ) : (
           <View style={{ padding: 16 }}>
