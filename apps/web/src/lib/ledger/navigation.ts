@@ -25,7 +25,7 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
             { href: "/admin/users", get label() { return tr("Quản lý tài khoản người dùng"); }, get keywords() { return tr("user người dùng khóa mở"); } },
             { href: "/admin/inspectors", get label() { return tr("Kiểm định độc lập"); }, get keywords() { return tr("kiểm định auditor compliance reviewer phân công vùng sản xuất"); } },
             { href: "/admin/audit-log", get label() { return tr("Nhật ký kiểm toán"); }, readOnly: true, get keywords() { return tr("audit log chuỗi băm"); } },
-            { href: "/admin/security", get label() { return tr("Cảnh báo bảo mật"); }, readOnly: true, get keywords() { return tr("security mfa khóa"); } },
+            // "Cảnh báo bảo mật" (/admin/security) is hidden from the menu; the page stays reachable.
         ]
     },
     {
