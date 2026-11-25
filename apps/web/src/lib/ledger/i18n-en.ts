@@ -2450,4 +2450,9 @@ export const EN: Record<string, string> = {
   "Xem phạm vi thu hồi": "See recall scope",
   "Xem xét yêu cầu và trả lời kết quả.": "Review the request and reply with the outcome.",
   "Xóa hoặc vô hiệu hóa phần xóa được; lô, giao nhận và blockchain phải giữ lại.": "Delete or disable what can be removed; lots, handovers and blockchain records stay.",
+  "Nhận vai trò ký": "Take the signing role",
+  "Chưa có vai trò ký trong chuỗi này": "No signing role in this chain yet",
+  "Doanh nghiệp bạn đã vào chuỗi nhưng chưa ai có vai trò ký. Chủ doanh nghiệp bấm “Nhận vai trò ký”; nhân viên thì chủ doanh nghiệp thêm chuỗi này vào phạm vi ở Quản lý thành viên.": "Your enterprise joined the chain but nobody holds a signing role. The owner presses “Take the signing role”; for staff, the owner adds this chain to their scope in Members.",
+  "Nhận vai trò ký trong chuỗi {p0}": "Take the signing role in chain {p0}",
+  "Tài khoản của bạn được cấp vai trò ký theo năng lực doanh nghiệp trong chuỗi này; quyền ký dùng được sau khi đồng bộ sổ cái (vài giây đến vài phút).": "Your account receives the signing role for your enterprise's capability in this chain; it works once the ledger syncs (seconds to minutes).",
 };

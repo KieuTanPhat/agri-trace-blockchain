@@ -455,8 +455,8 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                 </Callout>
               )}
               {t.chainAccess && t.senderId !== me && t.chainAccess.membership === "ACTIVE" && t.chainAccess.roleGrants === 0 && t.status === "PROPOSED" && (
-                <Callout tone="warn" title={tr("Chờ chủ chuỗi cấp quyền ký")}>
-                  {tr("Doanh nghiệp bạn đã vào chuỗi nhưng chưa có vai trò ký. Chủ chuỗi cấp vai trò ở trang thành viên chuỗi.")}
+                <Callout tone="warn" title={tr("Chưa có vai trò ký trong chuỗi này")}>
+                  {tr("Doanh nghiệp bạn đã vào chuỗi nhưng chưa ai có vai trò ký. Chủ doanh nghiệp bấm “Nhận vai trò ký”; nhân viên thì chủ doanh nghiệp thêm chuỗi này vào phạm vi ở Quản lý thành viên.")}
                 </Callout>
               )}
               {t.status === "IN_TRANSIT" && (t.arrival ? (
@@ -473,7 +473,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
               {t.allowedActions.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {t.allowedActions.map((a) => (
-                    <Button key={a} size="sm" variant={["CANCEL", "RENEW_CONSENT"].includes(a) ? "outline" : "default"} onClick={() => act.open(a)}>{ACTION_LABEL[a]}</Button>
+                    <Button key={a} size="sm" variant={["CANCEL", "RENEW_CONSENT"].includes(a) ? "outline" : "default"} onClick={() => act.open(a)}>{a === "JOIN_CHAIN" && t.chainAccess?.membership === "ACTIVE" ? tr("Nhận vai trò ký") : ACTION_LABEL[a]}</Button>
                   ))}
                 </div>
               )}
@@ -589,7 +589,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
             )}
             {(act.target === "PHOTOS_PICKUP" || act.target === "PHOTOS_DELIVERY") && <HandoverPhotosDialog t={t} phase={act.target === "PHOTOS_PICKUP" ? "PICKUP" : "DELIVERY"} props={act.props} invalidate={invalidate} />}
             {act.target === "JOIN_CHAIN" && (
-              <CommandDialog {...act.props} title={tr("Chấp nhận vào chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" })} endpoint="POST /distribution/transfers/:id/join-chain" description={t.chainAccess?.ownerIsSender ? tr("Lô thuộc chuỗi của bên giao. Doanh nghiệp bạn trở thành thành viên và tài khoản của bạn được cấp vai trò ký theo năng lực; quyền ký dùng được sau khi đồng bộ sổ cái.") : tr("Doanh nghiệp bạn trở thành thành viên chuỗi của lô. Chủ chuỗi cần cấp vai trò ký cho tài khoản của bạn trước khi ký đồng thuận.")} schema={z.object({})} defaultValues={{}} version={t.version} submitLabel={tr("Chấp nhận")} invalidate={invalidate} run={(_, cmd) => distApi.joinChain(t.id, { version: t.version }, cmd)}>
+              <CommandDialog {...act.props} title={t.chainAccess?.membership === "ACTIVE" ? tr("Nhận vai trò ký trong chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" }) : tr("Chấp nhận vào chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" })} endpoint="POST /distribution/transfers/:id/join-chain" description={t.chainAccess?.membership === "ACTIVE" ? tr("Tài khoản của bạn được cấp vai trò ký theo năng lực doanh nghiệp trong chuỗi này; quyền ký dùng được sau khi đồng bộ sổ cái (vài giây đến vài phút).") : t.chainAccess?.ownerIsSender ? tr("Lô thuộc chuỗi của bên giao. Doanh nghiệp bạn trở thành thành viên và tài khoản của bạn được cấp vai trò ký theo năng lực; quyền ký dùng được sau khi đồng bộ sổ cái.") : tr("Doanh nghiệp bạn trở thành thành viên chuỗi của lô. Chủ chuỗi cần cấp vai trò ký cho tài khoản của bạn trước khi ký đồng thuận.")} schema={z.object({})} defaultValues={{}} version={t.version} submitLabel={tr("Chấp nhận")} invalidate={invalidate} run={(_, cmd) => distApi.joinChain(t.id, { version: t.version }, cmd)}>
                 {() => null}
               </CommandDialog>
             )}
