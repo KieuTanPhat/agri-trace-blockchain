@@ -63,7 +63,15 @@ export class PublicDirectoryService {
     const regions=[...new Set((lots??[]).map(l=>l.harvest?.cycle?.farm?.region?.trim()).filter((r):r is string=>!!r))];
     return regions.length?{province:regions.slice(0,3).join(', ')}:{};
   }
+  /** Lots whose public QR page an administrator blocked: they are left out of
+   * the public catalog (image, lot count, lot list) as well. */
+  private async blockedLots() {
+    const rows=await this.db.traceQrBlock.findMany({where:{unblockedAt:null},select:{lotId:true}});
+    return new Set(rows.map(r=>r.lotId));
+  }
   private async presentProducts(rows:Prisma.ProductGetPayload<{select:typeof PUBLIC_PRODUCT_SELECT}>[]) {
+    const blocked=await this.blockedLots();
+    rows=rows.map(r=>{const shown=(r.lots??[]).filter(l=>!blocked.has(l.id));return {...r,lots:shown,_count:{lots:Math.max(0,(r._count?.lots??0)-((r.lots??[]).length-shown.length))}};});
     const selling=await sellingLots(this.db,rows.map(r=>r.id));
     const marketLots=await this.db.lot.findMany({where:{id:{in:[...selling]}},select:{productId:true}});
     const sellingProducts=new Set(marketLots.map(l=>l.productId));
@@ -81,7 +89,8 @@ export class PublicDirectoryService {
   async productImage(id:string) {
     const row=await this.db.product.findFirst({where:{id,status:'ACTIVE',lots:{some:publicLotWhere()}},select:PUBLIC_PRODUCT_SELECT});
     if(!row)throw new NotFoundException('Không có ảnh sản phẩm công khai');
-    const rows=await this.db.traceEvidence.findMany({where:{entityType:'LOT',entityId:{in:row.lots.map(l=>l.id)}},select:{id:true,public:true,kind:true,supersedesId:true,mediaType:true,withdrawal:{select:{evidenceId:true}}},orderBy:{createdAt:'desc'}});
+    const blocked=await this.blockedLots();
+    const rows=await this.db.traceEvidence.findMany({where:{entityType:'LOT',entityId:{in:row.lots.map(l=>l.id).filter(id=>!blocked.has(id))}},select:{id:true,public:true,kind:true,supersedesId:true,mediaType:true,withdrawal:{select:{evidenceId:true}}},orderBy:{createdAt:'desc'}});
     const visible=visibleDirectoryImage(rows);if(!visible)throw new NotFoundException('Không có ảnh sản phẩm công khai');
     return this.db.traceEvidence.findUniqueOrThrow({where:{id:visible.id},select:{content:true,mediaType:true,sha256:true}});
   }
@@ -178,6 +187,7 @@ export class PublicDirectoryService {
         where: {
           AND: [
             lots,
+            { id: { notIn: [...(await this.blockedLots())] } },
             ...(query.lotCursor ? [{ id: { gt: query.lotCursor } }] : []),
           ],
         },
