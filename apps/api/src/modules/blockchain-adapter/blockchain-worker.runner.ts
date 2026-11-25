@@ -11,6 +11,7 @@ import { BindingDeliveryService } from '../ledger/binding-delivery.service.js';
 import { LedgerControlService } from '../ledger/ledger-control.service.js';
 import { HandoverExpiryService } from '../shipments/handover-expiry.service.js';
 import { EnterpriseMailWorker } from '../enterprise-onboarding/enterprise-mail.worker.js';
+import { SubscriptionTermWorker } from '../billing/subscription-term.worker.js';
 
 export type WorkerRuntimeState = {
   enabled: boolean;
@@ -46,6 +47,7 @@ export class BlockchainWorkerRunner
     @Optional() private readonly provisioning?: PlatformProvisioningWorker,
     @Optional() private readonly expiry?: HandoverExpiryService,
     @Optional() private readonly mail?: EnterpriseMailWorker,
+    @Optional() private readonly subscriptionTerms?: SubscriptionTermWorker,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -54,6 +56,7 @@ export class BlockchainWorkerRunner
     this.state.enabled =
       this.state.fabricEnabled ||
       Boolean(this.mail?.enabled) ||
+      Boolean(this.subscriptionTerms) ||
       Boolean(
         this.expiry &&
         this.config.get<string>('HANDOVER_EXPIRY_ENABLED') !== 'false',
@@ -87,6 +90,8 @@ export class BlockchainWorkerRunner
       // failing never stalls the other.
       const steps: Array<[string, () => Promise<unknown>]> = [];
       const fabricEnabled = this.state.fabricEnabled;
+      if (this.subscriptionTerms)
+        steps.push(['subscription-terms', () => this.subscriptionTerms!.processAll()]);
       if (fabricEnabled && this.provisioning)
         steps.push(['platform-provisioning', () => this.provisioning!.processAll()]);
       if (fabricEnabled && this.control)

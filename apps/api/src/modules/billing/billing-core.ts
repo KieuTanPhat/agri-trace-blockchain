@@ -462,28 +462,61 @@ export async function settleInvoiceTx(
       await grantChainCreation(tx, invoice.organizationId);
     } else if (sub.status === 'ACTIVE') {
       const from = sub.endsAt && sub.endsAt > now ? sub.endsAt : now;
-      // Limits follow the term that was paid for: another plan starts only
-      // once the current term has ended (see renewalInvoiceTx).
-      if (
-        from > now &&
-        invoice.planVersion.planCode !==
-          (
-            await tx.servicePlanVersion.findUniqueOrThrow({
-              where: { id: sub.planVersionId },
-            })
-          ).planCode
-      )
-        throw new ConflictException(
-          'Kỳ hiện tại còn hiệu lực; hóa đơn đổi gói chỉ thanh toán sau khi kỳ hiện tại kết thúc. Hủy hóa đơn này và gia hạn cùng gói.',
-        );
-      await tx.subscription.update({
-        where: { id: sub.id },
-        data: {
-          endsAt: addMonths(from, term),
-          planVersionId: invoice.planVersion.id,
-          version: { increment: 1 },
-        },
+      const nextTerm = await tx.subscriptionTerm.findUnique({
+        where: { invoiceId },
       });
+      if (nextTerm) {
+        if (
+          nextTerm.status !== 'AWAITING_PAYMENT' ||
+          nextTerm.subscriptionId !== sub.id ||
+          nextTerm.planVersionId !== invoice.planVersion.id
+        )
+          throw new ConflictException('Kỳ gia hạn không khớp hóa đơn');
+        await tx.subscriptionTerm.update({
+          where: { id: nextTerm.id },
+          data: {
+            status: from > now ? 'SCHEDULED' : 'ACTIVE',
+            startsAt: from,
+            endsAt: addMonths(from, term),
+            activatedAt: from > now ? null : now,
+          },
+        });
+        await tx.subscription.update({
+          where: { id: sub.id },
+          data:
+            from > now
+              ? { version: { increment: 1 } }
+              : {
+                  startsAt: from,
+                  endsAt: addMonths(from, term),
+                  planVersionId: invoice.planVersion.id,
+                  version: { increment: 1 },
+                },
+        });
+      } else {
+        // Limits follow the term that was paid for: another plan starts only
+        // once the current term has ended (see renewalInvoiceTx).
+        if (
+          from > now &&
+          invoice.planVersion.planCode !==
+            (
+              await tx.servicePlanVersion.findUniqueOrThrow({
+                where: { id: sub.planVersionId },
+              })
+            ).planCode
+        )
+          throw new ConflictException(
+            'Kỳ hiện tại còn hiệu lực; hóa đơn đổi gói chỉ thanh toán sau khi kỳ hiện tại kết thúc. Hủy hóa đơn này và gia hạn cùng gói.',
+          );
+        await tx.subscription.update({
+          where: { id: sub.id },
+          data: {
+            endsAt: addMonths(from, term),
+            planVersionId: invoice.planVersion.id,
+            version: { increment: 1 },
+          },
+        });
+      }
     } else
       throw new ConflictException(
         'Gói dịch vụ đã hủy; không áp dụng thanh toán',
@@ -528,6 +561,10 @@ export async function voidInvoiceTx(
     throw new ConflictException('Hóa đơn đã được xử lý hoặc đã thay đổi');
   const invoice = await tx.invoice.findUniqueOrThrow({
     where: { id: invoiceId },
+  });
+  await tx.subscriptionTerm.updateMany({
+    where: { invoiceId, status: 'AWAITING_PAYMENT' },
+    data: { status: 'VOID' },
   });
   // The accepted contract still stands: a voided first invoice is replaced
   // by a corrected one at the contract's plan version, so the organization can

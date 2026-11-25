@@ -14,6 +14,8 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { ApiResponseInterceptor } from '../src/common/api/api-response.interceptor.js';
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
 import { decryptOtp } from '../src/modules/enterprise-onboarding/registration-otp.service.js';
+import { SubscriptionTermWorker } from '../src/modules/billing/subscription-term.worker.js';
+import { assertEntitlement, normalizeLimits } from '../src/modules/billing/billing-core.js';
 
 const url = process.env.TEST_DATABASE_URL;
 const prisma = new PrismaClient({
@@ -379,6 +381,63 @@ const prisma = new PrismaClient({
       await app?.close();
       await prisma.$disconnect();
     });
+    it('accepts an exact renewal contract, schedules a different plan after payment and activates it once at the boundary', async () => {
+      const a = await register();
+      const other = await register();
+      await approve(a.enrollment.id).expect(201);
+      await activate(a);
+      const current = await prisma.subscription.findFirstOrThrow({ where: { organizationId: a.enrollment.organizationId, status: 'ACTIVE' } });
+      const firstPreview = (await post('/enterprise-billing/renewals', { planCode: 'OWNER_GROWTH' }, a.token).expect(201)).body.data.record;
+      expect(firstPreview.kind).toBe('RENEWAL_PREVIEW');
+      expect(Buffer.from(firstPreview.contentBase64, 'base64').subarray(0, 5).toString()).toBe('%PDF-');
+      expect(await prisma.invoice.count({ where: { subscriptionId: current.id, status: 'ISSUED' } })).toBe(0);
+      await post('/enterprise-billing/renewals', { planCode: 'OWNER_GROWTH', contractDigest: firstPreview.contractDigest }, other.token).expect(403);
+      await post('/enterprise-billing/renewals', { planCode: 'OWNER_START', contractDigest: firstPreview.contractDigest }, a.token).expect(409);
+      const body = { planCode: 'OWNER_GROWTH', contractDigest: firstPreview.contractDigest, accepted: true };
+      const key = randomUUID();
+      const accepted = (await post('/enterprise-billing/renewals', body, a.token, key).expect(201)).body.data.record;
+      expect((await post('/enterprise-billing/renewals', body, a.token, key).expect(201)).body.data.record.id).toBe(accepted.id);
+      const payment = { version: accepted.version };
+      const paymentKey = randomUUID();
+      await post(`/enterprise-billing/invoices/${accepted.id}/payment-simulation`, payment, a.token, paymentKey).expect(201);
+      await post(`/enterprise-billing/invoices/${accepted.id}/payment-simulation`, payment, a.token, paymentKey).expect(201);
+      const waiting = await prisma.subscriptionTerm.findUniqueOrThrow({ where: { invoiceId: accepted.id } });
+      expect(waiting.status).toBe('SCHEDULED');
+      expect(waiting.startsAt).toEqual(current.endsAt);
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } })).planVersionId).toBe(current.planVersionId);
+      const billing = (await get('/enterprise-billing', a.token).expect(200)).body.data;
+      expect(billing.nextTerm.planCode).toBe('OWNER_GROWTH');
+      expect(billing.nextTerm.contractDigest).toBe(firstPreview.contractDigest);
+      await post('/enterprise-billing/renewals', { planCode: 'OWNER_START' }, a.token).expect(409);
+      const worker = new SubscriptionTermWorker(prisma as unknown as PrismaService);
+      expect((await worker.processAll(new Date(current.endsAt!.getTime() - 1))).activated).toBe(0);
+      const raced = await Promise.all([worker.processAll(current.endsAt!), worker.processAll(current.endsAt!)]);
+      expect(raced.reduce((sum, r) => sum + r.activated, 0)).toBe(1);
+      const active = await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } });
+      expect(active.planVersionId).toBe(waiting.planVersionId);
+      expect(active.startsAt).toEqual(current.endsAt);
+      expect(active.endsAt).toEqual(waiting.endsAt);
+      expect((await worker.processAll(current.endsAt!)).activated).toBe(0);
+      expect(await prisma.invoicePayment.count({ where: { invoiceId: accepted.id } })).toBe(1);
+      // A prepaid downgrade keeps existing records even if usage exceeds the new cap.
+      const lower = await prisma.servicePlanVersion.findFirstOrThrow({ where: { planCode: 'OWNER_START', status: 'PUBLISHED' } });
+      const memberLimit = normalizeLimits(lower.limits).members;
+      expect(memberLimit).toBeLessThan(1000);
+      const staffRole = await prisma.role.findUniqueOrThrow({ where: { code: 'ENTERPRISE_STAFF' } });
+      const owner = await prisma.enterpriseEnrollment.findUniqueOrThrow({ where: { id: a.enrollment.id }, select: { ownerId: true } });
+      await prisma.user.createMany({ data: Array.from({ length: memberLimit + 1 }, (_, index) => ({ email: `renewal-staff-${randomUUID()}@example.test`, fullName: `Nhân viên ${index}`, passwordHash: 'isolated-not-a-login-password', organizationId: a.enrollment.organizationId, roleId: staffRole.id, enterpriseTier: 3, supervisorId: owner.ownerId })) });
+      const before = await prisma.user.count({ where: { organizationId: a.enrollment.organizationId } });
+      const downPreview = (await post('/enterprise-billing/renewals', { planCode: 'OWNER_START' }, a.token).expect(201)).body.data.record;
+      await post('/enterprise-billing/renewals', { planCode: 'OWNER_START', contractDigest: downPreview.contractDigest }, a.token).expect(409);
+      const down = (await post('/enterprise-billing/renewals', { planCode: 'OWNER_START', contractDigest: downPreview.contractDigest, accepted: true }, a.token).expect(201)).body.data.record;
+      await post(`/enterprise-billing/invoices/${down.id}/payment-simulation`, { version: down.version }, a.token).expect(201);
+      expect((await prisma.subscription.findUniqueOrThrow({ where: { id: current.id } })).planVersionId).toBe(active.planVersionId);
+      expect((await worker.processAll(active.endsAt!)).activated).toBe(1);
+      expect(await prisma.user.count({ where: { organizationId: a.enrollment.organizationId } })).toBe(before);
+      await expect(prisma.$transaction(tx => assertEntitlement(tx, a.enrollment.organizationId, 'members'))).rejects.toThrow(/Vượt hạn mức/);
+      await expect(prisma.subscriptionTerm.update({ where: { invoiceId: down.id }, data: { planVersionId: active.planVersionId } })).rejects.toThrow(/immutable/);
+    });
+
     it('atomically registers without granting business access; exact retry returns original receipt', async () => {
       const input = await verifiedForm();
       const [a, b] = await Promise.all([

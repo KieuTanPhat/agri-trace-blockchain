@@ -256,13 +256,14 @@ export function EvidencePanel({
  * ảnh hiện hành đầu tiên, ưu tiên các loại trong `prefer`; không có ảnh thì báo thiếu.
  */
 export function EvidenceCover({ entityType, entityId, prefer = [] }: { entityType: EvidenceEntity; entityId: string; prefer?: string[] }) {
+  const [view, setView] = useState<Evidence | null>(null);
   const q = useQuery({ queryKey: ["ws-evidence", entityType, entityId], queryFn: () => wapi.evidence({ entityType, entityId }), staleTime: 60_000 });
   if (q.isLoading) return <span className="inline-block size-10 animate-pulse rounded border border-line bg-sunken" aria-hidden />;
   const superseded = new Set((q.data ?? []).map((e) => e.supersedesId).filter(Boolean));
   const images = (q.data ?? []).filter((e) => !superseded.has(e.id) && e.mediaType.startsWith("image/"));
   const cover = prefer.map((k) => images.find((e) => e.kind === k)).find(Boolean) ?? images[0];
   if (!cover) return <Badge tone="warn">{tr("Chưa có ảnh")}</Badge>;
-  return <EvidenceThumb evidence={cover} size="sm" />;
+  return <><button type="button" aria-label={`${tr("Xem")} ${cover.description}`} onClick={(event) => { event.stopPropagation(); setView(cover); }} className="inline-flex rounded focus-visible:outline-2 focus-visible:outline-brand"><EvidenceThumb evidence={cover} size="sm" /></button><EvidenceViewer evidence={view} onClose={() => setView(null)} /></>;
 }
 
 /** Ảnh thu nhỏ đã kiểm sha256; PDF hiện biểu tượng. */
@@ -292,7 +293,7 @@ function EvidenceViewer({ evidence, onClose }: { evidence: Evidence | null; onCl
   const src = verified.url ?? null;
   return (
     <Dialog open={!!evidence} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{evidence ? EVIDENCE_KIND_LABEL[evidence.kind] ?? evidence.kind : ""}</DialogTitle>
           <DialogDescription>{evidence?.description}</DialogDescription>
@@ -302,11 +303,9 @@ function EvidenceViewer({ evidence, onClose }: { evidence: Evidence | null; onCl
         ) : !q.data || !src ? (
           <LoadingRows rows={2} />
         ) : q.data.mediaType === "application/pdf" ? (
-          <a className="text-brand-ink underline underline-offset-2" href={src!} download={q.data.fileName}>
-            {tr("Tải tệp PDF")} · {q.data.fileName}
-          </a>
+          <><iframe title={q.data.fileName} src={src} className="h-[60vh] w-full rounded border border-line" /><a className="text-brand-ink underline underline-offset-2" href={src} download={q.data.fileName}>{tr("Tải tệp PDF")} · {q.data.fileName}</a></>
         ) : (
-          <Image unoptimized width={800} height={600} src={src!} alt={evidence?.description ?? ""} className="max-h-[60vh] w-full rounded border border-line bg-sunken object-contain [image-rendering:pixelated]" />
+          <Image unoptimized width={1200} height={900} src={src!} alt={evidence?.description ?? ""} className="max-h-[70vh] w-full rounded border border-line bg-sunken object-contain" />
         )}
         {q.data && <p className="font-mono text-[11px] break-all text-ink-2">sha256 {q.data.sha256}</p>}
       </DialogContent>

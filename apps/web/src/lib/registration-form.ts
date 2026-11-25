@@ -10,10 +10,9 @@ export const REGISTRATION_STEPS = [
   "Dịch vụ sử dụng",
   "Kiểm tra & gửi hồ sơ",
 ];
-/** Only enterprises and cooperatives register (ADR-005). */
+/** New registrations use enterprises; legacy cooperative profiles stay readable. */
 export const LEGAL_FORM_OPTIONS = [
   ["ENTERPRISE", "Doanh nghiệp"],
-  ["COOPERATIVE", "Hợp tác xã"],
 ] as const;
 export const ACTIVITY_OPTIONS = [
   ["FARM", "Sản xuất (trồng trọt, thu hoạch)"],

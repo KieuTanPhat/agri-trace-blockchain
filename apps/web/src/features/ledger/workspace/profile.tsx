@@ -302,7 +302,7 @@ function LegalDialog({ props, profile, name, orgId, invalidate }: { props: { ope
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <TextField control={f.control} name="name" label={tr("Tên tổ chức")} max={255} />
-            <SelectField control={f.control} name="legalForm" label={tr("Loại hình")} options={Object.entries(LEGAL_FORM_LABEL).map(([value, label]) => ({ value, label }))} />
+            <SelectField control={f.control} name="legalForm" label={tr("Loại hình")} options={Object.entries(LEGAL_FORM_LABEL).filter(([value]) => value === "ENTERPRISE" || value === profile.legalForm).map(([value, label]) => ({ value, label }))} />
             <TextField control={f.control} name="businessId" label={tr("Mã số thuế / mã pháp lý")} inputMode="numeric" />
             <TextField control={f.control} name="registrationNumber" label={tr("Số giấy đăng ký")} />
             <TextField control={f.control} name="representative" label={tr("Người đại diện")} />

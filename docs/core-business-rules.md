@@ -604,7 +604,8 @@ Việc còn mở: [backlog](plans/backlog.md).
   `ORG_ADMIN`; `CREATE_CHAIN` cấp khi subscription chuyển `ACTIVE`. `MEMBER` ghi
   nghiệp vụ trong chuỗi được mời hoặc nhận lô, theo `billing.participantLimits`.
   Gói theo quy mô với hạn mức `products`, `chains`, `partners`, `members`; vượt hạn
-  mức chặn tạo mới, không hạ gói thấp hơn mức đang dùng.
+  mức chặn tạo mới. Hạ gói cho kỳ sau giữ dữ liệu và chặn tạo thêm tài nguyên
+  vượt hạn mức khi kỳ mới có hiệu lực; chủ doanh nghiệp xác nhận điều này trong hợp đồng.
 - Bảng giá lưu `service_plan_version`; bản đã công bố bất biến, báo giá ghi
   `planVersionId`. Chấp nhận hợp đồng tạo subscription `PENDING_PAYMENT` và hóa
   đơn `INITIAL`; thanh toán (mô phỏng local hoặc admin xác nhận chuyển khoản) đổi
@@ -729,9 +730,14 @@ Phần dưới thay các mô tả "lệnh nháp/hoàn tất" ở trên cho lện
   lưu IP). Liên hệ chỉ lưu khi có đồng ý và chỉ Admin (`SYSTEM_ADMIN`) thấy; `AUDITOR` không thấy. Khi chuyển hồ sơ sự cố, chủ lô
   nhận hồ sơ mà không kèm thông tin liên hệ.
 - Hủy hóa đơn khởi tạo sẽ phát hành ngay hóa đơn thay thế theo phiên bản gói trong
-  hợp đồng đã chấp nhận, và gói vẫn ở trạng thái chờ thanh toán. Khi kỳ đã trả còn
-  hiệu lực, chỉ gia hạn được cùng gói; đổi sang gói khác chỉ làm được sau khi kỳ hiện
-  tại kết thúc (trong thời gian ân hạn).
+  hợp đồng đã chấp nhận, và gói vẫn ở trạng thái chờ thanh toán.
+- Chủ doanh nghiệp chọn gói kỳ sau tại Gói dịch vụ & hóa đơn. Lần gọi
+  `POST /enterprise-billing/renewals` đầu chỉ tạo PDF xem trước; xác nhận gửi
+  `contractDigest` và `accepted=true` để tạo hóa đơn cùng `subscription_term`.
+  Mỗi subscription chỉ có một kỳ chờ. Thanh toán trước ghi `SCHEDULED`, giữ
+  nguyên gói/hạn mức hiện tại; Worker chuyển gói khi kỳ cũ hết hạn. Trả muộn
+  bắt đầu từ lúc thanh toán được xác nhận. Kỳ đã trả và hợp đồng giữ bất biến.
+  Luồng hóa đơn gia hạn thủ công cũ của Admin vẫn chỉ gia hạn cùng gói khi còn kỳ.
 - Kênh yêu cầu hỗ trợ (ticket) giữa doanh nghiệp và nền tảng đã bỏ từ 04/11/2026:
   migration `20270101000006_remove_support_desk` xóa `support_ticket`,
   `support_message` và danh mục `TICKET_CATEGORY`; dòng audit cũ giữ nguyên. Cài đặt

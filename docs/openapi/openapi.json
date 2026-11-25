@@ -4848,6 +4848,11 @@
             "nullable": true,
             "type": "object"
           },
+          "nextTerm": {
+            "additionalProperties": true,
+            "nullable": true,
+            "type": "object"
+          },
           "paying": {
             "type": "boolean"
           },
@@ -4885,6 +4890,7 @@
           }
         },
         "required": [
+          "nextTerm",
           "applies",
           "paying",
           "status",
@@ -5874,6 +5880,15 @@
       },
       "EnterpriseRenewalInput": {
         "properties": {
+          "accepted": {
+            "description": "Explicit acceptance of the exact renewal contract PDF",
+            "type": "boolean"
+          },
+          "contractDigest": {
+            "description": "Digest of the exact renewal PDF explicitly accepted by the owner. Omit to create a preview only.",
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
           "planCode": {
             "pattern": "^[A-Z][A-Z0-9_]{1,29}$",
             "type": "string"

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -145,6 +146,20 @@ export class EnterpriseRenewalInput {
   @ApiProperty({ pattern: '^[A-Z][A-Z0-9_]{1,29}$' })
   @Matches(/^[A-Z][A-Z0-9_]{1,29}$/)
   planCode!: string;
+  @ApiPropertyOptional({
+    pattern: '^[a-f0-9]{64}$',
+    description:
+      'Digest of the exact renewal PDF explicitly accepted by the owner. Omit to create a preview only.',
+  })
+  @IsOptional()
+  @Matches(/^[a-f0-9]{64}$/)
+  contractDigest?: string;
+  @ApiPropertyOptional({
+    description: 'Explicit acceptance of the exact renewal contract PDF',
+  })
+  @IsOptional()
+  @IsBoolean()
+  accepted?: boolean;
 }
 
 export class EnterpriseInvoicePayInput {
@@ -207,6 +222,8 @@ export class BillingListDto {
   items!: Record<string, unknown>[];
 }
 export class EnterpriseBillingDto {
+  @ApiProperty({ type: 'object', additionalProperties: true, nullable: true })
+  nextTerm!: Record<string, unknown> | null;
   @ApiProperty() applies!: boolean;
   @ApiProperty() paying!: boolean;
   @ApiProperty({
