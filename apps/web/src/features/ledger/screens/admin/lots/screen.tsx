@@ -19,7 +19,8 @@ import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog
 import { TextAreaField } from "@/components/ledger/kit/form-fields";
 import { Guard } from "@/components/ledger/kit/guard";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader, Section } from "@/components/ledger/kit/page";
-import { Badge, Status } from "@/components/ledger/kit/status";
+import { Badge, Status } from "@/components/ledger/kit/status";
+
 import { LOT_STATE_LABEL, LOT_STATE_TONE } from "@/lib/ledger/ops-labels";
 import { cn } from "@/lib/ledger/utils";
 
