@@ -12,6 +12,10 @@ import { rememberView } from '../../../lib/local';
 import { useLoad } from '../../../lib/useApi';
 import { color } from '../../../theme/tokens';
 
+const SENSOR_LABEL: Record<string, string> = { TEMPERATURE: 'Nhiệt độ', HUMIDITY: 'Độ ẩm không khí', SOIL_MOISTURE: 'Độ ẩm đất' };
+const SENSOR_ORDER = ['TEMPERATURE', 'HUMIDITY', 'SOIL_MOISTURE'];
+const figure = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+
 type Lot = Schemas['PublicLotDto'];
 
 /**
@@ -163,6 +167,16 @@ export default function Trace() {
                 <Row label="BẮT ĐẦU" value={dateTime(lot.sensorEvidence.periodStart)} />
                 <Row label="KẾT THÚC" value={dateTime(lot.sensorEvidence.periodEnd)} />
                 <Row label="SỐ LẦN ĐO" value={String(lot.sensorEvidence.readingCount)} />
+                {[...(lot.sensorEvidence.summary ?? [])]
+                  .sort((a, b) => SENSOR_ORDER.indexOf(a.sensorType) - SENSOR_ORDER.indexOf(b.sensorType))
+                  .map((s) => (
+                    <Row
+                      key={s.sensorType}
+                      label={(SENSOR_LABEL[s.sensorType] ?? s.sensorType).toUpperCase()}
+                      value={`TB ${figure(s.avg)} ${s.unit} (${figure(s.min)}–${figure(s.max)})`}
+                    />
+                  ))}
+                <T size={12} c={color.muted}>Số trung bình trong thời gian trồng; số đo gốc được băm lên blockchain lúc thu hoạch.</T>
               </Card>
             )}
             {lot.shipment && (

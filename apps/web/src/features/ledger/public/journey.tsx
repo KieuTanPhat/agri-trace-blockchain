@@ -1,5 +1,5 @@
 "use client";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { ChevronDown, MapPin } from "lucide-react";
 import type { PublicLotTrace } from "@/lib/types";
@@ -65,9 +65,14 @@ function JourneyEntries({ entries }: { entries: JourneyEntry[] }) {
 
 export function PublicJourney({
   groups,
+  farmExtra,
 }: {
   groups: JourneyGroup[];
+  /** Shown inside the growing stage, e.g. the plot's sensor figures. */
+  farmExtra?: ReactNode;
 }) {
+  // The first growing stage hosts the extra block (the lot's own farm).
+  const farmIndex = groups.findIndex((g) => g.stage === "Trồng và thu hoạch");
   return (
     <div className="flex flex-col gap-4">
       {groups.map((g, i) => (
@@ -143,6 +148,7 @@ export function PublicJourney({
               </div>
             )}
             <JourneyEntries entries={g.entries} />
+            {i === farmIndex && farmExtra}
             {!!g.certificates.length && (
               <div className="flex flex-col gap-3">
                 <h4 className="text-sm font-semibold">

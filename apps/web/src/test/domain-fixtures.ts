@@ -53,7 +53,7 @@ function sampleEvidence(
       periodStart: "2026-08-19T01:20:00.000Z",
       periodEnd: harvestTime,
       finalizedAt: harvestTime,
-      lateReadingCount: 0,
+      lateReadingCount: 0, summary: [], daily: [],
       simulated: false,
     },
   };

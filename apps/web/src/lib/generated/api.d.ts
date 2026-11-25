@@ -10404,7 +10404,18 @@ export interface components {
             /** Format: uuid */
             id: string;
         };
+        SensorDailyDto: {
+            avg: number;
+            /**
+             * Format: date
+             * @description Vietnam calendar day
+             */
+            day: string;
+            sensorType: string;
+        };
         SensorEvidenceDto: {
+            /** @description Daily average per sensor type for charts */
+            daily: components["schemas"]["SensorDailyDto"][];
             digestHash: string | null;
             /** Format: date-time */
             finalizedAt: string | null;
@@ -10421,6 +10432,8 @@ export interface components {
              * @enum {string}
              */
             status: "FINALIZED" | "NO_DATA" | "INTEGRITY_WARNING" | "NOT_APPLICABLE";
+            /** @description Min/avg/max per sensor type over the sealed window; empty unless the window verifies */
+            summary: components["schemas"]["SensorSummaryDto"][];
         };
         SensorReadingDto: {
             /** Format: uuid */
@@ -10467,6 +10480,14 @@ export interface components {
             unit: string;
             /** @description Exact decimal serialized as a string */
             value: string;
+        };
+        SensorSummaryDto: {
+            avg: number;
+            max: number;
+            min: number;
+            /** @example TEMPERATURE */
+            sensorType: string;
+            unit: string;
         };
         SepayCheckoutView: {
             accountHolder: string | null;

@@ -323,7 +323,7 @@ describe("public API", () => {
         periodStart: "2026-10-08T00:00:00.000Z",
         periodEnd: "2026-10-09T00:00:00.000Z",
         finalizedAt: "2026-10-09T00:00:00.000Z",
-        lateReadingCount: 0,
+        lateReadingCount: 0, summary: [], daily: [],
         simulated: false,
       },
       productionCycle: {

@@ -70,6 +70,39 @@ export function lotEvidence(
       finalizedAt: window?.finalizedAt.toISOString() ?? null,
       lateReadingCount: lot.harvest?._count.lateReadings ?? 0,
       simulated: !!window?.readings.some((r) => r.reading.device.simulated),
+      ...sensorFigures(validSensor ? window!.readings.map((r) => r.reading) : []),
     },
+  };
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+/** Plain figures for shoppers: min/avg/max per sensor type over the sealed
+ * window, and a daily average (Vietnam calendar day) for a small chart. The
+ * sealed digest still covers the raw readings; these are only a view of them. */
+export function sensorFigures(
+  readings: { sensorType: string; unit: string; value: unknown; recordedAt: Date }[],
+) {
+  const byType = new Map<string, { unit: string; values: number[]; days: Map<string, number[]> }>();
+  for (const r of readings) {
+    const value = Number(String(r.value));
+    if (!Number.isFinite(value)) continue;
+    const entry = byType.get(r.sensorType) ?? { unit: r.unit, values: [] as number[], days: new Map<string, number[]>() };
+    entry.values.push(value);
+    const day = new Date(r.recordedAt.getTime() + 7 * 3_600_000).toISOString().slice(0, 10);
+    entry.days.set(day, [...(entry.days.get(day) ?? []), value]);
+    byType.set(r.sensorType, entry);
+  }
+  const avg = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+  return {
+    summary: [...byType].map(([sensorType, e]) => ({
+      sensorType,
+      unit: e.unit,
+      min: round1(Math.min(...e.values)),
+      avg: round1(avg(e.values)),
+      max: round1(Math.max(...e.values)),
+    })),
+    daily: [...byType].flatMap(([sensorType, e]) =>
+      [...e.days].sort(([a], [b]) => a.localeCompare(b)).map(([day, v]) => ({ sensorType, day, avg: round1(avg(v)) })),
+    ),
   };
 }
