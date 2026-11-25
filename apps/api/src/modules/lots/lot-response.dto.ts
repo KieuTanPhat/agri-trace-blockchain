@@ -46,6 +46,18 @@ class CycleSummaryDto {
   @ApiProperty({ type: String, nullable: true, format: 'date-time' })
   startDate!: string | null;
 }
+class SensorSummaryDto {
+  @ApiProperty({ example: 'TEMPERATURE' }) sensorType!: string;
+  @ApiProperty() unit!: string;
+  @ApiProperty() min!: number;
+  @ApiProperty() avg!: number;
+  @ApiProperty() max!: number;
+}
+class SensorDailyDto {
+  @ApiProperty() sensorType!: string;
+  @ApiProperty({ format: 'date', description: 'Vietnam calendar day' }) day!: string;
+  @ApiProperty() avg!: number;
+}
 class SensorEvidenceDto {
   @ApiProperty({
     enum: ['FINALIZED', 'NO_DATA', 'INTEGRITY_WARNING', 'NOT_APPLICABLE'],
@@ -63,6 +75,10 @@ class SensorEvidenceDto {
   @ApiProperty() lateReadingCount!: number;
   @ApiProperty({ description: 'Readings come from a virtual (simulated) device (ADR-006)' })
   simulated!: boolean;
+  @ApiProperty({ type: [SensorSummaryDto], description: 'Min/avg/max per sensor type over the sealed window; empty unless the window verifies' })
+  summary!: SensorSummaryDto[];
+  @ApiProperty({ type: [SensorDailyDto], description: 'Daily average per sensor type for charts' })
+  daily!: SensorDailyDto[];
 }
 class LotProofDto {
   @ApiProperty() network!: string;

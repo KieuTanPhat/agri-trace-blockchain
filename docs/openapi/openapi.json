@@ -17227,8 +17227,36 @@
         ],
         "type": "object"
       },
+      "SensorDailyDto": {
+        "properties": {
+          "avg": {
+            "type": "number"
+          },
+          "day": {
+            "description": "Vietnam calendar day",
+            "format": "date",
+            "type": "string"
+          },
+          "sensorType": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sensorType",
+          "day",
+          "avg"
+        ],
+        "type": "object"
+      },
       "SensorEvidenceDto": {
         "properties": {
+          "daily": {
+            "description": "Daily average per sensor type for charts",
+            "items": {
+              "$ref": "#/components/schemas/SensorDailyDto"
+            },
+            "type": "array"
+          },
           "digestHash": {
             "nullable": true,
             "type": "string"
@@ -17267,6 +17295,13 @@
               "NOT_APPLICABLE"
             ],
             "type": "string"
+          },
+          "summary": {
+            "description": "Min/avg/max per sensor type over the sealed window; empty unless the window verifies",
+            "items": {
+              "$ref": "#/components/schemas/SensorSummaryDto"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -17277,7 +17312,9 @@
           "periodEnd",
           "finalizedAt",
           "lateReadingCount",
-          "simulated"
+          "simulated",
+          "summary",
+          "daily"
         ],
         "type": "object"
       },
@@ -17413,6 +17450,34 @@
           "ingestTime",
           "createdAt",
           "late"
+        ],
+        "type": "object"
+      },
+      "SensorSummaryDto": {
+        "properties": {
+          "avg": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "min": {
+            "type": "number"
+          },
+          "sensorType": {
+            "example": "TEMPERATURE",
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sensorType",
+          "unit",
+          "min",
+          "avg",
+          "max"
         ],
         "type": "object"
       },

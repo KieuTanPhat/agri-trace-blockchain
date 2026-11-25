@@ -431,4 +431,12 @@ export const PUBLIC_EN: Record<string, string> = {
   "Doanh nghiệp đứng tên": "Owning business",
   "Xem sản phẩm của doanh nghiệp": "See this business’s products",
   "Tra cứu sản phẩm trên điện thoại": "Looking up a product on a phone",
+  "Biểu đồ {p0} theo ngày": "Daily {p0} chart",
+  "{p0} lần đo": "{p0} readings",
+  "thấp nhất {p0} · cao nhất {p1}": "lowest {p0} · highest {p1}",
+  "Số trung bình trong thời gian trồng; đường kẻ là trung bình từng ngày. Toàn bộ số đo gốc được băm và lưu lên blockchain lúc thu hoạch.": "Averages over the growing period; the line shows daily averages. All raw readings are hashed onto the blockchain at harvest.",
+  "Dữ liệu từ thiết bị mô phỏng.": "Data from a simulated device.",
+  "Nhiệt độ": "Temperature",
+  "Độ ẩm không khí": "Air humidity",
+  "Độ ẩm đất": "Soil moisture",
 };
