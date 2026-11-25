@@ -336,6 +336,11 @@ describe('Mobile consumer auth / isolated PostgreSQL', () => {
     config.set('CONSUMER_AUTH_ENABLED', 'true');
     config.set('NODE_ENV', 'production');
     await post('register', registerBody(value)).expect(503);
+    // Production opens only through its own operator switch.
+    config.set('CONSUMER_REGISTRATION_ENABLED', 'true');
+    const opened = await post('register', registerBody(phone()));
+    expect(opened.status).not.toBe(503);
+    config.set('CONSUMER_REGISTRATION_ENABLED', 'false');
     config.set('NODE_ENV', 'test');
     await post('login', { phone: value, password })
       .set('Origin', 'https://attacker.invalid')

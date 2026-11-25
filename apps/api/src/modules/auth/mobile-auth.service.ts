@@ -79,14 +79,14 @@ export class MobileAuthService {
   }
   async register(input: MobileRegisterDto) {
     this.enabled();
-    // No production registration against unapproved draft/preview text.
-    if (
-      this.config.get('NODE_ENV') === 'production' ||
-      this.config.get('CONSUMER_DEV_REGISTRATION_ENABLED') !== 'true'
-    )
-      throw new ServiceUnavailableException(
-        'Đăng ký đang chờ chính sách được duyệt',
-      );
+    // Registration opens by an explicit operator switch; the development
+    // switch only works outside production.
+    const open =
+      this.config.get('CONSUMER_REGISTRATION_ENABLED') === 'true' ||
+      (this.config.get('NODE_ENV') !== 'production' &&
+        this.config.get('CONSUMER_DEV_REGISTRATION_ENABLED') === 'true');
+    if (!open)
+      throw new ServiceUnavailableException('Đăng ký tài khoản đang tạm đóng');
     if (input.consentVersion !== DEV_CONSUMER_CONSENT)
       throw new UnprocessableEntityException(
         'Phiên bản thông báo thử nghiệm không hợp lệ',

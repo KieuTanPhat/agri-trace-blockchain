@@ -8,6 +8,9 @@ services:
       ENTERPRISE_ONBOARDING_ENABLED: ${ENTERPRISE_ONBOARDING_ENABLED:-false}
       # Mobile sign-in (ACheck consumers, staff app); off unless the private env opts in.
       CONSUMER_AUTH_ENABLED: ${CONSUMER_AUTH_ENABLED:-false}
+      CONSUMER_REGISTRATION_ENABLED: ${CONSUMER_REGISTRATION_ENABLED:-false}
+      # Firebase project that issues ACheck phone-verification tokens (not a secret).
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
       STAFF_APP_AUTH_ENABLED: ${STAFF_APP_AUTH_ENABLED:-false}
   worker:
     environment:
