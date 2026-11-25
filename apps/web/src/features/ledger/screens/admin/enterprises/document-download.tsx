@@ -5,6 +5,7 @@ import { ledgerRequest } from "@/lib/ledger/request";
 import { getLedgerError } from "@/lib/ledger/errors";
 import { t } from "@/lib/ledger/i18n";
 import { Button } from "@/components/ledger/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ledger/ui/dialog";
 type S = components["schemas"];
 export function RegistrationDocumentDownload({
   document,
@@ -42,6 +43,8 @@ export function AmendmentEvidenceDownload({
     />
   );
 }
+/** Opens the private file in a preview (images and PDF in place) with a
+ * download button; the object URL lives only while the preview is open. */
 function PrivateDocumentDownload({
   fileName,
   load,
@@ -55,39 +58,42 @@ function PrivateDocumentDownload({
 }) {
   const [pending, setPending] = useState(false),
     [error, setError] = useState(""),
+    [preview, setPreview] = useState<{ url: string; name: string; mediaType: string } | null>(null),
     busy = useRef(false);
+  const close = () => {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  };
+  const image = preview?.mediaType.startsWith("image/");
+  const pdf = preview?.mediaType === "application/pdf";
   return (
     <span className="flex min-w-0 flex-col gap-1">
       <Button
         variant="link"
         type="button"
         className="h-auto justify-start truncate p-0 text-left text-[13px] font-normal"
-        aria-label={`${t("Tải tệp")} ${fileName}`}
+        aria-label={`${t("Xem tệp")} ${fileName}`}
         disabled={pending}
         onClick={async () => {
           if (busy.current) return;
           busy.current = true;
           setPending(true);
           setError("");
-          let url: string | undefined;
           try {
             const data = await load();
             const bytes = Uint8Array.from(atob(data.contentBase64), (char) =>
               char.charCodeAt(0),
             );
-            url = URL.createObjectURL(
-              new Blob([bytes], { type: data.mediaType }),
-            );
-            const anchor = window.document.createElement("a");
-            anchor.href = url;
-            anchor.download = data.fileName;
-            anchor.click();
+            setPreview({
+              url: URL.createObjectURL(new Blob([bytes], { type: data.mediaType })),
+              name: data.fileName,
+              mediaType: data.mediaType,
+            });
           } catch (cause) {
             setError(
               getLedgerError(cause)?.message ?? t("Không tải được tài liệu."),
             );
           } finally {
-            if (url) URL.revokeObjectURL(url);
             busy.current = false;
             setPending(false);
           }
@@ -100,6 +106,27 @@ function PrivateDocumentDownload({
           {error}
         </span>
       )}
+      <Dialog open={!!preview} onOpenChange={(open) => !open && close()}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="truncate">{preview?.name}</DialogTitle>
+          </DialogHeader>
+          {preview && image ? (
+            <img src={preview.url} alt={preview.name} className="max-h-[70vh] w-full rounded border border-line bg-sunken object-contain" />
+          ) : preview && pdf ? (
+            <iframe src={preview.url} title={preview.name} className="h-[70vh] w-full rounded border border-line" />
+          ) : (
+            <p className="text-[13px] text-ink-2">{t("Không xem trước được loại tệp này; hãy tải về để mở.")}</p>
+          )}
+          {preview && (
+            <div className="flex justify-end">
+              <Button asChild size="sm" variant="outline">
+                <a href={preview.url} download={preview.name}>{t("Tải về")}</a>
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </span>
   );
 }
