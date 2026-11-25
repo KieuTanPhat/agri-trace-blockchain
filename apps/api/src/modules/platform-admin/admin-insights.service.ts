@@ -341,12 +341,15 @@ export class AdminInsightsService {
   }
 
   async searchLots(query: LotSearchQuery) {
-    const q = query.q.trim();
-    const qr = await this.db.traceQr.findUnique({ where: { traceToken: q } });
+    const q = (query.q ?? '').trim();
+    // Without a search term the newest lots are listed for browsing.
+    const qr = q ? await this.db.traceQr.findUnique({ where: { traceToken: q } }) : null;
     const lots = await this.db.lot.findMany({
       where: qr
         ? { id: qr.lotId }
-        : { OR: [{ lotCode: { contains: q, mode: 'insensitive' } }, { product: { productName: { contains: q, mode: 'insensitive' } } }] },
+        : q
+          ? { OR: [{ lotCode: { contains: q, mode: 'insensitive' } }, { product: { productName: { contains: q, mode: 'insensitive' } } }] }
+          : {},
       include: {
         product: { select: { productName: true } },
         organization: { select: { id: true, name: true } },
@@ -355,7 +358,7 @@ export class AdminInsightsService {
         traceQr: { select: { traceToken: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: q ? 50 : 300,
     });
     const [blocks, scans, holders] = await Promise.all([
       this.db.traceQrBlock.findMany({ where: { lotId: { in: lots.map((l) => l.id) }, unblockedAt: null } }),

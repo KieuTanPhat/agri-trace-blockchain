@@ -92,7 +92,7 @@ export function TransferRouteSection({ transferId, status }: { transferId: strin
       {r.warnings.length > 0 && (
         <ul className="flex flex-col gap-1 text-[12.5px]">
           {r.warnings.map((w, i) => (
-            <li key={i}><Badge tone={w.code === "LONG_STOP" ? "warn" : w.code === "ANOMALY_POINTS" ? "danger" : "neutral"}>{warningText(w)}</Badge></li>
+            <li key={i}><Badge tone={w.code === "LONG_STOP" ? "warn" : "neutral"}>{warningText(w)}</Badge></li>
           ))}
         </ul>
       )}

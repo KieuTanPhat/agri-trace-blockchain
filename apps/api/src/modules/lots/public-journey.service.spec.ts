@@ -87,6 +87,52 @@ function fixture() {
   };
 }
 describe('Public journey boundaries', () => {
+  it('shows only the source lot way to the processor, not parts sent to shops', async () => {
+    const f = fixture();
+    const supplier = '66666666-6666-4666-8666-666666666666',
+      shop = '77777777-7777-4777-8777-777777777777',
+      source = '88888888-8888-4888-8888-888888888888';
+    const started = new Date('2026-11-25T15:29:00Z');
+    const transfer = (id: string, receiverId: string, deliveredAt: string) => ({
+      transferId: id,
+      lotId: source,
+      transfer: {
+        id, senderId: supplier, receiverId, carrierId: supplier,
+        senderSiteId: null, receiverSiteId: null, carrierSiteId: null,
+        status: 'DELIVERED', transportMode: 'SELF',
+        createdAt: new Date(new Date(deliveredAt).getTime() - 3_600_000),
+        deliveredAt: new Date(deliveredAt),
+      },
+    });
+    f.db.organization.findMany.mockResolvedValue([
+      { id: org, name: 'Xưởng chế biến', type: 'PROCESSOR', directoryPublications: [] },
+      { id: supplier, name: 'Nhà cung cấp', type: 'PROCESSOR', directoryPublications: [] },
+      { id: shop, name: 'Cửa hàng khác', type: 'RETAILER', directoryPublications: [] },
+    ]);
+    f.db.enterpriseSite.findMany.mockResolvedValue([]);
+    f.db.distributionLine.findMany.mockResolvedValue([
+      transfer('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', org, '2026-11-07T08:00:00Z'),
+      transfer('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', shop, '2026-11-10T08:00:00Z'),
+    ]);
+    Object.assign(f.db, {
+      lot: { findMany: vi.fn().mockResolvedValue([{
+        id: source, farmOrgId: supplier, harvest: null, processingRun: null,
+        initialStorageSiteId: null, traceQr: { traceToken: 'source' },
+      }]) },
+      traceEvent: { findMany: vi.fn().mockResolvedValue([]) },
+    });
+    const output = {
+      ...f.lot, initialStorageSiteId: null, initialQuantity: '10', unit: 'kg',
+      processingRun: {
+        code: 'PR-1', siteId: null, organizationId: org, startedAt: started,
+        createdAt: started, inputs: [{ lotId: source }],
+      },
+    } as unknown as PublicLot;
+    const groups = await f.service.build(output, [], [], 'trace');
+    const titles = groups.map((g) => g.title);
+    expect(titles).toContain('Xưởng chế biến');
+    expect(titles).not.toContain('Cửa hàng khác');
+  });
   it('versions thumbnails by the current public evidence and never picks a withdrawn image',async()=>{
     const f=fixture(),base={id:photo,public:true,kind:'LOT_IMAGE',mediaType:'image/jpeg',supersedesId:null,withdrawal:null};
     f.db.traceEvidence.findMany.mockResolvedValue([base]);

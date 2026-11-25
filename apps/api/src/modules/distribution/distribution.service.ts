@@ -349,13 +349,21 @@ export class DistributionService {
     const roleGrants = await this.db.scopedRoleGrant.count({
       where: { chainId: t.chainId, organizationId: actor.organizationId!, revokedAt: null },
     });
+    // A partner that joined from the chain page holds no business role yet:
+    // its administrator takes it from the transfer, like a joining partner.
+    const myRoleGrants = authority.primary
+      ? await this.db.scopedRoleGrant.count({
+          where: { chainId: t.chainId, userId: actor.sub!, revokedAt: null },
+        })
+      : 1;
     // Photos of the open handover phase can be added until anyone signs it.
     const photoPhase = t.status === 'READY' ? 'PICKUP' : t.status === 'IN_TRANSIT' ? 'DELIVERY' : null;
     const canAttach = !!photoPhase && has('distribution.sign') && membership?.status === 'ACTIVE'
       && phaseParties(t, photoPhase).includes(actor.organizationId!) && driverMaySign(t, photoPhase, actor, authority.primary) && !(await phaseSigned(this.db, id, photoPhase));
     const allowedActions = [
       ...(canAttach ? [`PHOTOS_${photoPhase}`] : []),
-      ...(authority.primary && membership?.status === 'INVITED' && t.status === 'PROPOSED' && actor.organizationId !== t.senderId ? ['JOIN_CHAIN'] : []),
+      ...(authority.primary && t.status === 'PROPOSED' && actor.organizationId !== t.senderId &&
+        (membership?.status === 'INVITED' || (membership?.status === 'ACTIVE' && myRoleGrants === 0)) ? ['JOIN_CHAIN'] : []),
       ...(has('distribution.sign') && membership?.status === 'ACTIVE' ? phases.filter(p => !signed.has(p)) : []),
       ...(has('distribution.sign') && t.receiverId === actor.organizationId && t.status === 'IN_TRANSIT' && !!t.arrival && !t.receiptDigest ? ['ACTUAL_RECEIPT'] : []),
       ...(has('distribution.sign') && membership?.status === 'ACTIVE' && arrivalAllowed(t, actor, authority.primary) ? ['ARRIVE'] : []),
@@ -515,16 +523,20 @@ export class DistributionService {
       const member = await tx.chainMembership.findUnique({
         where: { chainId_organizationId: { chainId: t.chainId, organizationId: org } },
       });
-      if (!member || member.status !== 'INVITED')
+      // Already a member (joined from the chain page): only the role is taken.
+      const alreadyActive = member?.status === 'ACTIVE';
+      if (!member || (member.status !== 'INVITED' && !alreadyActive))
         throw new ConflictException('Không có lời mời vào chuỗi đang chờ');
-      await assertPartnerSlot(tx, t.chainId, org);
-      const active = await tx.chainMembership.update({
-        where: { id: member.id },
-        data: { status: 'ACTIVE', version: { increment: 1 }, updatedAt: new Date() },
-      });
-      await tx.chainAudit.create({
-        data: { chainId: t.chainId, actorUserId: actor.sub!, operation: 'MEMBER_ACTIVE', subjectId: member.id, revision: active.version },
-      });
+      if (!alreadyActive) {
+        await assertPartnerSlot(tx, t.chainId, org);
+        const active = await tx.chainMembership.update({
+          where: { id: member.id },
+          data: { status: 'ACTIVE', version: { increment: 1 }, updatedAt: new Date() },
+        });
+        await tx.chainAudit.create({
+          data: { chainId: t.chainId, actorUserId: actor.sub!, operation: 'MEMBER_ACTIVE', subjectId: member.id, revision: active.version },
+        });
+      }
       const role = actor.role as keyof typeof BUSINESS_CAPABILITIES;
       const capability = BUSINESS_CAPABILITIES[role];
       let granted = false;
@@ -548,6 +560,10 @@ export class DistributionService {
         await requestLedgerGrant(tx, grant);
         granted = true;
       }
+      if (alreadyActive && !granted)
+        throw new ConflictException(
+          'Không cấp được vai trò ký: bên giao phải là thành viên đang hoạt động của chuỗi và doanh nghiệp phải có năng lực phù hợp',
+        );
       return { record: { chainId: t.chainId, membership: 'ACTIVE', roleGranted: granted } };
     });
   }

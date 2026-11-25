@@ -24,7 +24,7 @@ import { assertBusinessActivationReady } from './business-profile.commands.js';
 import { bindingObservation } from '../ledger/binding-observation.js';
 import { assertPartnerSlot, partnerHasWork } from './chain-membership-rules.js';
 import { createPartnerInvitation, listPartnerInvitations, type PartnerInvitationInput } from './partner-invitations.js';
-import { ensureOwnerStageRoles } from './owner-stage-roles.js';
+import { ensureMemberStageRoles, ensureOwnerStageRoles } from './owner-stage-roles.js';
 import {
   appendPlatformAudit,
   lockPlatformAudit,
@@ -716,6 +716,10 @@ export class SupplyChainsService {
         result.version,
         chainId,
       );
+      // The partner's own administrator accepting the invitation can sign at
+      // once, like a partner joining through a transfer.
+      if (status === 'ACTIVE' && actor.organizationId === organizationId && actor.sub)
+        await ensureMemberStageRoles(tx, chain, organizationId, actor.sub);
       return result;
     });
   }

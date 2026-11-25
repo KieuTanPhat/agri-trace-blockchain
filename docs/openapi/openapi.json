@@ -57171,10 +57171,10 @@
         "operationId": "PlatformAdminController_lots",
         "parameters": [
           {
-            "description": "Mã lô, mã truy xuất QR hoặc tên sản phẩm",
+            "description": "Mã lô, mã truy xuất QR hoặc tên sản phẩm; bỏ trống để liệt kê lô mới nhất",
             "in": "query",
             "name": "q",
-            "required": true,
+            "required": false,
             "schema": {
               "maxLength": 120,
               "minLength": 2,

@@ -62,6 +62,14 @@ export function publishedJourneyMedia(
     }));
 }
 const RECORDED_FARM_MEDIA_LIMIT = 24;
+/** The receiving stage is named after what the receiver does with the goods. */
+function receivingStage(type: string | undefined) {
+  if (type === 'RETAILER') return 'Cửa hàng bán lẻ';
+  if (type === 'PROCESSOR') return 'Tiếp nhận để chế biến';
+  if (type === 'DISTRIBUTOR') return 'Tiếp nhận và phân phối';
+  return 'Tiếp nhận hàng';
+}
+
 @Injectable()
 export class PublicJourneyService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
@@ -462,9 +470,7 @@ export class PublicJourneyService {
         orgId === t.carrierId
           ? 'Vận chuyển'
           : orgId === t.receiverId
-            ? c.orgs.find((o) => o.id === orgId)?.type === 'RETAILER'
-              ? 'Cửa hàng bán lẻ'
-              : 'Tiếp nhận và phân phối'
+            ? receivingStage(c.orgs.find((o) => o.id === orgId)?.type)
             : 'Xuất hàng',
       );
     };
@@ -629,17 +635,72 @@ export class PublicJourneyService {
           include: PUBLIC_TRACE_INCLUDE,
           orderBy: [{ eventTime: 'asc' }, { createdAt: 'asc' }],
         });
-        const sourceLines = await this.db.distributionLine.findMany({
+        const allSourceLines = await this.db.distributionLine.findMany({
           where: {
             lotId: source.id,
             transfer: { status: { not: 'CANCELLED' } },
           },
           include: { transfer: true },
         });
+        // Only the material's own way to this processor belongs here: the
+        // handovers that brought it to the processing organization, and what
+        // happened before processing started. Parts of the same source lot
+        // sent elsewhere (e.g. to shops) are another product's journey.
+        const run = lot.processingRun;
+        const cutoff = run.startedAt ?? run.createdAt;
+        const path: typeof allSourceLines = [];
+        let holder = run.organizationId;
+        let before = cutoff;
+        while (path.length < 20) {
+          const step = allSourceLines
+            .filter(
+              (l) =>
+                l.transfer.receiverId === holder &&
+                l.transfer.status === 'DELIVERED' &&
+                !path.includes(l) &&
+                (l.transfer.deliveredAt ?? l.transfer.createdAt) <= before,
+            )
+            .sort(
+              (a, b) =>
+                (b.transfer.deliveredAt ?? b.transfer.createdAt).getTime() -
+                (a.transfer.deliveredAt ?? a.transfer.createdAt).getTime(),
+            )[0];
+          if (!step || holder === step.transfer.senderId) break;
+          path.push(step);
+          holder = step.transfer.senderId;
+          before = step.transfer.createdAt;
+        }
+        // Moves between sites of an organization on that way stay too.
+        const onPath = new Set([
+          run.organizationId,
+          ...path.map((l) => l.transfer.senderId),
+        ]);
+        for (const l of allSourceLines)
+          if (
+            l.transfer.senderId === l.transfer.receiverId &&
+            onPath.has(l.transfer.senderId) &&
+            l.transfer.createdAt <= cutoff &&
+            !path.includes(l)
+          )
+            path.push(l);
+        const kept = new Set(path.map((l) => l.transferId));
+        const other = new Set(
+          allSourceLines
+            .map((l) => l.transferId)
+            .filter((id) => !kept.has(id)),
+        );
+        const sourceLines = path;
+        const ownEvents = sourceEvents.filter((e) => {
+          if (e.eventTime > cutoff) return false;
+          const data = object(e.businessData);
+          return ![e.entityId, data.transferId, data.transferRef].some(
+            (id) => typeof id === 'string' && other.has(id),
+          );
+        });
         sourceGroups.push(
           ...(await this.build(
             source,
-            sourceEvents,
+            ownEvents,
             sourceLines,
             source.traceQr!.traceToken,
             depth + 1,

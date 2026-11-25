@@ -29,6 +29,8 @@ import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { TransferRouteSection } from "@/components/ledger/workspace/transfer-route";
+import { EvidenceThumb, EvidenceViewer } from "@/components/ledger/workspace/evidence-panel";
+import type { Evidence } from "@/lib/ledger/workspace-types";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
@@ -455,8 +457,8 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
                 </Callout>
               )}
               {t.chainAccess && t.senderId !== me && t.chainAccess.membership === "ACTIVE" && t.chainAccess.roleGrants === 0 && t.status === "PROPOSED" && (
-                <Callout tone="warn" title={tr("Chờ chủ chuỗi cấp quyền ký")}>
-                  {tr("Doanh nghiệp bạn đã vào chuỗi nhưng chưa có vai trò ký. Chủ chuỗi cấp vai trò ở trang thành viên chuỗi.")}
+                <Callout tone="warn" title={tr("Chưa có vai trò ký trong chuỗi này")}>
+                  {tr("Doanh nghiệp bạn đã vào chuỗi nhưng chưa ai có vai trò ký. Chủ doanh nghiệp bấm “Nhận vai trò ký”; nhân viên thì chủ doanh nghiệp thêm chuỗi này vào phạm vi ở Quản lý thành viên.")}
                 </Callout>
               )}
               {t.status === "IN_TRANSIT" && (t.arrival ? (
@@ -473,7 +475,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
               {t.allowedActions.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {t.allowedActions.map((a) => (
-                    <Button key={a} size="sm" variant={["CANCEL", "RENEW_CONSENT"].includes(a) ? "outline" : "default"} onClick={() => act.open(a)}>{ACTION_LABEL[a]}</Button>
+                    <Button key={a} size="sm" variant={["CANCEL", "RENEW_CONSENT"].includes(a) ? "outline" : "default"} onClick={() => act.open(a)}>{a === "JOIN_CHAIN" && t.chainAccess?.membership === "ACTIVE" ? tr("Nhận vai trò ký") : ACTION_LABEL[a]}</Button>
                   ))}
                 </div>
               )}
@@ -534,8 +536,8 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
               {(t.photos?.length || t.receipt?.photos?.length) ? (
                 <section className="flex flex-col gap-1 text-[13px]">
                   <h3 className="text-[13px] font-semibold">{tr("Ảnh xác nhận")}</h3>
-                  {(["PICKUP", "DELIVERY"] as const).map((p) => { const n = t.photos?.filter((x) => x.phase === p).length ?? 0; return n ? <p key={p}>{PHASE_LABEL[p]}: {tr("{p0} ảnh, nằm trong nội dung ký", { p0: n })}</p> : null; })}
-                  {t.receipt?.photos?.length ? <p>{tr("Biên bản thực nhận: {p0} ảnh", { p0: t.receipt.photos.length })}</p> : null}
+                  {(["PICKUP", "DELIVERY"] as const).map((p) => { const list = t.photos?.filter((x) => x.phase === p) ?? []; return list.length ? <PhotoRow key={p} label={`${PHASE_LABEL[p]}: ${tr("{p0} ảnh, nằm trong nội dung ký", { p0: list.length })}`} ids={list.map((x) => x.evidenceId)} /> : null; })}
+                  {t.receipt?.photos?.length ? <PhotoRow label={tr("Biên bản thực nhận: {p0} ảnh", { p0: t.receipt.photos.length })} ids={t.receipt.photos.map((x) => x.evidenceId)} /> : null}
                 </section>
               ) : null}
               {t.observations.length > 0 && (
@@ -589,7 +591,7 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
             )}
             {(act.target === "PHOTOS_PICKUP" || act.target === "PHOTOS_DELIVERY") && <HandoverPhotosDialog t={t} phase={act.target === "PHOTOS_PICKUP" ? "PICKUP" : "DELIVERY"} props={act.props} invalidate={invalidate} />}
             {act.target === "JOIN_CHAIN" && (
-              <CommandDialog {...act.props} title={tr("Chấp nhận vào chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" })} endpoint="POST /distribution/transfers/:id/join-chain" description={t.chainAccess?.ownerIsSender ? tr("Lô thuộc chuỗi của bên giao. Doanh nghiệp bạn trở thành thành viên và tài khoản của bạn được cấp vai trò ký theo năng lực; quyền ký dùng được sau khi đồng bộ sổ cái.") : tr("Doanh nghiệp bạn trở thành thành viên chuỗi của lô. Chủ chuỗi cần cấp vai trò ký cho tài khoản của bạn trước khi ký đồng thuận.")} schema={z.object({})} defaultValues={{}} version={t.version} submitLabel={tr("Chấp nhận")} invalidate={invalidate} run={(_, cmd) => distApi.joinChain(t.id, { version: t.version }, cmd)}>
+              <CommandDialog {...act.props} title={t.chainAccess?.membership === "ACTIVE" ? tr("Nhận vai trò ký trong chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" }) : tr("Chấp nhận vào chuỗi {p0}", { p0: t.chainAccess?.chainName ?? "" })} endpoint="POST /distribution/transfers/:id/join-chain" description={t.chainAccess?.membership === "ACTIVE" ? tr("Tài khoản của bạn được cấp vai trò ký theo năng lực doanh nghiệp trong chuỗi này; quyền ký dùng được sau khi đồng bộ sổ cái (vài giây đến vài phút).") : t.chainAccess?.ownerIsSender ? tr("Lô thuộc chuỗi của bên giao. Doanh nghiệp bạn trở thành thành viên và tài khoản của bạn được cấp vai trò ký theo năng lực; quyền ký dùng được sau khi đồng bộ sổ cái.") : tr("Doanh nghiệp bạn trở thành thành viên chuỗi của lô. Chủ chuỗi cần cấp vai trò ký cho tài khoản của bạn trước khi ký đồng thuận.")} schema={z.object({})} defaultValues={{}} version={t.version} submitLabel={tr("Chấp nhận")} invalidate={invalidate} run={(_, cmd) => distApi.joinChain(t.id, { version: t.version }, cmd)}>
                 {() => null}
               </CommandDialog>
             )}
@@ -688,6 +690,25 @@ function ReceiptDialog({ t, props, invalidate }: { t: TransferDetail; props: { o
         </>
       )}
     </CommandDialog>
+  );
+}
+
+/** Signed handover photos: thumbnails that open the full image. */
+function PhotoRow({ label, ids }: { label: string; ids: string[] }) {
+  const [open, setOpen] = useState<Evidence | null>(null);
+  const items = ids.map((id) => ({ id, mediaType: "image/jpeg", kind: "TRANSFER_IMAGE", description: label }) as unknown as Evidence);
+  return (
+    <div className="flex flex-col gap-1">
+      <p>{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((e) => (
+          <button key={e.id} type="button" aria-label={tr("Xem ảnh")} onClick={() => setOpen(e)} className="rounded focus-visible:outline-2 focus-visible:outline-brand">
+            <EvidenceThumb evidence={e} />
+          </button>
+        ))}
+      </div>
+      <EvidenceViewer evidence={open} onClose={() => setOpen(null)} />
+    </div>
   );
 }
 

@@ -286,7 +286,7 @@ function useStableFiles(file: File) {
   return useMemo(() => [file], [file]);
 }
 
-function EvidenceViewer({ evidence, onClose }: { evidence: Evidence | null; onClose: () => void }) {
+export function EvidenceViewer({ evidence, onClose }: { evidence: Evidence | null; onClose: () => void }) {
   const q = useQuery({ queryKey: ["ws-evidence-content", evidence?.id], queryFn: () => wapi.evidenceContent(evidence!.id), enabled: !!evidence, retry: false });
   const verified = useEvidenceObjectUrl(evidence && !q.error ? q.data : undefined);
   const src = verified.url ?? null;

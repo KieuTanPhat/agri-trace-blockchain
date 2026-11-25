@@ -16,7 +16,6 @@ import { ApiResponseInterceptor } from '../src/common/api/api-response.intercept
 import { GlobalExceptionFilter } from '../src/common/exception/global-exception.filter.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { requestLedgerGrant } from '../src/modules/ledger/ledger-permissions.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }),
@@ -51,13 +50,6 @@ function role(actor: string, target: string, code: string, chain?: string) {
   });
 }
 /** The chain role a member permission group would create (enterprise-workspace assign). */
-async function memberGroupRole(target: string, code: string, chainId: string) {
-  const grant = await prisma.scopedRoleGrant.create({
-    data: { userId: actors[target].id, organizationId: actors[target].org!, chainId, scope: 'CHAIN', role: code as never },
-  });
-  await requestLedgerGrant(prisma, grant);
-}
-
 describe('Chain management with real PostgreSQL authorization and command journal', () => {
   beforeAll(async () => {
     for (const [key, code, type] of [
@@ -269,7 +261,12 @@ describe('Chain management with real PostgreSQL authorization and command journa
     expect(members.body.data).toHaveLength(1);
     expect(members.body.data[0].organizationId).toBe(actors.partner.org);
     await role('partner', 'partner', 'TRANSPORTER', chainId).expect(403);
-    await memberGroupRole('partner', 'TRANSPORTER', chainId);
+    // Accepting gives the accepting administrator its stage role at once.
+    expect(
+      await prisma.scopedRoleGrant.count({
+        where: { chainId, organizationId: actors.partner.org!, userId: actors.partner.id, role: 'TRANSPORTER', revokedAt: null },
+      }),
+    ).toBe(1);
     await role('partner', 'partner', 'RETAILER', chainId).expect(403);
     await role('partner', 'partner', 'CHAIN_MANAGER', chainId).expect(403);
 
@@ -295,6 +292,7 @@ describe('Chain management with real PostgreSQL authorization and command journa
     ).expect(201);
     await post('partner', path, { version: 0 }, acceptanceKey).expect(409);
     await post('partner', path, { version: 3 }).expect(201);
+    // Rejoining revives no revoked grant: the new acceptance makes one fresh grant.
     expect(
       await prisma.scopedRoleGrant.count({
         where: {
@@ -303,7 +301,12 @@ describe('Chain management with real PostgreSQL authorization and command journa
           revokedAt: null,
         },
       }),
-    ).toBe(0);
+    ).toBe(1);
+    expect(
+      await prisma.scopedRoleGrant.count({
+        where: { chainId, organizationId: actors.partner.org!, revokedAt: { not: null } },
+      }),
+    ).toBe(1);
   }, 120000);
 
   it('prevents cross-org FK grants, duplicate NULL scopes, owner changes and audit rewrites in SQL', async () => {

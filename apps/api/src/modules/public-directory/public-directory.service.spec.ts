@@ -31,12 +31,23 @@ describe('Public directory', () => {
       distributionLine:{findMany:vi.fn().mockResolvedValue([])},
       distributionTransfer: { findMany: vi.fn().mockResolvedValue([]) },
       certificate: { findMany: vi.fn().mockResolvedValue([]) },
+      traceQrBlock: { findMany: vi.fn().mockResolvedValue([]) },
     };
     return {
       db,
       service: new PublicDirectoryService(db as unknown as PrismaService),
     };
   }
+  it('does not take the product image from a lot whose QR page is blocked', async () => {
+    const f = fixture();
+    const blocked = '33333333-3333-4333-8333-333333333333';
+    f.db.product.findFirst.mockResolvedValue({ id, lots: [{ id: blocked }, { id: next }] });
+    f.db.traceQrBlock.findMany.mockResolvedValue([{ lotId: blocked }]);
+    const evidence = vi.fn().mockResolvedValue([]);
+    Object.assign(f.db, { traceEvidence: { findMany: evidence } });
+    await expect(f.service.productImage(id)).rejects.toMatchObject({ status: 404 });
+    expect(evidence.mock.calls[0][0].where.entityId.in).toEqual([next]);
+  });
   it('validates defaults and rejects unbounded/invalid query parameters', async () => {
     expect(plainToInstance(PublicProductsQueryDto, {}).limit).toBe(20);
     expect(
