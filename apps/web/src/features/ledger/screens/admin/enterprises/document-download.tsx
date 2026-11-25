@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import Image from "next/image";
 import type { components } from "@/lib/generated/api";
 import { ledgerRequest } from "@/lib/ledger/request";
 import { getLedgerError } from "@/lib/ledger/errors";
@@ -112,7 +113,7 @@ function PrivateDocumentDownload({
             <DialogTitle className="truncate">{preview?.name}</DialogTitle>
           </DialogHeader>
           {preview && image ? (
-            <img src={preview.url} alt={preview.name} className="max-h-[70vh] w-full rounded border border-line bg-sunken object-contain" />
+            <Image unoptimized src={preview.url} alt={preview.name} width={1200} height={900} className="h-auto max-h-[70vh] w-full rounded border border-line bg-sunken object-contain" />
           ) : preview && pdf ? (
             <iframe src={preview.url} title={preview.name} className="h-[70vh] w-full rounded border border-line" />
           ) : (
