@@ -75,24 +75,28 @@ const ACTION_LABEL: Record<string, string> = {
   get REJECTED() { return tr("Từ chối"); },
   get REPORTED() { return tr("Đã báo cơ quan chức năng"); },
 };
-/** What the administrator does for each kind of ticket. */
-const GUIDE: Record<string, () => string[]> = {
-  ACCESS: () => [tr("Xác minh đúng người yêu cầu."), tr("Tổng hợp dữ liệu hệ thống đang giữ về người đó."), tr("Chọn “Trả lời người yêu cầu” để gửi kết quả, rồi đóng phiếu.")],
-  CORRECTION: () => [tr("Sửa thông tin sai ở Quản lý tài khoản người dùng."), tr("Chọn “Trả lời người yêu cầu” để báo đã sửa, rồi đóng phiếu.")],
-  DELETION: () => [tr("Xóa hoặc vô hiệu hóa phần dữ liệu cá nhân xóa được."), tr("Lô, giao nhận và mã băm trên blockchain phải giữ để truy xuất: ghi rõ phần giữ lại và lý do."), tr("Trả lời người yêu cầu, rồi đóng phiếu.")],
-  RESTRICTION: () => [tr("Tạm ngừng dùng dữ liệu theo yêu cầu (ví dụ vô hiệu hóa tài khoản)."), tr("Trả lời người yêu cầu, rồi đóng phiếu.")],
-  WITHDRAWAL: () => [tr("Ngừng xử lý dựa trên sự đồng ý đã rút (ví dụ vô hiệu hóa tài khoản ACheck)."), tr("Trả lời người yêu cầu, rồi đóng phiếu.")],
-  OBJECTION: () => [tr("Xem cách dùng dữ liệu bị phản đối có căn cứ không."), tr("Trả lời người yêu cầu kết quả, rồi đóng phiếu.")],
-  INCIDENT: () => [tr("Ghi lại diễn biến và phạm vi dữ liệu bị ảnh hưởng."), tr("Trong 72 giờ: quyết định có phải báo cơ quan chức năng không."), tr("Đóng phiếu khi chọn “Không phải báo” (kèm căn cứ), hoặc khi đã báo và có số công văn/email.")],
+/** One line on what the administrator does for each kind of ticket. */
+const GUIDE: Record<string, () => string> = {
+  ACCESS: () => tr("Gửi cho người yêu cầu bản tóm tắt dữ liệu hệ thống đang giữ về họ."),
+  CORRECTION: () => tr("Sửa thông tin ở Quản lý tài khoản người dùng, rồi trả lời là đã sửa."),
+  DELETION: () => tr("Xóa hoặc vô hiệu hóa phần xóa được; lô, giao nhận và blockchain phải giữ lại."),
+  RESTRICTION: () => tr("Vô hiệu hóa tài khoản hoặc ngừng dùng dữ liệu, rồi trả lời."),
+  WITHDRAWAL: () => tr("Vô hiệu hóa tài khoản ACheck của người đó, rồi trả lời."),
+  OBJECTION: () => tr("Xem xét yêu cầu và trả lời kết quả."),
+  INCIDENT: () => tr("Trong 72 giờ: quyết định có phải báo cơ quan chức năng không."),
 };
-/** Next steps offered from the current status (the API keeps the rules). */
+/** The only choices offered for the current status (the API keeps the rules). */
 function nextSteps(status: string, breach: boolean) {
-  const respond = breach ? [] : [{ value: "RESPONDED", label: tr("Trả lời người yêu cầu") }];
-  const close = { value: "CLOSED", label: tr("Đóng phiếu") };
-  const reject = { value: "REJECTED", label: tr("Từ chối") };
-  if (status === "OPEN") return [{ value: "IN_REVIEW", label: tr("Bắt đầu xử lý") }, ...respond, reject];
-  if (status === "RESPONDED") return [close, { value: "IN_REVIEW", label: tr("Xử lý tiếp") }];
-  return [...respond, close, reject, { value: "IN_REVIEW", label: tr("Chỉ ghi thêm ghi chú") }];
+  if (breach)
+    return [
+      { value: "CLOSED", label: tr("Đóng phiếu") },
+      { value: "IN_REVIEW", label: tr("Chỉ lưu ghi chú") },
+    ];
+  if (status === "RESPONDED") return [{ value: "CLOSED", label: tr("Đóng phiếu") }];
+  return [
+    { value: "RESPONDED", label: tr("Trả lời người yêu cầu") },
+    { value: "REJECTED", label: tr("Từ chối") },
+  ];
 }
 
 const requestSchema = z.object({
@@ -156,9 +160,7 @@ export function PrivacyView({ admin }: { admin: boolean }) {
         }
         description={
           admin
-            ? tr(
-                "Nơi xử lý hai loại việc: người dùng xin xem, sửa, xóa hoặc ngừng dùng dữ liệu của họ; và sự cố lộ dữ liệu phải đánh giá trong 72 giờ. Mỗi bước đều được lưu lịch sử; nội dung phiếu được mã hóa.",
-              )
+            ? tr("Trả lời yêu cầu về dữ liệu cá nhân của người dùng và ghi nhận sự cố lộ dữ liệu.")
             : tr(
                 "Gửi yêu cầu xem, sửa, xóa hoặc ngừng dùng dữ liệu cá nhân của bạn và theo dõi phản hồi.",
               )
@@ -426,14 +428,9 @@ function Detail({
           {p.message}
         </p>
         {admin && !ended && GUIDE[p.requestType] && (
-          <div className="rounded-md border border-line bg-sunken px-3 py-2.5 text-[12.5px]">
-            <p className="mb-1 font-semibold">{tr("Cần làm gì")}</p>
-            <ol className="list-decimal pl-5">
-              {GUIDE[p.requestType]().map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-          </div>
+          <p className="rounded-md bg-sunken px-3 py-2 text-[12.5px]">
+            <span className="font-semibold">{tr("Cần làm:")}</span> {GUIDE[p.requestType]()}
+          </p>
         )}
       </div>
       <div className="rounded-md border border-line bg-card">
@@ -499,8 +496,8 @@ function Detail({
                 {
                   status: v.status,
                   note: v.note,
-                  // A reply always reaches the requester.
-                  visibility: v.status === "RESPONDED" ? "SHARED" : v.visibility,
+                  // A reply or a refusal reaches the requester; other notes stay internal.
+                  visibility: ["RESPONDED", "REJECTED"].includes(v.status) && !breach ? "SHARED" : "INTERNAL",
                   version: p.version,
                   ...(breach
                     ? {
@@ -523,25 +520,14 @@ function Detail({
                   label={tr("Bước tiếp theo")}
                   options={nextSteps(p.status, breach)}
                 />
-                {f.watch("status") === "RESPONDED" ? (
-                  <p className="text-[12.5px] text-ink-2">{tr("Ghi chú dưới đây sẽ được gửi cho người yêu cầu.")}</p>
-                ) : (
-                  !breach && (
-                    <ChoiceField
-                      control={f.control}
-                      name="visibility"
-                      label={tr("Ai đọc được ghi chú này?")}
-                      options={[
-                        { value: "INTERNAL", label: tr("Chỉ quản trị") },
-                        { value: "SHARED", label: tr("Gửi cho người yêu cầu") },
-                      ]}
-                    />
-                  )
-                )}
                 <TextAreaField
                   control={f.control}
                   name="note"
-                  label={tr("Ghi chú (đã làm gì)")}
+                  label={
+                    !breach && ["RESPONDED", "REJECTED"].includes(f.watch("status"))
+                      ? tr("Nội dung gửi người yêu cầu")
+                      : tr("Ghi chú")
+                  }
                   max={4000}
                 />
                 {breach && (
@@ -560,7 +546,7 @@ function Detail({
                         },
                       ]}
                     />
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    {f.watch("reporting") === "REQUIRED" && <div className="grid gap-3 sm:grid-cols-2">
                       <TextField
                         control={f.control}
                         name="reportedAt"
@@ -573,7 +559,7 @@ function Detail({
                         label={tr("Số công văn hoặc mã email đã gửi")}
                         hint={tr("5–500 ký tự")}
                       />
-                    </div>
+                    </div>}
                     <p className="text-[12px] text-ink-2">
                       {tr(
                         "Muốn đóng phiếu sự cố: chọn “Không phải báo” kèm căn cứ, hoặc điền lúc đã báo và số công văn/email.",

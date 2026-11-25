@@ -55,12 +55,13 @@ export class DirectoryQuery {
 }
 
 export class LotSearchQuery {
-  @ApiProperty({ minLength: 2, maxLength: 120, description: 'Mã lô, mã truy xuất QR hoặc tên sản phẩm' })
+  @ApiPropertyOptional({ minLength: 2, maxLength: 120, description: 'Mã lô, mã truy xuất QR hoặc tên sản phẩm; bỏ trống để liệt kê lô mới nhất' })
   @Transform(trim)
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(120)
-  q!: string;
+  q?: string;
 }
 
 export class TraceReportQuery {

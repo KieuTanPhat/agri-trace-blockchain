@@ -37864,9 +37864,9 @@ export interface operations {
     };
     PlatformAdminController_lots: {
         parameters: {
-            query: {
-                /** @description Mã lô, mã truy xuất QR hoặc tên sản phẩm */
-                q: string;
+            query?: {
+                /** @description Mã lô, mã truy xuất QR hoặc tên sản phẩm; bỏ trống để liệt kê lô mới nhất */
+                q?: string;
             };
             header?: never;
             path?: never;

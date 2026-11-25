@@ -13,8 +13,12 @@ export function SidebarNav({ groups, onNavigate }: { groups: LedgerNavGroup[]; o
   useEffect(() => {
     nav.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
   }, [pathname]);
+  // Only the most specific matching item is current: /admin/billing must not
+  // stay lit on /admin/billing/invoices when that page has its own item.
+  const matches = (href: string) => pathname === href || (!["/admin", "/enterprise"].includes(href) && pathname.startsWith(href + "/"));
+  const current = groups.flatMap((g) => g.items).filter((i) => matches(i.href)).sort((x, y) => y.href.length - x.href.length)[0]?.href;
   return <nav ref={nav} aria-label={t("Điều hướng chính")} className="flex flex-col gap-5 px-3 py-4">{groups.map(group => <div key={group.label} className="flex flex-col gap-0.5"><div className="px-2 pb-1 text-[11px] font-semibold tracking-[0.06em] text-ink-2 uppercase">{group.label}</div>{group.items.map(item => {
-    const active = pathname === item.href || (!["/admin", "/enterprise"].includes(item.href) && pathname.startsWith(item.href + "/"));
+    const active = item.href === current;
     return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={cn("flex h-8 items-center justify-between gap-2 rounded-[5px] px-2 text-[13px] transition-colors", active ? "bg-brand-weak font-semibold text-brand-ink" : "text-ink hover:bg-sunken")}><span className="truncate">{item.label}</span></Link>;
   })}</div>)}</nav>;
 }

@@ -61,8 +61,8 @@ function Recall() {
   const [term, setTerm] = useState("");
   const found = useQuery({
     queryKey: ["recall-lot-search", term],
+    // No term lists the newest lots, so one can simply pick from the list.
     queryFn: () => ops.trace.lots(term),
-    enabled: term.length > 0,
   });
   const q = useQuery({
     queryKey: ["recall", lotId],
@@ -79,7 +79,7 @@ function Recall() {
   return (
     <>
       <PageHeader
-        title={tr("Diễn tập thu hồi")}
+        title={tr("Thu hồi lô")}
         actions={
           d && (
             <Button
@@ -110,8 +110,8 @@ function Recall() {
           <TextField
             control={form.control}
             name="lotId"
-            label={tr("Chọn lô cần xem")}
-            hint={tr("Gõ mã lô (ví dụ LOT-20261125-…), tên sản phẩm hoặc mã QR rồi bấm Tìm lô")}
+            label={tr("Tìm lô")}
+            hint={tr("Chọn trong danh sách bên dưới, hoặc gõ mã lô, tên sản phẩm, mã QR rồi bấm Tìm lô")}
           />
           <Button
             type="submit"
@@ -121,7 +121,7 @@ function Recall() {
           >
             {tr("Tìm lô")}
           </Button>
-          {term && (
+          {(
             <div className="mt-3">
               {found.error ? (
                 <ErrorState error={found.error} onRetry={() => found.refetch()} />
@@ -130,8 +130,8 @@ function Recall() {
               ) : !found.data.length ? (
                 <p className="text-[12.5px] text-ink-2">{tr("Không tìm thấy lô phù hợp")}</p>
               ) : (
-                <ul className="divide-y divide-line/70 rounded-md border border-line">
-                  {found.data.slice(0, 8).map((l) => (
+                <ul className="max-h-80 divide-y divide-line/70 overflow-y-auto rounded-md border border-line">
+                  {found.data.map((l) => (
                     <li key={l.lotId}>
                       <button
                         type="button"
@@ -143,6 +143,7 @@ function Recall() {
                       >
                         <span className="font-mono">{l.lotCode}</span>
                         <span className="min-w-0 flex-1 truncate">{l.productName} · {l.organizationName}</span>
+                        <span className="text-[11.5px] text-ink-2">{l.availableQuantity}/{l.initialQuantity} {l.unit}</span>
                       </button>
                     </li>
                   ))}
@@ -153,7 +154,7 @@ function Recall() {
         </form>
         {!lotId ? (
           <div className="rounded-md border border-dashed border-line-strong bg-card">
-            <EmptyState title={tr("Tìm và chọn một lô để xem phạm vi ảnh hưởng")} />
+            <EmptyState title={tr("Chọn một lô trong danh sách để xem phạm vi ảnh hưởng")} />
           </div>
         ) : q.error ? (
           <ErrorState error={q.error} onRetry={() => q.refetch()} />

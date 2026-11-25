@@ -40,7 +40,7 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
         get label() { return tr("Truy xuất"); },
         items: [
             { href: "/admin/lots", get label() { return tr("Tra cứu lô & QR"); }, get keywords() { return tr("lot qr khóa tem"); } },
-            { href: "/admin/recall", get label() { return tr("Diễn tập thu hồi"); }, readOnly: true, get keywords() { return tr("recall thu hồi"); } },
+            { href: "/admin/recall", get label() { return tr("Thu hồi lô"); }, readOnly: true, get keywords() { return tr("recall thu hồi"); } },
             { href: "/admin/trace-report", get label() { return tr("Báo cáo truy xuất"); }, readOnly: true, get keywords() { return tr("trace report KDE csv xuất dữ liệu lô"); } },
         ]
     },

@@ -51,7 +51,8 @@ function Lots() {
     setText(q);
     setSelected(null);
   }
-  const res = useQuery({ queryKey: ["lots", q], queryFn: () => api.trace.lots(q), enabled: q.length > 0 });
+  // An empty search lists the newest lots of the platform.
+  const res = useQuery({ queryKey: ["lots", q], queryFn: () => api.trace.lots(q) });
   const current = res.data?.find((l) => l.lotId === selectedId) ?? res.data?.[0];
 
   return (
@@ -78,21 +79,17 @@ function Lots() {
                 <Search /> {tr("Tra cứu")}
               </Button>
             </form>
-            {!q ? (
-              <div className="rounded-md border border-dashed border-line-strong bg-card">
-                <EmptyState title={tr("Nhập từ khóa để tra cứu")}>{tr("Backend yêu cầu tham số q; không có danh sách lô toàn nền tảng. Thử “TG-2610”, “Xoài” hoặc “MK”.")}</EmptyState>
-              </div>
-            ) : res.error ? (
+            {res.error ? (
               <ErrorState error={res.error} onRetry={() => res.refetch()} />
             ) : !res.data ? (
               <LoadingRows />
             ) : !res.data.length ? (
               <div className="rounded-md border border-line bg-card">
-                <EmptyState title={tr("Không có lô khớp “{p0}”", { p0: q })} />
+                <EmptyState title={q ? tr("Không có lô khớp “{p0}”", { p0: q }) : tr("Chưa có lô nào")} />
               </div>
             ) : (
               <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-                <ul className="divide-y divide-line/70 overflow-hidden rounded-md border border-line bg-card">
+                <ul className="max-h-[70vh] divide-y divide-line/70 overflow-y-auto rounded-md border border-line bg-card">
                   {res.data.map((l) => (
                     <li key={l.lotId}>
                       <button type="button" onClick={() => setSelected(l.lotId)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 px-4 py-2.5 text-left text-[13px] hover:bg-row-alt", current?.lotId === l.lotId && "bg-brand-weak shadow-[inset_3px_0_0_var(--brand)] hover:bg-brand-weak")}>
@@ -100,7 +97,7 @@ function Lots() {
                           <span className="font-mono font-medium">{l.lotCode}</span> · {l.productName}
                         </span>
                         <span className="flex gap-1">
-                          {l.qrBlock && <Badge tone="danger" dot={false}>{tr("QR khóa")}</Badge>}
+                          {l.qrBlock ? <Badge tone="danger" dot={false}>{tr("QR khóa")}</Badge> : l.traceToken ? <Badge tone="ok" dot={false}>{tr("Có QR")}</Badge> : <Badge tone="neutral" dot={false}>{tr("Chưa có QR")}</Badge>}
                           <Status group="lot" value={l.currentState} />
                         </span>
                         <span className="truncate text-[12px] text-ink-2">
@@ -140,7 +137,7 @@ function LotDetail({ lot }: { lot: LotSearchItem }) {
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" asChild>
-              <Link href={`/admin/recall?lotId=${lot.lotId}`}>{tr("Diễn tập thu hồi")}</Link>
+              <Link href={`/admin/recall?lotId=${lot.lotId}`}>{tr("Xem phạm vi thu hồi")}</Link>
             </Button>
             {can("qr.write") &&
               (lot.qrBlock ? (
