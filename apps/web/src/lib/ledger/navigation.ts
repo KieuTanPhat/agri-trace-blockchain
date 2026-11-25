@@ -62,7 +62,7 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
     {
         get label() { return tr("Cấu hình"); },
         items: [
-            { href: "/admin/settings", get label() { return tr("Tham số nền tảng"); }, keywords: "setting" },
+            // "Tham số nền tảng" (/admin/settings) is hidden from the menu; the page stays reachable.
             { href: "/admin/notices", get label() { return tr("Thông báo hệ thống"); }, keywords: "notice banner" },
             { href: "/admin/news", get label() { return tr("Quản lí bản tin"); }, keywords: "news article mobile tin tức" },
             { href: "/admin/reference-data", get label() { return tr("Danh mục tham chiếu"); }, get keywords() { return tr("reference đơn vị"); } },

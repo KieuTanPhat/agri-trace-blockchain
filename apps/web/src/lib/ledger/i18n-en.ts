@@ -2314,7 +2314,7 @@ export const EN: Record<string, string> = {
   "Đang kiểm tra…": "Checking…",
   "Kiểm tra thanh toán": "Check payment",
   "Có giao dịch cần đối soát. Không chuyển thêm tiền; liên hệ quản trị kèm số hóa đơn.": "A transaction needs reconciliation. Do not transfer more money; contact an administrator with your invoice number.",
-  "Năng lực chưa được xét đầy đủ. Chưa chuyển khoản; liên hệ quản trị để hoàn tất.": "Capability reviews are incomplete. Do not transfer money yet; contact an administrator to complete the review.",
+  "Hồ sơ đăng ký chưa được duyệt. Chưa chuyển khoản; liên hệ quản trị để hoàn tất.": "The registration is not approved yet. Do not transfer money; contact an administrator.",
   "Thanh toán QR": "Pay by QR",
   "Thanh toán QR chỉ có hiệu lực sau khi máy chủ xác nhận giao dịch. Khoản thử nghiệm được ghi riêng, không tính vào doanh thu thật.": "QR payments require server confirmation. Test payments are recorded separately and excluded from real revenue.",
   "Báo giá và hợp đồng theo phiên bản đã công bố; kết quả thanh toán do máy chủ xác nhận.": "Quotes and contracts use published versions; payments are confirmed by the server.",
