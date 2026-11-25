@@ -144,6 +144,8 @@ export class PartnerOrganizationDto {
   @ApiProperty({ enum: Enums.OrganizationType }) type!: Enums.OrganizationType;
   @ApiProperty({ type: String, description: 'AGT organization code' })
   code!: string;
+  @ApiProperty({ type: [String], description: 'Approved, unrevoked capability codes' })
+  capabilities!: string[];
 }
 export class EnterprisePartnerDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;

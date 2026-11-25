@@ -39,7 +39,9 @@ const emptySchema = z.object({});
 const nameSchema = z.object({ name: z.string().trim().min(1, { error: () => tr("Không được để trống") }).max(255) });
 
 export default function DevicesPage() {
-  const { can } = useWorkspaceAccess();
+  const { can, access } = useWorkspaceAccess();
+  // Field sensors belong to producing farms; any organization with vehicles may fit GPS.
+  const farmer = !!access?.capabilities.includes("FARM");
   const devices = useQuery({ queryKey: ["iot-devices"], queryFn: iotApi.devices, enabled: can("devices.read"), refetchInterval: 30_000 });
   // Vehicles or plots added on another page must appear without a reload.
   const options = useQuery({ queryKey: ["iot-device-options"], queryFn: iotApi.options, enabled: can("devices.read"), staleTime: 0, refetchOnWindowFocus: true });
@@ -159,7 +161,7 @@ export default function DevicesPage() {
           endpoint="POST /iot/v2/devices"
           description={tr("Gắn thửa cần quyền ghi sản xuất; gắn xe cần quyền quản lý phương tiện. Mỗi xe chỉ có một GPS đang hoạt động.")}
           schema={registerSchema}
-          defaultValues={{ kind: "FIELD_SENSOR", deviceCode: "", name: "", publicKey: "", simulated: "yes", plotId: "", vehicleId: "" }}
+          defaultValues={{ kind: farmer ? "FIELD_SENSOR" : "GPS_TRACKER", deviceCode: "", name: "", publicKey: "", simulated: "yes", plotId: "", vehicleId: "" }}
           submitLabel={tr("Đăng ký")}
           invalidate={[["iot-devices"]]}
           wide
@@ -181,7 +183,7 @@ export default function DevicesPage() {
             const kind = f.watch("kind");
             return (
               <>
-                <ChoiceField control={f.control} name="kind" label={tr("Loại thiết bị")} options={[{ value: "FIELD_SENSOR", label: tr("Cảm biến vùng trồng"), help: tr("Nhiệt độ, độ ẩm, độ ẩm đất") }, { value: "GPS_TRACKER", label: tr("GPS trên xe"), help: tr("Chỉ ghi vị trí") }]} />
+                <ChoiceField control={f.control} name="kind" label={tr("Loại thiết bị")} options={[...(farmer ? [{ value: "FIELD_SENSOR", label: tr("Cảm biến vùng trồng"), help: tr("Nhiệt độ, độ ẩm, độ ẩm đất") }] : []), { value: "GPS_TRACKER", label: tr("GPS trên xe"), help: tr("Chỉ ghi vị trí") }]} />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <TextField control={f.control} name="deviceCode" label={tr("Mã thiết bị (IMEI/serial)")} max={120} />
                   <TextField control={f.control} name="name" label={tr("Tên gợi nhớ")} max={255} />

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canUseEnterpriseRoute,
+  showInEnterpriseMenu,
   enterpriseLanding,
   type EnterpriseAccess,
 } from "./enterprise-access";
@@ -103,4 +104,12 @@ it("only the primary enterprise owner can open employee activity",()=>{
  expect(canUseEnterpriseRoute("/enterprise/audit-log",staff)).toBe(false);
  expect(canUseEnterpriseRoute("/enterprise/audit-log",{...staff,permissions:["members.manage"]})).toBe(false);
  expect(canUseEnterpriseRoute("/enterprise/audit-log",{...staff,primary:true,permissions:["members.manage"]})).toBe(true);
+});
+it("hides product, stock, QR, recall, lot and site menus only for carrier-only organizations",()=>{
+ const carrier={...staff,capabilities:["TRANSPORTER"]};
+ for(const path of ["/enterprise/products","/enterprise/inventory","/enterprise/qr","/enterprise/notices","/lots","/enterprise/sites"])
+  expect(showInEnterpriseMenu(path,carrier)).toBe(false);
+ for(const path of ["/distribution","/enterprise/vehicles","/enterprise/devices","/supply-chains"])
+  expect(showInEnterpriseMenu(path,carrier)).toBe(true);
+ expect(showInEnterpriseMenu("/lots",{...carrier,capabilities:["TRANSPORTER","DISTRIBUTOR"]})).toBe(true);
 });

@@ -37,6 +37,13 @@ import type {
   ResourceStatusInput,
 } from './dto.js';
 
+type BusinessRole =
+  | 'FARM_STAFF'
+  | 'TRANSPORTER'
+  | 'RETAILER'
+  | 'DISTRIBUTOR'
+  | 'PROCESSOR';
+
 const MEMBER_SELECT = {
   id: true,
   memberCode: true,
@@ -299,17 +306,6 @@ export class EnterpriseWorkspaceService {
       await tx.enterpriseMemberRole.create({
         data: { userId, organizationId: actor.organizationId!, ...item },
       });
-    // Existing chain authorization and ledger epochs remain authoritative.
-    const grants = await tx.scopedRoleGrant.findMany({
-      where: { userId, scope: 'CHAIN', revokedAt: null },
-    });
-    for (const grant of grants) {
-      await requestLedgerRevoke(tx, grant.id, 'NORMAL');
-      await tx.scopedRoleGrant.update({
-        where: { id: grant.id },
-        data: { revokedAt: new Date(), revision: { increment: 1 } },
-      });
-    }
     const roles = await tx.enterpriseRole.findMany({
       where: {
         id: { in: assignments.map((a) => a.roleId) },
@@ -319,15 +315,14 @@ export class EnterpriseWorkspaceService {
     const caps = await tx.organizationCapability.findMany({
       where: { organizationId: actor.organizationId!, revokedAt: null },
     });
+    const desired: { chainId: string; role: BusinessRole }[] = [];
     for (const chainId of new Set(assignments.flatMap((a) => a.chainIds))) {
       const perms = assignments
         .filter((a) => a.chainIds.includes(chainId))
         .flatMap(
           (a) => roles.find((r) => r.id === a.roleId)?.permissions ?? [],
         );
-      const businessRoles = new Set<
-        'FARM_STAFF' | 'TRANSPORTER' | 'RETAILER' | 'DISTRIBUTOR' | 'PROCESSOR'
-      >();
+      const businessRoles = new Set<BusinessRole>();
       if (
         perms.includes('production.write') &&
         caps.some((c) => c.code === 'FARM')
@@ -340,18 +335,41 @@ export class EnterpriseWorkspaceService {
           if (c.code === 'TRANSPORTER') businessRoles.add('TRANSPORTER');
           if (c.code === 'RETAILER') businessRoles.add('RETAILER');
         }
-      for (const role of businessRoles) {
-        const grant = await tx.scopedRoleGrant.create({
-          data: {
-            userId,
-            organizationId: actor.organizationId!,
-            chainId,
-            scope: 'CHAIN',
-            role,
-          },
-        });
-        await requestLedgerGrant(tx, grant);
+      for (const role of businessRoles) desired.push({ chainId, role });
+    }
+    // Only the difference changes: a grant kept across the edit keeps its
+    // ledger epoch. Revoking and re-granting the same (chain, role) in one
+    // transaction would collide with the pending ledger revocation.
+    const grants = await tx.scopedRoleGrant.findMany({
+      where: { userId, scope: 'CHAIN', revokedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    const kept = new Set<string>();
+    for (const grant of grants) {
+      const id = `${grant.chainId}|${grant.role}`;
+      const wanted = desired.some((d) => `${d.chainId}|${d.role}` === id);
+      if (wanted && !kept.has(id)) {
+        kept.add(id);
+        continue;
       }
+      await requestLedgerRevoke(tx, grant.id, 'NORMAL');
+      await tx.scopedRoleGrant.update({
+        where: { id: grant.id },
+        data: { revokedAt: new Date(), revision: { increment: 1 } },
+      });
+    }
+    for (const { chainId, role } of desired) {
+      if (kept.has(`${chainId}|${role}`)) continue;
+      const grant = await tx.scopedRoleGrant.create({
+        data: {
+          userId,
+          organizationId: actor.organizationId!,
+          chainId,
+          scope: 'CHAIN',
+          role,
+        },
+      });
+      await requestLedgerGrant(tx, grant);
     }
   }
   async createMember(actor: CommandActor, input: EnterpriseMemberInput) {
@@ -673,13 +691,30 @@ export class EnterpriseWorkspaceService {
     });
     const orgs = await this.db.organization.findMany({
       where: { id: { in: rows.flatMap((r) => [r.inviterId, r.inviteeId]) } },
-      select: { id: true, name: true, type: true },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        capabilities: { where: { revokedAt: null }, select: { code: true } },
+      },
     });
+    const view = (id: string) => {
+      const org = orgs.find((o) => o.id === id);
+      return (
+        org && {
+          id: org.id,
+          name: org.name,
+          type: org.type,
+          code: organizationCode(id),
+          capabilities: org.capabilities.map((c) => c.code),
+        }
+      );
+    };
     return {
       items: rows.map((r) => ({
         ...r,
-        inviter: orgs.find((o) => o.id === r.inviterId) && { ...orgs.find((o) => o.id === r.inviterId), code: organizationCode(r.inviterId) },
-        invitee: orgs.find((o) => o.id === r.inviteeId) && { ...orgs.find((o) => o.id === r.inviteeId), code: organizationCode(r.inviteeId) },
+        inviter: view(r.inviterId),
+        invitee: view(r.inviteeId),
       })),
     };
   }

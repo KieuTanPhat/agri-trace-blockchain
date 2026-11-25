@@ -58,6 +58,11 @@ export class PublicDirectoryService {
     });
     return [...new Set(transfers.flatMap(t => [t.senderId, t.carrierId, t.receiverId]))];
   }
+  /** Province from the farms of the product's public lots, if any are known. */
+  private static lotProvince(lots:{harvest?:{cycle?:{farm?:{region:string|null}|null}|null}|null}[]|undefined) {
+    const regions=[...new Set((lots??[]).map(l=>l.harvest?.cycle?.farm?.region?.trim()).filter((r):r is string=>!!r))];
+    return regions.length?{province:regions.slice(0,3).join(', ')}:{};
+  }
   private async presentProducts(rows:Prisma.ProductGetPayload<{select:typeof PUBLIC_PRODUCT_SELECT}>[]) {
     const selling=await sellingLots(this.db,rows.map(r=>r.id));
     const marketLots=await this.db.lot.findMany({where:{id:{in:[...selling]}},select:{productId:true}});
@@ -65,7 +70,7 @@ export class PublicDirectoryService {
     const lotIds=rows.flatMap(r=>(r.lots??[]).map(l=>l.id));
     const images=lotIds.length?await this.db.traceEvidence.findMany({where:{entityType:'LOT',entityId:{in:lotIds}},select:{id:true,entityId:true,public:true,kind:true,supersedesId:true,mediaType:true,withdrawal:{select:{evidenceId:true}}},orderBy:{createdAt:'desc'}}):[];
     return rows.map(row=>{const image=visibleDirectoryImage(images.filter(i=>(row.lots??[]).some(l=>l.id===i.entityId)));return {id:row.id,saleStatus:sellingProducts.has(row.id)?'SELLING':'NOT_SELLING',productName:row.productName,variety:row.variety??null,defaultUnit:row.defaultUnit??null,description:row.description??null,
-      ...publicProductDetails(row,row.organization?.directoryPublications?.[0]?.presentation),createdAt:row.createdAt?.toISOString()??new Date(0).toISOString(),traceCount:row._count?.lots??0,
+      ...publicProductDetails(row,row.organization?.directoryPublications?.[0]?.presentation),...PublicDirectoryService.lotProvince(row.lots),createdAt:row.createdAt?.toISOString()??new Date(0).toISOString(),traceCount:row._count?.lots??0,
       imageUrl:image?`/public/products/${row.id}/image?v=${image.id}`:null,
       enterprise:row.organization?{id:row.organization.id,name:row.organization.name,logoUrl:enterpriseLogo(row.organization.id,row.organization.directoryPublications?.[0]?.presentation)}:null};});
   }

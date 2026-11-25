@@ -6228,6 +6228,8 @@ export interface components {
             description: string | null;
             /** Format: uuid */
             id: string;
+            /** @description Organizations of the supply model still invited (detail only) */
+            invitedOrganizationIds?: string[];
             /** @description Chain roles the caller holds (list only) */
             myRoles?: string[];
             name: string;
@@ -8675,6 +8677,8 @@ export interface components {
             link: string;
         };
         PartnerOrganizationDto: {
+            /** @description Approved, unrevoked capability codes */
+            capabilities: string[];
             /** @description AGT organization code */
             code: string;
             /** Format: uuid */
@@ -9220,8 +9224,11 @@ export interface components {
             managerUserId?: string;
             /** Format: uuid */
             manufacturingSiteId?: string;
-            /** Format: uuid */
-            originFarmId: string;
+            /**
+             * Format: uuid
+             * @description Origin farm; required only for farm products
+             */
+            originFarmId?: string;
             productName: string;
             rawMaterials?: string;
             sku: string;
