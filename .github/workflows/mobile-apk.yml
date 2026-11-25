@@ -1,7 +1,8 @@
 name: Mobile APK
 # Installable Android builds of ACheck (consumer) and the staff app against
-# production. Signed with the React Native debug key: for sideloaded demos only,
-# never a store submission.
+# production, for sideloading (never a store submission). ACheck turns on
+# Firebase phone sign-in and is signed with the project's fixed ACheck key, whose
+# SHA-1/SHA-256 are registered in Firebase; the staff app keeps the debug key.
 on:
   workflow_dispatch:
 permissions: {contents: read}
@@ -21,6 +22,7 @@ jobs:
       EXPO_PUBLIC_APP_VARIANT: ${{ matrix.variant }}
       EXPO_PUBLIC_API_BASE_URL: https://agritrace.dev/api
       EXPO_PUBLIC_TRACE_ORIGIN: https://agritrace.dev
+      EXPO_PUBLIC_CONSUMER_PHONE_AUTH_ENABLED: ${{ matrix.variant == 'consumer' && 'true' || 'false' }}
       NODE_ENV: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -30,6 +32,13 @@ jobs:
       - run: npm install --global npm@12.1.0
       - run: npm ci --include=dev --no-audit --no-fund
       - run: npm ci --prefix apps/mobile --workspaces=false --include=dev --no-audit --no-fund
+      - name: Add the Firebase configuration (ACheck)
+        if: matrix.variant == 'consumer'
+        env:
+          GOOGLE_SERVICES_B64: ${{ secrets.ACHECK_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          test -n "$GOOGLE_SERVICES_B64" || { echo "Missing ACHECK_GOOGLE_SERVICES_JSON_BASE64"; exit 1; }
+          printf '%s' "$GOOGLE_SERVICES_B64" | base64 -d > apps/mobile/google-services.json
       - name: Generate the Android project
         working-directory: apps/mobile
         run: node node_modules/expo/bin/cli prebuild --platform android --no-install --clean
@@ -38,6 +47,24 @@ jobs:
         run: |
           export JAVA_HOME="$JAVA_HOME_17_X64"
           ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+      - name: Sign ACheck with the fixed release key
+        if: matrix.variant == 'consumer'
+        env:
+          KEYSTORE_B64: ${{ secrets.ACHECK_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ACHECK_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ACHECK_KEY_ALIAS }}
+        run: |
+          test -n "$KEYSTORE_B64" && test -n "$KEYSTORE_PASSWORD" || { echo "Missing ACheck signing secrets"; exit 1; }
+          ks="$RUNNER_TEMP/acheck.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$ks"
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          apk=apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          "$tools/apksigner" sign --ks "$ks" --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+            --out "$apk.signed" "$apk"
+          mv "$apk.signed" "$apk"
+          rm -f "$ks"
+          "$tools/apksigner" verify --print-certs "$apk" | grep -E "SHA-1|SHA-256" >> "$GITHUB_STEP_SUMMARY"
       - name: Name the APK
         run: |
           name=$([ "$EXPO_PUBLIC_APP_VARIANT" = staff ] && echo agritrace-nhan-vien || echo acheck)
