@@ -83,11 +83,20 @@ async function signOut(page) {
   // Its account page remains available without granting any business permission.
   // Let the previous page finish restoring its session: leaving mid-refresh drops the rotated cookie.
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-  await page.goto(new URL('/account/password', page.url()).href, { waitUntil: 'domcontentloaded' });
   const account = page.getByRole("button", { name: "Tài khoản", exact: true }).filter({ visible: true }).first();
+  // Use the menu where it already is: every extra navigation may race a
+  // session refresh and drop the rotated cookie.
+  if (!(await account.isVisible().catch(() => false)))
+    await page.goto(new URL('/account/password', page.url()).href, { waitUntil: 'domcontentloaded' });
   try {
     await account.waitFor({ timeout: 30_000 });
   } catch (error) {
+    // A session already ended lands on the login page: that is the signed-out
+    // state the caller needs; the next login starts from it.
+    if (new URL(page.url()).pathname === "/login") {
+      console.error(JSON.stringify({ signOut: "session-already-ended", url: page.url() }));
+      return;
+    }
     // Record where the shell actually landed (redirect, gate or overlay).
     const text = await page.locator("body").innerText().catch(() => "");
     console.error(JSON.stringify({ signOut: "account-menu-missing", url: page.url(), viewport: page.viewportSize(), text: text.replace(/\s+/g, " ").slice(0, 600) }));
