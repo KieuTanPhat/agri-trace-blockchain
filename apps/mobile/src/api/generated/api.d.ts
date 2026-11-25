@@ -6986,6 +6986,9 @@ export interface components {
             limits?: {
                 [key: string]: unknown;
             } | null;
+            nextTerm: {
+                [key: string]: unknown;
+            } | null;
             paying: boolean;
             plans: Record<string, never>[];
             simulationEnabled: boolean;
@@ -7268,6 +7271,10 @@ export interface components {
             status: string;
         };
         EnterpriseRenewalInput: {
+            /** @description Explicit acceptance of the exact renewal contract PDF */
+            accepted?: boolean;
+            /** @description Digest of the exact renewal PDF explicitly accepted by the owner. Omit to create a preview only. */
+            contractDigest?: string;
             planCode: string;
         };
         EnterpriseRevisionDto: {

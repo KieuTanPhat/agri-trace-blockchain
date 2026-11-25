@@ -316,6 +316,23 @@ model Subscription {
   @@map("subscription")
 }
 
+/// Accepted renewal contract; payment schedules this term without replacing the current plan.
+model SubscriptionTerm {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subscriptionId String @map("subscription_id") @db.Uuid
+  invoiceId String @unique @map("invoice_id") @db.Uuid
+  planVersionId String @map("plan_version_id") @db.Uuid
+  contractPreviewId String @map("contract_preview_id") @db.Uuid
+  createdBy String @map("created_by") @db.Uuid
+  acceptedAt DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  startsAt DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt DateTime? @map("ends_at") @db.Timestamptz(6)
+  status String @default("AWAITING_PAYMENT") @db.VarChar(30)
+  activatedAt DateTime? @map("activated_at") @db.Timestamptz(6)
+  @@index([status, startsAt], map: "ix_subscription_term_due")
+  @@map("subscription_term")
+}
+
 model Invoice {
   id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   number            String              @unique @db.VarChar(30)

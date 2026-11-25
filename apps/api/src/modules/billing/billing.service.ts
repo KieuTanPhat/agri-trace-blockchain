@@ -14,6 +14,7 @@ import {
 } from '../platform-governance/platform-audit.js';
 import { enterpriseAuthority } from '../enterprise-workspace/enterprise-policy.js';
 import { simulationEnabled } from '../enterprise-onboarding/service-catalog.js';
+import { renewContractTx } from './billing-renewal.js';
 import { assertEnterprisePaymentsEnabled } from '../enterprise-onboarding/payment-policy.js';
 import {
   addMonths,
@@ -496,7 +497,7 @@ export class BillingService {
 
   // ---------- Enterprise ----------
   async mine(actor: CommandActor) {
-    await enterpriseAuthority(this.db, actor, 'profile.read');
+    const authority = await enterpriseAuthority(this.db, actor, 'profile.read');
     const organizationId = actor.organizationId!;
     const e = await entitlementFor(this.db, organizationId);
     const invoices = await this.db.invoice.findMany({
@@ -519,12 +520,50 @@ export class BillingService {
       invoices: invoices.map(invoiceView),
       plans: e.paying ? await publishedCatalog(this.db) : [],
       simulationEnabled: simulationEnabled(),
+      nextTerm: authority.primary ? await this.nextTerm(organizationId) : null,
+    };
+  }
+
+  private async nextTerm(organizationId: string) {
+    const subscription = await this.db.subscription.findFirst({
+      where: { organizationId, status: 'ACTIVE' },
+    });
+    if (!subscription) return null;
+    const term = await this.db.subscriptionTerm.findFirst({
+      where: {
+        subscriptionId: subscription.id,
+        status: { in: ['AWAITING_PAYMENT', 'SCHEDULED'] },
+      },
+    });
+    if (!term) return null;
+    const plan = await this.db.servicePlanVersion.findUniqueOrThrow({
+      where: { id: term.planVersionId },
+      include: { plan: true },
+    });
+    const preview = await this.db.serviceContractPreview.findUniqueOrThrow({
+      where: { id: term.contractPreviewId },
+    });
+    return {
+      id: term.id,
+      invoiceId: term.invoiceId,
+      status: term.status,
+      startsAt: term.startsAt?.toISOString() ?? null,
+      endsAt: term.endsAt?.toISOString() ?? null,
+      planName: plan.plan.name,
+      planCode: plan.planCode,
+      contractDigest: preview.contractDigest,
+      contractText: preview.contractText,
+      fileName: `gia-han-${plan.planCode}.pdf`,
+      mediaType: 'application/pdf',
+      contentBase64: Buffer.from(preview.pdfBytes).toString('base64'),
+      sha256: preview.pdfSha256,
     };
   }
 
   requestRenewal(actor: CommandActor, input: EnterpriseRenewalInput) {
     assertEnterprisePaymentsEnabled();
     return commandTransaction(this.db, async (tx) => {
+      await lockPlatformAudit(tx);
       const auth = await enterpriseAuthority(
         tx,
         actor,
@@ -537,16 +576,7 @@ export class BillingService {
         throw new ForbiddenException(
           'Chỉ quản trị cấp 1 được gia hạn gói dịch vụ',
         );
-      return {
-        record: invoiceView(
-          await renewalInvoiceTx(
-            tx,
-            actor.organizationId!,
-            input.planCode,
-            actor.sub,
-          ),
-        ),
-      };
+      return { record: await renewContractTx(tx, actor, input) };
     });
   }
 
@@ -617,6 +647,15 @@ async function renewalInvoiceTx(
     throw new ConflictException(
       'Tổ chức chưa có gói dịch vụ đang hiệu lực để gia hạn',
     );
+  if (
+    await tx.subscriptionTerm.findFirst({
+      where: {
+        subscriptionId: subscription.id,
+        status: { in: ['AWAITING_PAYMENT', 'SCHEDULED'] },
+      },
+    })
+  )
+    throw new ConflictException('Đã có hợp đồng hoặc gói chờ cho kỳ tiếp theo');
   if (
     await tx.invoice.findFirst({
       where: { subscriptionId: subscription.id, status: 'ISSUED' },

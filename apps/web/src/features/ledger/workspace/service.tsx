@@ -179,6 +179,7 @@ export default function ServicePage({
   if (q.error)
     return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   if (!q.data) return <LoadingRows />;
+  if (invoiceId && view === "payment") return owner ? <><PageHeader title={tr("Thanh toán hóa đơn dịch vụ")} description={tr("Thanh toán đúng hóa đơn đã xác nhận. Theo dõi gói hiện tại và kỳ tiếp theo trong Gói dịch vụ & hóa đơn.")} /><PageBody><SepayPayment invoiceId={invoiceId} onPaid={onPaid} /><Link className="text-brand-ink underline" href="/enterprise/billing">{tr("Gói dịch vụ & hóa đơn")}</Link></PageBody></> : <ErrorState error={new Error(tr("Chỉ chủ doanh nghiệp thanh toán hóa đơn dịch vụ"))} />;
   const data = q.data,
     order = data.order,
     preview = order ? null : (draft?.preview ?? data.latestPreview),

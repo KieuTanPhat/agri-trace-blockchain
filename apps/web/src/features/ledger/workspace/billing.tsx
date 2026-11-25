@@ -9,17 +9,16 @@ import { fmtDate, fmtMoney, fmtNumber } from "@/lib/ledger/format";
 import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
-import { SelectField } from "@/components/ledger/kit/form-fields";
+import { RenewalContract, ScheduledRenewal } from "./renewal-contract";
 import { Callout, EmptyState, ErrorState, Field, Fields, LoadingRows, PageBody, PageHeader, Section } from "@/components/ledger/kit/page";
 import { Badge, Status } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
 import { t as tr } from "@/lib/ledger/i18n";
-const renewSchema = z.object({ planCode: z.string().min(1, { error: () => tr("Chọn gói") }) });
 
 export default function WsBillingPage() {
   const { primary } = useWorkspaceAccess();
-  const q = useQuery({ queryKey: ["ws-billing"], queryFn: wapi.billing });
+  const q = useQuery({ queryKey: ["ws-billing"], queryFn: wapi.billing, refetchInterval: query => query.state.data?.nextTerm?.status === "SCHEDULED" ? 10_000 : false });
   const renew = useDialog();
   const pay = useDialog<Invoice>();
   if (q.error) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
@@ -35,13 +34,14 @@ export default function WsBillingPage() {
         meta={<Status group="subscription" value={b.status === "PARTICIPANT" ? "FREE" : b.status} />}
         actions={
           primary && b.applies && b.paying && s && (
-            <Button size="sm" onClick={() => renew.open(true)}>
+            <Button size="sm" onClick={() => renew.open(true)} disabled={!!b.nextTerm}>
               {tr("Gia hạn gói")}
             </Button>
           )
         }
       />
       <PageBody className="min-w-0">
+        {primary && b.nextTerm && <ScheduledRenewal term={b.nextTerm} />}
         {s && (
           <Section title={tr("Gói hiện tại")}>
             <Fields cols={4}>
@@ -101,21 +101,7 @@ export default function WsBillingPage() {
         </Section>
         <Callout>{tr("Thanh toán QR chỉ có hiệu lực sau khi máy chủ xác nhận giao dịch. Khoản thử nghiệm được ghi riêng, không tính vào doanh thu thật.")}</Callout>
       </PageBody>
-      {s && (
-        <CommandDialog
-          {...renew.props}
-          title={tr("Gia hạn gói dịch vụ")}
-          endpoint="POST /enterprise-billing/renewals"
-          description={tr("Khi kỳ đã trả còn hiệu lực chỉ gia hạn được cùng gói. Hóa đơn gia hạn nối tiếp từ ngày hết hạn hiện tại.")}
-          schema={renewSchema}
-          defaultValues={{ planCode: s.planCode }}
-          submitLabel={tr("Tạo hóa đơn gia hạn")}
-          invalidate={invalidate}
-          run={(v, cmd) => wapi.renew(v, cmd)}
-        >
-          {(f) => <SelectField control={f.control} name="planCode" label={tr("Gói")} options={b.plans.map((p) => ({ value: p.code, label: tr("{p0} · {p1}/năm", { p0: p.name, p1: fmtMoney(p.version.annualFee) }) }))} />}
-        </CommandDialog>
-      )}
+      {s && <RenewalContract {...renew.props} plans={b.plans} initialPlanCode={s.planCode} invalidate={invalidate} />}
       {pay.target && (
         <CommandDialog
           {...pay.props}

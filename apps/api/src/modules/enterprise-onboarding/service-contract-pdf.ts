@@ -44,6 +44,7 @@ export interface ContractPdfFields {
   total: number;
   limits: { products: number; chains: number; members: number };
   reference: string;
+  renewalTerms?: string;
 }
 /** Load the existing two-page template, overlay fields, then freeze its bytes.
  * No network, dynamic HTML or remote document paths are accepted. */
@@ -106,12 +107,37 @@ export async function mergeServiceContract(fields: ContractPdfFields) {
     2,
   );
   draw(
-    `Tổng giá gói: ${money(fields.total)} · Thuế: chưa xác định trong mẫu thử`,
+    fields.renewalTerms
+      ? `Tổng phí duy trì (gồm thuế): ${money(fields.total)}`
+      : `Tổng giá gói: ${money(fields.total)} · Thuế: chưa xác định trong mẫu thử`,
     181,
     2,
     11,
   );
   draw(`Mã bản xem trước: ${fields.reference}`, 144, 1, 8);
+  if (fields.renewalTerms) {
+    const appendix = pdf.addPage([595.28, 841.89]);
+    appendix.drawText('ĐIỀU KHOẢN GIA HẠN DỊCH VỤ', {
+      x: 40,
+      y: 790,
+      size: 14,
+      font,
+    });
+    let y = 750;
+    for (const paragraph of fields.renewalTerms.split('\n')) {
+      let line = '';
+      for (const char of paragraph.normalize('NFC')) {
+        if (font.widthOfTextAtSize(line + char, 10) > 510) {
+          appendix.drawText(line, { x: 40, y, size: 10, font });
+          y -= 16;
+          line = '';
+        }
+        line += char;
+      }
+      appendix.drawText(line, { x: 40, y, size: 10, font });
+      y -= 24;
+    }
+  }
   pdf.setTitle(`Hợp đồng AgriTrace - ${fields.planCode}`);
   pdf.setProducer('AgriTrace template merge');
   const bytes = Buffer.from(await pdf.save());
