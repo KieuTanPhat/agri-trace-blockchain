@@ -5,6 +5,7 @@ import { useLedgerSearchParams as useSearchParams } from "@/components/ledger/ro
 import { useLedgerQuery as useQuery } from "@/lib/ledger/data";
 import { useForm } from "react-hook-form";
 import { api } from "@/lib/ledger/coordination-api";
+import { api as ops } from "@/lib/ledger/operations-api";
 import { fmtDateTime } from "@/lib/ledger/format";
 import { Guard } from "@/components/ledger/kit/guard";
 import { TextField } from "@/components/ledger/kit/form-fields";
@@ -17,7 +18,6 @@ import {
   LoadingRows,
   PageBody,
   PageHeader,
-  ReadOnlyNote,
   Section,
   Stat,
   StatRow,
@@ -25,6 +25,22 @@ import {
 import { Status } from "@/components/ledger/kit/status";
 
 import { t as tr } from "@/lib/ledger/i18n";
+/** Handover kinds and statuses in plain words. */
+const KIND_LABEL: Record<string, string> = {
+  get DISTRIBUTION() { return tr("Giao nhận"); },
+  get SHIPMENT() { return tr("Chuyến vận chuyển"); },
+};
+const MOVE_STATUS: Record<string, string> = {
+  get PROPOSED() { return tr("Mới lập phiếu"); },
+  get READY() { return tr("Đã đồng thuận, chờ lấy hàng"); },
+  get IN_TRANSIT() { return tr("Đang chở"); },
+  get DELIVERED() { return tr("Đã giao"); },
+  get CANCELLED() { return tr("Đã hủy"); },
+  get REJECTED() { return tr("Bị từ chối"); },
+  get RETURNED() { return tr("Đã trả hàng"); },
+  get RECEIVED() { return tr("Đã nhận"); },
+  get CREATED() { return tr("Mới tạo"); },
+};
 function RecallPage() {
   return (
     <Guard permission="recall.read">
@@ -38,9 +54,16 @@ function RecallPage() {
 function Recall() {
   const params = useSearchParams();
   const form = useForm<{ lotId: string }>({
-    defaultValues: { lotId: params.get("lotId") || "" },
+    defaultValues: { lotId: "" },
   });
   const [lotId, setLotId] = useState(params.get("lotId") || "");
+  // Find the lot by its familiar code or product name, not its internal id.
+  const [term, setTerm] = useState("");
+  const found = useQuery({
+    queryKey: ["recall-lot-search", term],
+    queryFn: () => ops.trace.lots(term),
+    enabled: term.length > 0,
+  });
   const q = useQuery({
     queryKey: ["recall", lotId],
     queryFn: () => api.trace.recall(lotId),
@@ -70,43 +93,67 @@ function Recall() {
                 )
               }
             >
-              {tr("Tải snapshot JSON")}
+              {tr("Tải báo cáo")}
             </Button>
           )
         }
         description={tr(
-          "Snapshot chỉ đọc: lô nguồn, lô con (qua chế biến), phân bổ hiện tại và các chặng giao nhận. Không ghi gì, không gửi thông báo.",
+          "Giả sử một lô có vấn đề: xem hàng của lô đó đang ở đâu, ai đang giữ, đã chế biến ra lô nào và đang được chở đi đâu. Trang này chỉ để xem trước, không thu hồi thật và không gửi thông báo. Thu hồi thật do doanh nghiệp chủ lô thực hiện ở trang lô.",
         )}
       />
       <PageBody>
-        <ReadOnlyNote>
-          <span className="font-mono">GET /platform-recall/:lotId</span>{" "}
-          {tr(
-            "— mỗi phần tối đa 500 dòng, cây lô tối đa 20 cấp. Thu hồi thật là lệnh lô của doanh nghiệp; nền tảng không có quyền thu hồi.",
-          )}
-        </ReadOnlyNote>
         <form
-          onSubmit={form.handleSubmit((v) => setLotId(v.lotId.trim()))}
+          role="search"
+          onSubmit={form.handleSubmit((v) => setTerm(v.lotId.trim()))}
           className="max-w-xl rounded-md border border-line bg-card p-4"
         >
           <TextField
             control={form.control}
             name="lotId"
-            label={tr("Lô gốc để diễn tập")}
-            hint={tr("Nhập mã định danh lô để tạo snapshot")}
+            label={tr("Chọn lô cần xem")}
+            hint={tr("Gõ mã lô (ví dụ LOT-20261125-…), tên sản phẩm hoặc mã QR rồi bấm Tìm lô")}
           />
           <Button
             type="submit"
             size="sm"
             className="mt-3"
-            disabled={q.isFetching}
+            disabled={found.isFetching}
           >
-            {tr("Tạo bản diễn tập")}
+            {tr("Tìm lô")}
           </Button>
+          {term && (
+            <div className="mt-3">
+              {found.error ? (
+                <ErrorState error={found.error} onRetry={() => found.refetch()} />
+              ) : !found.data ? (
+                <LoadingRows rows={2} />
+              ) : !found.data.length ? (
+                <p className="text-[12.5px] text-ink-2">{tr("Không tìm thấy lô phù hợp")}</p>
+              ) : (
+                <ul className="divide-y divide-line/70 rounded-md border border-line">
+                  {found.data.slice(0, 8).map((l) => (
+                    <li key={l.lotId}>
+                      <button
+                        type="button"
+                        onClick={() => setLotId(l.lotId)}
+                        className={
+                          "flex w-full flex-wrap items-center gap-2 px-3 py-2 text-left text-[13px] hover:bg-row-alt" +
+                          (l.lotId === lotId ? " bg-brand-weak" : "")
+                        }
+                      >
+                        <span className="font-mono">{l.lotCode}</span>
+                        <span className="min-w-0 flex-1 truncate">{l.productName} · {l.organizationName}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </form>
         {!lotId ? (
           <div className="rounded-md border border-dashed border-line-strong bg-card">
-            <EmptyState title={tr("Chọn một lô để xem phạm vi ảnh hưởng")} />
+            <EmptyState title={tr("Tìm và chọn một lô để xem phạm vi ảnh hưởng")} />
           </div>
         ) : q.error ? (
           <ErrorState error={q.error} onRetry={() => q.refetch()} />
@@ -119,15 +166,26 @@ function Recall() {
                 {tr("Danh sách chưa đầy đủ — cần đối soát bổ sung.")}
               </Callout>
             )}
+            <Callout tone="info">
+              {tr(
+                "Nếu thu hồi lô {p0}: ảnh hưởng {p1} lô, {p2} doanh nghiệp đang giữ hàng, {p3} chuyến đang chở.",
+                {
+                  p0: d.lots.find((l) => l.id === d.rootLotId)?.lotCode ?? code(d.rootLotId),
+                  p1: d.lots.length,
+                  p2: new Set(d.holdings.map((h) => h.organizationId)).size,
+                  p3: d.movements.filter((m) => m.status === "IN_TRANSIT").length,
+                },
+              )}
+            </Callout>
             <StatRow>
-              <Stat label={tr("Lô trong phạm vi")} value={d.lots.length} />
+              <Stat label={tr("Lô bị ảnh hưởng")} value={d.lots.length} />
               <Stat
-                label={tr("Tổ chức đang giữ")}
+                label={tr("Doanh nghiệp đang giữ")}
                 value={new Set(d.holdings.map((h) => h.organizationId)).size}
               />
-              <Stat label={tr("Chặng giao nhận")} value={d.movements.length} />
+              <Stat label={tr("Lượt giao nhận")} value={d.movements.length} />
               <Stat
-                label={tr("Snapshot lúc")}
+                label={tr("Thời điểm xem")}
                 value={
                   <span className="text-[15px]">
                     {fmtDateTime(d.generatedAt)}
@@ -136,7 +194,7 @@ function Recall() {
               />
             </StatRow>
             <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
-              <Section title={tr("Cây lô")} className="min-w-0">
+              <Section title={tr("Lô này và các lô sinh ra từ nó")} aside={tr("còn lại / ban đầu")} className="min-w-0">
                 <ul className="divide-y divide-line/70">
                   {d.lots.map((l) => (
                     <li
@@ -155,8 +213,8 @@ function Recall() {
               </Section>
               <Section
                 className="min-w-0"
-                title={tr("Đang giữ hàng")}
-                aside={tr("Lượng giữ chỗ đã nằm trong lượng phân bổ")}
+                title={tr("Ai đang giữ hàng, bao nhiêu")}
+                aside={tr("Phần đã hẹn giao nằm trong số đang giữ")}
               >
                 <ul className="divide-y divide-line/70">
                   {d.holdings.map((h, i) => (
@@ -173,7 +231,7 @@ function Recall() {
                       <span className="min-w-0 break-words font-mono text-[12px]">
                         {h.quantity}{" "}
                         <span className="text-ink-2">
-                          {tr("(giữ chỗ")} {h.reserved})
+                          {tr("(đã hẹn giao")} {h.reserved})
                         </span>
                       </span>
                     </li>
@@ -182,8 +240,8 @@ function Recall() {
               </Section>
             </div>
             <Section
-              title={tr("Chặng giao nhận")}
-              aside={tr("Không cộng các chặng thành tồn kho")}
+              title={tr("Hàng đã và đang được chở đi đâu")}
+              aside={tr("Mỗi dòng là một lượt giao, không phải tồn kho")}
             >
               {d.movements.length ? (
                 <div className="overflow-x-auto">
@@ -192,7 +250,7 @@ function Recall() {
                       <tr className="border-b border-line bg-sunken text-left text-[12px] text-ink-2">
                         <th className="h-9 w-12 pl-4 pr-1 text-right font-semibold">{tr("STT")}</th>
                         <th className="h-9 px-4 font-semibold">{tr("Lô")}</th>
-                        <th className="px-3 font-semibold">{tr("Loại")}</th>
+                        <th className="px-3 font-semibold">{tr("Hình thức")}</th>
                         <th className="px-3 font-semibold">
                           {tr("Gửi → Nhận")}
                         </th>
@@ -212,8 +270,8 @@ function Recall() {
                           <td className="h-10 px-4 font-mono">
                             {code(m.lotId)}
                           </td>
-                          <td className="px-3 font-mono text-[12px]">
-                            {m.kind}
+                          <td className="px-3 text-[12px]">
+                            {KIND_LABEL[m.kind] ?? m.kind}
                           </td>
                           <td className="px-3">
                             {orgName(m.senderId)} → {orgName(m.receiverId)}
@@ -221,8 +279,8 @@ function Recall() {
                           <td className="px-3 font-mono text-[12px]">
                             {m.quantity} {m.unit}
                           </td>
-                          <td className="px-4 font-mono text-[12px]">
-                            {m.status}
+                          <td className="px-4 text-[12px]">
+                            {MOVE_STATUS[m.status] ?? m.status}
                           </td>
                         </tr>
                       ))}
@@ -230,16 +288,17 @@ function Recall() {
                   </table>
                 </div>
               ) : (
-                <EmptyState title={tr("Không có chặng giao nhận")} />
+                <EmptyState title={tr("Lô này chưa được giao cho ai")} />
               )}
             </Section>
-            <Section title={tr("Giới hạn của báo cáo")}>
-              <ul className="list-disc px-9 py-3 text-[13px] text-ink-2">
+            <details className="rounded-md border border-line bg-card px-4 py-2 text-[13px]">
+              <summary className="cursor-pointer text-ink-2">{tr("Giới hạn của báo cáo")}</summary>
+              <ul className="list-disc px-5 py-2 text-ink-2">
                 {d.limitations.map((l) => (
                   <li key={l}>{l}</li>
                 ))}
               </ul>
-            </Section>
+            </details>
           </>
         )}
       </PageBody>

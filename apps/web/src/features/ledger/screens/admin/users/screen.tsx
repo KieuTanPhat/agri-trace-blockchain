@@ -116,10 +116,20 @@ export function PlatformUsers({
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
   const [organization, setOrganization] = useState("");
+  // Staff (platform and enterprise accounts) and consumers are listed apart.
+  const [tab, setTab] = useState<"staff" | "consumers">("staff");
+  const consumers = tab === "consumers";
 
-  const people = useMemo(
+  const everyone = useMemo(
     () => q.data?.filter((u) => !MACHINE_ROLES.includes(u.role.code)),
     [q.data],
+  );
+  const people = useMemo(
+    () =>
+      accountId
+        ? everyone
+        : everyone?.filter((u) => (u.role.code === "CONSUMER") === consumers),
+    [everyone, consumers, accountId],
   );
   const filterRoles = useMemo(
     () =>
@@ -156,7 +166,7 @@ export function PlatformUsers({
               ? !u.organization
               : u.organization?.id === organization)) &&
           (!search.trim() ||
-            searchable(`${u.fullName} ${u.email ?? ""}`).includes(
+            searchable(`${u.fullName} ${u.email ?? ""} ${u.phoneMasked ?? ""}`).includes(
               searchable(search.trim()),
             )),
       ),
@@ -170,7 +180,22 @@ export function PlatformUsers({
   // remain visible for lookup; loading/error never grants mutation controls.
   const manageable = (u: PlatformUser) =>
     !roles.error && (roles.data?.some((r) => r.code === u.role.code) ?? false);
+  const consumerAction = (u: PlatformUser) =>
+    u.id === me?.id ? null : (
+      <Button
+        size="xs"
+        variant="outline"
+        className={u.accountStatus === "ACTIVE" ? "text-danger" : undefined}
+        onClick={(e) => {
+          e.stopPropagation();
+          action.open({ kind: "status", user: u });
+        }}
+      >
+        {u.accountStatus === "ACTIVE" ? tr("Vô hiệu hóa") : tr("Kích hoạt lại")}
+      </Button>
+    );
   const accountActions = (u: PlatformUser) =>
+    u.role.code === "CONSUMER" && !roles.error && !!roles.data ? consumerAction(u) :
     manageable(u) ? (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -214,7 +239,7 @@ export function PlatformUsers({
       </span>
     );
 
-  const columns: Column<PlatformUser>[] = [
+  const allColumns: Column<PlatformUser>[] = [
     {
       key: "name",
       header: tr("Tài khoản"),
@@ -230,7 +255,9 @@ export function PlatformUsers({
             )}
           </span>
           <span className="truncate font-mono text-[11.5px] text-ink-2">
-            {u.email || tr("Chưa có email")}
+            {u.role.code === "CONSUMER"
+              ? [u.phoneMasked, u.email].filter(Boolean).join(" · ") || tr("Chưa có email")
+              : u.email || tr("Chưa có email")}
           </span>
         </div>
       ),
@@ -290,10 +317,11 @@ export function PlatformUsers({
     {
       key: "act",
       header: <span className="sr-only">{tr("Thao tác")}</span>,
-      className: "w-10 text-right",
+      className: consumers ? "w-28 text-right" : "w-10 text-right",
       cell: accountActions,
     },
   ];
+  const columns = allColumns.filter((c) => !consumers || !["role", "org"].includes(c.key));
 
   const a = action.target;
   const roleOptions = (roles.data ?? []).map((r) => ({
@@ -438,10 +466,35 @@ export function PlatformUsers({
           )
         ) : (
           <>
+            <div role="tablist" aria-label={tr("Loại tài khoản")} className="flex gap-1 border-b border-line">
+              {([["staff", tr("Nhân viên & quản trị")], ["consumers", tr("Người tiêu dùng")]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => { setTab(key); setRole(""); setOrganization(""); }}
+                  className={
+                    "-mb-px border-b-2 px-3 py-2 text-[13px] " +
+                    (tab === key ? "border-brand font-semibold text-brand-ink" : "border-transparent text-ink-2 hover:text-ink")
+                  }
+                >
+                  {label}{" "}
+                  <span className="text-ink-2">
+                    ({everyone?.filter((u) => (u.role.code === "CONSUMER") === (key === "consumers")).length ?? 0})
+                  </span>
+                </button>
+              ))}
+            </div>
+            {consumers && (
+              <p className="text-[12.5px] text-ink-2">
+                {tr("Tài khoản đăng ký trên app ACheck. Vô hiệu hóa sẽ đăng xuất người dùng khỏi mọi thiết bị và chặn đăng nhập cho tới khi kích hoạt lại; dữ liệu và lịch sử vẫn giữ nguyên.")}
+              </p>
+            )}
             <FilterBar
               search={search}
               onSearch={setSearch}
-              placeholder={tr("Tên hoặc email")}
+              placeholder={consumers ? tr("Tên, email hoặc số điện thoại") : tr("Tên hoặc email")}
               active={!!(search || role || status || organization)}
               onReset={() => (
                 setSearch(""),
@@ -450,13 +503,13 @@ export function PlatformUsers({
                 setOrganization("")
               )}
             >
-              <FilterSelect
+              {!consumers && <FilterSelect
                 label={tr("Vai trò")}
                 value={role}
                 onChange={setRole}
                 options={filterRoles}
-              />
-              <FilterSelect
+              />}
+              {!consumers && <FilterSelect
                 label={tr("Tổ chức")}
                 value={organization}
                 onChange={setOrganization}
@@ -467,7 +520,7 @@ export function PlatformUsers({
                   },
                   ...filterOrganizations,
                 ]}
-              />
+              />}
               <FilterSelect
                 label={tr("Trạng thái")}
                 value={status}
@@ -605,7 +658,14 @@ export function PlatformUsers({
             "Không tự khóa chính mình; không vô hiệu hóa quản trị viên hoạt động cuối cùng. Khóa/vô hiệu hóa thu hồi mọi refresh session.",
           )}
           schema={statusSchema}
-          defaultValues={{ accountStatus: a.user.accountStatus, reason: "" }}
+          // A consumer row's button already says what it does: preselect it.
+          defaultValues={{
+            accountStatus:
+              a.user.role.code === "CONSUMER"
+                ? a.user.accountStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE"
+                : a.user.accountStatus,
+            reason: "",
+          }}
           version={a.user.version}
           submitLabel={tr("Ghi trạng thái")}
           invalidate={invalidate}

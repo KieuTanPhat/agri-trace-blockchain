@@ -160,6 +160,7 @@ const governanceAccount: S["UserListDto"] = {
   fullName: "Quản trị viên kiểm thử",
   role: { code: "SYSTEM_ADMIN", name: "Quản trị nền tảng" },
   organization: null,
+      phoneMasked: null,
   accountStatus: "ACTIVE",
   mustChangePassword: false,
   lockedUntil: null,

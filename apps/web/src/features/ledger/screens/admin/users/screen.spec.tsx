@@ -47,6 +47,7 @@ const admin: PlatformUser = {
   updatedAt: "2026-11-05T00:00:00Z",
   role: { code: "SYSTEM_ADMIN", name: "Quản trị nền tảng" },
   organization: null,
+      phoneMasked: null,
 };
 const staff: PlatformUser = {
   ...admin,

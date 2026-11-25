@@ -20827,6 +20827,11 @@
             "nullable": true,
             "type": "object"
           },
+          "phoneMasked": {
+            "description": "Consumer sign-in phone with the middle digits hidden",
+            "nullable": true,
+            "type": "string"
+          },
           "role": {
             "$ref": "#/components/schemas/UserRoleDto"
           },
@@ -20849,7 +20854,8 @@
           "createdAt",
           "updatedAt",
           "role",
-          "organization"
+          "organization",
+          "phoneMasked"
         ],
         "type": "object"
       },

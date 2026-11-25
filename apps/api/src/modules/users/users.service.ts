@@ -125,16 +125,24 @@ async function createPlatformUserTx(
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list() {
-    return this.prisma.user.findMany({
+  async list() {
+    const rows = await this.prisma.user.findMany({
       select: {
         ...PUBLIC_USER,
         createdAt: true,
+        loginPhone: true,
         role: { select: { code: true, name: true } },
         organization: { select: { id: true, name: true, type: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
+    // The full phone is never listed: enough digits to recognize the person.
+    return rows.map(({ loginPhone, ...row }) => ({
+      ...row,
+      phoneMasked: loginPhone
+        ? `${loginPhone.slice(0, 3)}****${loginPhone.slice(-3)}`
+        : null,
+    }));
   }
 
   roles() {
@@ -171,6 +179,7 @@ export class UsersService {
     tx: Prisma.TransactionClient,
     id: string,
     version: number | undefined,
+    allowConsumer = false,
   ) {
     await lockPlatformAudit(tx);
     const probe = await tx.user.findUnique({
@@ -184,7 +193,10 @@ export class UsersService {
       include: { role: true },
     });
     if (!user) throw new NotFoundException('Không tìm thấy người dùng');
-    if (!(PLATFORM_ROLES as readonly string[]).includes(user.role.code))
+    // Consumers have no organization to manage them: the platform may
+    // disable or re-enable them (status only).
+    const consumer = allowConsumer && user.role.code === 'CONSUMER' && !user.organizationId;
+    if (!consumer && !(PLATFORM_ROLES as readonly string[]).includes(user.role.code))
       throw new ForbiddenException(
         'Tài khoản doanh nghiệp do doanh nghiệp quản lý',
       );
@@ -199,7 +211,7 @@ export class UsersService {
     input: UpdateUserStatusDto,
   ) {
     return commandTransaction(this.prisma, async (tx) => {
-      const existing = await this.lockedPlatformUser(tx, id, input.version);
+      const existing = await this.lockedPlatformUser(tx, id, input.version, true);
       if (id === actor.sub && input.accountStatus !== 'ACTIVE')
         throw new ConflictException(
           'Không thể tự khóa hoặc vô hiệu hóa chính mình',
