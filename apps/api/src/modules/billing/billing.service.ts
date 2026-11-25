@@ -550,6 +550,43 @@ export class BillingService {
     });
   }
 
+  /** The level-1 admin cancels an unpaid renewal invoice to pick another
+   * plan. Never once money arrived: a matched or reviewed transfer is
+   * reconciled by the platform first. The voiding is audited. */
+  cancelRenewal(
+    actor: CommandActor,
+    invoiceId: string,
+    input: EnterpriseInvoicePayInput,
+  ) {
+    return commandTransaction(this.db, async (tx) => {
+      await lockPlatformAudit(tx);
+      const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
+      if (!invoice || invoice.organizationId !== actor.organizationId)
+        throw new NotFoundException('Không tìm thấy hóa đơn');
+      await payerAuthority(tx, actor);
+      if (invoice.kind !== 'RENEWAL')
+        throw new ConflictException(
+          'Chỉ hủy được hóa đơn gia hạn; hóa đơn lần đầu dùng chức năng đổi gói',
+        );
+      if (
+        await tx.sepayWebhookReceipt.findFirst({
+          where: { invoiceId, outcome: { in: ['MATCHED', 'REVIEW_REQUIRED'] } },
+        })
+      )
+        throw new ConflictException(
+          'Đã có giao dịch chuyển tiền cho hóa đơn này; liên hệ quản trị để đối soát',
+        );
+      return {
+        record: invoiceView(
+          await voidInvoiceTx(tx, actor, invoiceId, {
+            version: input.version,
+            reason: 'Doanh nghiệp hủy hóa đơn gia hạn để chọn gói khác',
+          }),
+        ),
+      };
+    });
+  }
+
   paySimulated(
     actor: CommandActor,
     invoiceId: string,

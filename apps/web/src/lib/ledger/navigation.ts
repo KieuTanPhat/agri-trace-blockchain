@@ -33,14 +33,14 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
         items: [
             { href: "/admin/cases", get label() { return tr("Hồ sơ sự cố"); }, count: ["CASE"], get keywords() { return tr("case khiếu nại"); } },
             { href: "/admin/reports", get label() { return tr("Báo cáo người tiêu dùng"); }, count: ["CONSUMER_REPORT"], get keywords() { return tr("consumer report phản ánh"); } },
-            { href: "/admin/privacy", get label() { return tr("Quyền dữ liệu cá nhân"); }, get keywords() { return tr("privacy vi phạm breach"); } },
+            // "Quyền dữ liệu cá nhân" (/admin/privacy) is hidden from the menu; the page stays reachable.
         ]
     },
     {
         get label() { return tr("Truy xuất"); },
         items: [
             { href: "/admin/lots", get label() { return tr("Tra cứu lô & QR"); }, get keywords() { return tr("lot qr khóa tem"); } },
-            { href: "/admin/recall", get label() { return tr("Thu hồi lô"); }, readOnly: true, get keywords() { return tr("recall thu hồi"); } },
+            // "Thu hồi lô" (/admin/recall) is hidden from the menu; the page stays reachable.
             { href: "/admin/trace-report", get label() { return tr("Báo cáo truy xuất"); }, readOnly: true, get keywords() { return tr("trace report KDE csv xuất dữ liệu lô"); } },
         ]
     },

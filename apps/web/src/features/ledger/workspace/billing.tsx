@@ -22,6 +22,7 @@ export default function WsBillingPage() {
   const q = useQuery({ queryKey: ["ws-billing"], queryFn: wapi.billing });
   const renew = useDialog();
   const pay = useDialog<Invoice>();
+  const cancel = useDialog<Invoice>();
   if (q.error) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   if (!q.data) return <LoadingRows rows={6} className="p-8" />;
   const b = q.data;
@@ -86,6 +87,11 @@ export default function WsBillingPage() {
                     <Status group="invoice" value={i.status} />
                     {i.simulated && <Badge tone="warn" dot={false}>{tr("mô phỏng")}</Badge>}
                     {primary && b.applies && i.status === "ISSUED" && <Button size="xs" variant="outline" asChild><Link href={`/enterprise/service/payment?invoiceId=${encodeURIComponent(i.id)}`}>{tr("Thanh toán QR")}</Link></Button>}
+                    {primary && i.status === "ISSUED" && i.kind === "RENEWAL" && (
+                      <Button size="xs" variant="outline" className="text-danger" onClick={() => cancel.open(i)}>
+                        {tr("Hủy")}
+                      </Button>
+                    )}
                     {primary && i.status === "ISSUED" && b.simulationEnabled && (
                       <Button size="xs" variant="outline" onClick={() => pay.open(i)}>
                         {tr("Thanh toán mô phỏng")}
@@ -114,6 +120,23 @@ export default function WsBillingPage() {
           run={(v, cmd) => wapi.renew(v, cmd)}
         >
           {(f) => <SelectField control={f.control} name="planCode" label={tr("Gói")} options={b.plans.map((p) => ({ value: p.code, label: tr("{p0} · {p1}/năm", { p0: p.name, p1: fmtMoney(p.version.annualFee) }) }))} />}
+        </CommandDialog>
+      )}
+      {cancel.target && (
+        <CommandDialog
+          {...cancel.props}
+          title={tr("Hủy hóa đơn {p0}", { p0: cancel.target.number })}
+          endpoint="POST /enterprise-billing/invoices/:id/cancel"
+          description={tr("Hóa đơn gia hạn chưa thanh toán sẽ bị hủy để bạn chọn gói khác. Không hủy được nếu đã chuyển tiền; khi đó liên hệ quản trị để đối soát.")}
+          schema={z.object({})}
+          defaultValues={{}}
+          version={cancel.target.version}
+          tone="danger"
+          submitLabel={tr("Hủy hóa đơn")}
+          invalidate={invalidate}
+          run={(_, cmd) => wapi.cancelRenewal(cancel.target!.id, { version: cancel.target!.version }, cmd)}
+        >
+          {() => null}
         </CommandDialog>
       )}
       {pay.target && (

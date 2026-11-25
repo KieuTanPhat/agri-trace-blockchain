@@ -276,6 +276,24 @@ export class EnterpriseBillingController extends CommandController {
     );
   }
 
+  @Post('invoices/:id/cancel')
+  @ApiHeader(KEY)
+  @ApiDataResponse(BillingRecordDto, 201)
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: EnterpriseInvoicePayInput,
+    @IdempotencyKey() key: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.command(
+      req,
+      key,
+      'ENTERPRISE_BILLING_CANCEL_RENEWAL',
+      { ...input, id },
+      () => this.service.cancelRenewal(req.user, id, input),
+    );
+  }
+
   @Post('invoices/:id/payment-simulation')
   @ApiHeader(KEY)
   @ApiDataResponse(BillingRecordDto, 201)

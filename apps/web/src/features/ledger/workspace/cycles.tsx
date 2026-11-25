@@ -124,7 +124,8 @@ const AREA_FACTOR: Record<string, number> = { m2: 1, "m²": 1, ha: 10_000 };
 function cultivationLimit(options: Options, farmId: string, plotId: string) {
   const plot = options.plots.find((p) => p.id === plotId);
   const factor = plot ? AREA_FACTOR[(plot.unit ?? "m2").trim().toLowerCase()] : undefined;
-  const plotM2 = plot?.area != null && factor ? Number(plot.area) * factor : null;
+  // Running cycles on the plot hold their area until they end or are cancelled.
+  const plotM2 = plot?.area != null && factor ? Math.max(0, Number(plot.area) * factor - Number(plot.reservedM2 ?? 0)) : null;
   const farm = options.farms.find((f) => f.id === farmId);
   const farmM2 = farm?.areaM2 != null ? Number(farm.areaM2) : null;
   if (plotM2 !== null && farmM2 !== null) return Math.min(plotM2, farmM2);
@@ -278,7 +279,7 @@ function CycleFields({ f, options, draft }: { f: { control: never; setValue: (na
         <SelectField control={c} name="plotId" label={draft ? tr("Thửa đất") : tr("Thửa đất")} options={options.plots.filter((p) => p.farmId === farmId).map((p) => ({ value: p.id, label: p.name }))} />
         <SelectField control={c} name="productId" label={tr("Sản phẩm")} hint={otherFarm ? tr("Sản phẩm này đăng ký xuất xứ ở {p0}, khác vùng đang chọn", { p0: otherFarm }) : undefined} options={products.map((p) => ({ value: p.id, label: p.originFarmId && p.originFarmId !== farmId ? tr("{p0} (vùng khác)", { p0: p.productName }) : p.productName }))} onValueChange={(id) => { const unit = options.products.find((p) => p.id === id)?.defaultUnit; if (unit) f.setValue("harvestUnit", unit); }} />
         <SelectField control={c} name="seedMaterialId" label={tr("Giống")} options={options.seeds.map((m) => ({ value: m.id, label: m.name }))} />
-        <TextField control={c} name="cultivatedArea" label={tr("Diện tích canh tác (m²)")} type="number" hint={maxArea !== null ? tr("Tối đa {p0} m²", { p0: maxArea.toLocaleString("vi-VN") }) : undefined} />
+        <TextField control={c} name="cultivatedArea" label={tr("Diện tích canh tác (m²)")} type="number" hint={maxArea !== null ? (options.plots.find((p) => p.id === plotId)?.reservedM2 ? tr("Còn trống {p0} m² (các vụ đang chạy giữ phần còn lại)", { p0: maxArea.toLocaleString("vi-VN") }) : tr("Tối đa {p0} m²", { p0: maxArea.toLocaleString("vi-VN") })) : undefined} />
         <TextField control={c} name="cultivationMethod" label={tr("Phương thức canh tác")} />
         <TextField control={c} name="startDate" label={draft ? tr("Ngày bắt đầu") : tr("Ngày bắt đầu")} type="date" />
         <TextField control={c} name="plannedHarvest" label={draft ? tr("Dự kiến thu hoạch") : tr("Dự kiến thu hoạch")} type="date" />

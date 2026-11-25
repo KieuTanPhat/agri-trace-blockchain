@@ -439,7 +439,7 @@ export async function authorizeEnterpriseCommand(
     });
   }
   if (input.operation.startsWith('ENTERPRISE_BILLING_')) {
-    if (!['ENTERPRISE_BILLING_RENEW', 'ENTERPRISE_BILLING_PAY_SIMULATION'].includes(input.operation))
+    if (!['ENTERPRISE_BILLING_RENEW', 'ENTERPRISE_BILLING_PAY_SIMULATION', 'ENTERPRISE_BILLING_CANCEL_RENEWAL'].includes(input.operation))
       throw new ForbiddenException('Command onboarding không hợp lệ');
     // Billing belongs to the enrollment owner or a level-1 organization admin.
     if (lock && actor.organizationId)

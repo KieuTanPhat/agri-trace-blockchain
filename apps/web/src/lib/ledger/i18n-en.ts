@@ -2455,4 +2455,6 @@ export const EN: Record<string, string> = {
   "Doanh nghiệp bạn đã vào chuỗi nhưng chưa ai có vai trò ký. Chủ doanh nghiệp bấm “Nhận vai trò ký”; nhân viên thì chủ doanh nghiệp thêm chuỗi này vào phạm vi ở Quản lý thành viên.": "Your enterprise joined the chain but nobody holds a signing role. The owner presses “Take the signing role”; for staff, the owner adds this chain to their scope in Members.",
   "Nhận vai trò ký trong chuỗi {p0}": "Take the signing role in chain {p0}",
   "Tài khoản của bạn được cấp vai trò ký theo năng lực doanh nghiệp trong chuỗi này; quyền ký dùng được sau khi đồng bộ sổ cái (vài giây đến vài phút).": "Your account receives the signing role for your enterprise's capability in this chain; it works once the ledger syncs (seconds to minutes).",
+  "Hóa đơn gia hạn chưa thanh toán sẽ bị hủy để bạn chọn gói khác. Không hủy được nếu đã chuyển tiền; khi đó liên hệ quản trị để đối soát.": "The unpaid renewal invoice is cancelled so you can choose another plan. It cannot be cancelled once money was sent; contact an administrator to reconcile.",
+  "Còn trống {p0} m² (các vụ đang chạy giữ phần còn lại)": "{p0} m² free (running cycles hold the rest)",
 };

@@ -58,6 +58,8 @@ class CatalogFarmDto extends FarmRecordDto {
 }
 class CatalogPlotDto extends PlotRecordDto {
   @ApiProperty({ type: FarmRecordDto }) farm!: FarmRecordDto;
+  @ApiProperty({ description: 'm² held by running (created, planted, growing) cycles' })
+  reservedM2!: number;
 }
 export class CatalogDto {
   @ApiProperty({ type: [ProductRecordDto] }) products!: ProductRecordDto[];
