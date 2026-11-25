@@ -29,6 +29,8 @@ import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { TransferRouteSection } from "@/components/ledger/workspace/transfer-route";
+import { EvidenceThumb, EvidenceViewer } from "@/components/ledger/workspace/evidence-panel";
+import type { Evidence } from "@/lib/ledger/workspace-types";
 import { Badge } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
 
@@ -534,8 +536,8 @@ function TransferSheet({ id, onClose,view }: { id: string | null; onClose: () =>
               {(t.photos?.length || t.receipt?.photos?.length) ? (
                 <section className="flex flex-col gap-1 text-[13px]">
                   <h3 className="text-[13px] font-semibold">{tr("Ảnh xác nhận")}</h3>
-                  {(["PICKUP", "DELIVERY"] as const).map((p) => { const n = t.photos?.filter((x) => x.phase === p).length ?? 0; return n ? <p key={p}>{PHASE_LABEL[p]}: {tr("{p0} ảnh, nằm trong nội dung ký", { p0: n })}</p> : null; })}
-                  {t.receipt?.photos?.length ? <p>{tr("Biên bản thực nhận: {p0} ảnh", { p0: t.receipt.photos.length })}</p> : null}
+                  {(["PICKUP", "DELIVERY"] as const).map((p) => { const list = t.photos?.filter((x) => x.phase === p) ?? []; return list.length ? <PhotoRow key={p} label={`${PHASE_LABEL[p]}: ${tr("{p0} ảnh, nằm trong nội dung ký", { p0: list.length })}`} ids={list.map((x) => x.evidenceId)} /> : null; })}
+                  {t.receipt?.photos?.length ? <PhotoRow label={tr("Biên bản thực nhận: {p0} ảnh", { p0: t.receipt.photos.length })} ids={t.receipt.photos.map((x) => x.evidenceId)} /> : null}
                 </section>
               ) : null}
               {t.observations.length > 0 && (
@@ -688,6 +690,25 @@ function ReceiptDialog({ t, props, invalidate }: { t: TransferDetail; props: { o
         </>
       )}
     </CommandDialog>
+  );
+}
+
+/** Signed handover photos: thumbnails that open the full image. */
+function PhotoRow({ label, ids }: { label: string; ids: string[] }) {
+  const [open, setOpen] = useState<Evidence | null>(null);
+  const items = ids.map((id) => ({ id, mediaType: "image/jpeg", kind: "TRANSFER_IMAGE", description: label }) as unknown as Evidence);
+  return (
+    <div className="flex flex-col gap-1">
+      <p>{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((e) => (
+          <button key={e.id} type="button" aria-label={tr("Xem ảnh")} onClick={() => setOpen(e)} className="rounded focus-visible:outline-2 focus-visible:outline-brand">
+            <EvidenceThumb evidence={e} />
+          </button>
+        ))}
+      </div>
+      <EvidenceViewer evidence={open} onClose={() => setOpen(null)} />
+    </div>
   );
 }
 
