@@ -462,21 +462,6 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                         {text("address", "Địa chỉ chi tiết", "text", true)}
                         {text("website", "Website", "url")}
                         {upload("LOGO", "Logo tổ chức")}
-                        <div className="flex flex-col gap-1 sm:col-span-2">
-                          <RegistrationCheck
-                            name="participationStatus"
-                            label={t("Đăng ký làm chủ chuỗi (dùng dịch vụ có phí)")}
-                            checked={draft.participationStatus === "CHAIN_OWNER"}
-                            onChange={(checked) => update("participationStatus", checked ? "CHAIN_OWNER" : "MEMBER")}
-                            error={errors.participationStatus}
-                          />
-                          <p className="pl-6 text-[12px] text-ink-2">
-                            {t("Bỏ trống để tham gia miễn phí với tư cách thành viên; có thể nâng cấp sau. Chủ chuỗi đứng tên sản phẩm, tạo chuỗi và mời đối tác.")}
-                          </p>
-                          {draft.invitationToken && (
-                            <p className="pl-6 text-[12px] text-ink-2">{t("Bạn đăng ký theo lời mời của một chủ chuỗi; lời mời vào chuỗi hiện trong tài khoản sau khi kích hoạt.")}</p>
-                          )}
-                        </div>
                       </>
                     )}
                     {step === 1 && (
@@ -544,6 +529,8 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                                     return {
                                       ...current,
                                       activities,
+                                      // Without a goods-owning activity the organization joins as a member.
+                                      participationStatus: mayOwnChains(activities) ? current.participationStatus : "MEMBER",
                                       organizationType: activities.includes(current.organizationType)
                                         ? current.organizationType
                                         : (activities[0] ?? ""),
@@ -554,9 +541,6 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                             ))}
                           </div>
                           {errors.activities && <p className="text-[12px] text-destructive">{t(errors.activities)}</p>}
-                          {draft.participationStatus === "CHAIN_OWNER" && !mayOwnChains(draft.activities) && (
-                            <Callout tone="warn">{t("Chủ chuỗi cần ít nhất một năng lực sở hữu hàng; tổ chức chỉ vận chuyển đăng ký với tư cách thành viên.")}</Callout>
-                          )}
                         </div>
                         <RegistrationSelect
                           name="organizationType"
@@ -662,6 +646,25 @@ export default function LedgerScreen(_props: LedgerScreenProps) {
                             disabled
                             onChange={() => {}}
                           />
+                          <div className="flex flex-col gap-1 sm:col-span-2">
+                            <RegistrationCheck
+                              name="participationStatus"
+                              label={t("Đăng ký làm chủ chuỗi")}
+                              checked={draft.participationStatus === "CHAIN_OWNER"}
+                              disabled={!mayOwnChains(draft.activities)}
+                              onChange={(checked) => update("participationStatus", checked ? "CHAIN_OWNER" : "MEMBER")}
+                              error={errors.participationStatus}
+                            />
+                            <p className="pl-6 text-[12px] text-ink-2">
+                              {t("Chủ chuỗi đứng tên sản phẩm, tạo chuỗi và mời đối tác (dịch vụ có phí). Bỏ tích để tham gia miễn phí với tư cách thành viên; có thể nâng cấp sau.")}
+                            </p>
+                            {!mayOwnChains(draft.activities) && (
+                              <p className="pl-6 text-[12px] text-ink-2">{t("Tổ chức chỉ vận chuyển tham gia với tư cách thành viên; chủ chuỗi cần ít nhất một năng lực sở hữu hàng.")}</p>
+                            )}
+                            {draft.invitationToken && (
+                              <p className="pl-6 text-[12px] text-ink-2">{t("Bạn đăng ký theo lời mời của một chủ chuỗi; lời mời vào chuỗi hiện trong tài khoản sau khi kích hoạt.")}</p>
+                            )}
+                          </div>
                         </div>
                         {draft.participationStatus === "CHAIN_OWNER" && (
                           <RegistrationSelect

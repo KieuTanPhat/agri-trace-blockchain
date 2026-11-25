@@ -89,9 +89,8 @@ export async function runEnterpriseBrowserScenarios(options) {
       const province = (catalog.data ?? catalog).find(item => item.code === '01');
       const ward = province?.wards.find(item => item.code === '00004');
       assert.ok(province && ward, 'Registration address fixture must exist in the catalog');
-      // Step 1: participation status and organization (ADR-005). A producing
-      // chain owner registers; its FARM capability is the default activity.
-      await owner.getByRole('checkbox', { name: 'Đăng ký làm chủ chuỗi (dùng dịch vụ có phí)', exact: true }).check();
+      // Step 1: organization (ADR-005). A producing chain owner registers; its
+      // FARM capability is the default activity.
       await owner.locator('#organizationName').fill(organizationName);
       await owner.locator('#businessId').fill(Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join(''));
       await owner.locator('#registrationNumber').fill('UI-REG-' + randomUUID().slice(0, 8));
@@ -116,8 +115,11 @@ export async function runEnterpriseBrowserScenarios(options) {
       // Step 3: production details.
       await owner.locator('#productGroups').fill('Rau');
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
-      // Step 4: service and hosting mode.
+      // Step 4: service and hosting mode. Chain owner is the default choice here.
       assert.equal(await owner.locator('#hostingMode').count(), 0);
+      const chainOwner = owner.getByRole('checkbox', { name: 'Đăng ký làm chủ chuỗi', exact: true });
+      assert.equal(await chainOwner.isChecked(), true, 'Registration defaults to chain owner');
+      await chainOwner.check();
       await owner.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
       // Step 5: review and consents.
       await owner.getByRole('checkbox', { name: 'Xác nhận thông tin chính xác', exact: true }).check();

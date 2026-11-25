@@ -1,3 +1,4 @@
+import { reservedPlotAreas } from '../../common/area.js';
 import { ApiHeader } from '@nestjs/swagger';
 import { ApiDataResponse } from '../../common/api/openapi.js';
 import {
@@ -264,10 +265,12 @@ class CatalogController {
     ]);
     // Private labels list the source products they are packed from.
     const sources = await this.db.productLabelSource.findMany({ where: { productId: { in: products.filter((p) => p.privateLabel).map((p) => p.id) } } });
+    // Area held by running cycles, so a new cycle offers only what is free.
+    const reserved = await reservedPlotAreas(this.db, plots.map((p) => p.id));
     return {
       products: products.map((p) => (p.privateLabel ? { ...p, labelSourceIds: sources.filter((s) => s.productId === p.id).map((s) => s.sourceProductId) } : p)),
       farms,
-      plots,
+      plots: plots.map((p) => ({ ...p, reservedM2: reserved.get(p.id) ?? 0 })),
     };
   }
   private run(

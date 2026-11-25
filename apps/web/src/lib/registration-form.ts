@@ -75,7 +75,8 @@ export const registrationDefaults = {
   email: "",
   sameRepresentative: false,
   registrantRelationship: "REPRESENTATIVE",
-  participationStatus: "MEMBER",
+  // Registration defaults to chain owner; an invited partner joins as a member.
+  participationStatus: "CHAIN_OWNER",
   invitationToken: "",
   activities: ["FARM"] as string[],
   organizationType: "FARM",
@@ -213,6 +214,9 @@ export function validateRegistrationStep(
     if (!["REPRESENTATIVE", "AUTHORIZED"].includes(d.registrantRelationship))
       errors.registrantRelationship = "Chọn người thực hiện đăng ký.";
   }
+  if (step === 3 && d.participationStatus === "CHAIN_OWNER" && !mayOwnChains(d.activities))
+    errors.participationStatus =
+      "Chủ chuỗi cần ít nhất một năng lực sở hữu hàng: sản xuất, chế biến, phân phối hoặc bán lẻ.";
   if (step === 2) {
     if (
       !d.activities.length ||
@@ -222,9 +226,6 @@ export function validateRegistrationStep(
     if (!d.activities.includes(d.organizationType))
       errors.organizationType =
         "Chọn hoạt động chính trong các hoạt động đã đăng ký.";
-    if (d.participationStatus === "CHAIN_OWNER" && !mayOwnChains(d.activities))
-      errors.activities =
-        "Chủ chuỗi cần ít nhất một năng lực sở hữu hàng: sản xuất, chế biến, phân phối hoặc bán lẻ.";
     if (d.activities.includes("PROCESSOR")) {
       if (!d.processingTypes.length)
         errors.processingTypes = "Chọn ít nhất một loại hình chế biến.";

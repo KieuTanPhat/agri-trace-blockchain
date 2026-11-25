@@ -20,6 +20,8 @@ import { TextAreaField } from "@/components/ledger/kit/form-fields";
 import { Guard } from "@/components/ledger/kit/guard";
 import { Callout, EmptyState, ErrorState, LoadingRows, PageBody, PageHeader, Section } from "@/components/ledger/kit/page";
 import { Badge, Status } from "@/components/ledger/kit/status";
+
+import { LOT_STATE_LABEL, LOT_STATE_TONE } from "@/lib/ledger/ops-labels";
 import { cn } from "@/lib/ledger/utils";
 
 import { t as tr } from "@/lib/ledger/i18n";
@@ -92,18 +94,21 @@ function Lots() {
                 <ul className="max-h-[70vh] divide-y divide-line/70 overflow-y-auto rounded-md border border-line bg-card">
                   {res.data.map((l) => (
                     <li key={l.lotId}>
-                      <button type="button" onClick={() => setSelected(l.lotId)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 px-4 py-2.5 text-left text-[13px] hover:bg-row-alt", current?.lotId === l.lotId && "bg-brand-weak shadow-[inset_3px_0_0_var(--brand)] hover:bg-brand-weak")}>
+                      {/* Fixed columns keep QR, state and quantity aligned across rows. */}
+                      <button type="button" onClick={() => setSelected(l.lotId)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_92px_120px] items-center gap-x-3 gap-y-0.5 px-4 py-2.5 text-left text-[13px] hover:bg-row-alt", current?.lotId === l.lotId && "bg-brand-weak shadow-[inset_3px_0_0_var(--brand)] hover:bg-brand-weak")}>
                         <span className="truncate">
                           <span className="font-mono font-medium">{l.lotCode}</span> · {l.productName}
                         </span>
-                        <span className="flex gap-1">
+                        <span className="flex justify-center">
                           {l.qrBlock ? <Badge tone="danger" dot={false}>{tr("QR khóa")}</Badge> : l.traceToken ? <Badge tone="ok" dot={false}>{tr("Có QR")}</Badge> : <Badge tone="neutral" dot={false}>{tr("Chưa có QR")}</Badge>}
-                          <Status group="lot" value={l.currentState} />
+                        </span>
+                        <span className="flex justify-end">
+                          <Badge tone={LOT_STATE_TONE[l.currentState] ?? "neutral"}>{LOT_STATE_LABEL[l.currentState] ?? l.currentState}</Badge>
                         </span>
                         <span className="truncate text-[12px] text-ink-2">
                           {l.organizationName} · {l.originType === "TRANSFORMATION" ? tr("chế biến {p0}", { p0: l.runCode }) : tr("thu hoạch")}
                         </span>
-                        <span className="font-mono text-[12px] text-ink-2">{l.availableQuantity} {l.unit}</span>
+                        <span className="col-span-2 text-right font-mono text-[12px] text-ink-2">{l.availableQuantity} {l.unit}</span>
                       </button>
                     </li>
                   ))}
@@ -136,9 +141,7 @@ function LotDetail({ lot }: { lot: LotSearchItem }) {
             <span className="text-[13px] text-ink-2">{lot.productName} · {lot.organizationName}</span>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" asChild>
-              <Link href={`/admin/recall?lotId=${lot.lotId}`}>{tr("Xem phạm vi thu hồi")}</Link>
-            </Button>
+            {/* The recall scope page (/admin/recall) is hidden from the admin UI. */}
             {can("qr.write") &&
               (lot.qrBlock ? (
                 <Button size="sm" variant="outline" onClick={() => unblock.open(true)}>

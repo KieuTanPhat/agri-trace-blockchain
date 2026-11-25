@@ -20,7 +20,7 @@ import { quantity } from '../../common/quantity.js';
 import { businessTimestamp } from '../../common/timestamp.js';
 import { careTimestamp } from './care-time.js';
 import { normalizeExpiryDate } from '../../common/expiry-date.js';
-import { assertCultivatedArea } from '../../common/area.js';
+import { assertCultivatedArea, assertPlotAreaFree } from '../../common/area.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OrganizationAccessService } from '../auth/organization-access.service.js';
 import { authorizeBusinessCommand } from '../supply-chains/business-policy.js';
@@ -211,6 +211,7 @@ export class ProductionCyclesService {
       const plannedHarvest = normalizeExpiryDate(input.plannedHarvest);
       if (plannedHarvest < startDate) throw new UnprocessableEntityException('Ngày dự kiến thu hoạch phải sau ngày bắt đầu');
       assertCultivatedArea(input.cultivatedArea, plot, farm);
+      await assertPlotAreaFree(tx, plot, input.cultivatedArea);
       const staff = await cycleStaff(tx, actor, input);
       const cycleCode = input.cycleCode?.trim() || `VU-${randomUUID().slice(0, 12).toUpperCase()}`;
       if (await tx.productionCycle.findFirst({ where: { farmId: farm.id, cycleCode } })) throw new ConflictException('Mã vụ đã được sử dụng');
@@ -313,6 +314,7 @@ export class ProductionCyclesService {
           'Dữ liệu nông trại/sản phẩm/thửa đất không còn hợp lệ',
         );
       assertCultivatedArea(input.cultivatedArea, activePlot, activeFarm);
+      await assertPlotAreaFree(tx, activePlot, input.cultivatedArea);
       const staff = await cycleStaff(tx, actor, input);
       // A stream keeps its birth binding for life: reject an unbound stream
       // before any domain or trace/outbox write.
