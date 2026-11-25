@@ -62,6 +62,14 @@ export function publishedJourneyMedia(
     }));
 }
 const RECORDED_FARM_MEDIA_LIMIT = 24;
+/** The receiving stage is named after what the receiver does with the goods. */
+function receivingStage(type: string | undefined) {
+  if (type === 'RETAILER') return 'Cửa hàng bán lẻ';
+  if (type === 'PROCESSOR') return 'Tiếp nhận để chế biến';
+  if (type === 'DISTRIBUTOR') return 'Tiếp nhận và phân phối';
+  return 'Tiếp nhận hàng';
+}
+
 @Injectable()
 export class PublicJourneyService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
@@ -462,9 +470,7 @@ export class PublicJourneyService {
         orgId === t.carrierId
           ? 'Vận chuyển'
           : orgId === t.receiverId
-            ? c.orgs.find((o) => o.id === orgId)?.type === 'RETAILER'
-              ? 'Cửa hàng bán lẻ'
-              : 'Tiếp nhận và phân phối'
+            ? receivingStage(c.orgs.find((o) => o.id === orgId)?.type)
             : 'Xuất hàng',
       );
     };
