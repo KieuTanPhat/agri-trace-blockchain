@@ -25,25 +25,53 @@ export async function ensureOwnerStageRoles(
   chain: { id: string; ownerOrganizationId: string; supplyModel: unknown },
   userId: string,
 ) {
-  const stages = modelStages(chain.supplyModel, chain.ownerOrganizationId);
+  return ensureStageRoles(tx, chain, chain.ownerOrganizationId, userId, false, 'GRANT_OWNER_STAGE_ROLE');
+}
+
+/**
+ * A partner accepting a chain invitation works its stages too: the accepting
+ * administrator receives the business role of each stage the model gives it,
+ * or of each approved supply capability when the model does not name it
+ * (it joined later). Fresh grants only: a suspension's revoked grants never
+ * revive.
+ */
+export async function ensureMemberStageRoles(
+  tx: Prisma.TransactionClient,
+  chain: { id: string; supplyModel: unknown },
+  organizationId: string,
+  userId: string,
+) {
+  return ensureStageRoles(tx, chain, organizationId, userId, true, 'GRANT_MEMBER_STAGE_ROLE');
+}
+
+async function ensureStageRoles(
+  tx: Prisma.TransactionClient,
+  chain: { id: string; supplyModel: unknown },
+  organizationId: string,
+  userId: string,
+  anyCapability: boolean,
+  operation: string,
+) {
+  const named = modelStages(chain.supplyModel, organizationId);
+  const stages: readonly Stage[] = named.length || !anyCapability ? named : SUPPLY_STAGES;
   if (!stages.length) return [];
   const capabilities = await tx.organizationCapability.findMany({
-    where: { organizationId: chain.ownerOrganizationId, revokedAt: null, code: { in: stages } },
+    where: { organizationId, revokedAt: null, code: { in: [...stages] } },
     select: { code: true },
   });
   const roles = [...new Set(stages.filter((s) => capabilities.some((c) => c.code === s)).map((s) => STAGE_ROLE[s]))];
   const created: string[] = [];
   for (const role of roles) {
     const existing = await tx.scopedRoleGrant.findFirst({
-      where: { chainId: chain.id, organizationId: chain.ownerOrganizationId, userId, scope: 'CHAIN', role, revokedAt: null },
+      where: { chainId: chain.id, organizationId, userId, scope: 'CHAIN', role, revokedAt: null },
       select: { id: true },
     });
     if (existing) continue;
     const grant = await tx.scopedRoleGrant.create({
-      data: { chainId: chain.id, organizationId: chain.ownerOrganizationId, userId, scope: 'CHAIN', role },
+      data: { chainId: chain.id, organizationId, userId, scope: 'CHAIN', role },
     });
     await tx.chainAudit.create({
-      data: { chainId: chain.id, actorUserId: userId, operation: 'GRANT_OWNER_STAGE_ROLE', subjectId: grant.id, revision: 0 },
+      data: { chainId: chain.id, actorUserId: userId, operation, subjectId: grant.id, revision: 0 },
     });
     await requestLedgerGrant(tx, grant);
     created.push(role);
