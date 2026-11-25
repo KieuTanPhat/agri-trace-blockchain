@@ -173,13 +173,16 @@ export function Callout({ tone = "neutral", title, children, icon, className, on
   );
 }
 
+/** Technical endpoint notes are hidden from the interface; callers keep them as documentation. */
 export function ReadOnlyNote({ children }: { children: React.ReactNode }) {
+  if (!SHOW_TECHNICAL_NOTES) return null;
   return (
     <Callout icon={<Lock className="size-3.5 text-ink-2" />}>
       <span className="text-ink-2">{children}</span>
     </Callout>
   );
 }
+const SHOW_TECHNICAL_NOTES = false;
 
 export function EmptyState({ title = tr("Không có dữ liệu"), children, action }: { title?: string; children?: React.ReactNode; action?: React.ReactNode }) {
   return (

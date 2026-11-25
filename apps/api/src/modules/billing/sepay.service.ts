@@ -139,10 +139,9 @@ export class SepayService {
       /^\d+$/.test(amounts[key])
         ? amounts[key]
         : null;
-    const capabilities = enrollment.organization.capabilityRequests;
-    const ready =
-      !capabilities.some((r) => r.status === 'PENDING') &&
-      capabilities.some((r) => r.status === 'APPROVED');
+    // Payment does not wait for capability reviews (first payment or renewal):
+    // an approved enrollment can pay; capabilities approved later take effect then.
+    const ready = enrollment.status === 'APPROVED';
     return {
       enabled: true,
       receivedAmount: amountDetail('receivedAmount'),
@@ -170,7 +169,7 @@ export class SepayService {
           ? sepayQrUrl(config, invoice.number, invoice.amount)
           : null,
       reviewMessage: !ready
-        ? 'Năng lực chưa được xét đầy đủ. Chưa chuyển khoản; liên hệ quản trị để hoàn tất.'
+        ? 'Hồ sơ đăng ký chưa được duyệt. Chưa chuyển khoản; liên hệ quản trị để hoàn tất.'
         : receipt
           ? 'Có giao dịch cần đối soát. Không chuyển thêm tiền; liên hệ quản trị kèm số hóa đơn.'
           : null,
@@ -292,14 +291,12 @@ export class SepayService {
               where: { id: invoice.subscriptionId },
             })
           : null;
-        const requests = organization.capabilityRequests;
+        // Pending or missing capability reviews no longer hold a payment.
         if (
           organization.status !== 'ACTIVE' ||
           !enrollment ||
           enrollment.status !== 'APPROVED' ||
-          enrollment.owner.accountStatus !== 'ACTIVE' ||
-          requests.some((r) => r.status === 'PENDING') ||
-          !requests.some((r) => r.status === 'APPROVED')
+          enrollment.owner.accountStatus !== 'ACTIVE'
         )
           return record('REVIEW_REQUIRED', 'ENTERPRISE_REVIEW_NOT_READY');
         if (

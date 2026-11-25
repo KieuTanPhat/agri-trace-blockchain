@@ -25,7 +25,7 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
             { href: "/admin/users", get label() { return tr("Quản lý tài khoản người dùng"); }, get keywords() { return tr("user người dùng khóa mở"); } },
             { href: "/admin/inspectors", get label() { return tr("Kiểm định độc lập"); }, get keywords() { return tr("kiểm định auditor compliance reviewer phân công vùng sản xuất"); } },
             { href: "/admin/audit-log", get label() { return tr("Nhật ký kiểm toán"); }, readOnly: true, get keywords() { return tr("audit log chuỗi băm"); } },
-            { href: "/admin/security", get label() { return tr("Cảnh báo bảo mật"); }, readOnly: true, get keywords() { return tr("security mfa khóa"); } },
+            // "Cảnh báo bảo mật" (/admin/security) is hidden from the menu; the page stays reachable.
         ]
     },
     {
@@ -62,7 +62,7 @@ export const PLATFORM_NAV: LedgerNavGroup[] = [
     {
         get label() { return tr("Cấu hình"); },
         items: [
-            { href: "/admin/settings", get label() { return tr("Tham số nền tảng"); }, keywords: "setting" },
+            // "Tham số nền tảng" (/admin/settings) is hidden from the menu; the page stays reachable.
             { href: "/admin/notices", get label() { return tr("Thông báo hệ thống"); }, keywords: "notice banner" },
             { href: "/admin/news", get label() { return tr("Quản lí bản tin"); }, keywords: "news article mobile tin tức" },
             { href: "/admin/reference-data", get label() { return tr("Danh mục tham chiếu"); }, get keywords() { return tr("reference đơn vị"); } },
