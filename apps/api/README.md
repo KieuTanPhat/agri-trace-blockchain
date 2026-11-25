@@ -59,10 +59,11 @@ dùng để đăng nhập. Năm POST `/api/auth/mobile/{register,login,password-
 và `GET /api/consumer/me` tách khỏi browser cookie. Response native chứa refresh
 credential; không thay cookie contract Web. Không đưa native credential vào query/log.
 
-`CONSUMER_AUTH_ENABLED=false` mặc định. Bản dev riêng bật cờ đó và
-`CONSUMER_DEV_REGISTRATION_ENABLED=true`, `NODE_ENV=development`,
-`FIREBASE_PROJECT_ID` đúng project Android. Đăng ký production luôn đóng, chờ
-chính sách được duyệt; thông báo dev không phải consent pháp lý production.
+`CONSUMER_AUTH_ENABLED=false` mặc định. Đăng ký cần thêm một trong hai cờ:
+`CONSUMER_REGISTRATION_ENABLED=true` (production, do chủ dự án bật trong env riêng
+của máy chủ) hoặc `CONSUMER_DEV_REGISTRATION_ENABLED=true` (chỉ có hiệu lực khi
+`NODE_ENV` khác `production`). Cả hai cần `FIREBASE_PROJECT_ID` đúng project
+Android; compose production truyền hai biến này từ env riêng.
 Firebase cert/RS256 xác minh theo contract JWT chính thức, không cần private key
 và không kiểm Firebase account revocation. `auth_time` và `iat` phải trong 5 phút;
 provider/phone/project phải khớp. SQL transaction chống replay cùng token và

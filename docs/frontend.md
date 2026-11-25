@@ -147,7 +147,8 @@ Xem [React Native Firebase Phone Auth](https://rnfirebase.io/auth/phone-auth).
 
 API local cần `CONSUMER_AUTH_ENABLED=true`, đúng `FIREBASE_PROJECT_ID` và
 `CONSUMER_DEV_REGISTRATION_ENABLED=true`. Consent thử nghiệm là
-`DEV-CONSUMER-TEST-20261020`; đăng ký production vẫn đóng khi chính sách chưa duyệt.
+`DEV-CONSUMER-TEST-20261020`. Production mở đăng ký bằng
+`CONSUMER_REGISTRATION_ENABLED=true` và `FIREBASE_PROJECT_ID` trong env riêng của máy chủ.
 Thông tin gửi Google và khả năng phát sinh phí SMS được hiển thị trước thao tác.
 Test tự động dùng provider fixture, không gửi SMS thật. Chạy
 `npm run test:mobile:auth` ở root và `npm run check` trong `apps/mobile`.

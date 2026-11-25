@@ -83,7 +83,8 @@ export default function Register() {
     } catch (e) {
       if (submitted) {
         await challenge.clear();
-        if (!(e instanceof ApiError) || e.status === 0 || e.status >= 500) {
+        // 503 is the API refusing before any write (feature closed): show why.
+        if (!(e instanceof ApiError) || e.status === 0 || (e.status >= 500 && e.status !== 503)) {
           setUncertain(true);
           setError('Chưa xác nhận được kết quả. Thử đăng nhập bằng số điện thoại và mật khẩu vừa nhập; không gửi lại yêu cầu đăng ký/đổi mật khẩu.');
         } else {
