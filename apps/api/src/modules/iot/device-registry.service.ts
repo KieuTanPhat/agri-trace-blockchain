@@ -400,6 +400,9 @@ export class DeviceRegistryService {
         if (allowNone) return { plotId: null, vehicleId: null };
         throw new UnprocessableEntityException('Chọn thửa để gắn cảm biến');
       }
+      // Only a producing organization runs field sensors on its plots.
+      if (!(await tx.organizationCapability.findFirst({ where: { organizationId: actor.organizationId!, code: 'FARM', revokedAt: null } })))
+        throw new ForbiddenException('Cảm biến vùng trồng chỉ dành cho doanh nghiệp có năng lực sản xuất');
       await enterpriseAuthority(tx, actor, 'production.write');
       const plot = await tx.plot.findFirst({ where: { id: plotId, farm: { organizationId: actor.organizationId! } } });
       if (!plot || plot.status !== 'ACTIVE') throw new ForbiddenException('Thửa không thuộc doanh nghiệp hoặc đã ngừng');

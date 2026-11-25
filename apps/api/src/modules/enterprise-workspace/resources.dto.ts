@@ -17,7 +17,7 @@ export class EvidenceCompletionInput {
 }
 export class ProductInput {
  @ApiProperty({maxLength:100}) @IsString() @MinLength(2) @MaxLength(100) category!: string;
- @ApiProperty({format:'uuid'}) @IsUUID() originFarmId!: string;
+ @ApiProperty({required:false,format:'uuid',description:'Origin farm; required only for farm products'}) @IsOptional() @IsUUID() originFarmId?: string;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) storageConditions!:string;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) ingredients!:string;
  @ApiProperty({maxLength:2000}) @IsString() @MinLength(2) @MaxLength(2000) usageInstructions!:string;

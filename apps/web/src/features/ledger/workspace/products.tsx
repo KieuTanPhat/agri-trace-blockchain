@@ -44,7 +44,8 @@ const fields = {
   category: req(2, 100),
   variety: opt(255),
   defaultUnit: req(1, 30),
-  originFarmId: z.string().min(1, { error: () => tr("Chọn vùng sản xuất") }),
+  // Farm products name a farm; processed products a processing/packing site.
+  originFarmId: z.string().optional(),
   storageConditions: req(2, 2000),
   ingredients: req(2, 2000),
   usageInstructions: req(2, 2000),
@@ -60,6 +61,7 @@ const fields = {
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 const baseSchema = z.object(fields);
 // A new product starts with at least one photo; completion needs that current photo.
+const PROCESS_SITE_KINDS = ["PROCESSING", "PACKING"];
 const createSchema = baseSchema.extend({ photos: z.array(z.instanceof(File)).min(1, { error: () => tr("Chọn ít nhất một ảnh sản phẩm") }).max(10, { error: () => tr("Tối đa 10 ảnh mỗi lần") }).refine((files) => files.every((f) => /^image\/(png|jpeg)$/.test(f.type) && f.size > 0 && f.size <= PHOTO_MAX_BYTES), { error: () => tr("Ảnh PNG hoặc JPEG, tối đa 5 MB") }) });
 const reviseSchema = z.object({ ...fields, sku: req(1, 100), status: z.enum(["ACTIVE", "INACTIVE"]), reason: z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000) });
 const emptySchema = z.object({});
@@ -73,7 +75,7 @@ function toInput(v: Values): ProductInput {
     category: v.category,
     variety: blank(v.variety),
     defaultUnit: v.defaultUnit,
-    originFarmId: v.originFarmId,
+    originFarmId: blank(v.originFarmId),
     storageConditions: v.storageConditions,
     ingredients: v.ingredients,
     usageInstructions: v.usageInstructions,
@@ -140,7 +142,12 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
     { key: "status", header: tr("Trạng thái"), cell: (p) => <Badge tone={p.status === "ACTIVE" ? "ok" : "neutral"}>{p.status === "ACTIVE" ? tr("Đang sử dụng") : tr("Ngừng sử dụng")}</Badge> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (p) => <Button size="xs" variant="outline" onClick={() => router.push(`/enterprise/products/${p.id}`)}>{tr("Chi tiết")}</Button> },
   ];
-  const options = { farms: readyFarms, sites: (sites.data ?? []).filter((s) => s.status === "ACTIVE"), members: (members.data ?? []).filter((m) => m.accountStatus === "ACTIVE") };
+  const farmer = !!access?.capabilities.includes("FARM");
+  const processor = !!access?.capabilities.includes("PROCESSOR");
+  const activeSites = (sites.data ?? []).filter((s) => s.status === "ACTIVE");
+  const processSites = activeSites.filter((s) => PROCESS_SITE_KINDS.includes(s.kind));
+  const options = { farms: readyFarms, sites: activeSites, processSites, farmer, processor, members: (members.data ?? []).filter((m) => m.accountStatus === "ACTIVE") };
+  const canCreate = (farmer && readyFarms.length > 0) || (processor && processSites.length > 0);
   return (
     <>
       <PageHeader
@@ -150,14 +157,14 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
           can("catalog.manage") && producer && (
             <>
               <Button size="sm" variant="outline" onClick={() => router.push("/enterprise/products/import")}><FileUp /> {tr("Nhập từ CSV")}</Button>
-              <Button size="sm" onClick={() => router.push("/enterprise/products/new")} disabled={!readyFarms.length}><Plus /> {tr("Thêm sản phẩm")}</Button>
+              <Button size="sm" onClick={() => router.push("/enterprise/products/new")} disabled={!canCreate}><Plus /> {tr("Thêm sản phẩm")}</Button>
             </>
           )
         }
       />
       <PageBody className="min-w-0">
         {seller && <SellerProducts own={products ?? []} onOpen={(id) => router.push(`/enterprise/products/${id}`)} />}
-        {can("catalog.manage") && producer && catalog.data && !readyFarms.length && <Callout tone="info">{tr("Chưa có vùng sản xuất đã hoàn tất hồ sơ — hoàn tất vùng trước khi tạo sản phẩm.")}</Callout>}
+        {can("catalog.manage") && producer && catalog.data && !canCreate && <Callout tone="info">{farmer ? tr("Chưa có vùng sản xuất đã hoàn tất hồ sơ — hoàn tất vùng trước khi tạo sản phẩm.") : tr("Chưa có cơ sở chế biến/đóng gói đang hoạt động — thêm cơ sở trước khi tạo sản phẩm.")}</Callout>}
         {producer && <div className="min-w-0 max-w-full overflow-hidden rounded-md border border-line bg-card">
           <div className="flex flex-wrap gap-2 p-3"><Input aria-label={tr("Tìm sản phẩm")} placeholder={tr("Tìm tên, SKU, GTIN, vùng xuất xứ")} value={search} onChange={e=>setSearch(e.target.value)}/><FilterSelect label={tr("Lọc trạng thái")} value={status} onChange={setStatus} options={[{value:"ACTIVE",label:tr("Đang sử dụng")},{value:"INACTIVE",label:tr("Ngừng sử dụng")}]} /></div><DataTable rows={filtered} loading={catalog.isLoading} error={catalog.error} onRetry={() => catalog.refetch()} columns={columns} rowKey={(p) => p.id} empty={<EmptyState title={tr("Chưa có sản phẩm")} />} />
         </div>}
@@ -171,7 +178,7 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
         endpoint="POST /catalog/products"
         description={tr("Chọn ít nhất một ảnh sản phẩm. SKU do hệ thống tự sinh. Sản phẩm mới ở trạng thái ngừng cho tới khi một ảnh và được hoàn tất.")}
         schema={createSchema}
-        defaultValues={{ ...emptyValues(), originFarmId: readyFarms[0]?.id ?? "", photos: [] }}
+        defaultValues={{ ...emptyValues(), originFarmId: farmer ? readyFarms[0]?.id ?? "" : "", photos: [] }}
         submitLabel={tr("Thêm")}
         invalidate={[["ws-catalog"]]}
         wide
@@ -185,6 +192,8 @@ export default function ProductsPage({view="list", productId}: {view?:"list"|"ne
           router.push(id ? `/enterprise/products/${id}` : "/enterprise/products");
         }}
         run={async (v, cmd) => {
+          if (!v.originFarmId && !v.manufacturingSiteId)
+            throw new Error(farmer ? tr("Chọn vùng sản xuất") : tr("Chọn cơ sở chế biến/đóng gói"));
           const product = (await wapi.createProduct(toInput(v), cmd)) as { id: string };
           // Photos are separate evidence commands; a failed upload leaves the
           // product in place for the owner to retry from its detail page.
@@ -228,8 +237,13 @@ function ProductPhotosField({ control }: { control: Control<z.infer<typeof creat
   );
 }
 
-function ProductFields({ f, options, creating }: { f: { control: never }; options: { farms: Farm[]; sites: Site[]; members: Member[] }; creating?: boolean }) {
+type ProductOptions = { farms: Farm[]; sites: Site[]; processSites: Site[]; farmer: boolean; processor: boolean; members: Member[] };
+function ProductFields({ f, options, creating, kind }: { f: { control: never }; options: ProductOptions; creating?: boolean; kind?: "FARM" | "PROCESSED" | "OTHER" }) {
   const c = f.control;
+  // The form follows the capability: a farm names its farm, a processor its
+  // processing/packing site. An existing product keeps the kind it was made with.
+  const showFarm = kind ? kind === "FARM" : options.farmer;
+  const processedOnly = kind ? kind === "PROCESSED" : !options.farmer && options.processor;
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -239,8 +253,8 @@ function ProductFields({ f, options, creating }: { f: { control: never }; option
         <TextField control={c} name="variety" label={tr("Giống/chủng loại")} />
         <TextField control={c} name="gtin" label={tr("GTIN")} inputMode="numeric" />
         <ReferenceSelectField control={c} name="defaultUnit" label={tr("Đơn vị tính")} category="UNIT" />
-        <SelectField control={c} name="originFarmId" label={tr("Vùng xuất xứ")} options={options.farms.map((x) => ({ value: x.id, label: x.name }))} />
-        <SelectField control={c} name="manufacturingSiteId" label={tr("Nhà xưởng sản xuất")} options={options.sites.map((s) => ({ value: s.id, label: s.name }))} />
+        {showFarm && <SelectField control={c} name="originFarmId" label={tr("Vùng xuất xứ")} options={options.farms.map((x) => ({ value: x.id, label: x.name }))} />}
+        {kind !== "OTHER" && <SelectField control={c} name="manufacturingSiteId" label={processedOnly ? tr("Cơ sở chế biến/đóng gói") : tr("Nhà xưởng sản xuất")} options={(processedOnly ? options.processSites : options.sites).map((s) => ({ value: s.id, label: s.name }))} />}
         <SelectField control={c} name="managerUserId" label={tr("Người quản lý sản phẩm")} options={options.members.map((m) => ({ value: m.id, label: m.fullName }))} />
       </div>
       <TextAreaField control={c} name="storageConditions" label={tr("Điều kiện bảo quản")} max={2000} />
@@ -261,7 +275,7 @@ function ProductFields({ f, options, creating }: { f: { control: never }; option
   );
 }
 
-function ProductSheet({ product, farms, options, onClose, canManage, canEvidence, initialEdit }: { initialEdit:boolean; product: Product | null; farms: Farm[]; options: { farms: Farm[]; sites: Site[]; members: Member[] }; onClose: () => void; canManage: boolean; canEvidence: boolean }) {
+function ProductSheet({ product, farms, options, onClose, canManage, canEvidence, initialEdit }: { initialEdit:boolean; product: Product | null; farms: Farm[]; options: ProductOptions; onClose: () => void; canManage: boolean; canEvidence: boolean }) {
   const router=useRouter();
   const qc = useQueryClient();
   const edit = useDialog();
@@ -344,7 +358,7 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
               >
                 {(f) => (
                   <>
-                    <ProductFields f={f as never} options={options} />
+                    <ProductFields f={f as never} options={options} kind={p.externalGoods || p.privateLabel ? "OTHER" : p.originFarmId ? "FARM" : "PROCESSED"} />
                     <ChoiceField control={f.control} name="status" label={tr("Trạng thái")} options={[{ value: "ACTIVE", label: tr("Đang sử dụng") }, { value: "INACTIVE", label: tr("Ngừng sử dụng") }]} />
                     <TextAreaField control={f.control} name="reason" label={tr("Lý do thay đổi")} max={1000} />
                   </>

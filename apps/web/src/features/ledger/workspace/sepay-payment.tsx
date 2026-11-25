@@ -178,7 +178,7 @@ export function SepayPayment({
                     {tr(
                       data.reviewMessage
                         ? "Tạm dừng hướng dẫn chuyển thêm tiền"
-                        : "Hóa đơn đã quá hạn thanh toán; liên hệ quản trị",
+                        : "Chưa tạo được mã QR; liên hệ quản trị",
                     )}
                   </p>
                 )}
@@ -199,6 +199,11 @@ export function SepayPayment({
                   </Field>
                   <Field label={tr("Hạn thanh toán")}>
                     {data.dueAt ? fmtDateTime(data.dueAt) : "—"}
+                    {data.dueAt && Date.parse(data.dueAt) < Date.now() && (
+                      <span className="block text-xs text-ink-2">
+                        {tr("Đã quá hạn; vẫn thanh toán được")}
+                      </span>
+                    )}
                   </Field>
                 </Fields>
                 <p className="text-ink-2">

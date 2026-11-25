@@ -162,10 +162,8 @@ export class SepayService {
       accountHolder: config.accountHolder,
       paymentCode: sepayPaymentCode(invoice.number),
       qrUrl:
-        ready &&
-        !receipt &&
-        invoice.status === 'ISSUED' &&
-        invoice.dueAt > new Date()
+        // An overdue invoice stays payable: late payment is accepted.
+        ready && !receipt && invoice.status === 'ISSUED'
           ? sepayQrUrl(config, invoice.number, invoice.amount)
           : null,
       reviewMessage: !ready
@@ -271,7 +269,6 @@ export class SepayService {
         );
         if (
           posted < Math.floor(invoice.issuedAt.getTime() / 1000) * 1000 ||
-          posted > invoice.dueAt.getTime() ||
           posted > Date.now() + 120000
         )
           return record('REVIEW_REQUIRED', 'TRANSFER_OUTSIDE_INVOICE_WINDOW');

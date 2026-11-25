@@ -261,6 +261,12 @@ function CycleFields({ f, options, draft }: { f: { control: never; setValue: (na
   const farmId = useWatch({ control: c, name: "farmId" }) as string;
   const plotId = useWatch({ control: c, name: "plotId" }) as string;
   const maxArea = cultivationLimit(options, farmId, plotId);
+  const productId = useWatch({ control: c, name: "productId" }) as string;
+  // Products from the chosen farm come first; another farm's product is
+  // allowed but flagged, since its public origin names that farm.
+  const products = [...options.products].sort((a, b) => Number(b.originFarmId === farmId) - Number(a.originFarmId === farmId));
+  const picked = options.products.find((p) => p.id === productId);
+  const otherFarm = picked?.originFarmId && farmId && picked.originFarmId !== farmId ? options.farms.find((x) => x.id === picked.originFarmId)?.name ?? tr("vùng khác") : null;
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -270,7 +276,7 @@ function CycleFields({ f, options, draft }: { f: { control: never; setValue: (na
         <TextField control={c} name="name" label={draft ? tr("Tên vụ") : tr("Tên vụ")} max={255} />
         <SelectField control={c} name="farmId" label={tr("Vùng sản xuất")} options={options.farms.map((x) => ({ value: x.id, label: x.name }))} />
         <SelectField control={c} name="plotId" label={draft ? tr("Thửa đất") : tr("Thửa đất")} options={options.plots.filter((p) => p.farmId === farmId).map((p) => ({ value: p.id, label: p.name }))} />
-        <SelectField control={c} name="productId" label={tr("Sản phẩm")} options={options.products.map((p) => ({ value: p.id, label: p.productName }))} onValueChange={(id) => { const unit = options.products.find((p) => p.id === id)?.defaultUnit; if (unit) f.setValue("harvestUnit", unit); }} />
+        <SelectField control={c} name="productId" label={tr("Sản phẩm")} hint={otherFarm ? tr("Sản phẩm này đăng ký xuất xứ ở {p0}, khác vùng đang chọn", { p0: otherFarm }) : undefined} options={products.map((p) => ({ value: p.id, label: p.originFarmId && p.originFarmId !== farmId ? tr("{p0} (vùng khác)", { p0: p.productName }) : p.productName }))} onValueChange={(id) => { const unit = options.products.find((p) => p.id === id)?.defaultUnit; if (unit) f.setValue("harvestUnit", unit); }} />
         <SelectField control={c} name="seedMaterialId" label={tr("Giống")} options={options.seeds.map((m) => ({ value: m.id, label: m.name }))} />
         <TextField control={c} name="cultivatedArea" label={tr("Diện tích canh tác (m²)")} type="number" hint={maxArea !== null ? tr("Tối đa {p0} m²", { p0: maxArea.toLocaleString("vi-VN") }) : undefined} />
         <TextField control={c} name="cultivationMethod" label={tr("Phương thức canh tác")} />
@@ -413,7 +419,7 @@ function CycleSheet({ id, onClose, options,view }: { id: string | null; onClose:
                   <EmptyState title={tr("Chưa thu hoạch")} />
                 )}
               </section>
-              <CycleSensors cycleId={c.id} />
+              <CycleSensors cycleId={c.id} state={c.currentState} />
               <section className="flex flex-col gap-2"><h3 className="text-sm font-semibold">{tr("Cửa sổ cảm biến")}</h3>{c.harvestEvents.map(h=><Callout key={h.id} tone="info">{h.harvestCode} · {h.sensorWindow?`${fmtDateTime(h.sensorWindow.periodStart)} → ${fmtDateTime(h.sensorWindow.periodEnd)}`:tr("Chưa có cửa sổ")}</Callout>)}<p className="text-xs text-ink-2">{c.sensorReadings.length} {tr("bản ghi")}</p></section>
               {evidenceAccess.can("evidence.read")&&<EvidencePanel entityType="CYCLE" entityId={c.id} canManage={!!c.canWriteProduction && canEvidence && c.currentState !== "CANCELLED"} title={tr("Ảnh vụ sản xuất")} />}
             </div>
