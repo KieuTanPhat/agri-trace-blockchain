@@ -11486,6 +11486,8 @@ export interface components {
             lockedUntil: string | null;
             mustChangePassword: boolean;
             organization: components["schemas"]["OrgDto"] | null;
+            /** @description Consumer sign-in phone with the middle digits hidden */
+            phoneMasked: string | null;
             role: components["schemas"]["UserRoleDto"];
             /** Format: date-time */
             updatedAt: string;

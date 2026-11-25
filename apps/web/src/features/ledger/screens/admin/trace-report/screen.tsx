@@ -8,6 +8,7 @@ import { api } from "@/lib/ledger/operations-api";
 
 import { fmtNumber } from "@/lib/ledger/format";
 import { t as tr } from "@/lib/ledger/i18n";
+import { labelForEvent } from "@/lib/display-labels";
 import { useNow } from "@/lib/ledger/use-now";
 import { Button } from "@/components/ledger/ui/button";
 import { Input } from "@/components/ledger/ui/input";
@@ -72,7 +73,7 @@ function TraceReport() {
                   <ul className="flex flex-col gap-1.5 px-4 py-3 sm:px-5">
                     {r.eventsByType.slice(0, 15).map((e) => (
                       <li key={e.eventType} className="grid grid-cols-[minmax(0,200px)_minmax(0,1fr)_48px] items-center gap-3 text-[12.5px]">
-                        <span className="truncate font-mono text-[11.5px]" title={e.eventType}>{e.eventType}</span>
+                        <span className="truncate" title={e.eventType}>{labelForEvent(e.eventType)}</span>
                         <span className="h-2 rounded-full bg-sunken" aria-hidden>
                           <span className="block h-full rounded-full bg-brand" style={{ width: `${(e.count / maxEvent) * 100}%` }} />
                         </span>

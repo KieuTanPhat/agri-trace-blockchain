@@ -212,6 +212,14 @@ describe('Platform governance (real PostgreSQL)', () => {
       expect(await auditCount()).toBe(before + 1);
     });
 
+    it('lets the platform disable and re-enable a consumer account but not enterprise staff', async () => {
+      const consumer = await makeUser('CONSUMER');
+      await patch(admin, `users/${consumer.id}/status`, { accountStatus: 'INACTIVE', version: 0, reason: REASON }).expect(200);
+      await patch(admin, `users/${consumer.id}/status`, { accountStatus: 'ACTIVE', version: 1, reason: REASON }).expect(200);
+      const staff = await makeUser('FARM_STAFF', 'FARM');
+      await patch(admin, `users/${staff.id}/status`, { accountStatus: 'INACTIVE', version: 0, reason: REASON }).expect(403);
+    });
+
     it('rejects a missing/short reason and a missing Idempotency-Key without writing', async () => {
       const target = await makeUser('AUDITOR', 'AUDITOR');
       const before = await auditCount();

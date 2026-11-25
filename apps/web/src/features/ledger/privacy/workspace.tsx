@@ -65,6 +65,36 @@ const TYPE_LABEL: Record<string, string> = {
   },
 };
 
+/** History entries in plain words. */
+const ACTION_LABEL: Record<string, string> = {
+  get PRIVACY_REQUEST_CREATED() { return tr("Tạo phiếu yêu cầu"); },
+  get PRIVACY_BREACH_CREATED() { return tr("Ghi nhận sự cố"); },
+  get IN_REVIEW() { return tr("Bắt đầu xử lý"); },
+  get RESPONDED() { return tr("Trả lời người yêu cầu"); },
+  get CLOSED() { return tr("Đóng phiếu"); },
+  get REJECTED() { return tr("Từ chối"); },
+  get REPORTED() { return tr("Đã báo cơ quan chức năng"); },
+};
+/** What the administrator does for each kind of ticket. */
+const GUIDE: Record<string, () => string[]> = {
+  ACCESS: () => [tr("Xác minh đúng người yêu cầu."), tr("Tổng hợp dữ liệu hệ thống đang giữ về người đó."), tr("Chọn “Trả lời người yêu cầu” để gửi kết quả, rồi đóng phiếu.")],
+  CORRECTION: () => [tr("Sửa thông tin sai ở Quản lý tài khoản người dùng."), tr("Chọn “Trả lời người yêu cầu” để báo đã sửa, rồi đóng phiếu.")],
+  DELETION: () => [tr("Xóa hoặc vô hiệu hóa phần dữ liệu cá nhân xóa được."), tr("Lô, giao nhận và mã băm trên blockchain phải giữ để truy xuất: ghi rõ phần giữ lại và lý do."), tr("Trả lời người yêu cầu, rồi đóng phiếu.")],
+  RESTRICTION: () => [tr("Tạm ngừng dùng dữ liệu theo yêu cầu (ví dụ vô hiệu hóa tài khoản)."), tr("Trả lời người yêu cầu, rồi đóng phiếu.")],
+  WITHDRAWAL: () => [tr("Ngừng xử lý dựa trên sự đồng ý đã rút (ví dụ vô hiệu hóa tài khoản ACheck)."), tr("Trả lời người yêu cầu, rồi đóng phiếu.")],
+  OBJECTION: () => [tr("Xem cách dùng dữ liệu bị phản đối có căn cứ không."), tr("Trả lời người yêu cầu kết quả, rồi đóng phiếu.")],
+  INCIDENT: () => [tr("Ghi lại diễn biến và phạm vi dữ liệu bị ảnh hưởng."), tr("Trong 72 giờ: quyết định có phải báo cơ quan chức năng không."), tr("Đóng phiếu khi chọn “Không phải báo” (kèm căn cứ), hoặc khi đã báo và có số công văn/email.")],
+};
+/** Next steps offered from the current status (the API keeps the rules). */
+function nextSteps(status: string, breach: boolean) {
+  const respond = breach ? [] : [{ value: "RESPONDED", label: tr("Trả lời người yêu cầu") }];
+  const close = { value: "CLOSED", label: tr("Đóng phiếu") };
+  const reject = { value: "REJECTED", label: tr("Từ chối") };
+  if (status === "OPEN") return [{ value: "IN_REVIEW", label: tr("Bắt đầu xử lý") }, ...respond, reject];
+  if (status === "RESPONDED") return [close, { value: "IN_REVIEW", label: tr("Xử lý tiếp") }];
+  return [...respond, close, reject, { value: "IN_REVIEW", label: tr("Chỉ ghi thêm ghi chú") }];
+}
+
 const requestSchema = z.object({
   requestType: z.enum([
     "ACCESS",
@@ -85,10 +115,6 @@ const reviewSchema = z
     reporting: z.enum(["UNASSESSED", "REQUIRED", "NOT_REQUIRED"]).optional(),
     reportedAt: z.string().optional(),
     notificationReference: z.string().trim().max(500).optional(),
-  })
-  .refine((v) => v.status !== "RESPONDED" || v.visibility === "SHARED", {
-    path: ["visibility"],
-    error: () => tr("RESPONDED phải kèm phản hồi SHARED cho người gửi"),
   })
   .refine(
     (v) => !v.notificationReference || v.notificationReference.length >= 5,
@@ -116,27 +142,57 @@ export function PrivacyView({ admin }: { admin: boolean }) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (l) => l.nextCursor ?? undefined,
   });
-  const rows = q.data?.pages.flatMap((p) => p.items);
-  const currentId = lockedId ?? selectedId ?? rows?.[0]?.id;
+  // Administrators see user requests and data incidents on separate tabs.
+  const [tab, setTab] = useState<"REQUEST" | "BREACH">("REQUEST");
+  const all = q.data?.pages.flatMap((p) => p.items);
+  const rows = admin ? all?.filter((r) => r.kind === tab) : all;
+  const currentId =
+    lockedId ?? (rows?.some((r) => r.id === selectedId) ? selectedId : rows?.[0]?.id);
   return (
     <div data-testid="ledger-privacy-workspace">
       <PageHeader
         title={
           admin ? tr("Quyền dữ liệu cá nhân") : tr("Quyền dữ liệu của tôi")
         }
-        description={tr(
-          "Hộp thư yêu cầu của chủ thể dữ liệu và hồ sơ vi phạm. Nội dung lưu mã hóa; nhật ký kiểm toán chỉ giữ metadata. Phần mềm không tự gửi báo cáo ra ngoài.",
-        )}
+        description={
+          admin
+            ? tr(
+                "Nơi xử lý hai loại việc: người dùng xin xem, sửa, xóa hoặc ngừng dùng dữ liệu của họ; và sự cố lộ dữ liệu phải đánh giá trong 72 giờ. Mỗi bước đều được lưu lịch sử; nội dung phiếu được mã hóa.",
+              )
+            : tr(
+                "Gửi yêu cầu xem, sửa, xóa hoặc ngừng dùng dữ liệu cá nhân của bạn và theo dõi phản hồi.",
+              )
+        }
         actions={
           (admin ? can("privacy.write") : true) && (
             <Button size="sm" onClick={() => breach.open(true)}>
               <Plus />{" "}
-              {admin ? tr("Ghi nhận vi phạm") : tr("Gửi yêu cầu quyền dữ liệu")}
+              {admin ? tr("Ghi nhận sự cố lộ dữ liệu") : tr("Gửi yêu cầu quyền dữ liệu")}
             </Button>
           )
         }
       />
       <PageBody wide>
+        {admin && (
+          <div role="tablist" aria-label={tr("Loại phiếu")} className="flex gap-1 border-b border-line">
+            {([["REQUEST", tr("Yêu cầu của người dùng")], ["BREACH", tr("Sự cố lộ dữ liệu")]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                disabled={lockedId !== null}
+                onClick={() => setTab(key)}
+                className={cn(
+                  "-mb-px border-b-2 px-3 py-2 text-[13px]",
+                  tab === key ? "border-brand font-semibold text-brand-ink" : "border-transparent text-ink-2 hover:text-ink",
+                )}
+              >
+                {label} <span className="text-ink-2">({all?.filter((r) => r.kind === key).length ?? 0})</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
           <div className="overflow-hidden rounded-md border border-line bg-card">
             {q.error ? (
@@ -144,7 +200,7 @@ export function PrivacyView({ admin }: { admin: boolean }) {
             ) : !rows ? (
               <LoadingRows />
             ) : !rows.length ? (
-              <EmptyState title={tr("Hộp thư trống")} />
+              <EmptyState title={admin && tab === "BREACH" ? tr("Chưa ghi nhận sự cố nào") : tr("Chưa có yêu cầu nào")} />
             ) : (
               <ul className="divide-y divide-line/70">
                 {rows.map((r) => (
@@ -369,6 +425,16 @@ function Detail({
         <p className="text-[14px] leading-relaxed whitespace-pre-line">
           {p.message}
         </p>
+        {admin && !ended && GUIDE[p.requestType] && (
+          <div className="rounded-md border border-line bg-sunken px-3 py-2.5 text-[12.5px]">
+            <p className="mb-1 font-semibold">{tr("Cần làm gì")}</p>
+            <ol className="list-decimal pl-5">
+              {GUIDE[p.requestType]().map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
       <div className="rounded-md border border-line bg-card">
         <h3 className="border-b border-line/70 px-5 py-3 text-[14px] font-semibold">
@@ -381,7 +447,7 @@ function Detail({
               className="flex flex-col gap-1 px-5 py-2.5 text-[13px]"
             >
               <span className="flex flex-wrap items-center gap-2 text-[12px] text-ink-2">
-                <span className="font-mono">{e.action}</span>
+                <span className="font-medium text-ink">{ACTION_LABEL[e.action] ?? e.action}</span>
                 <span className="font-mono">{fmtDateTime(e.createdAt)}</span>
                 <Badge
                   tone={e.visibility === "SHARED" ? "brand" : "neutral"}
@@ -389,14 +455,14 @@ function Detail({
                   className="h-5 text-[11px]"
                 >
                   {e.visibility === "SHARED"
-                    ? tr("Gửi người yêu cầu")
-                    : tr("Nội bộ")}
+                    ? tr("Người yêu cầu đọc được")
+                    : tr("Chỉ quản trị")}
                 </Badge>
               </span>
               <span>{e.note}</span>
               {e.notificationReference && (
                 <span className="font-mono text-[12px] text-ink-2">
-                  {tr("Tham chiếu:")} {e.notificationReference}
+                  {tr("Số công văn / email:")} {e.notificationReference}
                 </span>
               )}
             </li>
@@ -408,11 +474,11 @@ function Detail({
           <CommandForm
             key={p.id}
             onLockChange={onLockChange}
-            title={tr("Cập nhật hồ sơ")}
+            title={tr("Xử lý phiếu")}
             endpoint="POST /platform-privacy/:id/review"
             schema={reviewSchema}
             defaultValues={{
-              status: "IN_REVIEW",
+              status: nextSteps(p.status, breach)[0].value as "IN_REVIEW",
               note: "",
               visibility: "INTERNAL",
               reporting:
@@ -425,7 +491,7 @@ function Detail({
             }}
             version={p.version}
 
-            submitLabel={tr("Ghi cập nhật")}
+            submitLabel={tr("Lưu bước này")}
             invalidate={[["privacy"]]}
             run={(v, cmd) =>
               api.privacy.review(
@@ -433,7 +499,8 @@ function Detail({
                 {
                   status: v.status,
                   note: v.note,
-                  visibility: v.visibility,
+                  // A reply always reaches the requester.
+                  visibility: v.status === "RESPONDED" ? "SHARED" : v.visibility,
                   version: p.version,
                   ...(breach
                     ? {
@@ -450,37 +517,31 @@ function Detail({
           >
             {(f) => (
               <>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SelectField
-                    control={f.control}
-                    name="status"
-                    label={tr("Trạng thái mới")}
-                    options={[
-                      { value: "IN_REVIEW", label: tr("Đang xem xét") },
-                      { value: "RESPONDED", label: tr("Đã phản hồi") },
-                      { value: "CLOSED", label: tr("Đóng") },
-                      { value: "REJECTED", label: tr("Từ chối") },
-                    ]}
-                  />
-                  <ChoiceField
-                    control={f.control}
-                    name="visibility"
-                    label={tr("Hiển thị ghi chú")}
-                    options={[
-                      { value: "INTERNAL", label: tr("Nội bộ") },
-                      { value: "SHARED", label: tr("Gửi người yêu cầu") },
-                    ]}
-                  />
-                </div>
-                <TextField
+                <ChoiceField
                   control={f.control}
-                  name="mfaCode"
-                  label={tr("Mã MFA (khi được yêu cầu)")}
+                  name="status"
+                  label={tr("Bước tiếp theo")}
+                  options={nextSteps(p.status, breach)}
                 />
+                {f.watch("status") === "RESPONDED" ? (
+                  <p className="text-[12.5px] text-ink-2">{tr("Ghi chú dưới đây sẽ được gửi cho người yêu cầu.")}</p>
+                ) : (
+                  !breach && (
+                    <ChoiceField
+                      control={f.control}
+                      name="visibility"
+                      label={tr("Ai đọc được ghi chú này?")}
+                      options={[
+                        { value: "INTERNAL", label: tr("Chỉ quản trị") },
+                        { value: "SHARED", label: tr("Gửi cho người yêu cầu") },
+                      ]}
+                    />
+                  )
+                )}
                 <TextAreaField
                   control={f.control}
                   name="note"
-                  label={tr("Ghi chú")}
+                  label={tr("Ghi chú (đã làm gì)")}
                   max={4000}
                 />
                 {breach && (
@@ -488,13 +549,14 @@ function Detail({
                     <SelectField
                       control={f.control}
                       name="reporting"
-                      label={tr("Đánh giá diện báo cáo")}
+                      label={tr("Có phải báo cơ quan chức năng không?")}
+                      hint={f.watch("reporting") === "NOT_REQUIRED" ? tr("Ghi căn cứ trong ghi chú, ít nhất 20 ký tự") : undefined}
                       options={[
-                        { value: "UNASSESSED", label: tr("Chưa đánh giá") },
-                        { value: "REQUIRED", label: tr("Phải báo cáo") },
+                        { value: "UNASSESSED", label: tr("Chưa quyết định") },
+                        { value: "REQUIRED", label: tr("Có, phải báo") },
                         {
                           value: "NOT_REQUIRED",
-                          label: tr("Không thuộc diện"),
+                          label: tr("Không phải báo"),
                         },
                       ]}
                     />
@@ -502,29 +564,33 @@ function Detail({
                       <TextField
                         control={f.control}
                         name="reportedAt"
-                        label={tr("Thời điểm đã thông báo")}
+                        label={tr("Đã báo lúc nào?")}
                         type="datetime-local"
                       />
                       <TextField
                         control={f.control}
                         name="notificationReference"
-                        label={tr("Tham chiếu bằng chứng")}
+                        label={tr("Số công văn hoặc mã email đã gửi")}
                         hint={tr("5–500 ký tự")}
                       />
                     </div>
                     <p className="text-[12px] text-ink-2">
                       {tr(
-                        "Đóng hồ sơ vi phạm cần căn cứ không thuộc diện báo cáo, hoặc thời điểm đã thông báo kèm tham chiếu bằng chứng.",
+                        "Muốn đóng phiếu sự cố: chọn “Không phải báo” kèm căn cứ, hoặc điền lúc đã báo và số công văn/email.",
                       )}
                     </p>
                   </>
                 )}
+                <details className="text-[12.5px]">
+                  <summary className="cursor-pointer text-ink-2">{tr("Mã xác thực 2 lớp (chỉ điền khi hệ thống yêu cầu)")}</summary>
+                  <TextField control={f.control} name="mfaCode" label={tr("Mã MFA")} className="mt-2" />
+                </details>
               </>
             )}
           </CommandForm>
         </div>
       ) : ended ? (
-        <Callout>{tr("Hồ sơ đã kết thúc.")}</Callout>
+        <Callout>{tr("Phiếu đã đóng.")}</Callout>
       ) : null}
     </section>
   );

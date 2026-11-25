@@ -196,6 +196,12 @@ export class UserListDto extends UserCreatedDto {
   @ApiProperty({ format: 'date-time' }) updatedAt!: string;
   @ApiProperty({ type: UserRoleDto }) role!: UserRoleDto;
   @ApiProperty({ type: OrgDto, nullable: true }) organization!: OrgDto | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Consumer sign-in phone with the middle digits hidden',
+  })
+  phoneMasked!: string | null;
 }
 export class UserStatusDto extends PickType(UserCreatedDto, [
   'id',
