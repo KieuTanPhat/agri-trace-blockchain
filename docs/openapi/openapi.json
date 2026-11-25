@@ -2251,6 +2251,14 @@
             "format": "uuid",
             "type": "string"
           },
+          "invitedOrganizationIds": {
+            "description": "Organizations of the supply model still invited (detail only)",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "myRoles": {
             "description": "Chain roles the caller holds (list only)",
             "items": {
@@ -11213,6 +11221,13 @@
       },
       "PartnerOrganizationDto": {
         "properties": {
+          "capabilities": {
+            "description": "Approved, unrevoked capability codes",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "code": {
             "description": "AGT organization code",
             "type": "string"
@@ -11240,7 +11255,8 @@
           "id",
           "name",
           "type",
-          "code"
+          "code",
+          "capabilities"
         ],
         "type": "object"
       },
@@ -13103,6 +13119,7 @@
             "type": "string"
           },
           "originFarmId": {
+            "description": "Origin farm; required only for farm products",
             "format": "uuid",
             "type": "string"
           },
@@ -13133,7 +13150,6 @@
         },
         "required": [
           "category",
-          "originFarmId",
           "storageConditions",
           "ingredients",
           "usageInstructions",

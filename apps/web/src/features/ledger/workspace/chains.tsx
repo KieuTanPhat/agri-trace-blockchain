@@ -8,7 +8,7 @@ import {ShipmentPlans as Plans} from "./shipment-plans";
 import {ChainSigningKeys as SigningKeys} from "./chain-signing";
 import {EvidencePanel} from "@/components/ledger/workspace/evidence-panel";
 
-import { useFieldArray, type Control } from "react-hook-form";
+import { useFieldArray, useWatch, type Control } from "react-hook-form";
 import { z } from "zod";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -111,7 +111,7 @@ const createSchema = z.object({
   plannedStartDate: z.string().optional(),
   description: z.string().max(2000).optional(),
   note:z.string().max(2000).optional(),
-  participants: z.array(z.object({ organizationId: z.string().min(1, { error: () => tr("Chọn tổ chức") }), stage: z.enum(SUPPLY_STAGES) })).max(50),
+  participants: z.array(z.object({ organizationId: z.string().min(1, { error: () => tr("Chọn tổ chức") }), stage: z.enum(SUPPLY_STAGES, { error: () => tr("Chọn khâu") }) })).max(50),
   productIds: z.array(z.string()).max(50),
 });
 type CreateValues = z.infer<typeof createSchema>;
@@ -179,19 +179,25 @@ function CreateChain({ props, names }: { props: { open: boolean; onOpenChange: (
   );
 }
 
-function ParticipantsField({ control, orgs }: { control: Control<CreateValues>; orgs: { id: string; name: string; type: string }[] }) {
+function ParticipantsField({ control, orgs }: { control: Control<CreateValues>; orgs: { id: string; name: string; type: string; capabilities?: string[] }[] }) {
   const { fields, append, remove } = useFieldArray({ control, name: "participants" });
+  const rows = useWatch({ control, name: "participants" }) ?? [];
+  // A partner takes only a stage its approved capability covers.
+  const stagesOf = (orgId: string) => {
+    const caps = orgs.find((o) => o.id === orgId)?.capabilities ?? [];
+    return SUPPLY_STAGES.filter((s) => caps.includes(s));
+  };
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-1 text-[13px] font-medium">{tr("Đối tác tham gia (được mời)")}</legend>
       {fields.map((f, i) => (
         <div key={f.id} className="grid grid-cols-[minmax(0,1fr)_160px_auto] items-end gap-2">
           <SelectField control={control} name={`participants.${i}.organizationId`} label={tr("Đối tác {p0}", { p0: i + 1 })} options={orgs.map((o) => ({ value: o.id, label: o.name }))} />
-          <SelectField control={control} name={`participants.${i}.stage`} label={tr("Khâu")} options={SUPPLY_STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s] }))} />
+          <SelectField control={control} name={`participants.${i}.stage`} label={tr("Khâu")} options={stagesOf(rows[i]?.organizationId ?? "").map((s) => ({ value: s, label: STAGE_LABEL[s] }))} />
           <Button type="button" variant="ghost" size="icon-sm" aria-label={tr("Bỏ dòng này")} onClick={() => remove(i)}><Trash2 /></Button>
         </div>
       ))}
-      <Button type="button" size="xs" variant="outline" className="self-start" onClick={() => append({ organizationId: "", stage: "TRANSPORTER" })} disabled={!orgs.length}><Plus /> {tr("Thêm đối tác")}</Button>
+      <Button type="button" size="xs" variant="outline" className="self-start" onClick={() => append({ organizationId: "", stage: "" as never })} disabled={!orgs.length}><Plus /> {tr("Thêm đối tác")}</Button>
       {!orgs.length && <p className="text-[12.5px] text-ink-2">{tr("Chưa có đối tác đã liên kết để mời.")}</p>}
     </fieldset>
   );
@@ -279,13 +285,13 @@ function ChainDetail({ id, names, view }: { id: string; names: Names; view: stri
                     {c.supplyModel.stages.map((s, i) => (
                       <li key={s.stage} className="flex items-center gap-1.5">
                         {i > 0 && <span aria-hidden className="text-ink-2">→</span>}
-                        <span className="rounded-sm border border-line px-2 py-1"><span className="font-medium">{STAGE_LABEL[s.stage]}</span>: {s.organizationIds.map(names.name).join(", ")}</span>
+                        <span className="rounded-sm border border-line px-2 py-1"><span className="font-medium">{STAGE_LABEL[s.stage]}</span>: {s.organizationIds.map((o) => (c.invitedOrganizationIds ?? []).includes(o) ? tr("{p0} (đang mời)", { p0: names.name(o) }) : names.name(o)).join(", ")}</span>
                       </li>
                     ))}
                   </ol>
                 </Section>
               )}
-              {access.can("evidence.read") && <EvidencePanel entityType="CHAIN" entityId={c.id} canManage={manager && access.can("evidence.manage")}/>}
+              {owner && access.can("evidence.read") && <EvidencePanel entityType="CHAIN" entityId={c.id} canManage={manager && access.can("evidence.manage")}/>}
             </>
           )}
           {tab === "members" && (

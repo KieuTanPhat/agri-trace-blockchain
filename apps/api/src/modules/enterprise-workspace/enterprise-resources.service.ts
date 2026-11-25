@@ -58,7 +58,15 @@ export class EnterpriseResourcesService {
      const old = await tx.product.findFirst({where:{id,organizationId:actor.organizationId!}});
      if (!old || old.version!==input.version) throw new ConflictException('Danh mục đã đổi hoặc ngoài tổ chức');
      if (!old.evidenceComplete && input.status === 'ACTIVE') throw new ConflictException('Cần hoàn tất ảnh sản phẩm trước khi kích hoạt');
-     if (!await tx.farm.findFirst({where:{id:input.product.originFarmId,organizationId:actor.organizationId!,status:'ACTIVE',evidenceComplete:true}})) throw new ConflictException('Vùng xuất xứ chưa hoàn tất hoặc ngoài doanh nghiệp');
+     // The origin follows the product kind fixed at creation.
+     const {originFarmId,manufacturingSiteId}=input.product;
+     if (old.externalGoods||old.privateLabel) {
+       if (originFarmId||manufacturingSiteId) throw new UnprocessableEntityException('Hàng nhập ngoài hoặc nhãn riêng không gắn vùng hay nhà xưởng');
+     } else if (old.originFarmId) {
+       if (!originFarmId||!await tx.farm.findFirst({where:{id:originFarmId,organizationId:actor.organizationId!,status:'ACTIVE',evidenceComplete:true}})) throw new ConflictException('Vùng xuất xứ chưa hoàn tất hoặc ngoài doanh nghiệp');
+     } else if (originFarmId||!manufacturingSiteId||!await tx.enterpriseSite.findFirst({where:{id:manufacturingSiteId,organizationId:actor.organizationId!,status:'ACTIVE',kind:{in:['PROCESSING','PACKING']}}})) {
+       throw new UnprocessableEntityException('Sản phẩm chế biến cần cơ sở chế biến/đóng gói đang hoạt động');
+     }
      await this.revision(tx,actor,'PRODUCT',old,id,input.reason);
      await assertProductRefs(tx,actor.organizationId!,input.product);
      const record = await tx.product.update({where:{id},data:{...input.product,status:input.status,version:{increment:1}}}); return {record};
@@ -141,7 +149,8 @@ export class EnterpriseResourcesService {
    input.rows.forEach((row,i)=>{
      const dto=plainToInstance(ProductInput,row), validation=validateSync(dto,{whitelist:true,forbidNonWhitelisted:true});
      const messages=validation.flatMap(e=>Object.values(e.constraints??{}));
-     if (!farms.has(row.originFarmId)) messages.push('Vùng xuất xứ chưa hoàn tất hoặc ngoài doanh nghiệp');
+     // CSV import is for farm products: each row names a completed farm.
+     if (!row.originFarmId || !farms.has(row.originFarmId)) messages.push('Vùng xuất xứ chưa hoàn tất hoặc ngoài doanh nghiệp');
      const sku=typeof row.sku==='string'?row.sku.trim().toLocaleLowerCase():'';
      if (seen.has(sku)) messages.push('SKU trùng trong file hoặc đã có trong danh mục');
      seen.add(sku); if(messages.length)errors.push({row:i+1,messages});

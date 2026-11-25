@@ -12,6 +12,7 @@ import type { components } from "@/lib/generated/api";
 import { actingRole, canAccessManagementRoute, platformAdminHome } from "@/lib/permissions";
 import {
   canUseEnterpriseRoute,
+  showInEnterpriseMenu,
   enterpriseLanding,
   type EnterpriseAccess,
 } from "@/lib/enterprise-access";
@@ -219,7 +220,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => canonicalNavigationUrls.has(item.href) && allowed(item.href),
+        (item) => canonicalNavigationUrls.has(item.href) && allowed(item.href) && (!enterprise || !access.data || showInEnterpriseMenu(item.href, access.data)),
       ),
     }))
     .filter((group) => group.items.length);

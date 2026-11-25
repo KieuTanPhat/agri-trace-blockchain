@@ -211,6 +211,9 @@ function tickGps(device, at, dt) {
   // Do not report the previous route while a newly assigned trip is being
   // planned (or its pickup/delivery coordinates are still missing).
   if (device.mode === 'AUTO' && device.assignment?.trip && device.trip?.transferId !== device.assignment.trip.transferId) return;
+  // In AUTO mode a parked tracker reports nothing until its trip starts, so
+  // no stale parking spot is sent after pickup and read as a jump.
+  if (device.mode === 'AUTO' && !device.trip) return;
   if (device.power === 'BATTERY') {
     device.battery = Math.max(0, device.battery - dt * (0.5 / 60));
     if (device.battery <= 0) {
@@ -266,7 +269,11 @@ setInterval(async () => {
       if (retry) {
         d.retryAt = now + 15_000;
         if (d.queue.length > 20_000) d.queue.splice(0, d.queue.length - 20_000);
-      } else d.queue.splice(0, batch.length);
+      } else {
+        // Remove exactly what was sent: the queue may be rebuilt meanwhile.
+        const sent = new Set(batch);
+        d.queue = d.queue.filter((f) => !sent.has(f));
+      }
     }
   } finally {
     busy = false;
@@ -311,6 +318,8 @@ async function dispatch(device) {
       device.assignmentError = 'Phiếu thiếu tọa độ hoặc tỉnh/thành của cơ sở giao/nhận';
       return;
     }
+    // The vehicle waits at the pickup site, not at a default parking spot.
+    device.parked = [origin.latitude, origin.longitude];
     log(device, `Nhận lệnh điều xe: ${origin.name} → ${destination.name} (từ lúc ký lấy hàng ${new Date(trip.inTransitAt).toLocaleString('vi-VN')})`);
     await startTrip(device, { from: origin, to: destination, departAt: trip.inTransitAt, transferId: trip.transferId });
   } else if (!trip && device.trip) {
@@ -384,6 +393,9 @@ async function startTrip(device, { routeId, departAt, from, to, transferId = nul
   device.trip = { routeId, transferId, startedAt: new Date(start).toISOString(), progress: 0, speed: 0, rested: false, stopUntil: null, manualStop: false, position: route.coordinates[0] };
   device.lastFixAt = 0;
   device.bootAt = Math.min(device.bootAt, start - 60_000);
+  // Unsent fixes from after departure came from the parking spot; the replay
+  // below reports the route for that time instead.
+  device.queue = device.queue.filter((f) => !f.recordedAt || Date.parse(f.recordedAt) < start);
   let backfilled = 0;
   for (let t = start; t < Date.now() - 1000; t += 5000) {
     const at = new Date(t);

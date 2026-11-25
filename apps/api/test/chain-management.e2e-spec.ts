@@ -94,6 +94,10 @@ describe('Chain management with real PostgreSQL authorization and command journa
       });
       actors[key] = { id: user.id, org: org?.id ?? null, token: session.id };
     }
+    // Only an accepted partner can be invited into the owner's chain.
+    await prisma.enterprisePartner.create({
+      data: { inviterId: actors.owner.org!, inviteeId: actors.partner.org!, status: 'ACTIVE' },
+    });
     const gated = prisma.$extends({
       query: {
         supplyChain: {

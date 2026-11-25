@@ -214,12 +214,43 @@ export class SupplyChainsService {
     return chains.map((c) => ({ ...c, myRoles: grants.filter((g) => g.chainId === c.id).map((g) => g.role) }));
   }
   async get(actor: CommandActor, id: string) {
+    let chain;
     if (actor.role === 'SYSTEM_ADMIN') {
-      const chain = await this.prisma.supplyChain.findUnique({ where: { id } });
+      chain = await this.prisma.supplyChain.findUnique({ where: { id } });
       if (!chain) throw new NotFoundException('Không tìm thấy chuỗi');
-      return chain;
-    }
-    return (await chainAccess(this.prisma, actor, id)).chain;
+    } else chain = (await chainAccess(this.prisma, actor, id)).chain;
+    return { ...chain, ...(await this.memberModel(chain)) };
+  }
+  /** The supply model as the chain stands: organizations that joined later
+   * (e.g. through a handover) appear at the stages of their approved
+   * capabilities; revoked members drop out; invited ones are flagged. */
+  private async memberModel(chain: { id: string; supplyModel: unknown }) {
+    const memberships = await this.prisma.chainMembership.findMany({
+      where: { chainId: chain.id, status: { not: 'REVOKED' } },
+      select: {
+        organizationId: true,
+        status: true,
+        organization: { select: { capabilities: { where: { revokedAt: null }, select: { code: true } } } },
+      },
+    });
+    const stored = (chain.supplyModel as { stages?: { stage: string; organizationIds?: string[] }[] } | null)?.stages ?? [];
+    const present = new Set(memberships.map((m) => m.organizationId));
+    const listed = new Set(stored.flatMap((s) => s.organizationIds ?? []));
+    const stages = SUPPLY_STAGES.map((stage) => ({
+      stage,
+      organizationIds: [
+        ...new Set([
+          ...(stored.find((s) => s.stage === stage)?.organizationIds ?? []).filter((o) => present.has(o)),
+          ...memberships
+            .filter((m) => !listed.has(m.organizationId) && m.organization.capabilities.some((c) => c.code === stage))
+            .map((m) => m.organizationId),
+        ]),
+      ],
+    })).filter((s) => s.organizationIds.length);
+    return {
+      supplyModel: { stages },
+      invitedOrganizationIds: memberships.filter((m) => m.status === 'INVITED').map((m) => m.organizationId),
+    };
   }
   /** Read-only ledger projection for any current chain member. */
   async ledgerStatus(actor: CommandActor, chainId: string) {
@@ -419,8 +450,23 @@ export class SupplyChainsService {
             .filter((id) => id !== actor.organizationId),
         ),
       ];
-      for (const organizationId of others)
+      for (const organizationId of others) {
         await this.activeOrganization(tx, organizationId);
+        await this.activePartner(tx, actor.organizationId!, organizationId);
+      }
+      // Each organization takes only a stage its approved capability covers.
+      const capabilities = await tx.organizationCapability.findMany({
+        where: {
+          organizationId: { in: [...new Set(participants.map((p) => p.organizationId))] },
+          revokedAt: null,
+        },
+        select: { organizationId: true, code: true },
+      });
+      for (const p of participants)
+        if (!capabilities.some((c) => c.organizationId === p.organizationId && c.code === p.stage))
+          throw new UnprocessableEntityException(
+            'Khâu được chọn không khớp năng lực đã duyệt của doanh nghiệp',
+          );
       const supplyModel = {
         stages: SUPPLY_STAGES.map((stage) => ({
           stage,
@@ -552,9 +598,11 @@ export class SupplyChainsService {
     return this.transaction(async (tx) => {
       // The free farm ledger has no owner rights: partners join it only by
       // accepting a handover of one of its lots (ADR-005).
-      if ((await tx.supplyChain.findUniqueOrThrow({ where: { id: chainId } })).personal)
+      const chain = await tx.supplyChain.findUniqueOrThrow({ where: { id: chainId } });
+      if (chain.personal)
         throw new ForbiddenException('Sổ ghi nông trại không mời đối tác; đối tác vào sổ khi nhận bàn giao lô');
       await this.activeOrganization(tx, organizationId);
+      await this.activePartner(tx, chain.ownerOrganizationId, organizationId);
       if (
         await tx.chainMembership.findUnique({
           where: { chainId_organizationId: { chainId, organizationId } },
@@ -879,6 +927,23 @@ export class SupplyChainsService {
     });
   }
 
+  /** Only an accepted (ACTIVE) partner link lets an organization be invited. */
+  private async activePartner(tx: Prisma.TransactionClient, ownerId: string, id: string) {
+    const link = await tx.enterprisePartner.findFirst({
+      where: {
+        status: 'ACTIVE',
+        OR: [
+          { inviterId: ownerId, inviteeId: id },
+          { inviterId: id, inviteeId: ownerId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!link)
+      throw new ForbiddenException(
+        'Chỉ mời được đối tác đang hoạt động trong Quản lý đối tác',
+      );
+  }
   private async activeOrganization(tx: Prisma.TransactionClient, id: string) {
     const org = await tx.organization.findUnique({ where: { id } });
     if (org?.status !== 'ACTIVE')

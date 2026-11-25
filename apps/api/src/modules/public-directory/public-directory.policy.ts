@@ -85,7 +85,8 @@ export const PUBLIC_PRODUCT_SELECT = {
   category:true, gtin:true, storageConditions:true, ingredients:true, usageInstructions:true,
   organizationId:true,createdAt:true,
   organization:{select:{id:true,name:true,directoryPublications:{take:1,orderBy:[{createdAt:'desc'},{id:'desc'}],select:{presentation:true}}}},
-  lots:{where:publicLotWhere(),take:50,orderBy:{createdAt:'desc'},select:{id:true}},
+  // The farm province of each public lot names where the goods were grown.
+  lots:{where:publicLotWhere(),take:50,orderBy:{createdAt:'desc'},select:{id:true,harvest:{select:{cycle:{select:{farm:{select:{region:true}}}}}}}},
   _count:{select:{lots:{where:publicLotWhere()}}},
 } satisfies Prisma.ProductSelect;
 export const PUBLIC_ENTERPRISE_SELECT = {

@@ -440,8 +440,13 @@ export function ProductDetail({ id }: { id: string }) {
               <Button asChild>
                 <Link href={customerHref(`/trace/${encodeURIComponent(latest.traceToken)}`)}>
                   <QrCode />
-                  {pt("Xem lô mới nhất")}
+                  {pt("Xem lô gần nhất")}
                 </Link>
+              </Button>
+            )}
+            {p.lots.items.length > 1 && (
+              <Button asChild variant="outline">
+                <a href="#product-lots">{pt("Xem tất cả lô")}</a>
               </Button>
             )}
             <ScanDialog>
@@ -497,7 +502,7 @@ export function ProductDetail({ id }: { id: string }) {
             <p className="text-[15px] text-ink-2">{pt("Doanh nghiệp chưa công bố hồ sơ.")}</p>
           )}
         </section>
-        <section className="flex flex-col gap-4">
+        <section id="product-lots" className="flex scroll-mt-20 flex-col gap-4">
           <h2 className="text-[22px] font-semibold">{pt("Lô có mã QR")}</h2>
           {p.lots.items.length ? (
             <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">

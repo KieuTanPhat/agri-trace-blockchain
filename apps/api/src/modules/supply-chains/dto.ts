@@ -144,6 +144,8 @@ export class ChainRecordDto {
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: string;
   @ApiProperty({ type: [String], required: false, description: 'Chain roles the caller holds (list only)' })
   myRoles?: string[];
+  @ApiProperty({ type: [String], format: 'uuid', required: false, description: 'Organizations of the supply model still invited (detail only)' })
+  invitedOrganizationIds?: string[];
 }
 export class LedgerPermissionCountsDto {
   @ApiProperty({ type: Number }) active!: number;

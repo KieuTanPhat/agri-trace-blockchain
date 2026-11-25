@@ -41,7 +41,7 @@ function Chart({ s }: { s: SensorSeries }) {
 }
 
 /** ADR-006 field sensor readings of a cycle (from devices on its plot). */
-export function CycleSensors({ cycleId }: { cycleId: string }) {
+export function CycleSensors({ cycleId, state }: { cycleId: string; state?: string }) {
   const [hours, setHours] = useState<number | undefined>(24 * 7);
   const q = useQuery({ queryKey: ["cycle-readings", cycleId, hours ?? "all"], queryFn: () => iotApi.cycleReadings(cycleId, hours), refetchInterval: 60_000 });
   if (q.error) return <ErrorState compact error={q.error} onRetry={() => q.refetch()} />;
@@ -81,7 +81,15 @@ export function CycleSensors({ cycleId }: { cycleId: string }) {
           </div>
         ))}
       </div>
-      {r.devices.length > 0 && r.series.length === 0 && <p className="text-[12px] text-ink-2">{tr("Chưa có bản ghi trong khoảng thời gian này.")}</p>}
+      {r.devices.length > 0 && r.series.length === 0 && (
+        <p className="text-[12px] text-ink-2">
+          {state === "CREATED"
+            ? tr("Vụ chưa xuống giống: cảm biến chỉ ghi vào vụ từ lúc xuống giống.")
+            : state === "COMPLETED" || state === "CANCELLED"
+              ? tr("Vụ đã kết thúc nên không nhận bản ghi mới; chọn \"Cả vụ\" để xem dữ liệu đã ghi.")
+              : tr("Chưa có bản ghi trong khoảng thời gian này.")}
+        </p>
+      )}
       <p className="text-[11.5px] text-ink-2">{tr("Dữ liệu thô nằm ngoài blockchain. Khi thu hoạch, dữ liệu từ lúc trồng tới mốc thu hoạch được chốt và băm vào sự kiện thu hoạch.")}</p>
     </section>
   );

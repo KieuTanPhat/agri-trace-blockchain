@@ -117,3 +117,14 @@ export function canUseEnterpriseRoute(
     return access.capabilities.includes("FARM") && has("production.read");
   return true;
 }
+
+/** Menu entries a carrier-only organization never works in: it owns no
+ * products, stock, QR labels or lots and recalls nothing. The pages stay
+ * reachable (e.g. a lot linked from a handover); only the menu hides them. */
+const CARRIER_HIDDEN = ["/enterprise/products", "/enterprise/inventory", "/enterprise/qr", "/enterprise/notices", "/lots", "/enterprise/sites"];
+export function showInEnterpriseMenu(path: string, access: EnterpriseAccess): boolean {
+  const carrierOnly =
+    access.capabilities.includes("TRANSPORTER") &&
+    !access.capabilities.some((c) => ["FARM", "PROCESSOR", "DISTRIBUTOR", "RETAILER"].includes(c));
+  return !(carrierOnly && CARRIER_HIDDEN.includes(path));
+}
