@@ -91,11 +91,16 @@ export class PublicDirectoryService {
     return {id:row.id,name:row.name,type:row.type,...contact,logoUrl:logoEvidenceId?`/public/enterprises/${row.id}/logo?v=${logoEvidenceId}`:null};
   }
   async productImage(id:string) {
+    // The product's own main photo shows the goods, so it is served for any
+    // active product, also before its first lot (staff app cycle cards).
+    // The catalog listing itself still needs a public lot.
+    const cover=await productCoverImage(this.db,id);
+    if(cover)return this.db.traceEvidence.findUniqueOrThrow({where:{id:cover.id},select:{content:true,mediaType:true,sha256:true}});
     const row=await this.db.product.findFirst({where:{id,status:'ACTIVE',lots:{some:publicLotWhere()}},select:PUBLIC_PRODUCT_SELECT});
     if(!row)throw new NotFoundException('Không có ảnh sản phẩm công khai');
     const blocked=await this.blockedLots();
     const rows=await this.db.traceEvidence.findMany({where:{entityType:'LOT',entityId:{in:row.lots.map(l=>l.id).filter(id=>!blocked.has(id))}},select:{id:true,public:true,kind:true,supersedesId:true,mediaType:true,withdrawal:{select:{evidenceId:true}}},orderBy:{createdAt:'desc'}});
-    const visible=(await productCoverImage(this.db,id))??visibleDirectoryImage(rows);if(!visible)throw new NotFoundException('Không có ảnh sản phẩm công khai');
+    const visible=visibleDirectoryImage(rows);if(!visible)throw new NotFoundException('Không có ảnh sản phẩm công khai');
     return this.db.traceEvidence.findUniqueOrThrow({where:{id:visible.id},select:{content:true,mediaType:true,sha256:true}});
   }
   async enterpriseLogo(id:string) {

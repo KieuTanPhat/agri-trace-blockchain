@@ -50,6 +50,16 @@ describe('Public directory', () => {
     await expect(f.service.productImage(id)).rejects.toMatchObject({ status: 404 });
     expect(evidence.mock.calls[0][0].where.entityId.in).toEqual([next]);
   });
+  it('serves the main photo of an active product that has no lot yet', async () => {
+    const f = fixture();
+    const photo = '44444444-4444-4444-8444-444444444444';
+    f.db.product.findMany.mockResolvedValue([{ id }]);
+    const unique = vi.fn().mockResolvedValue({ content: Buffer.from('x'), mediaType: 'image/jpeg', sha256: 'h' });
+    Object.assign(f.db, { traceEvidence: { findMany: vi.fn().mockResolvedValue([{ id: photo, entityId: id, supersedesId: null }]), findUniqueOrThrow: unique } });
+    await expect(f.service.productImage(id)).resolves.toMatchObject({ mediaType: 'image/jpeg' });
+    expect(unique.mock.calls[0][0].where.id).toBe(photo);
+    expect(f.db.product.findFirst).not.toHaveBeenCalled();
+  });
   it('validates defaults and rejects unbounded/invalid query parameters', async () => {
     expect(plainToInstance(PublicProductsQueryDto, {}).limit).toBe(20);
     expect(
