@@ -64,6 +64,7 @@ const INCLUDE = {
       profile: true,
       registrationDocuments: { select: registrationDocumentSelect },
       capabilityRequests: { orderBy: { createdAt: 'asc' as const } },
+      capabilities: { where: { revokedAt: null }, select: { code: true } },
     },
   },
   owner: { select: { fullName: true, email: true } },
@@ -525,6 +526,7 @@ const enrollmentView = (
       profile?: unknown;
       registrationDocuments?: unknown[];
       capabilityRequests?: CapabilityRequest[];
+      capabilities?: { code: string }[];
     };
     owner: { fullName: string; email: string };
     serviceOrder?: { status: string } | null;
@@ -539,6 +541,9 @@ const enrollmentView = (
   capabilityRequests: (row.organization.capabilityRequests ?? []).map(
     capabilityRequestView,
   ),
+  // Active capabilities, which is what the chain-owner upgrade checks; an
+  // organization activated without requests still has them.
+  capabilities: (row.organization.capabilities ?? []).map((c) => c.code),
   representativeName: row.owner.fullName,
   representativeEmail: row.owner.email,
   businessId: row.businessId,
