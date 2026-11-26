@@ -7055,6 +7055,8 @@ export interface components {
         };
         EnterpriseEnrollmentViewDto: {
             businessId: string | null;
+            /** @description Active (not revoked) capability codes of the organization */
+            capabilities: string[];
             capabilityRequests: components["schemas"]["CapabilityRequestViewDto"][];
             /** Format: date-time */
             createdAt: string;

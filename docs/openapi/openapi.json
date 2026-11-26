@@ -5053,6 +5053,13 @@
             "nullable": true,
             "type": "string"
           },
+          "capabilities": {
+            "description": "Active (not revoked) capability codes of the organization",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "capabilityRequests": {
             "items": {
               "$ref": "#/components/schemas/CapabilityRequestViewDto"
@@ -5135,6 +5142,7 @@
           "paymentsEnabled",
           "participationStatus",
           "capabilityRequests",
+          "capabilities",
           "serviceActivatedAt",
           "serviceActivationReason",
           "onboardingStage",

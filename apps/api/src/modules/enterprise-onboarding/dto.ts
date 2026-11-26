@@ -57,6 +57,8 @@ export class EnterpriseEnrollmentViewDto {
   participationStatus!: string;
   @ApiProperty({ type: [CapabilityRequestViewDto] })
   capabilityRequests!: CapabilityRequestViewDto[];
+  @ApiProperty({ type: [String], description: 'Active (not revoked) capability codes of the organization' })
+  capabilities!: string[];
   @ApiProperty({type:String,format:'date-time',nullable:true}) serviceActivatedAt!: string|null;
   @ApiProperty({type:String,nullable:true}) serviceActivationReason!: string|null;
   @ApiProperty({

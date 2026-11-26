@@ -34,6 +34,7 @@ const pendingEnrollment: S["EnterpriseEnrollmentViewDto"] = {
   reviewNote: null,
   serviceActivatedAt: null,
   serviceActivationReason: null,
+  capabilities: [],
   capabilityRequests: [],
   documents: [],
   details: null,
