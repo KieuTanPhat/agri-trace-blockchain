@@ -199,17 +199,24 @@ export class EnterpriseResourcesService {
      const media=content.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex'))?'image/png':content.subarray(0,3).equals(Buffer.from('ffd8ff','hex'))?'image/jpeg':content.subarray(0,5).toString('ascii')==='%PDF-'?'application/pdf':null;
      if(!media || content.length===0 || content.length>5*1024*1024) throw new UnprocessableEntityException('Chỉ nhận PNG, JPEG hoặc PDF tối đa 5 MB, kiểm tra theo byte file');
      if(imageOnlyKinds.has(kind) && !media.startsWith('image/')) throw new UnprocessableEntityException('Danh mục ảnh chỉ nhận PNG hoặc JPEG');
-     if(input.public) {
-       const lot=input.entityType==='LOT'?await tx.lot.findUnique({where:{id:input.entityId}}):null;
-       if(!input.publicationConfirmed || !lot || lot.farmOrgId!==actor.organizationId) throw new ForbiddenException('Công bố chỉ cho chứng cứ lô nguồn của bên sản xuất, cần xác nhận công bố');
-     }
+     const sha256=createHash('sha256').update(content).digest('hex');
+     // The producer's own lot photo is public by default; any other public
+     // upload needs the explicit publication confirmation.
+     const ownLot=input.entityType==='LOT'?await tx.lot.findUnique({where:{id:input.entityId}}):null;
+     const producerLotImage=kind==='LOT_IMAGE'&&!!ownLot&&ownLot.farmOrgId===actor.organizationId;
+     const isPublic=input.public??producerLotImage;
+     if(isPublic && (!ownLot || ownLot.farmOrgId!==actor.organizationId || (input.public && !input.publicationConfirmed)))
+       throw new ForbiddenException('Công bố chỉ cho chứng cứ lô nguồn của bên sản xuất, cần xác nhận công bố');
      if(input.supersedesId) {
+       // Recorded photos and documents are never replaced by another file. The
+       // only allowed successor publishes the very same private lot photo.
        const old=await tx.traceEvidence.findFirst({where:{id:input.supersedesId,organizationId:actor.organizationId!,entityType:input.entityType==='CYCLE'?{in:['CYCLE','CYCLE_DRAFT']}:input.entityType,entityId:input.entityId}});
-       if(!old || await tx.traceEvidenceWithdrawal.findUnique({where:{evidenceId:old.id}}) || old.kind!==kind || old.siteId!==(context.siteId??null) || await tx.traceEvidence.findFirst({where:{supersedesId:old.id}})) throw new ConflictException('Chọn bản chứng cứ mới nhất cùng loại và phạm vi để đính chính');
+       if(!old || old.sha256!==sha256 || old.public || !isPublic || kind!=='LOT_IMAGE' || input.entityType!=='LOT') throw new UnprocessableEntityException('Ảnh và chứng từ đã tải không thể đính chính hay thay bằng tệp khác');
+       if(await tx.traceEvidenceWithdrawal.findUnique({where:{evidenceId:old.id}}) || old.kind!==kind || old.siteId!==(context.siteId??null) || await tx.traceEvidence.findFirst({where:{supersedesId:old.id}})) throw new ConflictException('Ảnh đã được công khai hoặc không còn hiện hành');
      }
      const total=await tx.traceEvidence.aggregate({where:{organizationId:actor.organizationId!},_sum:{size:true},_count:true});
      if(total._count>=1000 || (total._sum.size??0)+content.length>256*1024*1024) throw new ConflictException('Đã đạt giới hạn lưu chứng cứ của tổ chức');
-     const row=await tx.traceEvidence.create({data:{organizationId:actor.organizationId!,entityType:input.entityType,entityId:input.entityId,...context,supersedesId:input.supersedesId,fileName:safeFileName(file.originalname),mediaType:media,size:content.length,sha256:createHash('sha256').update(content).digest('hex'),content:Uint8Array.from(content),description:input.description,kind,public:input.public??false,actorId:actor.sub!}});
+     const row=await tx.traceEvidence.create({data:{organizationId:actor.organizationId!,entityType:input.entityType,entityId:input.entityId,...context,supersedesId:input.supersedesId,fileName:safeFileName(file.originalname),mediaType:media,size:content.length,sha256,content:Uint8Array.from(content),description:input.description,kind,public:isPublic,actorId:actor.sub!}});
      if(['LOT','CYCLE'].includes(input.entityType)) await this.trace.createInTransaction(tx,{entityType:input.entityType==='CYCLE'?'PRODUCTION_CYCLE':'LOT',entityId:input.entityId,lotId:input.entityType==='LOT'?input.entityId:undefined,cycleId:input.entityType==='CYCLE'?input.entityId:undefined,eventType:'EVIDENCE_ATTACHED',actor,businessData:{evidenceId:row.id,sha256:row.sha256,supersedesId:row.supersedesId,kind:row.kind,public:row.public}});
      return {record:{id:row.id,sha256:row.sha256,size:row.size,mediaType:row.mediaType}};
    });
