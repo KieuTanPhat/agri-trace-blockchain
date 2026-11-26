@@ -12,6 +12,7 @@ import { useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
+import { FilterSelect } from "@/components/ledger/kit/filters";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
 import { Callout, EmptyState, ErrorState, PageBody, PageHeader } from "@/components/ledger/kit/page";
 import { Badge } from "@/components/ledger/kit/status";
@@ -78,9 +79,13 @@ export function SalesPage() {
   const { can } = useWorkspaceAccess();
   const report = useQuery({ queryKey: ["dist-report", "sales"], queryFn: () => distApi.report({}), enabled: can("reports.read") });
   const sell = useDialog<StockLot>();
+  // Blocked, recalled or expired lots cannot be sold; they are listed on demand.
+  const [view, setView] = useState<"SELLING" | "BLOCKED" | "ALL">("SELLING");
   if (!can("reports.read")) return <ErrorState error={new Error(tr("Bạn chưa có quyền reports.read"))} />;
-  const lots = (report.data?.lots ?? []).filter((l) => Number(l.held) > 0);
+  const held = (report.data?.lots ?? []).filter((l) => Number(l.held) > 0);
   const blocked = (l: StockLot) => l.blocked || l.notices.some((n) => n.kind === "RECALL") || (!!l.expiryDate && l.expiryDate.slice(0, 10) < new Date().toISOString().slice(0, 10));
+  const blockedCount = held.filter(blocked).length;
+  const lots = view === "ALL" ? held : held.filter((l) => (view === "BLOCKED") === blocked(l));
   const cols: Column<StockLot>[] = [
     { key: "lot", header: tr("Lô"), cell: (l) => <span className="flex flex-col"><span className="font-mono text-[12px] font-medium">{l.lotCode}</span><span className="text-[12px] text-ink-2">{l.productName}</span></span> },
     { key: "available", header: tr("Khả dụng"), cell: (l) => <span className="font-mono text-[12.5px]">{fmtNumber(l.available)} {l.unit}</span> },
@@ -96,6 +101,16 @@ export function SalesPage() {
       <PageHeader title={tr("Bán hàng")} description={tr("Lô đang bày bán tại cửa hàng. Ghi bán trừ tồn theo lô; lô bị thu hồi, bị chặn hoặc hết hạn thì không bán được.")} />
       <PageBody className="min-w-0">
         {!can("quantity.adjust") && <Callout tone="info">{tr("Bạn chỉ xem được tồn; ghi bán cần quyền điều chỉnh khối lượng.")}</Callout>}
+        <FilterSelect
+          label={tr("Trạng thái")}
+          value={view === "ALL" ? "" : view}
+          onChange={(v) => setView((v || "ALL") as typeof view)}
+          options={[
+            { value: "SELLING", label: tr("Đang bán ({p0})", { p0: held.length - blockedCount }) },
+            { value: "BLOCKED", label: tr("Bị chặn, thu hồi, hết hạn ({p0})", { p0: blockedCount }) },
+          ]}
+          className="w-full sm:w-72"
+        />
         <div className="min-w-0 overflow-hidden rounded-md border border-line bg-card">
           <DataTable rows={report.isLoading ? undefined : lots} loading={report.isLoading} error={report.error} onRetry={() => report.refetch()} columns={cols} rowKey={(l) => l.lotId} empty={<EmptyState title={tr("Chưa có lô nào để bán")} />} />
         </div>

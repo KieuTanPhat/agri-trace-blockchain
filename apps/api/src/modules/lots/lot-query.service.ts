@@ -194,9 +194,9 @@ export class LotQueryService {
     return {
       ...toPublicLotDto(qr.lot, traceToken, traceEvents),
       // Brand and trust are additive; a failure never blocks the public page.
-      ...(await publicBrandAndTrust(this.prisma, qr.lot).catch(() => ({ brand: null, sourceTrust: null }))),
+      ...(await publicBrandAndTrust(this.prisma, qr.lot).catch(() => ({ brand: null, distributor: null, sourceTrust: null }))),
       journey:await this.journey.build(qr.lot,traceEvents,lines,traceToken),
-      imageUrl:await this.journey.thumbnailUrl(traceToken,qr.lot.id),
+      imageUrl:await this.journey.thumbnailUrl(traceToken,qr.lot),
       notices,
       productionWarnings:[...new Set(productionWarnings)],
       distributionJourney: lines.map((l) => {

@@ -13,6 +13,7 @@ import { SelectField } from "@/components/ledger/kit/form-fields";
 import { Callout, EmptyState, ErrorState, Field, Fields, LoadingRows, PageBody, PageHeader, Section } from "@/components/ledger/kit/page";
 import { Badge, Status } from "@/components/ledger/kit/status";
 import { cn } from "@/lib/ledger/utils";
+import { ChainOwnerUpgrade } from "./participation";
 
 import { t as tr } from "@/lib/ledger/i18n";
 const renewSchema = z.object({ planCode: z.string().min(1, { error: () => tr("Chọn gói") }) });
@@ -43,6 +44,13 @@ export default function WsBillingPage() {
         }
       />
       <PageBody className="min-w-0">
+        <ChainOwnerUpgrade />
+        {primary && b.applies && b.paying && !s && (
+          <Callout tone="info">
+            {tr("Doanh nghiệp là chủ chuỗi nhưng chưa có gói dịch vụ.")}{" "}
+            <Link href="/enterprise/service" className="text-brand underline">{tr("Chọn gói và thanh toán")}</Link>
+          </Callout>
+        )}
         {s && (
           <Section title={tr("Gói hiện tại")}>
             <Fields cols={4}>

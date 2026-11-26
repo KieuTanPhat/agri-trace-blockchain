@@ -9639,6 +9639,9 @@ export interface components {
             status: string;
             unit: string;
         };
+        PublicDistributorDto: {
+            organizationName: string;
+        };
         PublicEnterpriseDetailDto: {
             address: string | null;
             certificates: components["schemas"]["PublicCertificatesPageDto"];
@@ -9687,6 +9690,8 @@ export interface components {
             /** @enum {string} */
             currentState: "CONSUMED" | "HARVESTED" | "IN_TRANSPORT" | "ARRIVED" | "RETAIL_RECEIVED" | "FOR_SALE" | "SOLD" | "RECALLED" | "EXPIRED" | "DAMAGED" | "REJECTED";
             distributionJourney?: components["schemas"]["PublicDistributionLegDto"][];
+            /** @description Seller of a private-label product when no approved brand is shown */
+            distributor?: components["schemas"]["PublicDistributorDto"] | null;
             /** Format: date */
             expiryDate: string | null;
             farmOrg: components["schemas"]["OrganizationSummaryDto"];

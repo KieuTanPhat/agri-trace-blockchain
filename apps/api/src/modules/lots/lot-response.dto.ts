@@ -291,6 +291,9 @@ export class PublicBrandDto {
   @ApiProperty() productName!: string;
   @ApiProperty({ type: String, nullable: true }) story!: string | null;
 }
+export class PublicDistributorDto {
+  @ApiProperty() organizationName!: string;
+}
 export class PublicSourceTrustDto {
   @ApiProperty({ description: 'AgriTrace lots recorded by the supplier itself' }) selfRecorded!: number;
   @ApiProperty() supplierConfirmed!: number;
@@ -300,6 +303,8 @@ export class PublicSourceTrustDto {
 export class PublicLotDto extends LotBaseDto {
   @ApiProperty({ type: PublicBrandDto, nullable: true, required: false, description: 'Chain-owner brand, only for an approved product (ADR-005)' })
   brand?: PublicBrandDto | null;
+  @ApiProperty({ type: PublicDistributorDto, nullable: true, required: false, description: 'Seller of a private-label product when no approved brand is shown' })
+  distributor?: PublicDistributorDto | null;
   @ApiProperty({ type: PublicSourceTrustDto, nullable: true, required: false, description: 'Trust levels of the material sources of a processed lot' })
   sourceTrust?: PublicSourceTrustDto | null;
   @ApiProperty({type:[PublicJourneyGroupDto]}) journey!:PublicJourneyGroupDto[];

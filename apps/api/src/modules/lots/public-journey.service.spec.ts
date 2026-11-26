@@ -135,13 +135,14 @@ describe('Public journey boundaries', () => {
   });
   it('versions thumbnails by the current public evidence and never picks a withdrawn image',async()=>{
     const f=fixture(),base={id:photo,public:true,kind:'LOT_IMAGE',mediaType:'image/jpeg',supersedesId:null,withdrawal:null};
+    Object.assign(f.db,{product:{findMany:vi.fn().mockResolvedValue([])},lot:{findMany:vi.fn().mockResolvedValue([])}});
     f.db.traceEvidence.findMany.mockResolvedValue([base]);
-    expect(await f.service.thumbnailUrl('trace',lotId)).toBe(`/public/trace/trace/thumbnail?v=${photo}`);
+    expect(await f.service.thumbnailUrl('trace',{id:lotId,productId:'product'})).toBe(`/public/trace/trace/thumbnail?v=${photo}`);
     const replacement='55555555-5555-4555-8555-555555555555';
     f.db.traceEvidence.findMany.mockResolvedValue([{...base,id:replacement,supersedesId:photo},base]);
-    expect(await f.service.thumbnailUrl('trace',lotId)).toBe(`/public/trace/trace/thumbnail?v=${replacement}`);
+    expect(await f.service.thumbnailUrl('trace',{id:lotId,productId:'product'})).toBe(`/public/trace/trace/thumbnail?v=${replacement}`);
     f.db.traceEvidence.findMany.mockResolvedValue([{...base,withdrawal:{evidenceId:photo}}]);
-    expect(await f.service.thumbnailUrl('trace',lotId)).toBe('/public/trace/trace/thumbnail');
+    expect(await f.service.thumbnailUrl('trace',{id:lotId,productId:'product'})).toBe('/public/trace/trace/thumbnail');
     await expect(f.service.image('trace')).rejects.toMatchObject({status:404});
   });
   it('keeps separate farms of the same company in separate location groups', async () => {

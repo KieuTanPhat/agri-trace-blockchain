@@ -35,6 +35,13 @@ export async function publicBrandAndTrust(db: PrismaService, lot: PublicLot) {
     const owner = await db.organization.findUnique({ where: { id: brandOwner }, select: { name: true } });
     if (owner) brand = { organizationName: owner.name, productName: product.productName, story: product.description ?? null };
   }
+  // A private label always names its seller, a recorded fact that needs no
+  // approval; only the brand story above waits for the chain-owner review.
+  let distributor = null;
+  if (!brand && product?.privateLabel && product.organizationId) {
+    const seller = await db.organization.findUnique({ where: { id: product.organizationId }, select: { name: true } });
+    if (seller) distributor = { organizationName: seller.name };
+  }
   let sourceTrust = null;
   if (lot.processingRunId) {
     const [inputs, external] = await Promise.all([
@@ -63,5 +70,5 @@ export async function publicBrandAndTrust(db: PrismaService, lot: PublicLot) {
       declared: levels.filter((l) => l === 'DECLARED').length,
     };
   }
-  return { brand, sourceTrust };
+  return { brand, distributor, sourceTrust };
 }

@@ -18,6 +18,7 @@ import { fmtNumber } from "@/lib/ledger/format";
 import { t as tr } from "@/lib/ledger/i18n";
 import { useOverview, useWorkspaceAccess } from "@/lib/ledger/workspace-context";
 import { Button } from "@/components/ledger/ui/button";
+import { Switch } from "@/components/ledger/ui/switch";
 import { CommandDialog, useDialog } from "@/components/ledger/kit/command-dialog";
 import { DataTable, type Column } from "@/components/ledger/kit/data-table";
 import { SelectField, TextAreaField, TextField } from "@/components/ledger/kit/form-fields";
@@ -41,6 +42,9 @@ export function SellerProducts({ own, onOpen }: { own: Product[]; onOpen: (id: s
   const makeLabel = useDialog<Selling>();
   const intake = useDialog();
   const pack = useDialog<Product>();
+  // Sold-out goods stay listable (a label may be prepared before new lots
+  // arrive) but are hidden by default.
+  const [showEmpty, setShowEmpty] = useState(false);
   const selling = useMemo(() => {
     const map = new Map<string, Selling>();
     for (const lot of report.data?.lots ?? []) {
@@ -54,20 +58,28 @@ export function SellerProducts({ own, onOpen }: { own: Product[]; onOpen: (id: s
     }
     return [...map.values()].sort((a, b) => a.productName.localeCompare(b.productName, "vi"));
   }, [report.data, me?.id]);
+  const shown = showEmpty ? selling : selling.filter((s) => s.available > 0);
+  const emptyCount = selling.length - selling.filter((s) => s.available > 0).length;
   const labels = own.filter((p) => p.privateLabel);
   const columns: Column<Selling>[] = [
     { key: "name", header: tr("Sản phẩm"), cell: (s) => <span className="font-medium">{s.productName}</span> },
     { key: "producer", header: tr("Nhà sản xuất"), hideBelow: "md", cell: (s) => <span className="text-[12.5px]">{s.producerName ?? "—"}</span> },
-    { key: "available", header: tr("Khả dụng"), cell: (s) => <span className="font-mono text-[12.5px]">{fmtNumber(s.available)} {s.unit}</span> },
+    { key: "available", header: tr("Khả dụng"), cell: (s) => s.available > 0 ? <span className="font-mono text-[12.5px]">{fmtNumber(s.available)} {s.unit}</span> : <Badge tone="neutral">{tr("Đã hết hàng")}</Badge> },
     { key: "lots", header: tr("Lô"), hideBelow: "md", cell: (s) => <span className="flex flex-wrap gap-1">{s.lots.map((l) => l.traceToken ? <Link key={l.lotId} href={`/trace/${l.traceToken}`} className="font-mono text-[11.5px] text-brand underline">{l.lotCode}</Link> : <span key={l.lotId} className="font-mono text-[11.5px]">{l.lotCode}</span>)}</span> },
     { key: "act", header: <span className="sr-only">{tr("Thao tác")}</span>, cell: (s) => can("catalog.manage") && !s.external ? <Button size="xs" variant="outline" onClick={() => makeLabel.open(s)}>{tr("Làm nhãn riêng")}</Button> : null },
   ];
   return (
     <>
       <Section title={tr("Hàng đang bán")} aside={can("processing.write") && <Button size="xs" variant="outline" onClick={() => intake.open(true)}>{tr("Nhập hàng ngoài AgriTrace")}</Button>} bodyClassName="flex flex-col gap-3 p-4">
-        <p className="text-[12.5px] text-ink-2">{tr("Tự lấy từ các lô doanh nghiệp đã nhận bàn giao. Thông tin nguồn gốc do nhà sản xuất ghi, bên bán không sửa.")}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[12.5px] text-ink-2">{tr("Tự lấy từ các lô doanh nghiệp đã nhận bàn giao. Thông tin nguồn gốc do nhà sản xuất ghi, bên bán không sửa.")}</p>
+          <label className="flex items-center gap-2 text-[12.5px] text-ink-2">
+            <Switch checked={showEmpty} onCheckedChange={setShowEmpty} aria-label={tr("Hiện cả hàng đã hết")} />
+            {tr("Hiện cả hàng đã hết ({p0})", { p0: emptyCount })}
+          </label>
+        </div>
         <div className="overflow-hidden rounded-md border border-line">
-          <DataTable rows={selling} loading={report.isLoading} error={report.error} onRetry={() => report.refetch()} columns={columns} rowKey={(s) => s.productId} empty={<EmptyState title={tr("Chưa nhận lô hàng nào")} />} />
+          <DataTable rows={shown} loading={report.isLoading} error={report.error} onRetry={() => report.refetch()} columns={columns} rowKey={(s) => s.productId} empty={<EmptyState title={tr("Chưa nhận lô hàng nào")} />} />
         </div>
       </Section>
       <Section title={tr("Nhãn riêng")} bodyClassName="flex flex-col gap-3 p-4">
@@ -119,7 +131,7 @@ function MakeLabel({ source, brand, props, onCreated }: { source: Selling; brand
           <TextAreaField control={f.control} name="storageConditions" label={tr("Bảo quản")} />
           <TextAreaField control={f.control} name="ingredients" label={tr("Thành phần")} />
           <TextAreaField control={f.control} name="usageInstructions" label={tr("Hướng dẫn sử dụng")} />
-          <TextAreaField control={f.control} name="description" label={tr("Câu chuyện thương hiệu (hiện khi khách quét QR, sau khi được duyệt)")} />
+          <TextAreaField control={f.control} name="description" label={tr("Câu chuyện thương hiệu (chỉ hiện khi doanh nghiệp là chủ chuỗi và đã được duyệt)")} />
         </>
       )}
     </CommandDialog>
