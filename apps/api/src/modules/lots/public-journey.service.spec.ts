@@ -224,6 +224,43 @@ describe('Public journey boundaries', () => {
       status: 404,
     });
   });
+  describe('handover photos', () => {
+    const carrier = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      transferId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      handover = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    function transferFixture(details: boolean) {
+      const f = fixture();
+      f.db.organization.findMany.mockResolvedValue([
+        { id: org, name: 'Công ty A', type: 'FARM', directoryPublications: [] },
+        { id: carrier, name: 'Vận tải B', type: 'TRANSPORTER', directoryPublications: [{ presentation: { publicDirectory: { published: true, traceDetailsPublished: details } } }] },
+      ]);
+      f.db.enterpriseSite.findMany.mockResolvedValue([]);
+      f.db.traceEvidence.findMany.mockImplementation(
+        async (q: { where: { id?: { in: string[] }; supersedesId?: unknown; entityType?: string } }) => {
+          if (q.where.supersedesId) return [];
+          const row = { id: handover, entityId: transferId, organizationId: carrier, supersedesId: null, entityType: 'TRANSFER', kind: 'TRANSFER_IMAGE' };
+          if (q.where.entityType === 'TRANSFER') return [row];
+          return q.where.id ? [row].filter((r) => q.where.id!.in.includes(r.id)) : [];
+        },
+      );
+      const line = {
+        lotId, transferId, quantity: '10',
+        transfer: { id: transferId, status: 'DELIVERED', senderId: org, carrierId: carrier, receiverId: org, senderSiteId: null, carrierSiteId: null, receiverSiteId: null, createdAt: new Date(), updatedAt: new Date() },
+      };
+      return { ...f, lines: [line] as never };
+    }
+    it('shows pickup and delivery photos under the party that took them', async () => {
+      const f = transferFixture(true);
+      const groups = await f.service.build(f.lot, [], f.lines, 'trace');
+      const carrierGroup = groups.find((g) => g.id === `org:${carrier}`);
+      expect(carrierGroup?.photos).toEqual([{ id: handover, url: `/public/trace/trace/media/${handover}`, caption: 'Bàn giao hàng' }]);
+    });
+    it('keeps handover photos private when the company does not publish trace details', async () => {
+      const f = transferFixture(false);
+      const groups = await f.service.build(f.lot, [], f.lines, 'trace');
+      expect(groups.flatMap((g) => g.photos).map((p) => p.id)).not.toContain(handover);
+    });
+  });
   describe('photos recorded by the farm', () => {
     const cycleId = '66666666-6666-4666-8666-666666666666',
       carePhoto = '77777777-7777-4777-8777-777777777777',

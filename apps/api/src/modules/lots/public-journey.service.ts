@@ -135,6 +135,54 @@ export class PublicJourneyService {
     }
     return media;
   }
+  /** Pickup and delivery photos a party attached to this lot's transfers.
+   * Shown under that party's own stage when the company publishes trace
+   * details, like the farm photos; damage and quarantine photos never are. */
+  private async recordedTransferMedia(
+    lot: PublicLot,
+    orgs: { id: string; directoryPublications: { presentation: unknown }[] }[],
+    lines: Line[],
+    privateFarm: boolean,
+  ): Promise<Media[]> {
+    const live = lines.filter((l) => l.transfer.status !== 'CANCELLED');
+    if (!live.length) return [];
+    const publishing = new Set(
+      orgs
+        .filter((o) => publication(o.directoryPublications[0]?.presentation).traceDetailsPublished === true)
+        .filter((o) => !(privateFarm && o.id === lot.farmOrgId))
+        .map((o) => o.id),
+    );
+    if (!publishing.size) return [];
+    const rows = await this.db.traceEvidence.findMany({
+      where: {
+        entityType: 'TRANSFER',
+        entityId: { in: [...new Set(live.map((l) => l.transferId))] },
+        kind: 'TRANSFER_IMAGE',
+        organizationId: { in: [...publishing] },
+        withdrawal: null,
+      },
+      select: { id: true, entityId: true, organizationId: true, supersedesId: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    const superseded = new Set(rows.map((r) => r.supersedesId).filter(Boolean));
+    const media: Media[] = [];
+    for (const r of rows) {
+      if (superseded.has(r.id)) continue;
+      const t = live.find((l) => l.transferId === r.entityId)?.transfer;
+      if (!t || ![t.senderId, t.carrierId, t.receiverId].includes(r.organizationId)) continue;
+      // Same stage the journey groups this party under.
+      const siteId = r.organizationId === t.senderId ? t.senderSiteId : r.organizationId === t.receiverId ? t.receiverSiteId : t.carrierSiteId;
+      media.push({
+        evidenceId: r.id,
+        lotId: lot.id,
+        groupKey: siteId ? (siteId.startsWith('farm:') ? siteId : `site:${siteId}`) : `org:${r.organizationId}`,
+        caption: r.organizationId === t.receiverId ? 'Nhận hàng' : 'Bàn giao hàng',
+        organizationId: r.organizationId,
+      });
+      if (media.length >= RECORDED_FARM_MEDIA_LIMIT) break;
+    }
+    return media;
+  }
   private async context(
     lot: PublicLot,
     events: PublicTraceEvent[],
@@ -205,7 +253,10 @@ export class PublicJourneyService {
     );
     const harvest = lot.harvest,
       privateFarm = !!harvest && harvest.cycle.farm.privacy !== 'PUBLIC';
-    const recorded = await this.recordedFarmMedia(lot, orgs, sites, care, privateFarm);
+    const recorded = [
+      ...(await this.recordedFarmMedia(lot, orgs, sites, care, privateFarm)),
+      ...(await this.recordedTransferMedia(lot, orgs, lines, privateFarm)),
+    ];
     const media = [
       ...published,
       ...recorded.filter((r) => !published.some((p) => p.evidenceId === r.evidenceId)),
