@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useLedgerQuery as useQuery, useLedgerQueryClient as useQueryClient } from "@/lib/ledger/data";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Input } from "@/components/ledger/ui/input";
 import { FilterSelect } from "@/components/ledger/kit/filters";
 import { parseCatalogCsv, catalogCsvTemplate } from "@/lib/catalog-csv";
@@ -281,6 +282,8 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
   const edit = useDialog();
   const complete = useDialog();
   const approval = useDialog();
+  // The public brand page is part of the chain-owner service (ADR-005).
+  const chainOwner = useOverview().data?.organization.participationStatus === "CHAIN_OWNER";
   const [ordering, setOrdering] = useState(false);
   const p = product;
   const lots=useQuery({queryKey:["ws-product-lots"],queryFn:wapi.lots,enabled:!!p});
@@ -307,8 +310,14 @@ function ProductSheet({ product, farms, options, onClose, canManage, canEvidence
                   <Button size="sm" variant="outline" onClick={() => router.push(`/enterprise/products/${p.id}/edit`)}>{tr("Sửa thông tin")}</Button>
                   <Button size="sm" variant="outline" onClick={() => setOrdering(true)}>{tr("Sắp xếp ảnh")}</Button>
                   {!p.evidenceComplete && <Button size="sm" onClick={() => complete.open(true)}>{tr("Hoàn tất hồ sơ ảnh")}</Button>}
-                  {p.status === "ACTIVE" && (!p.approvalStatus || ["NONE", "REJECTED"].includes(p.approvalStatus)) && <Button size="sm" variant="outline" onClick={() => approval.open(true)}>{tr("Gửi duyệt trang thương hiệu")}</Button>}
+                  {chainOwner && p.status === "ACTIVE" && (!p.approvalStatus || ["NONE", "REJECTED"].includes(p.approvalStatus)) && <Button size="sm" variant="outline" onClick={() => approval.open(true)}>{tr("Gửi duyệt trang thương hiệu")}</Button>}
                 </div>
+              )}
+              {canManage && !chainOwner && p.status === "ACTIVE" && (
+                <Callout tone="info">
+                  {tr("Trang thương hiệu (câu chuyện thương hiệu khi khách quét QR) dành cho gói chủ chuỗi.")}{" "}
+                  <Link href="/enterprise/billing" className="text-brand underline">{tr("Nâng cấp lên chủ chuỗi")}</Link>
+                </Callout>
               )}
               <dl className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
                 {[

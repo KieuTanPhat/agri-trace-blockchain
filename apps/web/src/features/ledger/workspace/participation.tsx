@@ -43,31 +43,7 @@ export function ParticipationPanel() {
   const member = e.participationStatus !== "CHAIN_OWNER";
   return (
     <>
-      {member && (
-        <Section title={tr("Nâng cấp lên chủ chuỗi")} bodyClassName="p-4">
-          {approved.some((c) => GOODS_OWNING.includes(c)) ? (
-            <CommandForm
-              title={tr("Đứng tên sản phẩm và tạo chuỗi")}
-              endpoint="POST /enterprise-service/upgrade"
-              schema={z.object({})}
-              defaultValues={{}}
-              version={e.version}
-              submitLabel={tr("Nâng cấp lên chủ chuỗi")}
-              invalidate={[["ws-enrollment"], ["ws-service"], ["enterprise-access"]]}
-              run={(_, cmd) => wapi.upgradeToChainOwner({ version: e.version }, cmd)}
-              onDone={() => window.dispatchEvent(new Event(PERMISSION_SYNC_EVENT))}
-            >
-              {() => (
-                <p className="text-[13px] text-ink-2">
-                  {tr("Tài khoản, nhân viên và dữ liệu giữ nguyên. Sau khi nâng cấp, chọn gói và thanh toán; quyền tạo chuỗi có hiệu lực khi gói được kích hoạt.")}
-                </p>
-              )}
-            </CommandForm>
-          ) : (
-            <Callout tone="warn">{tr("Chủ chuỗi cần ít nhất một năng lực sở hữu hàng đã được duyệt (sản xuất, chế biến, phân phối hoặc bán lẻ). Xin thêm năng lực trước.")}</Callout>
-          )}
-        </Section>
-      )}
+      {member && <ChainOwnerUpgrade />}
       {!!e.serviceActivatedAt && missing.length > 0 && (
         <Section title={tr("Xin thêm năng lực")} bodyClassName="p-4">
           {pending.length > 0 && <Callout>{tr("Đang chờ duyệt")}: {pending.map((c) => CAPABILITY_LABEL[c] ?? c).join(", ")}</Callout>}
@@ -107,5 +83,40 @@ export function ParticipationPanel() {
         </Section>
       )}
     </>
+  );
+}
+
+/** ADR-005: a member upgrades to chain owner keeping account and data; shown
+ * on the service page and on the billing page, where members look for a plan. */
+export function ChainOwnerUpgrade() {
+  const { owner } = useWorkspaceAccess();
+  const enrollment = useQuery({ queryKey: ["ws-enrollment"], queryFn: wapi.enrollment });
+  const e = enrollment.data;
+  if (!owner || !e || e.status !== "APPROVED" || e.participationStatus === "CHAIN_OWNER") return null;
+  const approved = (e.capabilityRequests ?? []).filter((c) => c.status === "APPROVED").map((c) => c.code);
+  return (
+    <Section title={tr("Nâng cấp lên chủ chuỗi")} bodyClassName="p-4">
+      {approved.some((c) => GOODS_OWNING.includes(c)) ? (
+        <CommandForm
+          title={tr("Đứng tên sản phẩm và tạo chuỗi")}
+          endpoint="POST /enterprise-service/upgrade"
+          schema={z.object({})}
+          defaultValues={{}}
+          version={e.version}
+          submitLabel={tr("Nâng cấp lên chủ chuỗi")}
+          invalidate={[["ws-enrollment"], ["ws-service"], ["ws-billing"], ["enterprise-access"]]}
+          run={(_, cmd) => wapi.upgradeToChainOwner({ version: e.version }, cmd)}
+          onDone={() => window.dispatchEvent(new Event(PERMISSION_SYNC_EVENT))}
+        >
+          {() => (
+            <p className="text-[13px] text-ink-2">
+              {tr("Tài khoản, nhân viên và dữ liệu giữ nguyên. Sau khi nâng cấp, chọn gói và thanh toán; quyền tạo chuỗi có hiệu lực khi gói được kích hoạt.")}
+            </p>
+          )}
+        </CommandForm>
+      ) : (
+        <Callout tone="warn">{tr("Chủ chuỗi cần ít nhất một năng lực sở hữu hàng đã được duyệt (sản xuất, chế biến, phân phối hoặc bán lẻ). Xin thêm năng lực trước.")}</Callout>
+      )}
+    </Section>
   );
 }

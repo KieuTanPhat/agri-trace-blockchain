@@ -4,7 +4,6 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   publicContact,
   publication,
-  visibleDirectoryImage,
 } from '../public-directory/public-directory.presentation.js';
 import {
   PUBLIC_ENTERPRISE_SELECT,
@@ -17,6 +16,7 @@ import {
   type PublicTraceEvent,
 } from './lot-query.types.js';
 import { eventSummary } from './lot.presenter.js';
+import { lotCoverImage } from '../public-directory/cover-image.js';
 import { vietnamCalendarDate } from '../../common/expiry-date.js';
 import type {
   PublicJourneyGroupDto,
@@ -743,12 +743,12 @@ export class PublicJourneyService {
     }
     return visible;
   }
-  private async thumbnailEvidence(lotId:string) {
-    const rows=await this.db.traceEvidence.findMany({where:{entityType:'LOT',entityId:lotId},select:{id:true,public:true,kind:true,mediaType:true,supersedesId:true,withdrawal:{select:{evidenceId:true}}},orderBy:{createdAt:'desc'}});
-    return visibleDirectoryImage(rows);
+  /** The lot's own photo, else its product photo, else a material lot photo. */
+  private thumbnailEvidence(lot:{id:string;productId:string}) {
+    return lotCoverImage(this.db,lot);
   }
-  async thumbnailUrl(token:string,lotId:string){
-    const image=await this.thumbnailEvidence(lotId);
+  async thumbnailUrl(token:string,lot:{id:string;productId:string}){
+    const image=await this.thumbnailEvidence(lot);
     return `/public/trace/${token}/thumbnail${image?`?v=${image.id}`:''}`;
   }
   async image(token: string, id?: string) {
@@ -758,8 +758,8 @@ export class PublicJourneyService {
     });
     if (!qr) throw new NotFoundException();
     if (!id) {
-      const visible = await this.thumbnailEvidence(qr.lotId);
-      if (!visible || visible.withdrawal) throw new NotFoundException();
+      const visible = await this.thumbnailEvidence(qr.lot);
+      if (!visible) throw new NotFoundException();
       id = visible.id;
     } else {
       const lines = await this.db.distributionLine.findMany({

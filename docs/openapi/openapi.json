@@ -14589,6 +14589,17 @@
         ],
         "type": "object"
       },
+      "PublicDistributorDto": {
+        "properties": {
+          "organizationName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationName"
+        ],
+        "type": "object"
+      },
       "PublicEnterpriseDetailDto": {
         "properties": {
           "address": {
@@ -14801,6 +14812,16 @@
               "$ref": "#/components/schemas/PublicDistributionLegDto"
             },
             "type": "array"
+          },
+          "distributor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicDistributorDto"
+              }
+            ],
+            "description": "Seller of a private-label product when no approved brand is shown",
+            "nullable": true,
+            "type": "object"
           },
           "expiryDate": {
             "format": "date",

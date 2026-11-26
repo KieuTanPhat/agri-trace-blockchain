@@ -32,6 +32,8 @@ describe('Public directory', () => {
       distributionTransfer: { findMany: vi.fn().mockResolvedValue([]) },
       certificate: { findMany: vi.fn().mockResolvedValue([]) },
       traceQrBlock: { findMany: vi.fn().mockResolvedValue([]) },
+      traceEvidence: { findMany: vi.fn().mockResolvedValue([]) },
+      productPhotoOrder: { findMany: vi.fn().mockResolvedValue([]) },
     };
     return {
       db,

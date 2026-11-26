@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { vietnamCalendarDate } from '../../common/expiry-date.js';
 import {sellingLots} from './public-sale-status.js';
 import {publicContact,publicProductDetails,visibleDirectoryImage} from './public-directory.presentation.js';
+import {productCoverImage,productCoverImages} from './cover-image.js';
 import type {
   PublicProductsQueryDto,
   PublicEnterprisesQueryDto,
@@ -77,9 +78,12 @@ export class PublicDirectoryService {
     const sellingProducts=new Set(marketLots.map(l=>l.productId));
     const lotIds=rows.flatMap(r=>(r.lots??[]).map(l=>l.id));
     const images=lotIds.length?await this.db.traceEvidence.findMany({where:{entityType:'LOT',entityId:{in:lotIds}},select:{id:true,entityId:true,public:true,kind:true,supersedesId:true,mediaType:true,withdrawal:{select:{evidenceId:true}}},orderBy:{createdAt:'desc'}}):[];
-    return rows.map(row=>{const image=visibleDirectoryImage(images.filter(i=>(row.lots??[]).some(l=>l.id===i.entityId)));return {id:row.id,saleStatus:sellingProducts.has(row.id)?'SELLING':'NOT_SELLING',productName:row.productName,variety:row.variety??null,defaultUnit:row.defaultUnit??null,description:row.description??null,
+    // A product whose lots have no public photo shows its own product photo.
+    const lotImage=new Map(rows.map(row=>[row.id,visibleDirectoryImage(images.filter(i=>(row.lots??[]).some(l=>l.id===i.entityId)))]));
+    const productImages=await productCoverImages(this.db,rows.filter(r=>!lotImage.get(r.id)).map(r=>r.id));
+    return rows.map(row=>{const lotPhoto=lotImage.get(row.id),imageId=lotPhoto?.id??productImages.get(row.id)??null;return {id:row.id,saleStatus:sellingProducts.has(row.id)?'SELLING':'NOT_SELLING',productName:row.productName,variety:row.variety??null,defaultUnit:row.defaultUnit??null,description:row.description??null,
       ...publicProductDetails(row,row.organization?.directoryPublications?.[0]?.presentation),...PublicDirectoryService.lotProvince(row.lots),createdAt:row.createdAt?.toISOString()??new Date(0).toISOString(),traceCount:row._count?.lots??0,
-      imageUrl:image?`/public/products/${row.id}/image?v=${image.id}`:null,
+      imageUrl:imageId?`/public/products/${row.id}/image?v=${imageId}`:null,
       enterprise:row.organization?{id:row.organization.id,name:row.organization.name,logoUrl:enterpriseLogo(row.organization.id,row.organization.directoryPublications?.[0]?.presentation)}:null};});
   }
   private presentEnterprise(row:Prisma.OrganizationGetPayload<{select:typeof PUBLIC_ENTERPRISE_SELECT}>) {
@@ -91,7 +95,7 @@ export class PublicDirectoryService {
     if(!row)throw new NotFoundException('Không có ảnh sản phẩm công khai');
     const blocked=await this.blockedLots();
     const rows=await this.db.traceEvidence.findMany({where:{entityType:'LOT',entityId:{in:row.lots.map(l=>l.id).filter(id=>!blocked.has(id))}},select:{id:true,public:true,kind:true,supersedesId:true,mediaType:true,withdrawal:{select:{evidenceId:true}}},orderBy:{createdAt:'desc'}});
-    const visible=visibleDirectoryImage(rows);if(!visible)throw new NotFoundException('Không có ảnh sản phẩm công khai');
+    const visible=visibleDirectoryImage(rows)??(await productCoverImage(this.db,id));if(!visible)throw new NotFoundException('Không có ảnh sản phẩm công khai');
     return this.db.traceEvidence.findUniqueOrThrow({where:{id:visible.id},select:{content:true,mediaType:true,sha256:true}});
   }
   async enterpriseLogo(id:string) {
