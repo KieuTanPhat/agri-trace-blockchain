@@ -52,11 +52,13 @@ export default function InventoryPage() {
     { key: "held", header: tr("Đang giữ"), cell: (l) => <span className="font-mono text-[12.5px]">{fmtNumber(l.held)} {l.unit}</span> },
     { key: "available", header: tr("Khả dụng"), cell: (l) => <span className="font-mono text-[12.5px]">{fmtNumber(l.available)}</span> },
     { key: "reserved", header: tr("Giữ chỗ / cách ly"), hideBelow: "md", cell: (l) => <span className="font-mono text-[12px] text-ink-2">{fmtNumber(l.reserved)} / {fmtNumber(l.quarantined)}</span> },
-    { key: "sites", header: tr("Theo cơ sở"), hideBelow: "lg", cell: (l) => <span className="text-[12px]">{l.siteHoldings.length ? l.siteHoldings.map((s) => `${s.siteName}: ${fmtNumber(s.quantity)}`).join(" · ") : "—"}</span> },
+    { key: "sites", header: tr("Theo cơ sở"), hideBelow: "lg", cell: (l) => <span className="flex flex-col text-[12px]">{l.siteHoldings.length ? <span>{l.siteHoldings.map((s) => `${s.siteName}: ${fmtNumber(s.quantity)}`).join(" · ")}</span> : null}{Number(l.unallocated ?? 0) > 0 && <span className="font-medium text-warn">{tr("Chưa phân bổ: {p0}", { p0: fmtNumber(l.unallocated) })}</span>}{Number(l.internalInTransit ?? 0) > 0 && <span className="text-ink-2">{tr("Đang chuyển kho: {p0}", { p0: fmtNumber(l.internalInTransit) })}</span>}{!l.siteHoldings.length && !(Number(l.unallocated ?? 0) > 0) && !(Number(l.internalInTransit ?? 0) > 0) && "—"}</span> },
     { key: "flags", header: tr("Lưu ý"), hideBelow: "md", cell: (l) => (
       <span className="flex flex-wrap gap-1">
         {l.notices.map((n, i) => <Badge key={i} tone={n.kind === "RECALL" ? "danger" : "warn"} dot={false}>{n.kind === "RECALL" ? tr("Thu hồi") : tr("Cảnh báo")}</Badge>)}
         {l.blocked && <Badge tone="danger" dot={false}>{tr("Bị chặn")}</Badge>}
+        {Number(l.unallocated ?? 0) > 0 && <Badge tone="warn" dot={false}>{tr("Chưa phân bổ cơ sở")}</Badge>}
+        {Number(l.internalInTransit ?? 0) > 0 && <Badge tone="info" dot={false}>{tr("Đang chuyển kho")}</Badge>}
         {l.expiryDate && <span className="font-mono text-[11.5px] text-ink-2">HSD {fmtDate(l.expiryDate)}</span>}
       </span>
     ) },
