@@ -45,8 +45,13 @@ function db(opts: {
 }
 
 describe('lot cover image', () => {
-  it('prefers the lot photo over the product photo', async () => {
+  it('always prefers the product photo over a lot photo', async () => {
     const d = db({ lotPhotos: { lot: [lotPhoto('own', 'lot')] }, productPhotos: [{ id: 'p1', entityId: 'product', supersedesId: null }] });
+    expect(await lotCoverImage(d, { id: 'lot', productId: 'product' })).toEqual({ id: 'p1' });
+  });
+
+  it('uses the public lot photo when the product has none', async () => {
+    const d = db({ active: [], lotPhotos: { lot: [lotPhoto('own', 'lot')] } });
     expect(await lotCoverImage(d, { id: 'lot', productId: 'product' })).toMatchObject({ id: 'own' });
   });
 

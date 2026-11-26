@@ -1,4 +1,5 @@
 "use client";
+import { LOT_WARNING, LOT_WARNING_SHOWN_ELSEWHERE } from "@/lib/ledger/lot-warnings";
 import { publicTraceUrl } from "@/lib/site-origins";
 
 
@@ -160,7 +161,7 @@ function LotSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
                 <Badge tone={l.proofStatus === "VERIFIED" ? "ok" : "info"} dot={false}>{l.proofStatus === "VERIFIED" ? tr("Đã xác nhận trên sổ cái") : l.proofStatus==="PENDING"?tr("Đang chờ xác nhận sổ cái"):l.proofStatus==="INTEGRITY_WARNING"?tr("Cảnh báo tính toàn vẹn"):tr("Sổ cái chưa khả dụng")}</Badge>
                 {l.custodian && <Badge tone="neutral" dot={false}>{tr("Đang giữ")}: {orgName(l.custodian.organizationId)}</Badge>}
               </div>
-              {l.warnings.map((warning,i)=><Callout key={i} tone="warn">{warning}</Callout>)}
+              {l.warnings.filter((w)=>!LOT_WARNING_SHOWN_ELSEWHERE.has(w)).map((w,i)=><Callout key={i} tone={LOT_WARNING[w]?.tone??"warn"}>{LOT_WARNING[w]?tr(LOT_WARNING[w].label):w}</Callout>)}
               {l.isExpired&&<Callout tone="danger">{tr("Lô đã hết hạn sử dụng")}</Callout>}
               {(!l.quantityReconciled||!l.stateReconciled||l.proofStatus==="INTEGRITY_WARNING")&&<Callout tone="danger">{tr("Lô cần đối soát tính toàn vẹn")}</Callout>}
               {s?.handoverMode==="DUAL_SIGNED"&&l.chainId&&<LotHandovers lot={l}/>}

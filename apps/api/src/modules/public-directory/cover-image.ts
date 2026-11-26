@@ -68,8 +68,9 @@ async function lotOwnImage(db: Db, lotId: string) {
   return visibleDirectoryImage(rows);
 }
 
-/** Cover photo of a lot's public page: its own lot photo, else the product
- * photo, else a photo of the material lots it came from. */
+/** Cover photo of a lot's public page: always the product's main photo when
+ * it has one, so a stray lot photo never becomes the face of the product;
+ * else its own public lot photo, else a photo of its material lots. */
 export async function lotCoverImage(db: Db, lot: { id: string; productId: string }): Promise<{ id: string } | null> {
-  return (await lotOwnImage(db, lot.id)) ?? (await productCoverImage(db, lot.productId)) ?? (await sourceLotImage(db, lot.id));
+  return (await productCoverImage(db, lot.productId)) ?? (await lotOwnImage(db, lot.id)) ?? (await sourceLotImage(db, lot.id));
 }

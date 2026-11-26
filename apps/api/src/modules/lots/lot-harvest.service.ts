@@ -195,7 +195,7 @@ export class LotHarvestService {
           organizationId: actor.organizationId!, entityType: 'LOT', entityId: lot.id,
           chainId: cycle.chainId, fileName: lotImage.fileName, mediaType: lotImage.mediaType,
           size: lotImage.size, sha256: lotImage.sha256, content: lotImage.content,
-          description: lotImage.description, kind: 'LOT_IMAGE', public: false, actorId: actor.sub!,
+          description: lotImage.description, kind: 'LOT_IMAGE', public: true, actorId: actor.sub!,
         } });
         const sensorWindow = await finalizeHarvestSensorWindow(
           tx,
@@ -263,7 +263,7 @@ export class LotHarvestService {
         await this.trace.createInTransaction(tx, {
           entityType: 'LOT', entityId: lot.id, cycleId, lotId: lot.id,
           eventType: 'EVIDENCE_ATTACHED', actor,
-          businessData: { evidenceId: lotEvidence.id, sha256: lotEvidence.sha256, sourceEvidenceId: lotImage.id, kind: 'LOT_IMAGE', public: false },
+          businessData: { evidenceId: lotEvidence.id, sha256: lotEvidence.sha256, sourceEvidenceId: lotImage.id, kind: 'LOT_IMAGE', public: lotEvidence.public },
         });
         await tx.quantityMovement.create({
           data: {

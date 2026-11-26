@@ -10,6 +10,19 @@ import { useAccess } from '../../../lib/access';
 import { useLoad } from '../../../lib/useApi';
 import { color } from '../../../theme/staff';
 
+/** Readable lot warnings; a cycle without a sensor is allowed (IoT is optional). */
+const WARNING_TEXT: Record<string, string> = {
+  RECALLED: 'Lô đang bị thu hồi',
+  EXPIRED: 'Lô đã hết hạn sử dụng',
+  DAMAGED: 'Lô bị hư hỏng',
+  REJECTED: 'Lô bị từ chối nhận',
+  QUANTITY_MISMATCH: 'Số lượng của lô cần đối soát',
+  STATE_MISMATCH: 'Trạng thái lô chưa khớp, cần đối soát',
+  NO_DATA: 'Vụ không gắn cảm biến; lô không có dữ liệu nhiệt độ, độ ẩm',
+  SENSOR_INTEGRITY_WARNING: 'Dữ liệu cảm biến có điểm bất thường',
+  LATE_READINGS: 'Một số số đo cảm biến được gửi muộn',
+};
+
 type Lot = Schemas['InternalLotDto'];
 
 /** Internal lot view, by id or by a scanned token (`id=scan&token=…`). */
@@ -71,8 +84,8 @@ export default function StaffLot() {
         </View>
       </Card>
       <View style={{ padding: 16, gap: 12 }}>
-        {lot.warnings.map((w) => (
-          <Notice key={w} kind="warn" title={w} />
+        {lot.warnings.filter((w) => w in WARNING_TEXT).map((w) => (
+          <Notice key={w} kind={w === 'NO_DATA' || w === 'LATE_READINGS' ? 'info' : 'warn'} title={WARNING_TEXT[w]} />
         ))}
         <Card style={{ paddingHorizontal: 16, paddingVertical: 4 }}>
           <Row first icon="basket" label="Thu hoạch" value={dateTime(lot.harvestTime)} />

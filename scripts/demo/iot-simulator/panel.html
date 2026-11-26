@@ -72,7 +72,7 @@
   .create-button { min-width: 134px; background: var(--forest); color: #fff; box-shadow: 0 5px 12px rgb(23 71 53 / 15%); }
   .create-button svg { width: 15px; height: 15px; color: var(--leaf); }
   .create-button:hover { transform: translateY(-1px); background: #205a40; box-shadow: 0 8px 16px rgb(23 71 53 / 19%); }
-  .button { min-height: 34px; padding: 0 11px; border-color: #e3e8df; background: #fff; font-size: 10px; }
+  .button { min-height: 32px; padding: 0 10px; border-color: #e3e8df; background: #fff; font-size: 12px; font-weight: 750; }
   .button:hover { border-color: #c3d0bd; background: #f5f7f0; }
   .button.primary { border-color: var(--forest); background: var(--forest); color: #fff; }
   .button.primary:hover { background: #205a40; }
@@ -80,7 +80,7 @@
   .button:disabled, .create-button:disabled { cursor: wait; opacity: .65; }
   .create-note { display: flex; align-items: start; gap: 8px; margin: 14px 1px 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
   .create-note svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; color: #81964e; }
-  .device-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 15px; }
+  .device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); align-items: start; gap: 14px; }
   .empty-state { min-height: 215px; grid-column: 1 / -1; display: grid; grid-template-columns: 158px minmax(0, 1fr) auto; align-items: center; gap: 26px; padding: 28px 34px; border: 1px dashed #d5ded1; border-radius: 19px; background: linear-gradient(110deg, #fff, #fbfcf8); }
   .empty-art { position: relative; display: grid; width: 140px; height: 140px; place-items: center; border-radius: 50%; background: #f0f4e4; }
   .empty-art::before, .empty-art::after { position: absolute; inset: 14px; content: ""; border: 1px solid #d9e4c7; border-radius: 50%; }
@@ -93,66 +93,66 @@
   .empty-hint { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 15px; }
   .empty-hint span { padding: 5px 9px; border: 1px solid #e6eadf; border-radius: 999px; color: #596b5f; background: #fff; font-size: 9px; font-weight: 650; }
   .empty-action { justify-self: end; white-space: nowrap; }
-  .device-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 17px; background: #fff; box-shadow: 0 5px 18px rgb(23 44 37 / 4%); transition: transform .18s, box-shadow .18s, border-color .18s; }
-  .device-card:hover { transform: translateY(-2px); border-color: #d3ddcd; box-shadow: 0 12px 28px rgb(23 44 37 / 8%); }
-  .device-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; padding: 18px 19px 15px; border-bottom: 1px solid #edf0e9; }
-  .device-heading { display: flex; min-width: 0; align-items: center; gap: 12px; }
-  .device-type-icon { display: grid; width: 43px; height: 43px; flex: 0 0 auto; place-items: center; border-radius: 14px; color: var(--forest); background: #eef3e1; }
-  .device-type-icon.gps { color: #8c612b; background: #f7f0e2; }
-  .device-type-icon svg { width: 20px; height: 20px; }
+  .device-card { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgb(23 44 37 / 5%); transition: box-shadow .18s, border-color .18s; }
+  .device-card:hover { border-color: #cfdac8; box-shadow: 0 10px 24px rgb(23 44 37 / 9%); }
+  .device-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 14px 10px; }
+  .device-heading { display: flex; min-width: 0; align-items: center; gap: 10px; }
+  .device-type-icon { display: grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; border-radius: 11px; color: var(--forest); background: #eaf3df; }
+  .device-type-icon.gps { color: #8c612b; background: #f7eedc; }
+  .device-type-icon svg { width: 19px; height: 19px; }
   .device-title-wrap { min-width: 0; }
-  .device-title-wrap h3 { overflow: hidden; margin: 0; font-size: 14px; font-weight: 740; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
-  .device-code { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--muted); font-size: 10px; }
-  .device-code code { overflow: hidden; color: #617268; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-  .copy-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 2px 5px; border: 0; border-radius: 5px; color: #5e7467; background: transparent; font-size: 9px; font-weight: 680; }
+  .device-title-wrap h3 { overflow: hidden; margin: 0; color: #13251c; font-size: 15px; font-weight: 800; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+  .device-code { display: flex; align-items: center; gap: 3px; margin-top: 2px; color: var(--muted); }
+  .device-code code { overflow: hidden; color: #5a6c61; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  .copy-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 2px 5px; border: 0; border-radius: 5px; color: #5e7467; background: transparent; font-size: 11px; font-weight: 700; }
   .copy-button:hover { color: var(--forest); background: #f0f4e9; }
   .copy-button svg { width: 12px; height: 12px; }
-  .device-badges { display: flex; flex-wrap: wrap; justify-content: end; gap: 5px; }
-  .badge { padding: 5px 8px; border: 1px solid #e5e9e1; color: #65746a; background: #f7f8f5; font-size: 9px; }
-  .badge.ok { border-color: #cce4d0; color: #286744; background: #eff7ed; }
-  .badge.warn { border-color: #efdfb8; color: #856122; background: #fbf6e9; }
-  .badge.bad { border-color: #f0d3d0; color: #a03f36; background: #fcf1ef; }
-  .device-content { padding: 16px 19px 12px; }
-  .device-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .info-box { min-width: 0; padding: 10px 11px; border: 1px solid #edf0e9; border-radius: 11px; background: #fbfcf9; }
-  .info-label { display: block; margin-bottom: 5px; color: #829087; font-size: 9px; font-weight: 760; letter-spacing: .1em; text-transform: uppercase; }
-  .info-value { min-width: 0; color: #344b3e; font-size: 11px; font-weight: 580; line-height: 1.5; overflow-wrap: anywhere; }
-  .info-value .muted { font-size: 10px; }
-  .info-value .badge { margin-top: 2px; }
-  .device-card .muted { color: var(--muted); font-size: 10px; }
-  .kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 6px 10px; margin: 12px 0 0; font-size: 10px; }
+  .status-pill { flex: 0 0 auto; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+  .status-pill.ok { color: #1f6b3d; background: #e3f4e5; }
+  .status-pill.warn { color: #8a5a12; background: #fbefd6; }
+  .device-badges { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 14px 10px; }
+  .badge { padding: 4px 8px; border: 1px solid #e5e9e1; color: #4f6156; background: #f7f8f5; font-size: 11px; font-weight: 700; }
+  .badge.ok { border-color: #cce4d0; color: #1f6b3d; background: #eff7ed; }
+  .badge.warn { border-color: #efdfb8; color: #7d5715; background: #fbf6e9; }
+  .badge.bad { border-color: #f0d3d0; color: #9a362d; background: #fcf1ef; }
+  .device-content { display: flex; flex-direction: column; gap: 10px; padding: 0 14px 10px; }
+  .attach-line { color: #22382c; font-size: 13px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+  .attach-line .muted { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 500; }
+  .last-line { color: #5a6c61; font-size: 12px; font-weight: 600; }
+  .last-line .badge { margin-top: 4px; }
+  .device-card .muted { color: var(--muted); font-size: 12px; }
+  .kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 10px; margin: 12px 0 0; font-size: 12px; }
   .kv dt { color: var(--muted); }
   .kv dd { min-width: 0; margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
-  code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 10px; overflow-wrap: anywhere; }
-  .trip-box { margin-top: 12px; padding: 12px; border: 1px solid #e9eddf; border-radius: 11px; background: #f8faf3; }
-  .trip-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 9px; font-weight: 720; letter-spacing: .09em; text-transform: uppercase; }
-  .trip-route { margin-top: 4px; color: var(--ink); font-size: 12px; font-weight: 700; }
-  .trip-measure { margin-top: 10px; color: #52675a; font-size: 10px; }
-  .bar { height: 6px; overflow: hidden; margin-top: 6px; border-radius: 999px; background: #e4e9dc; }
-  .bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6a8d43, #bfd54e); transition: width .35s ease; }
-  .trip-wait { margin: 12px 0 0; padding: 10px 11px; border-radius: 10px; color: #61705f; background: #f6f8f0; font-size: 10px; }
-  .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
-  .metric { min-width: 0; padding: 10px; border: 1px solid #edf0e9; border-radius: 11px; background: #fbfcf9; }
-  .metric span { display: block; color: #77857b; font-size: 9px; }
-  .metric b { display: block; margin-top: 3px; color: #284535; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 17px; font-weight: 720; letter-spacing: -.04em; }
-  .sensor-adjustments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
-  .sensor-adjustment { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 9px; border: 1px solid #edf0e9; border-radius: 10px; background: #fbfcf9; }
-  .sensor-adjustment-label { min-width: 0; color: #586a5e; font-size: 10px; font-weight: 690; }
+  code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 11px; overflow-wrap: anywhere; }
+  .trip-box { padding: 11px 12px; border-radius: 11px; background: #f6f9f1; }
+  .trip-label { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .trip-route { margin-top: 4px; color: var(--ink); font-size: 14px; font-weight: 800; }
+  .trip-measure { margin-top: 8px; color: #3e5447; font-size: 12px; font-weight: 700; }
+  .bar { height: 7px; overflow: hidden; margin-top: 6px; border-radius: 999px; background: #e1e8d7; }
+  .bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4f7d34, #a9cc45); transition: width .35s ease; }
+  .trip-wait { margin: 0; padding: 10px 11px; border-radius: 10px; color: #4f6156; background: #f6f8f0; font-size: 12px; font-weight: 600; }
+  .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .metric { min-width: 0; padding: 9px 4px; border-radius: 10px; background: #f6f9f1; text-align: center; }
+  .metric span { display: block; color: #5f7065; font-size: 11px; font-weight: 700; }
+  .metric b { display: block; margin-top: 2px; color: #12301f; font-size: 17px; font-weight: 850; letter-spacing: -.03em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .sensor-adjustments { display: grid; gap: 6px; }
+  .sensor-adjustment { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 6px 5px 10px; border: 1px solid #e6ebe0; border-radius: 10px; }
+  .sensor-adjustment-label { min-width: 0; overflow: hidden; color: #2f4337; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
   .sensor-adjustment-actions { display: flex; flex: 0 0 auto; gap: 4px; }
-  .sensor-adjust-button { display: inline-flex; min-width: 38px; height: 28px; align-items: center; justify-content: center; padding: 0 7px; border: 1px solid #dfe7d8; border-radius: 8px; background: #fff; color: var(--forest); font-size: 10px; font-weight: 760; }
+  .sensor-adjust-button { display: inline-flex; min-width: 36px; height: 28px; align-items: center; justify-content: center; padding: 0 6px; border: 1px solid #dbe4d3; border-radius: 8px; background: #fff; color: var(--forest); font-size: 12px; font-weight: 800; }
   .sensor-adjust-button:hover { border-color: #b9cba9; background: #f1f5e9; }
-  .sensor-note { margin: 7px 1px 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
-  .device-foot { padding: 0 19px 14px; }
+  .device-foot { margin-top: auto; padding: 0 14px 10px; }
   details { margin-top: 7px; border-top: 1px solid #edf0e9; }
-  summary { display: flex; min-height: 38px; align-items: center; gap: 8px; cursor: pointer; color: #5e7064; font-size: 10px; font-weight: 700; list-style: none; }
+  summary { display: flex; min-height: 36px; align-items: center; gap: 8px; cursor: pointer; color: #3f5347; font-size: 12px; font-weight: 750; list-style: none; }
   summary::-webkit-details-marker { display: none; }
   summary::after { width: 7px; height: 7px; margin-left: auto; border-right: 1.5px solid #809083; border-bottom: 1.5px solid #809083; content: ""; transform: rotate(45deg) translateY(-2px); transition: transform .16s; }
   details[open] summary::after { transform: rotate(225deg) translate(-1px, -1px); }
   .details-body { padding: 2px 0 8px; }
   .details-body .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-  .details-body select, .details-body input { min-height: 32px; padding: 5px 8px; border: 1px solid #e1e7dd; border-radius: 8px; background: #fff; font-size: 10px; }
-  .details-body label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
-  ol.log { max-height: 145px; overflow: auto; margin: 10px 0 0; padding-left: 17px; color: #708076; font-size: 10px; }
+  .details-body select, .details-body input { min-height: 32px; padding: 5px 8px; border: 1px solid #e1e7dd; border-radius: 8px; background: #fff; font-size: 12px; }
+  .details-body label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  ol.log { max-height: 145px; overflow: auto; margin: 10px 0 0; padding-left: 17px; color: #5f6f65; font-size: 11px; }
   ol.log li { padding: 2px 0; }
   .toast { position: fixed; z-index: 10; right: 23px; bottom: 22px; max-width: min(420px, calc(100vw - 34px)); padding: 12px 16px; border: 1px solid #dae5d6; border-radius: 12px; color: var(--ink); background: #fff; box-shadow: 0 14px 40px rgb(23 44 37 / 15%); font-size: 12px; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s, transform .2s; }
   .toast.visible { opacity: 1; transform: translateY(0); }
@@ -163,7 +163,6 @@
     .topbar-inner, .page-shell { width: min(100% - 40px, 720px); }
     .create-form { grid-template-columns: 1fr 1fr; }
     .create-button { align-self: end; }
-    .device-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 620px) {
     .topbar-inner, .page-shell { width: calc(100% - 28px); }
@@ -201,28 +200,8 @@
     .empty-hint { gap: 5px; margin-top: 9px; }
     .empty-hint span { font-size: 8px; }
     .empty-action { grid-column: 2; justify-self: start; margin-top: -1px; }
-    .device-head { align-items: start; gap: 8px; padding: 14px 13px 12px; }
-    .device-heading { gap: 9px; }
-    .device-type-icon { width: 37px; height: 37px; border-radius: 12px; }
-    .device-type-icon svg { width: 18px; height: 18px; }
-    .device-title-wrap h3 { max-width: 138px; font-size: 12px; }
-    .device-code { font-size: 9px; }
-    .device-code code { max-width: 112px; font-size: 9px; }
-    .device-badges { max-width: 120px; gap: 4px; }
-    .badge { padding: 4px 6px; font-size: 8px; }
-    .device-content { padding: 12px 13px 8px; }
-    .device-info { gap: 7px; }
-    .info-box { padding: 8px; }
-    .info-label { font-size: 8px; }
-    .info-value { font-size: 10px; }
-    .kv { grid-template-columns: 74px minmax(0, 1fr); gap: 5px 7px; font-size: 9px; }
-    .metrics { gap: 6px; }
-    .metric { padding: 8px 7px; }
-    .metric span { font-size: 8px; }
-    .metric b { font-size: 15px; }
-    .sensor-adjustments { grid-template-columns: 1fr; gap: 6px; }
-    .sensor-adjustment { padding: 7px 8px; }
-    .device-foot { padding: 0 13px 10px; }
+    .device-grid { grid-template-columns: 1fr; }
+    .metric b { font-size: 18px; }
     .page-footer { font-size: 9px; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -361,8 +340,7 @@ function fieldBlock(d) {
         <button type="button" class="sensor-adjust-button" aria-label="Tăng độ ẩm không khí 5 phần trăm" onclick="act('${d.id}','sensor_adjust',{metric:'HUMIDITY',delta:1})">+5%</button>
       </div></div>
     </div>
-    <p class="sensor-note">Mỗi lần bấm tạo một bản đo mô phỏng mới; thiết bị đã gắn vào thửa có thể đồng bộ dữ liệu này lên AgriTrace.</p>
-    <p class="muted" style="margin:8px 2px 0">Đo mỗi ${d.intervalSec} giây${d.drought ? ' · <span class="badge warn">Đang khô hạn</span>' : ''}</p>`;
+    <p class="muted" style="margin:0">Đo mỗi ${d.intervalSec} giây${d.drought ? ' · <span class="badge warn">Đang khô hạn</span>' : ''}</p>`;
 }
 function incidents(d) {
   const gps = d.kind === 'GPS_TRACKER';
@@ -401,17 +379,18 @@ function card(d) {
   const r = d.lastResult;
   const unregistered = !!d.assignmentError && d.assignmentError.startsWith('Chưa đăng ký');
   const gps = d.kind === 'GPS_TRACKER';
-  const signal = d.signal ? '<span class="badge ok">Có sóng</span>' : '<span class="badge warn">Mất sóng</span>';
+  const signal = d.signal ? '<span class="status-pill ok">Online</span>' : '<span class="status-pill warn">Mất sóng</span>';
   const power = gps ? `<span class="badge ${d.power === 'MAINS' ? 'ok' : d.power === 'OFF' ? 'bad' : 'warn'}">${d.power === 'MAINS' ? 'Nguồn xe' : d.power === 'OFF' ? 'Tắt' : 'Pin ' + d.battery + '%'}</span>` : '';
   return `<article class="device-card">
     <div class="device-head">
       <div class="device-heading"><span class="device-type-icon ${gps ? 'gps' : ''}">${icon(d.kind)}</span><span class="device-title-wrap"><h3 title="${esc(d.name)}">${esc(d.name)}</h3><span class="device-code"><code>${esc(d.deviceCode)}</code><button class="copy-button" aria-label="Sao chép mã thiết bị" onclick="copy('${d.deviceCode}')"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.2" y="5.2" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M10.5 5V3.8A1.8 1.8 0 0 0 8.7 2H3.8A1.8 1.8 0 0 0 2 3.8v4.9a1.8 1.8 0 0 0 1.8 1.8H5" stroke="currentColor" stroke-width="1.2"/></svg></button></span></span></div>
-      <div class="device-badges">${agriStatus(d)}${signal}${power}</div>
+      ${signal}
     </div>
+    <div class="device-badges">${agriStatus(d)}${power}</div>
     <div class="device-content">
-      <div class="device-info"><div class="info-box"><span class="info-label">Gắn vào</span><div class="info-value">${attached(d)}</div></div>
-        <div class="info-box"><span class="info-label">Bản tin gần nhất</span><div class="info-value">${r ? `Nhận ${r.accepted} · trùng ${r.duplicates} · muộn ${r.late} · bất thường ${r.anomalies}` : 'Chưa gửi dữ liệu'}${d.lastError ? `<div class="badge bad">${esc(d.lastError)}</div>` : ''}${unregistered ? `<button class="copy-button" style="margin-top:5px" onclick="copy('${d.publicKey}')">Sao chép khóa công khai</button>` : ''}</div></div></div>
+      <div class="attach-line">${attached(d)}</div>
       ${gps ? tripBlock(d) : fieldBlock(d)}
+      <div class="last-line">${r ? `Bản tin gần nhất: nhận ${r.accepted} · trùng ${r.duplicates} · muộn ${r.late} · bất thường ${r.anomalies}` : 'Chưa gửi dữ liệu'}${d.lastError ? `<div class="badge bad">${esc(d.lastError)}</div>` : ''}${unregistered ? `<button class="copy-button" style="margin-top:5px" onclick="copy('${d.publicKey}')">Sao chép khóa công khai</button>` : ''}</div>
     </div>
     <div class="device-foot">
       <details data-key="inc-${d.id}" ${open.has('inc-' + d.id) ? 'open' : ''}><summary>Tạo sự cố để demo</summary><div class="details-body">${incidents(d)}</div></details>

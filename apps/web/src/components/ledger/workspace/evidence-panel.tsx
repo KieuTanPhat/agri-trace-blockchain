@@ -77,7 +77,6 @@ const uploadSchema = z
     file: z.instanceof(File, { error: () => tr("Chọn tệp") }).refine((f) => f.size > 0 && f.size <= MAX_BYTES, { error: () => tr("Tệp từ 1 byte đến 5 MB") }),
     kind: z.string().min(1, { error: () => tr("Chọn loại") }),
     description: z.string().trim().min(10, { error: () => tr("Tối thiểu 10 ký tự") }).max(1000),
-    supersedesId: z.string().optional(),
   })
   .refine((v) => !IMAGE_ONLY.has(v.kind) || /^image\/(png|jpeg)$/.test(v.file.type), { path: ["file"], error: () => tr("Loại này chỉ nhận ảnh PNG hoặc JPEG") });
 const withdrawSchema = z.object({ reason: z.string().trim().min(5, { error: () => tr("Tối thiểu 5 ký tự") }).max(500) });
@@ -110,7 +109,7 @@ export function EvidencePanel({
 }) {
   const key = ["ws-evidence", entityType, entityId];
   const q = useQuery({ queryKey: key, queryFn: () => wapi.evidence({ entityType, entityId }) });
-  const upload = useDialog<{ supersedes?: Evidence }>();
+  const upload = useDialog();
   const withdraw = useDialog<Evidence>();
   const publish = useDialog<Evidence>();
   const [view, setView] = useState<Evidence | null>(null);
@@ -132,7 +131,7 @@ export function EvidencePanel({
         <h3 className="text-[13px] font-semibold">{title}</h3>
         <span className="font-mono text-[11.5px] text-ink-2">{rows.length}</span>
         {canManage && !onlyIds && (
-          <Button size="xs" variant="outline" className="ml-auto" onClick={() => upload.open({})}>
+          <Button size="xs" variant="outline" className="ml-auto" onClick={() => upload.open(true)}>
             <Upload /> {tr("Tải lên")}
           </Button>
         )}
@@ -180,27 +179,26 @@ export function EvidencePanel({
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <Button size="xs" variant="ghost" onClick={() => setView(e)}>{tr("Xem")}</Button>
                 {canPublish && entityType === "LOT" && e.kind === "LOT_IMAGE" && !e.public && ["image/png", "image/jpeg"].includes(e.mediaType) && <Button size="xs" variant="outline" onClick={() => publish.open(e)}>{tr("Công khai ảnh")}</Button>}
-                {canManage && <Button size="xs" variant="ghost" onClick={() => upload.open({ supersedes: e })}>{tr("Đính chính")}</Button>}
                 {canManage && entityType === "PRODUCT" && <Button size="xs" variant="ghost" className="text-danger" onClick={() => withdraw.open(e)}>{tr("Gỡ")}</Button>}
               </span>
             </li>
           ))}
         </ul>
       )}
-      <p className="text-[11.5px] text-ink-2">{onlyIds ? tr("Ảnh đã ghi không bị xóa hay sửa: bấm Đính chính để tải ảnh thay thế, bản cũ vẫn lưu trong lịch sử.") : tr("PNG, JPEG hoặc PDF tối đa 5 MB; Backend kiểm tra loại tệp theo byte đầu. Chứng cứ không bị xóa: muốn thay bản cũ thì tải bản đính chính cùng loại.")}</p>
+      <p className="text-[11.5px] text-ink-2">{onlyIds ? tr("Ảnh đã ghi không bị xóa, sửa hay thay thế.") : tr("PNG, JPEG hoặc PDF tối đa 5 MB. Ảnh và chứng từ đã tải không thể sửa hay thay; kiểm tra kỹ trước khi gửi.")}</p>
 
       {upload.target && (
         <CommandDialog
           {...upload.props}
-          title={upload.target.supersedes ? tr("Đính chính chứng cứ") : tr("Tải ảnh/chứng từ")}
+          title={tr("Tải ảnh/chứng từ")}
           endpoint="POST /enterprise-workspace/evidence"
-          description={upload.target.supersedes ? tr("Bản mới thay cho “{p0}”; bản cũ vẫn lưu trong lịch sử.", { p0: upload.target.supersedes.description }) : undefined}
+          description={tr("Ảnh và chứng từ đã tải không thể sửa hay thay; kiểm tra kỹ trước khi gửi.")}
           schema={uploadSchema}
-          defaultValues={{ kind: upload.target.supersedes?.kind ?? kinds[0], description: "", supersedesId: upload.target.supersedes?.id }}
+          defaultValues={{ kind: kinds[0], description: "" }}
           submitLabel={tr("Tải lên")}
           invalidate={[key]}
           onDone={onChanged}
-          run={(v, cmd) => wapi.uploadEvidence({ file: v.file, entityType, entityId, kind: v.kind, description: v.description, supersedesId: v.supersedesId || undefined }, cmd)}
+          run={(v, cmd) => wapi.uploadEvidence({ file: v.file, entityType, entityId, kind: v.kind, description: v.description }, cmd)}
         >
           {(f) => (
             <>
@@ -216,13 +214,7 @@ export function EvidencePanel({
                   </div>
                 )}
               />
-              {upload.target?.supersedes ? (
-                <p className="text-[13px]">
-                  {tr("Loại")}: <strong>{EVIDENCE_KIND_LABEL[upload.target.supersedes.kind] ?? upload.target.supersedes.kind}</strong>
-                </p>
-              ) : (
-                <SelectField control={f.control} name="kind" label={tr("Loại")} options={kinds.map((k) => ({ value: k, label: EVIDENCE_KIND_LABEL[k] ?? k }))} />
-              )}
+              <SelectField control={f.control} name="kind" label={tr("Loại")} options={kinds.map((k) => ({ value: k, label: EVIDENCE_KIND_LABEL[k] ?? k }))} />
               <TextAreaField control={f.control} name="description" label={tr("Mô tả")} max={1000} />
             </>
           )}
