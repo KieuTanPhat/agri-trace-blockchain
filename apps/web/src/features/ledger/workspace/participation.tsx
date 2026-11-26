@@ -37,7 +37,7 @@ export function ParticipationPanel() {
   const enrollment = useQuery({ queryKey: ["ws-enrollment"], queryFn: wapi.enrollment });
   const e = enrollment.data;
   if (!owner || !e || e.status !== "APPROVED") return null;
-  const approved = (e.capabilityRequests ?? []).filter((c) => c.status === "APPROVED").map((c) => c.code);
+  const approved = e.capabilities ?? (e.capabilityRequests ?? []).filter((c) => c.status === "APPROVED").map((c) => c.code);
   const pending = (e.capabilityRequests ?? []).filter((c) => c.status === "PENDING").map((c) => c.code);
   const missing = CODES.filter((c) => !approved.includes(c) && !pending.includes(c));
   const member = e.participationStatus !== "CHAIN_OWNER";
@@ -93,7 +93,7 @@ export function ChainOwnerUpgrade() {
   const enrollment = useQuery({ queryKey: ["ws-enrollment"], queryFn: wapi.enrollment });
   const e = enrollment.data;
   if (!owner || !e || e.status !== "APPROVED" || e.participationStatus === "CHAIN_OWNER") return null;
-  const approved = (e.capabilityRequests ?? []).filter((c) => c.status === "APPROVED").map((c) => c.code);
+  const approved = e.capabilities ?? (e.capabilityRequests ?? []).filter((c) => c.status === "APPROVED").map((c) => c.code);
   return (
     <Section title={tr("Nâng cấp lên chủ chuỗi")} bodyClassName="p-4">
       {approved.some((c) => GOODS_OWNING.includes(c)) ? (
