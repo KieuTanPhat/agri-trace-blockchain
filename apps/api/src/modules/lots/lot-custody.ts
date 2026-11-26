@@ -108,8 +108,9 @@ export function lotStateMatchesShipment(lot: {
   currentState: string;
   shipment: { status: string } | null;
 }): boolean {
+  // CONSUMED: a processing run used up the whole lot (no legacy shipment).
   if (!lot.shipment)
-    return ['HARVESTED', 'DAMAGED', 'RECALLED', 'EXPIRED'].includes(
+    return ['HARVESTED', 'DAMAGED', 'RECALLED', 'EXPIRED', 'CONSUMED'].includes(
       lot.currentState,
     );
   const states: Record<string, string[]> = {
