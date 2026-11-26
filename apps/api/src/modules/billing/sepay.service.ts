@@ -267,10 +267,14 @@ export class SepayService {
         const posted = Date.parse(
           transaction.transactionDate.replace(' ', 'T') + '+07:00',
         );
-        if (
-          posted < Math.floor(invoice.issuedAt.getTime() / 1000) * 1000 ||
-          posted > Date.now() + 120000
-        )
+        const issuedAt = invoice.issuedAt.getTime();
+        // Bank timestamps with minute precision may precede invoice issuance
+        // within that same minute.
+        const earliestPosted =
+          posted % 60000 === 0
+            ? Math.floor(issuedAt / 60000) * 60000
+            : Math.floor(issuedAt / 1000) * 1000;
+        if (posted < earliestPosted || posted > Date.now() + 120000)
           return record('REVIEW_REQUIRED', 'TRANSFER_OUTSIDE_INVOICE_WINDOW');
         const organization = await tx.organization.findUniqueOrThrow({
           where: { id: invoice.organizationId },
