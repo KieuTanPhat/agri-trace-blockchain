@@ -1043,7 +1043,7 @@ export class DistributionService {
             : t.carrierId === old.organizationId
               ? t.carrierSiteId
               : t.receiverSiteId;
-        const now = await enterpriseAuthority(
+        await enterpriseAuthority(
           tx,
           {
             sub: old.id,
@@ -1054,11 +1054,13 @@ export class DistributionService {
           t.chainId,
           priorSiteId ?? undefined,
         );
-        const oldAuth = a.authority as Prisma.JsonObject;
+        // enterpriseAuthority above throws when the earlier signer lost
+        // distribution.sign for this chain and site; an unrelated change to
+        // their roles (another chain, a new grant) no longer voids consent.
         const oldKey = t.handoverMode==='DUAL_SIGNED'?await tx.signingKey.findUnique({where:{keyRef:a.keyRef}}):await tx.distributionKey.findUnique({where:{id:a.keyRef}});
-        if (now.scope !== oldAuth.scope || oldKey?.status !== 'ACTIVE')
+        if (oldKey?.status !== 'ACTIVE')
           throw new ForbiddenException(
-            'Quyền hoặc khóa của một bên đã thay đổi; cần đối soát giao nhận',
+            'Khóa ký của một bên đã bị thu hồi; cần đối soát giao nhận',
           );
       }
       for (const l of [...t.lines].sort((a, b) =>
@@ -1665,9 +1667,11 @@ export class DistributionService {
       if (previous.some((p) => p.organizationId === actor.organizationId)) throw new ConflictException('Doanh nghiệp đã ký chặng trả này');
       for (const signature of previous) {
         const user = await tx.user.findUniqueOrThrow({ where: { id: signature.userId }, include: { role: true, organization: { select: { type: true } } } });
-        const authority = await enterpriseAuthority(tx, { sub: user.id, organizationId: user.organizationId, role: effectiveRole(user) ?? '' }, 'distribution.sign', t.chainId, (user.organizationId === t.senderId ? t.senderSiteId : t.carrierSiteId) ?? undefined);
+        if (user.accountStatus !== 'ACTIVE') throw new ForbiddenException('Một bên ký trả trước đã bị thu hồi tài khoản');
+        // Throws when the earlier signer lost distribution.sign for this chain and site.
+        await enterpriseAuthority(tx, { sub: user.id, organizationId: user.organizationId, role: effectiveRole(user) ?? '' }, 'distribution.sign', t.chainId, (user.organizationId === t.senderId ? t.senderSiteId : t.carrierSiteId) ?? undefined);
         const oldKey = t.handoverMode==='DUAL_SIGNED'?await tx.signingKey.findUnique({where:{keyRef:signature.keyRef}}):await tx.distributionKey.findUnique({ where: { id: signature.keyRef } });
-        if (authority.scope !== (signature.authority as Prisma.JsonObject).scope || oldKey?.status !== 'ACTIVE') throw new ForbiddenException('Quyền hoặc khóa bên ký trả trước đã bị thay đổi');
+        if (oldKey?.status !== 'ACTIVE') throw new ForbiddenException('Khóa ký của bên ký trả trước đã bị thu hồi');
       }
       await tx.distributionReturnSignature.create({ data: { returnId, organizationId: actor.organizationId!, userId: actor.sub!, keyRef: input.keyRef, signature: input.signature, authority: { scope: auth.scope, body } } });
       if (previous.length + 1 === phaseParties(t, 'RETURN').length) {
